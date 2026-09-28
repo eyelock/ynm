@@ -1,1 +1,25 @@
+# dependencies
+node_modules
+
+# build outputs
+dist
+*.tsbuildinfo
+.turbo
+oclif.manifest.json
+coverage
+coverage.json
+
+# local
+.env*
+.DS_Store
+*.log
+tmp/
 .worktrees/
+
+# ynm local state (index, wiki projection, local config)
+.ynm/index/
+.ynm/wiki/
+.ynm/config.local.json
+
+# planning working docs stay out of the repo (ADRs under docs/adr are the record)
+.claude/

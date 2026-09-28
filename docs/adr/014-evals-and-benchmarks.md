@@ -99,4 +99,7 @@ vendor-reported scores use different judges and are not directly comparable.
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
-- (none yet)
+- 2026-09-28 (M0): milestone gates exist in code from the first commit. One file per milestone
+  at `packages/evals/src/gates/m<n>.gate.test.ts`; each check is named now and is an `it.todo`
+  until built. `pnpm gate M<n>` runs one; a milestone closes only when its gate is green with
+  zero todos. CI runs the gate named by the `YNM_MILESTONE` repository variable (default M0).

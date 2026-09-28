@@ -1,0 +1,37 @@
+{
+  "name": "@ynm/evals",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standing evals and milestone gates (ADR-014). Tier 1 runs on every PR.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --exclude 'src/gates/**'",
+    "test:coverage": "vitest run --coverage --exclude 'src/gates/**'",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo coverage",
+    "bench": "vitest run --project tier1 --reporter=verbose",
+    "gate": "node scripts/gate.mjs"
+  },
+  "dependencies": {
+    "@ynm/model": "workspace:*"
+  },
+  "devDependencies": {
+    "@ynm/typescript-config": "workspace:*",
+    "@ynm/vitest-config": "workspace:*",
+    "@types/node": "^26.0.1",
+    "@vitest/coverage-v8": "^4.1.4",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@ynm/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server: tools, resources, prompts, stdio and Streamable HTTP transports (ADR-008, ADR-009).",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo coverage"
+  },
+  "dependencies": {
+    "@ynm/model": "workspace:*",
+    "@ynm/service": "workspace:*"
+  },
+  "devDependencies": {
+    "@ynm/typescript-config": "workspace:*",
+    "@ynm/vitest-config": "workspace:*",
+    "@types/node": "^26.0.1",
+    "@vitest/coverage-v8": "^4.1.4",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  },
+  "bin": {
+    "ynm-mcp": "./bin/run.js"
+  }
+}

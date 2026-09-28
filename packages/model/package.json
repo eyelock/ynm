@@ -1,0 +1,35 @@
+{
+  "name": "@ynm/model",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zod schemas for ynm memory records, queries, config and judgments (ADR-000 to ADR-002).",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo coverage"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@ynm/typescript-config": "workspace:*",
+    "@ynm/vitest-config": "workspace:*",
+    "@types/node": "^26.0.1",
+    "@vitest/coverage-v8": "^4.1.4",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

@@ -1,0 +1,5 @@
+/**
+ * @ynm/evals: seeded generators, tiered suites and milestone gates (ADR-014).
+ */
+export const EVAL_TIERS = ["tier1", "tier2", "tier3"] as const;
+export const MILESTONES = ["M0", "M1", "M2", "M3", "M4", "M5", "M6"] as const;

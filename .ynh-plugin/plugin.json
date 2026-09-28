@@ -1,0 +1,25 @@
+{
+  "$schema": "https://eyelock.github.io/ynh/schema/plugin.schema.json",
+  "name": "ynm",
+  "version": "0.1.0",
+  "description": "Your named memory: agent memory in git notes over MCP",
+  "author": {
+    "name": "eyelock",
+    "url": "https://github.com/eyelock"
+  },
+  "keywords": [
+    "memory",
+    "mcp",
+    "git-notes",
+    "agents"
+  ],
+  "default_vendor": "claude",
+  "mcp_servers": {
+    "ynm": {
+      "command": "ynm-mcp",
+      "args": [
+        "--stdio"
+      ]
+    }
+  }
+}
