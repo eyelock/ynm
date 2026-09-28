@@ -1,0 +1,261 @@
+import { join } from "node:path";
+import type { Level, MemoryRecord } from "@ynm/model";
+import { withLock } from "../../lock.js";
+import {
+  type AppendResult,
+  assertLevel,
+  groupByShard,
+  type HealthReport,
+  type ParseProblem,
+  type RecordLog,
+  type ShardFilter,
+  type ShardInfo,
+  type ShardKey,
+  type SyncOptions,
+  type SyncResult,
+  shardMatches,
+} from "../../log.js";
+import { parseJsonl, serializeJsonl } from "../../parse.js";
+import { objectPresent } from "./anchor.js";
+import { assertSha, git, gitCommonDir, gitOrNull, identityEnv } from "./git.js";
+import { keyFromRef, NOTES_PREFIX, refFor, refPrefixFor } from "./refs.js";
+import { syncShared } from "./sync.js";
+
+export interface GitNotesLogOptions {
+  /** Repository path (work tree or bare). */
+  repo: string;
+  /** Anchor commit sha; every note hangs off it (ADR-003). */
+  anchor: string;
+  /** Remote name for sync; default origin. */
+  remote?: string;
+  /** Test seam: runs between reading the ref tip and the compare-and-swap update. */
+  beforeUpdateRef?: (ref: string) => Promise<void>;
+}
+
+const MAX_CAS_RETRIES = 5;
+const LOCK_TIMEOUT_MS = 60_000;
+
+interface TreeEntry {
+  mode: string;
+  type: string;
+  sha: string;
+  path: string;
+}
+
+function parseLsTree(out: string): TreeEntry[] {
+  return out
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [meta, path] = line.split("\t");
+      const [mode, type, sha] = (meta ?? "").split(" ");
+      return { mode: mode ?? "", type: type ?? "", sha: sha ?? "", path: path ?? "" };
+    });
+}
+
+/** Note paths may be fanned out (ab/cdef...); compare with separators removed. */
+function isAnchorPath(path: string, anchor: string): boolean {
+  return path.replace(/\//g, "") === anchor;
+}
+
+/**
+ * git notes provider (ADR-003): one blob per shard ref attached to the anchor commit, written
+ * with plumbing under a lock and an `update-ref` compare-and-swap, read with two processes.
+ */
+export class GitNotesLog implements RecordLog {
+  readonly provider = "git-notes";
+  readonly repo: string;
+  readonly anchor: string;
+  readonly remote: string;
+  private readonly beforeUpdateRef?: (ref: string) => Promise<void>;
+  private commonDir: string | null = null;
+  private env: NodeJS.ProcessEnv | null = null;
+
+  constructor(
+    readonly id: string,
+    readonly level: Level,
+    options: GitNotesLogOptions
+  ) {
+    assertSha(options.anchor);
+    this.repo = options.repo;
+    this.anchor = options.anchor;
+    this.remote = options.remote ?? "origin";
+    this.beforeUpdateRef = options.beforeUpdateRef;
+  }
+
+  private async lockPath(): Promise<string> {
+    this.commonDir ??= await gitCommonDir(this.repo);
+    return join(this.commonDir, "ynm.lock");
+  }
+
+  private async identity(): Promise<NodeJS.ProcessEnv> {
+    this.env ??= await identityEnv(this.repo);
+    return this.env;
+  }
+
+  private async tip(ref: string): Promise<string | null> {
+    const out = await gitOrNull(["rev-parse", "--verify", "-q", `${ref}^{commit}`], {
+      cwd: this.repo,
+    });
+    return out ? out.trim() : null;
+  }
+
+  private async readTree(commit: string): Promise<TreeEntry[]> {
+    return parseLsTree(await git(["ls-tree", "-r", commit], { cwd: this.repo }));
+  }
+
+  private async readNote(commit: string | null): Promise<{ content: string; others: TreeEntry[] }> {
+    if (!commit) return { content: "", others: [] };
+    const entries = await this.readTree(commit);
+    const mine = entries.find((e) => isAnchorPath(e.path, this.anchor));
+    const others = entries.filter((e) => e !== mine);
+    const content = mine ? await git(["cat-file", "blob", mine.sha], { cwd: this.repo }) : "";
+    return { content, others };
+  }
+
+  private async writeShard(key: ShardKey, records: MemoryRecord[]): Promise<string> {
+    const ref = refFor(key);
+    const env = await this.identity();
+    for (let attempt = 0; attempt < MAX_CAS_RETRIES; attempt++) {
+      const old = await this.tip(ref);
+      const { content, others } = await this.readNote(old);
+      const blob = (
+        await git(["hash-object", "-w", "--stdin"], {
+          cwd: this.repo,
+          input: content + serializeJsonl(records),
+        })
+      ).trim();
+      const treeLines = [
+        ...others.map((e) => `${e.mode} ${e.type} ${e.sha}\t${e.path}`),
+        `100644 blob ${blob}\t${this.anchor}`,
+      ];
+      const tree = (
+        await git(["mktree"], { cwd: this.repo, input: `${treeLines.join("\n")}\n` })
+      ).trim();
+      const message = `ynm: ${records.length} record${records.length === 1 ? "" : "s"} ${key.level}/${key.namespace}/${key.type}/${key.bucket}`;
+      const parentArgs = old ? ["-p", old] : [];
+      const commit = (
+        await git(["commit-tree", tree, ...parentArgs, "-m", message], { cwd: this.repo, env })
+      ).trim();
+      await this.beforeUpdateRef?.(ref);
+      const expected = old ?? "0".repeat(commit.length);
+      const updated = await gitOrNull(["update-ref", ref, commit, expected], { cwd: this.repo });
+      if (updated !== null) return commit;
+    }
+    throw new Error(`compare-and-swap failed after ${MAX_CAS_RETRIES} attempts on ${ref}`);
+  }
+
+  async append(records: readonly MemoryRecord[]): Promise<AppendResult> {
+    assertLevel(this, records);
+    if (records.length === 0) return { appended: 0, shards: [] };
+    const groups = [...groupByShard(records).values()];
+    const lock = await this.lockPath();
+    const shards = await withLock(
+      lock,
+      async () => {
+        const out: AppendResult["shards"] = [];
+        for (const g of groups)
+          out.push({ key: g.key, revision: await this.writeShard(g.key, g.records) });
+        return out;
+      },
+      LOCK_TIMEOUT_MS
+    );
+    return { appended: records.length, shards };
+  }
+
+  private async listRefs(filter?: ShardFilter): Promise<Array<{ ref: string; key: ShardKey }>> {
+    const prefix = filter?.level
+      ? refPrefixFor(filter.level, filter.namespace)
+      : `${NOTES_PREFIX}/`;
+    const out = await git(["for-each-ref", "--format=%(refname)", prefix], { cwd: this.repo });
+    const refs: Array<{ ref: string; key: ShardKey }> = [];
+    for (const ref of out.split("\n").filter(Boolean)) {
+      const key = keyFromRef(ref);
+      if (key && key.level === this.level && shardMatches(key, filter)) refs.push({ ref, key });
+    }
+    return refs;
+  }
+
+  /** One cat-file --batch for every shard: flat and one-level fanout candidates per ref. */
+  private async readAll(refs: Array<{ ref: string; key: ShardKey }>): Promise<Map<string, string>> {
+    const contents = new Map<string, string>();
+    if (refs.length === 0) return contents;
+    const a = this.anchor;
+    const specs: Array<{ ref: string; spec: string }> = [];
+    for (const { ref } of refs) {
+      specs.push({ ref, spec: `${ref}:${a}` });
+      specs.push({ ref, spec: `${ref}:${a.slice(0, 2)}/${a.slice(2)}` });
+      specs.push({ ref, spec: `${ref}:${a.slice(0, 2)}/${a.slice(2, 4)}/${a.slice(4)}` });
+    }
+    const out = await git(["cat-file", "--batch"], {
+      cwd: this.repo,
+      input: `${specs.map((s) => s.spec).join("\n")}\n`,
+    });
+    let pos = 0;
+    for (const { ref } of specs) {
+      const nl = out.indexOf("\n", pos);
+      const header = out.slice(pos, nl);
+      pos = nl + 1;
+      if (header.endsWith(" missing") || header.endsWith(" ambiguous")) continue;
+      const size = Number(header.split(" ")[2]);
+      const body = out.slice(pos, pos + size);
+      pos += size + 1;
+      if (!contents.has(ref)) contents.set(ref, body);
+    }
+    return contents;
+  }
+
+  async *scan(
+    filter?: ShardFilter,
+    onProblem?: (p: ParseProblem) => void
+  ): AsyncIterable<MemoryRecord> {
+    const refs = await this.listRefs(filter);
+    const contents = await this.readAll(refs);
+    for (const { ref, key } of refs) {
+      const { records, problems } = parseJsonl(contents.get(ref) ?? "");
+      for (const p of problems) onProblem?.({ shard: key, ...p });
+      for (const r of records) yield r;
+    }
+  }
+
+  async shards(filter?: ShardFilter): Promise<ShardInfo[]> {
+    return (await this.listRefs(filter)).map(({ key }) => ({ ...key }));
+  }
+
+  async health(): Promise<HealthReport> {
+    const problems: string[] = [];
+    const details: Record<string, unknown> = {
+      repo: this.repo,
+      anchor: this.anchor,
+      remote: this.remote,
+    };
+    details.anchorPresent = await objectPresent(this.repo, this.anchor);
+    const refs = await this.listRefs();
+    details.shards = refs.length;
+    let bad = 0;
+    for await (const _ of this.scan(undefined, (p) => {
+      bad += 1;
+      problems.push(`${refFor(p.shard)}:${p.line} ${p.message}`);
+    })) {
+      // drain
+    }
+    details.badLines = bad;
+    return { ok: problems.length === 0, problems, details };
+  }
+
+  async sync(options: SyncOptions = {}): Promise<SyncResult> {
+    const lock = await this.lockPath();
+    return withLock(
+      lock,
+      () =>
+        syncShared({
+          ...options,
+          repo: this.repo,
+          level: this.level,
+          remote: options.remote ?? this.remote,
+          env: this.identity(),
+        }),
+      LOCK_TIMEOUT_MS
+    );
+  }
+}

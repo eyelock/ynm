@@ -1,28 +1,35 @@
-import { Command, Flags } from "@oclif/core";
+import { YnmCommand } from "../lib/base.js";
 
-/** Reports what ynm knows about this environment. Grows with each milestone. */
-export default class Status extends Command {
-  static override description = "Show ynm status";
+export default class Status extends YnmCommand {
+  static override description = "Show mounts and configuration";
   static override examples = [
     "<%= config.bin %> <%= command.id %>",
     "<%= config.bin %> <%= command.id %> --json",
   ];
-  static override flags = {
-    json: Flags.boolean({ description: "Output as JSON", default: false }),
-  };
+  static override flags = { ...YnmCommand.baseFlags };
 
   async run(): Promise<void> {
     const { flags } = await this.parse(Status);
-    const status = {
+    const { ynm, loaded, worktree } = await this.open(flags);
+    const status = await ynm.status();
+    const value = {
       name: "ynm",
       version: this.config.version,
-      milestone: "M0",
-      mounts: [] as string[],
+      milestone: "M1",
+      config: loaded.files,
+      repo: worktree.isGitRepo ? worktree.mainRepoPath : null,
+      ...status,
     };
-    if (flags.json) {
-      this.log(JSON.stringify(status));
-      return;
-    }
-    this.log(`ynm ${status.version} (milestone ${status.milestone}); no mounts configured`);
+    this.emit(flags.json, value, () =>
+      [
+        `ynm ${this.config.version}`,
+        `config: ${loaded.files.join(", ") || "defaults"}`,
+        ...status.mounts.map(
+          (m) =>
+            `  ${m.id.padEnd(10)} ${m.level.padEnd(12)} ${m.provider.padEnd(10)} ${m.shards} shard(s)  ${m.location}`
+        ),
+        ...(status.mounts.length ? [] : ["  no mounts"]),
+      ].join("\n")
+    );
   }
 }

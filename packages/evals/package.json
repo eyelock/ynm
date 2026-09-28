@@ -16,15 +16,18 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run --exclude 'src/gates/**'",
-    "test:coverage": "vitest run --coverage --exclude 'src/gates/**'",
+    "test": "vitest run --exclude 'src/gates/**' --exclude 'src/tier1/latency/**'",
+    "test:coverage": "vitest run --coverage --exclude 'src/gates/**' --exclude 'src/tier1/latency/**'",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo coverage",
-    "bench": "vitest run --project tier1 --reporter=verbose",
+    "bench": "vitest run src/tier1/latency --reporter=verbose",
     "gate": "node scripts/gate.mjs"
   },
   "dependencies": {
-    "@ynm/model": "workspace:*"
+    "@ynm/model": "workspace:*",
+    "@ynm/store": "workspace:*",
+    "@ynm/service": "workspace:*",
+    "fast-check": "^4.6.0"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

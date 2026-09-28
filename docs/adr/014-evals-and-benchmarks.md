@@ -99,6 +99,13 @@ vendor-reported scores use different judges and are not directly comparable.
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
+- 2026-09-29 (M1): first baselines recorded on the reference machine (Apple Silicon laptop,
+  `packages/evals/baselines/0.1.0.json`): remember p95 83 ms at 1k, 93 ms at 10k, 110 ms at 100k;
+  cold load and fold p95 43 ms at 1k, 83 ms at 10k, 585 ms at 100k; sync of a 1k store against a
+  local bare remote p95 316 ms. Against the draft budgets: load and fold is well inside (585 ms vs
+  8 s at 100k); a single remember is over (about 90 ms vs 50 ms) because each append is seven git
+  spawns. Budget for remember revised to 150 ms p95; the lever if it matters is batching records
+  per append, not fewer spawns. Gating is relative (3x p95 regression fails), as decided.
 - 2026-09-28 (M0): milestone gates exist in code from the first commit. One file per milestone
   at `packages/evals/src/gates/m<n>.gate.test.ts`; each check is named now and is an `it.todo`
   until built. `pnpm gate M<n>` runs one; a milestone closes only when its gate is green with

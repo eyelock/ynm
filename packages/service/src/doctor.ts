@@ -1,0 +1,133 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { gitOrNull, NOTES_PREFIX } from "@ynm/store";
+import type { LoadedConfig } from "./config.js";
+import { SHARED_FETCH, SHARED_PUSH } from "./init.js";
+import type { Mount } from "./mounts.js";
+import { projectInitialised } from "./mounts.js";
+import type { WorktreeInfo } from "./worktree.js";
+
+export interface Check {
+  name: string;
+  ok: boolean;
+  level: "error" | "warn" | "info";
+  detail: string;
+}
+
+export interface DoctorReport {
+  ok: boolean;
+  checks: Check[];
+}
+
+/** Health checks from ADR-009; offline only in M1 (divergence is reported by `ynm sync --dry-run`). */
+export async function doctor(opts: {
+  loaded: LoadedConfig;
+  worktree: WorktreeInfo;
+  mounts: Mount[];
+}): Promise<DoctorReport> {
+  const checks: Check[] = [];
+  const add = (
+    name: string,
+    ok: boolean,
+    detail: string,
+    level: Check["level"] = ok ? "info" : "error"
+  ) => checks.push({ name, ok, level, detail });
+
+  const gitVersion = (await gitOrNull(["--version"], { cwd: process.cwd() }))?.trim();
+  add("git available", !!gitVersion, gitVersion ?? "git not found on PATH");
+  add(
+    "config files",
+    true,
+    opts.loaded.files.length ? opts.loaded.files.join(", ") : "none (defaults)"
+  );
+
+  for (const m of opts.mounts) {
+    const h = await m.log.health();
+    add(
+      `mount ${m.id} (${m.log.provider})`,
+      h.ok,
+      h.ok ? `${m.location}: ${JSON.stringify(h.details)}` : h.problems.join("; ")
+    );
+    if (m.log.provider === "git-notes" && h.details.anchorPresent === false) {
+      add(
+        `mount ${m.id} anchor object`,
+        true,
+        "not present locally (shallow clone); plumbing does not need it",
+        "warn"
+      );
+    }
+  }
+
+  const wt = opts.worktree;
+  if (wt.isGitRepo && !wt.isBare) {
+    const repo = wt.mainRepoPath;
+    if (!projectInitialised(wt)) {
+      add(
+        "project initialised",
+        false,
+        "no .ynm/config.json; run `ynm init` to add a shared project mount",
+        "warn"
+      );
+    } else {
+      const cfg = JSON.parse(readFileSync(join(repo, ".ynm", "config.json"), "utf8")) as {
+        anchor?: string;
+      };
+      add(
+        "project anchor configured",
+        !!cfg.anchor,
+        cfg.anchor ?? "missing anchor in .ynm/config.json"
+      );
+      const remote = opts.loaded.config.remote;
+      const hasRemote = (await gitOrNull(["remote", "get-url", remote], { cwd: repo })) !== null;
+      if (hasRemote) {
+        const fetches =
+          (await gitOrNull(["config", "--get-all", `remote.${remote}.fetch`], { cwd: repo })) ?? "";
+        add(
+          "shared fetch refspec",
+          fetches.includes(SHARED_FETCH(remote)),
+          fetches.includes(SHARED_FETCH(remote)) ? SHARED_FETCH(remote) : "missing; run `ynm init`"
+        );
+        const pushes =
+          (await gitOrNull(["config", "--get-all", `remote.${remote}.push`], { cwd: repo })) ?? "";
+        add(
+          "shared push refspec",
+          pushes.includes(SHARED_PUSH),
+          pushes.includes(SHARED_PUSH) ? SHARED_PUSH : "missing; run `ynm init`"
+        );
+        add(
+          "personal refs never pushed",
+          !/personal/.test(pushes) && !/personal/.test(fetches),
+          "no personal refspecs in remote config (ADR-007)"
+        );
+      } else {
+        add("remote", true, `remote "${remote}" not configured; sync unavailable`, "warn");
+      }
+      const personalRefs =
+        (await gitOrNull(["for-each-ref", "--format=%(refname)", `${NOTES_PREFIX}/personal/`], {
+          cwd: repo,
+        })) ?? "";
+      add(
+        "no personal refs in project repo",
+        personalRefs.trim() === "",
+        personalRefs.trim() === "" ? "ok (ADR-007)" : personalRefs.trim()
+      );
+      const hooksDir = (
+        (await gitOrNull(["rev-parse", "--path-format=absolute", "--git-path", "hooks"], {
+          cwd: repo,
+        })) ?? ""
+      ).trim();
+      const prePush = join(hooksDir, "pre-push");
+      const hooked = existsSync(prePush) && readFileSync(prePush, "utf8").includes("ynm sync");
+      add("pre-push hook", hooked, hooked ? prePush : "not installed", hooked ? "info" : "warn");
+    }
+  } else if (!wt.isGitRepo) {
+    add(
+      "git repository",
+      true,
+      "not inside a git repository; only the personal store is mounted",
+      "info"
+    );
+  }
+
+  return { ok: checks.every((c) => c.ok || c.level !== "error"), checks };
+}

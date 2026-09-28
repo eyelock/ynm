@@ -92,4 +92,11 @@ Cases handled:
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
-- (none yet)
+- 2026-09-29 (M1): the installed pre-push hook runs `ynm sync --quiet`, and sync itself pushes,
+  so without a guard the hook re-enters sync forever (it did, under pnpm where `ynm` is on PATH).
+  Sync now sets `YNM_SYNC_IN_PROGRESS=1` on its own git calls and the hook exits when it sees it.
+- 2026-09-29 (M1): `ynm init` adds `HEAD` to `remote.<r>.push` before the shared-notes refspec
+  when no push refspec exists, because an explicit push refspec otherwise replaces git's default
+  and plain `git push` would stop pushing the branch.
+- 2026-09-29 (M1): the personal store's anchor is recomputed from its `main` root on every open
+  rather than cached in config; cheap and immune to the notes-root confusion above.

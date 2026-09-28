@@ -137,4 +137,19 @@ unreachable.
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
-- (none yet)
+- 2026-09-29 (M1): namespace segments are real ref path components
+  (`refs/notes/ynm/shared/org/eyelock/project/ynm/semantic/2026-09`), not mapped to hyphens as
+  drafted. Type and bucket have fixed forms, so parsing a ref back is unambiguous, and hyphenated
+  namespaces cannot collide. Consequence: segments must be valid ref components, so ADR-001's
+  namespace rule now forbids a leading dot, `..` and a `.lock` suffix.
+- 2026-09-29 (M1): root-commit selection must exclude `refs/notes/*`. Every notes history starts
+  with a parentless commit; when it lands in the same second as the real root the tie-break can
+  pick it, which made the personal store unreadable intermittently. Found by the CLI workflow
+  test.
+- 2026-09-29 (M1): the fold treats records that arrive before their memory's base (create or
+  supersede) as "before": they count as versions and contribute tags and links, the later base
+  wins on any field it sets, and a tombstone is revived only by a supersede. Snapshots carry
+  orphans so snapshot-plus-tail stays exactly equal to the full fold. Found by the property suite.
+- 2026-09-29 (M1): the store write path is seven git spawns per append (rev-parse, ls-tree,
+  cat-file, hash-object, mktree, commit-tree, update-ref). Fine for single writes; batching many
+  records into one append is the lever for bulk loads. Baselines in `packages/evals/baselines`.

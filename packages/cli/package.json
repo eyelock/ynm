@@ -24,9 +24,11 @@
     "cli": "node bin/run.js"
   },
   "dependencies": {
+    "@oclif/core": "^4.10.5",
     "@ynm/model": "workspace:*",
     "@ynm/service": "workspace:*",
-    "@oclif/core": "^4.10.5"
+    "@ynm/store": "workspace:*",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

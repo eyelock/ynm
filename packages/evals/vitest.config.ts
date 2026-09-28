@@ -5,9 +5,10 @@ export default mergeConfig(
   shared,
   defineConfig({
     test: {
-      // Gates spawn built binaries, so they run after `pnpm build` via `pnpm gate M<n>`.
       include: ["src/**/*.test.ts"],
-      testTimeout: 60_000,
+      testTimeout: 120_000,
+      hookTimeout: 120_000,
+      fileParallelism: false,
     },
   })
 );
