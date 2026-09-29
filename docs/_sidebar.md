@@ -17,6 +17,7 @@
   * [11. Doctor and maintenance](/tutorial/11-doctor-and-maintenance.md)
   * [12. Evals and benchmarks](/tutorial/12-evals-and-benchmarks.md)
   * [Running tutorials as evals](/tutorial/RUNNING.md)
+  * [Manual test plan](/tutorial/manual-test-plan.md)
 
 * **How-to guides**
   * [Retrofit an existing repo](/how-to/retrofit-an-existing-repo.md)
@@ -44,5 +45,4 @@
   * [Record format](/reference/record-format.md)
   * [Memory types](/reference/memory-types.md)
   * [Exit codes and JSON output](/reference/exit-codes-and-json.md)
-  * [Manual test plan](/tutorial/manual-test-plan.md)
   * [Requirements (ADR-000)](/adr/000-requirements.md)
