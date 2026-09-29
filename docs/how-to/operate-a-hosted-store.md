@@ -47,16 +47,9 @@ authorisation server and restart with the new value.
 
 ## Backups
 
-The store is a git repository; everything lives under `refs/notes/ynm/`.
-
-```sh
-git -C /data/store.git bundle create /backups/ynm-$(date +%F).bundle --all
-git clone --mirror /backups/ynm-2026-09-29.bundle restored.git   # restore
-```
-
-A mirror on a forge (`git push --mirror`) is a continuous backup. With the sqlite provider,
-back up the file after `PRAGMA wal_checkpoint(TRUNCATE)` or copy `store.sqlite` plus `-wal`.
-The index under `YNM_HOME` is derived data; delete it and the next request rebuilds it.
+The store is a git repository (or, with the sqlite provider, one file). Bundle it or mirror it;
+the index is derived data. The commands, for both providers, are in
+[Back up and restore](back-up-and-restore.md).
 
 ## Scaling
 

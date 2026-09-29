@@ -26,6 +26,7 @@
   * [Connect over HTTP](/how-to/connect-over-http.md)
   * [Add a client adapter](/how-to/add-a-client-adapter.md)
   * [Operate a hosted store](/how-to/operate-a-hosted-store.md)
+  * [Back up and restore](/how-to/back-up-and-restore.md)
   * [Cut a release](/how-to/cut-a-release.md)
 
 * **Explanation**
