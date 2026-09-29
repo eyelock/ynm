@@ -31,7 +31,7 @@ you should see. A model can read a tutorial, run it and check it, exactly as you
 | Tutorial | What you will learn |
 |---|---|
 | [8. Dreaming](08-dreaming.md) | Dry runs, the heuristic judge, and with a key: dedupe, contradict, review queue, promote |
-| 9. Wiki projection | Build the markdown wiki, edit a page and ingest it, the orphan branch target |
+| [9. Wiki projection](09-wiki.md) | Build the markdown wiki, edit a page and ingest it, the orphan branch target |
 
 ### Operate
 
