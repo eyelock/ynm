@@ -24,6 +24,7 @@
   * [Choose the SQLite provider](/how-to/choose-the-sqlite-provider.md)
   * [Configure the judge and writer](/how-to/configure-judge-and-writer.md)
   * [Connect over HTTP](/how-to/connect-over-http.md)
+  * [Add a client adapter](/how-to/add-a-client-adapter.md)
   * [Operate a hosted store](/how-to/operate-a-hosted-store.md)
   * [Cut a release](/how-to/cut-a-release.md)
 
