@@ -13,6 +13,7 @@
   * [7. Connect an agent](/tutorial/07-connect-an-agent.md)
   * [8. Dreaming](/tutorial/08-dreaming.md)
   * [9. Wiki projection](/tutorial/09-wiki.md)
+  * [10. Hosted service](/tutorial/10-hosted.md)
   * [Running tutorials as evals](/tutorial/RUNNING.md)
 
 * **How-to guides**
