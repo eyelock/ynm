@@ -26,7 +26,7 @@ ynm remember --type semantic --level distributed --content "Backups are taken wi
 ```
 
 Expected: `personal store created at /tmp/ynm-tutorial/home/store.git`, the `initialised` report with
-its `refspecs` and `hooks` lines, and `remembered <26-character id> in project`.
+its `refspecs`, `hooks` and `.gitignore` note lines, and `remembered <26-character id> in project`.
 
 ## A healthy doctor
 

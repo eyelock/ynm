@@ -44,7 +44,8 @@ export async function syncShared(p: SyncParams): Promise<SyncResult> {
   const env = { ...(await p.env), YNM_SYNC_IN_PROGRESS: "1" };
   const doPull = p.pull ?? true;
   const doPush = p.push ?? true;
-  if ((await gitOrNull(["remote", "get-url", p.remote], { cwd: p.repo })) === null) {
+  const remoteUrl = (await gitOrNull(["remote", "get-url", p.remote], { cwd: p.repo }))?.trim();
+  if (!remoteUrl) {
     result.skipped = `remote "${p.remote}" not configured; nothing to sync`;
     result.conflicts.push(
       `remote "${p.remote}" is not configured; add it and run \`ynm init\` again`
@@ -52,10 +53,21 @@ export async function syncShared(p: SyncParams): Promise<SyncResult> {
     return result;
   }
 
+  // A remote configured by `clone --mirror` (`remote.<r>.mirror = true`) refuses explicit push
+  // refspecs, and its `+refs/*:refs/*` fetch refspec would also overwrite our working refs and
+  // push stale branches. Talk to its URL instead, so only the notes refspecs below apply.
+  const mirror =
+    (
+      await gitOrNull(["config", "--type=bool", "--get", `remote.${p.remote}.mirror`], {
+        cwd: p.repo,
+      })
+    )?.trim() === "true";
+  const target = mirror ? remoteUrl : p.remote;
+
   for (let round = 0; round < MAX_ROUNDS; round++) {
     if (doPull) {
       // The remote may have no notes at all yet; an empty refspec match is not an error we care about.
-      await gitOrNull(["fetch", "--quiet", p.remote, `+${local}*:${tracking}*`], {
+      await gitOrNull(["fetch", "--quiet", target, `+${local}*:${tracking}*`], {
         cwd: p.repo,
         env,
       });
@@ -90,7 +102,7 @@ export async function syncShared(p: SyncParams): Promise<SyncResult> {
     }
     if (!doPush || p.dryRun) return result;
     try {
-      await git(["push", "--quiet", p.remote, `${local}*:${local}*`], { cwd: p.repo, env });
+      await git(["push", "--quiet", target, `${local}*:${local}*`], { cwd: p.repo, env });
       result.pushed = [...(await listRefs(p.repo, local)).keys()];
       return result;
     } catch (err) {

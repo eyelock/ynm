@@ -11,14 +11,18 @@ From inside the repository:
 ynm init
 ```
 
-`ynm init` changes no branch, tag, commit or tracked file. It does four things:
+`ynm init` changes no branch, tag or commit, and no tracked file except a `.gitignore` that gains
+two lines. It does five things:
 
 - writes `.ynm/config.json`, which records the anchor (the repository's root commit) and is the
   one file worth committing, so teammates share the anchor and any mounts or redaction settings;
 - adds a fetch refspec for `refs/notes/ynm/shared/*` to `remote.origin` in
   `.git/config` (pass `--remote <name>` to use another remote; without the remote it prints a
   note and you re-run `init` after adding it);
-- installs a `pre-push` hook that runs `ynm sync --quiet`, unless you pass `--no-hooks`;
+- installs a `pre-push` hook that runs `ynm sync --quiet`, unless you pass `--no-hooks` or set
+  `"hooks": false` in your config;
+- adds `.ynm/wiki/` and `.ynm/index/` to `.gitignore` when they are not already ignored, and says
+  so in a note;
 - builds the search index under `.ynm/index/`.
 
 Memory itself appears only when someone writes it, as refs under `refs/notes/ynm/`. Teammates who
@@ -26,11 +30,11 @@ have not run `ynm init` see nothing and are not affected.
 
 ## What to commit
 
-Commit `.ynm/config.json`. Add the derived directories to `.gitignore`:
+Commit `.ynm/config.json` and the `.gitignore` change. `init` added the derived directories to it:
 
 ```text
-.ynm/index/
 .ynm/wiki/
+.ynm/index/
 ```
 
 ## Other notes and existing tooling

@@ -39,7 +39,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`review`](#ynm-review) | List memories flagged for review, or clear a flag after deciding |
 | [`serve`](#ynm-serve) | Start the MCP server (stdio by default, --http for the hosted service) |
 | [`session`](#ynm-session) | Start a session (prints the context block) or end one (expires working memory) |
-| [`status`](#ynm-status) | Show mounts and configuration |
+| [`status`](#ynm-status) | Mounts, shard counts and index freshness. |
 | [`supersede`](#ynm-supersede) | Record a new version of an existing memory |
 | [`sync`](#ynm-sync) | Fetch, merge and push shared memory (never personal unless --mount personal) |
 | [`wiki`](#ynm-wiki) | Build the markdown projection (index, log, memories, entities, topics) or ingest an edited page |
@@ -268,7 +268,7 @@ ynm init [flags]
 | `--personal` | boolean |  | `false` | Create the personal store only |
 | `--bare <value>` | string |  |  | Create or adopt a dedicated bare memory repo at this path |
 | `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
-| `--[no-]hooks` | boolean |  | `true` | Install the pre-push hook |
+| `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
 
 Common flags: `--json`, `--cwd`.
@@ -573,7 +573,7 @@ ynm session end <sessionId>
 
 ## ynm status
 
-Show mounts and configuration
+Mounts, shard counts and index freshness.
 
 ```text
 ynm status [flags]

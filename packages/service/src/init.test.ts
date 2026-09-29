@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createBare, createRepo, fx, rootCommit } from "@ynm/store/testing/git";
 import { doctor } from "./doctor.js";
@@ -26,7 +26,8 @@ describe("ynm init (ADR-009 retrofit)", () => {
     await fx(repo, "remote", "add", "origin", origin);
     await fx(repo, "tag", "v1");
     const before = await snapshot(repo);
-    const report = await initProject({ cwd: repo });
+    const env = { YNM_HOME: join(await createRepo(0), ".ynm") };
+    const report = await initProject({ cwd: repo, env });
     expect(await snapshot(repo)).toBe(before);
     expect(report.anchor).toBe(await rootCommit(repo));
     expect(report.anchorSource).toBe("root-commit");
@@ -38,9 +39,41 @@ describe("ynm init (ADR-009 retrofit)", () => {
     expect(push).toBe("");
     expect(report.hooksInstalled).toHaveLength(1);
     expect(existsSync(join(repo, ".git", "hooks", "pre-push"))).toBe(true);
-    const again = await initProject({ cwd: repo });
+    const again = await initProject({ cwd: repo, env });
     expect(again.configWritten).toBe(false);
     expect(again.refspecs).toEqual([]);
+    expect(again.notes).toEqual([]);
+  });
+
+  it("ignores the local wiki and index directories once, keeping existing entries", async () => {
+    const repo = await createRepo(1);
+    writeFileSync(join(repo, ".gitignore"), "node_modules");
+    const report = await initProject({ cwd: repo, hooks: false });
+    expect(readFileSync(join(repo, ".gitignore"), "utf8")).toBe(
+      "node_modules\n.ynm/wiki/\n.ynm/index/\n"
+    );
+    expect(report.notes).toContain("added .ynm/wiki/ and .ynm/index/ to .gitignore");
+    await initProject({ cwd: repo, hooks: false });
+    expect(readFileSync(join(repo, ".gitignore"), "utf8")).toBe(
+      "node_modules\n.ynm/wiki/\n.ynm/index/\n"
+    );
+    const covered = await createRepo(1);
+    writeFileSync(join(covered, ".gitignore"), ".ynm/wiki\n.ynm/index/\n");
+    const notes = (await initProject({ cwd: covered, hooks: false })).notes;
+    expect(notes.filter((n) => n.includes(".gitignore"))).toEqual([]);
+    expect(readFileSync(join(covered, ".gitignore"), "utf8")).toBe(".ynm/wiki\n.ynm/index/\n");
+  });
+
+  it("takes the hook default from the hooks config key; the flag wins", async () => {
+    const home = await createRepo(0);
+    mkdirSync(join(home, ".ynm"), { recursive: true });
+    writeFileSync(join(home, ".ynm", "config.json"), JSON.stringify({ hooks: false }));
+    const env = { YNM_HOME: join(home, ".ynm") };
+    const off = await createRepo(1);
+    expect((await initProject({ cwd: off, env })).hooksInstalled).toEqual([]);
+    expect(existsSync(join(off, ".git", "hooks", "pre-push"))).toBe(false);
+    const on = await createRepo(1);
+    expect((await initProject({ cwd: on, env, hooks: true })).hooksInstalled).toHaveLength(1);
   });
 
   it("creates the root commit in an empty repo", async () => {

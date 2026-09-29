@@ -45,8 +45,9 @@ ynm init
 ```
 
 Expected: an `initialised <project path>` line, then the anchor, the config path, the
-`refspecs` ynm configured on `origin`, and the hook. There is no "remote not found" note this
-time, because `origin` exists.
+`refspecs` ynm configured on `origin`, the hook, and a note that the local wiki and index
+directories were added to `.gitignore`. There is no "remote not found" note this time, because
+`origin` exists.
 
 ```text
 initialised <project path>
@@ -54,6 +55,7 @@ initialised <project path>
   config    <project path>/.ynm/config.json
   refspecs  +refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
   hooks     <project path>/.git/hooks/pre-push
+  note      added .ynm/wiki/ and .ynm/index/ to .gitignore
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 

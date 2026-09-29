@@ -18,8 +18,8 @@ export default class Init extends YnmCommand {
     }),
     remote: Flags.string({ description: "Remote for the shared fetch refspec", default: "origin" }),
     hooks: Flags.boolean({
-      description: "Install the pre-push hook",
-      default: true,
+      description:
+        "Install the pre-push hook (default: the `hooks` config key, which defaults to true)",
       allowNo: true,
     }),
     anchor: Flags.string({ description: "Anchor commit sha (needed on shallow clones)" }),
