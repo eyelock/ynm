@@ -116,7 +116,7 @@ Expected: the two episodic staging memories, each scored 0.725.
 
 ## Recall by time
 
-`--since` (and `--until`) take a full ISO timestamp, and work without any text. It is the
+`--since` (and `--until`) take an ISO timestamp or a bare date such as `2026-01-01` (midnight UTC), and work without any text. It is the
 "what changed lately" query. `--limit` caps the count:
 
 ```bash

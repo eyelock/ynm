@@ -55,7 +55,7 @@ ynm annotate [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--memory-id <value>` | string | yes |  | Memory to annotate |
-| `--tags <value>` | string (max 64), repeatable |  |  | Tags to add |
+| `--tags <value>` | string (max 64), repeatable |  |  | Tags to add (repeat the flag or separate with commas) |
 | `--links <value>` | JSON array |  |  | Links to add |
 | `--importance <value>` | number 0..1 |  |  | New importance |
 | `--confidence <value>` | number 0..1 |  |  | New confidence |
@@ -400,7 +400,7 @@ ynm recall [flags]
 | `--level <value>` | `personal` \| `distributed`, repeatable |  |  | Restrict to these levels |
 | `--namespace <value>` | string |  |  | Namespace prefix |
 | `--subject <value>` | string |  |  | Exact subject key |
-| `--tags <value>` | string, repeatable |  |  | All of these tags must be present |
+| `--tags <value>` | string, repeatable |  |  | All of these tags must be present (repeat the flag or separate with commas) |
 | `--data-key <value>` | string |  |  | Only memories whose data has this key |
 | `--since <value>` | date-time |  |  | Updated at or after |
 | `--until <value>` | date-time |  |  | Updated at or before |
@@ -459,7 +459,7 @@ ynm remember [flags]
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `--summary <value>` | string (max 280) |  |  | One line summary; derived from content if omitted |
 | `--subject <value>` | string (max 200) |  |  | Entity or topic key |
-| `--tags <value>` | string (max 64), repeatable |  | `[]` | Free-form tags |
+| `--tags <value>` | string (max 64), repeatable |  | `[]` | Free-form tags (repeat the flag or separate with commas) |
 | `--data <value>` | JSON object |  |  | Structured payload |
 | `--data-schema <value>` | string (max 100) |  |  | Name of the shape of data |
 | `--importance <value>` | number 0..1 |  | `0.5` | 0..1 |
@@ -603,7 +603,7 @@ ynm supersede [flags]
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `--summary <value>` | string (max 280) |  |  | One line summary; derived from content if omitted |
 | `--subject <value>` | string (max 200) |  |  | Entity or topic key |
-| `--tags <value>` | string (max 64), repeatable |  | `[]` | Free-form tags |
+| `--tags <value>` | string (max 64), repeatable |  | `[]` | Free-form tags (repeat the flag or separate with commas) |
 | `--data <value>` | JSON object |  |  | Structured payload |
 | `--data-schema <value>` | string (max 100) |  |  | Name of the shape of data |
 | `--importance <value>` | number 0..1 |  | `0.5` | 0..1 |

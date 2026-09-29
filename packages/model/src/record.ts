@@ -77,7 +77,14 @@ export const normalizeSessionId = (id: string): string =>
 export const sessionNamespace = (id: string): string => `session/${normalizeSessionId(id)}`;
 
 export const UlidSchema = z.string().regex(ULID_PATTERN, "must be a ULID");
-export const IsoDateTimeSchema = z.iso.datetime({ offset: true }).describe("ISO 8601 date-time");
+/** A bare `YYYY-MM-DD` means midnight UTC. */
+const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const IsoDateTimeSchema = z
+  .preprocess(
+    (v) => (typeof v === "string" && BARE_DATE.test(v) ? `${v}T00:00:00.000Z` : v),
+    z.iso.datetime({ offset: true, error: "expected an ISO 8601 date-time" })
+  )
+  .describe("ISO 8601 date-time");
 export const IsoDurationSchema = z
   .string()
   .regex(

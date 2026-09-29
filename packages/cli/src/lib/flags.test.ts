@@ -1,5 +1,5 @@
 import { RememberInputSchema } from "@ynm/model";
-import { flagsFromSchema, inputFromFlags, toKebab } from "./flags.js";
+import { flagsFromSchema, InvalidInputError, inputFromFlags, toKebab } from "./flags.js";
 
 describe("flags from Zod (ADR-008)", () => {
   it("generates a flag per field with kebab names and enum options", () => {
@@ -25,6 +25,23 @@ describe("flags from Zod (ADR-008)", () => {
     expect(input.dataSchema).toBe("profile/1");
     expect(input.links[0]?.rel).toBe("about");
     expect(input.level).toBe("personal");
+  });
+  it("splits comma-separated string-array values and says so in the description", () => {
+    const flags = flagsFromSchema(RememberInputSchema);
+    expect((flags.tags as { description?: string }).description).toContain(
+      "repeat the flag or separate with commas"
+    );
+    const input = inputFromFlags(RememberInputSchema, {
+      type: "semantic",
+      content: "x",
+      tags: ["a,b", "c"],
+    });
+    expect(input.tags).toEqual(["a", "b", "c"]);
+  });
+  it("reports malformed JSON as an InvalidInputError, not a SyntaxError", () => {
+    expect(() =>
+      inputFromFlags(RememberInputSchema, { type: "semantic", content: "x", data: "{bad" })
+    ).toThrow(InvalidInputError);
   });
   it("kebab-cases camelCase", () => {
     expect(toKebab("validFrom")).toBe("valid-from");

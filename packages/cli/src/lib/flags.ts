@@ -13,6 +13,11 @@ type JsonSchema = {
   format?: string;
 };
 
+/** Malformed flag input: reported as `invalid input: ...` with exit code 2. */
+export class InvalidInputError extends Error {
+  override name = "InvalidInputError";
+}
+
 export function toKebab(s: string): string {
   return s.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 }
@@ -60,7 +65,9 @@ export function flagsFromSchema<T extends z.ZodObject>(
       const item = prop.items ? unwrap(prop.items) : {};
       if (typeOf(item) === "string" || item.enum) {
         out[flag] = Flags.string({
-          description,
+          description: item.enum
+            ? description
+            : `${description} (repeat the flag or separate with commas)`,
           required,
           multiple: true,
           options: item.enum?.map(String),
@@ -75,6 +82,14 @@ export function flagsFromSchema<T extends z.ZodObject>(
     }
   }
   return out;
+}
+
+/** `--tags a,b` is two values, like `--tags a --tags b`. */
+function splitCommas(v: string): string[] {
+  return v
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /** Converts parsed oclif flags back into the schema's input shape (kebab → camel, JSON, numbers). */
@@ -101,7 +116,13 @@ export function inputFromFlags<T extends z.ZodObject>(
           typeOf(unwrap(prop.items)) !== "string" &&
           !unwrap(prop.items).enum))
     ) {
-      input[name] = JSON.parse(value);
+      try {
+        input[name] = JSON.parse(value);
+      } catch (err) {
+        throw new InvalidInputError(`--${flag}: not valid JSON (${(err as Error).message})`);
+      }
+    } else if (t === "array" && Array.isArray(value) && !(prop.items && unwrap(prop.items).enum)) {
+      input[name] = value.flatMap((v) => (typeof v === "string" ? splitCommas(v) : [v]));
     } else if (typeof value === "string" && t === "number") {
       input[name] = Number(value);
     } else {
