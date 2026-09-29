@@ -123,5 +123,10 @@
     "p50Ms": 108.53,
     "p95Ms": 111.16,
     "samples": 10
+  },
+  "guidance:claude-sonnet-4-5@3": {
+    "name": "guidance:claude-sonnet-4-5",
+    "size": 3,
+    "value": 1
   }
 }

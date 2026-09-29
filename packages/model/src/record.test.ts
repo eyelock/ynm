@@ -3,6 +3,7 @@ import {
   MemoryRecordSchema,
   NamespaceSchema,
   RememberInputSchema,
+  sessionNamespace,
   summarize,
 } from "./record.js";
 import { ulid } from "./ulid.js";
@@ -111,6 +112,15 @@ describe("input schemas", () => {
   });
   it("AnnotateInput needs a memoryId", () => {
     expect(AnnotateInputSchema.safeParse({ pinned: true }).success).toBe(false);
+  });
+});
+
+describe("sessionNamespace", () => {
+  it("normalises ids into valid namespace segments", () => {
+    for (const id of ["01M3N5DKQZPVDY9DMKV7YBZ341", "My Session!", "a/b", "..x"]) {
+      expect(NamespaceSchema.safeParse(sessionNamespace(id)).success, id).toBe(true);
+    }
+    expect(sessionNamespace("01M3N5DKQZ")).toBe("session/01m3n5dkqz");
   });
 });
 

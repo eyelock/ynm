@@ -21,5 +21,33 @@
         "--stdio"
       ]
     }
+  },
+  "profiles": {
+    "hosted": {
+      "mcp_servers": {
+        "ynm": {
+          "url": "http://localhost:3000/mcp"
+        }
+      }
+    }
+  },
+  "focuses": {
+    "recall": {
+      "prompt": "Before answering, call memory_recall with the key terms of my question and use what comes back."
+    },
+    "remember": {
+      "prompt": "Review this conversation and record, with memory_remember, any decision, preference, procedure or gotcha worth keeping. One memory per fact. Then summarise what you stored."
+    }
+  },
+  "sensors": {
+    "memory-context": {
+      "category": "behaviour",
+      "source": {
+        "command": "ynm context"
+      },
+      "output": {
+        "format": "markdown"
+      }
+    }
   }
 }

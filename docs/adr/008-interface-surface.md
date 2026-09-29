@@ -71,4 +71,17 @@ its tool uses; `--json` everywhere.
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
-- (none yet)
+- 2026-09-29 (M3): the ten tools are defined once as `TOOL_SPECS` in the service package (name,
+  description, Zod input, read-only hint, handler, CLI command name). The MCP server registers
+  them with `McpServer.registerTool` straight from the Zod schema; the CLI generates flags from
+  the same schema; the tier 1 parity test loads each built command and checks every schema field
+  is a flag or argument. Adding a tool without a command fails CI.
+- 2026-09-29 (M3): guidance injection is a `guidance` string on the tool result, appended to the
+  text content and returned in `structuredContent`. First use: `memory_remember` reports similar
+  existing memories and suggests `memory_supersede`. No workflow gating anywhere.
+- 2026-09-29 (M3): `memory_session start` returns the session id, its `session/<id>` namespace and
+  the context block; `end` runs the expire pass for that namespace. Session ids are normalised to
+  valid namespace segments (ULIDs are uppercase; namespaces are not).
+- 2026-09-29 (M3): resources are `memory://status`, `memory://context` and the template
+  `memory://{mount}/{memoryId}`; prompts are the three guidance documents, authored once in
+  `packages/model/src/guidance` and also rendered into CLAUDE.md and the ynh skill (ADR-013).

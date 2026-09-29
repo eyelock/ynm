@@ -85,4 +85,6 @@ record; requires `--yes` and rewrites that shard's ref, so it needs a coordinate
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
-- (none yet)
+- 2026-09-29 (M3): the first pass exists ahead of M4: `expire` tombstones working memory whose
+  ttl has elapsed (no model). Exposed as `memory_consolidate` and `ynm dream`, and run by
+  `memory_session end` for that session's namespace.

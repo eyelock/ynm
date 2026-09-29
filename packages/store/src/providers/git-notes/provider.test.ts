@@ -230,6 +230,13 @@ describe("anchor selection (ADR-003)", () => {
 });
 
 describe("sync between clones (ADR-003, ADR-007)", () => {
+  it("reports a missing remote instead of failing", async () => {
+    const repo = await createRepo(1);
+    const log = new GitNotesLog("s", "distributed", { repo, anchor: await rootCommit(repo) });
+    const r = await log.sync();
+    expect(r.conflicts[0]).toMatch(/remote "origin" is not configured/);
+  });
+
   async function pair() {
     const origin = await createBare();
     const anchor = await rootCommit(origin);

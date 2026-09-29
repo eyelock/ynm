@@ -67,7 +67,14 @@ export const NamespaceSchema = z
 /** Well-known namespaces (ADR-001). */
 export const COMMON_NAMESPACE = "common";
 export const userNamespace = (id: string): string => `user/${id}`;
-export const sessionNamespace = (id: string): string => `session/${id}`;
+/** Session ids may be anything a client sends; the namespace segment must be a valid ref component. */
+export const normalizeSessionId = (id: string): string =>
+  id
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^[^a-z0-9]+/, "")
+    .slice(0, 100) || "session";
+export const sessionNamespace = (id: string): string => `session/${normalizeSessionId(id)}`;
 
 export const UlidSchema = z.string().regex(ULID_PATTERN, "must be a ULID");
 export const IsoDateTimeSchema = z.iso.datetime({ offset: true }).describe("ISO 8601 date-time");

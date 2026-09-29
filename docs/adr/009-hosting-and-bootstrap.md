@@ -92,6 +92,13 @@ Cases handled:
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
+- 2026-09-29 (M3): both transports ship. stdio through `serveStdio`; Streamable HTTP through
+  `createMcpHandler` plus `toNodeHandler` with a fresh server per request, host and origin
+  validation in front, localhost CORS, static bearer and `/health`. The MCP server opens the
+  service once per process and relies on index freshness for writes from elsewhere. A hosted
+  server runs with `--no-personal` against a bare repo; proven by the protocol and HTTP tests.
+- 2026-09-29 (M3): `memory_sync` against a repo with no remote reports the missing remote in the
+  result instead of failing.
 - 2026-09-29 (M1): the installed pre-push hook runs `ynm sync --quiet`, and sync itself pushes,
   so without a guard the hook re-enters sync forever (it did, under pnpm where `ynm` is on PATH).
   Sync now sets `YNM_SYNC_IN_PROGRESS=1` on its own git calls and the hook exits when it sees it.

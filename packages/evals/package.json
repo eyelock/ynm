@@ -16,8 +16,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run --exclude 'src/gates/**' --exclude 'src/tier1/latency/**'",
-    "test:coverage": "vitest run --coverage --exclude 'src/gates/**' --exclude 'src/tier1/latency/**'",
+    "test": "vitest run --exclude 'src/gates/**' --exclude 'src/tier1/latency/**' --exclude 'src/tier2/**'",
+    "test:coverage": "vitest run --coverage --exclude 'src/gates/**' --exclude 'src/tier1/latency/**' --exclude 'src/tier2/**'",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo coverage",
     "bench": "vitest run src/tier1/latency --reporter=verbose",
@@ -28,7 +28,8 @@
     "@ynm/store": "workspace:*",
     "@ynm/service": "workspace:*",
     "fast-check": "^4.6.0",
-    "@ynm/index": "workspace:*"
+    "@ynm/index": "workspace:*",
+    "@modelcontextprotocol/client": "^2.2.0"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
