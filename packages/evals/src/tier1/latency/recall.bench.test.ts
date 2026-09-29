@@ -37,11 +37,12 @@ describe("tier1 latency: recall, context, reindex (ADR-014, NFR-2)", () => {
         await ynm.reindex();
       });
       guard("reindex", record(rebuild).ratio);
+      // Terms the realistic corpus generator actually emits (services, incidents, runbooks).
       const queries = [
         "anchor root commit",
         "release deploy",
         "sqlite index recall",
-        "session agent",
+        "outage root cause",
         "merge sync clone",
       ];
       let i = 0;
