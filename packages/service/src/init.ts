@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import {
   createRootCommit,
   findRootCommit,
@@ -48,15 +48,22 @@ exit 0
 /** Derived, per-clone state that must never be committed (ADR-010). */
 const LOCAL_STATE_IGNORES = [".ynm/wiki/", ".ynm/index/"];
 
-/** Appends any of `entries` the repository's .gitignore does not already cover; returns those added. */
-function ensureIgnored(repo: string, entries: string[]): string[] {
-  const file = join(repo, ".gitignore");
+/**
+ * Appends any of `entries` not already excluded to the repository's `.git/info/exclude`, the
+ * per-clone ignore file git keeps outside the work tree, so init changes no tracked file
+ * (ADR-009). Returns those added.
+ */
+async function ensureExcluded(repo: string, entries: string[]): Promise<string[]> {
+  const rel = (await gitOrNull(["rev-parse", "--git-path", "info/exclude"], { cwd: repo }))?.trim();
+  if (!rel) return [];
+  const file = isAbsolute(rel) ? rel : join(repo, rel);
   const text = existsSync(file) ? readFileSync(file, "utf8") : "";
   const lines = new Set(text.split(/\r?\n/).map((l) => l.trim().replace(/^\//, "")));
   const covered = (e: string): boolean =>
     lines.has(e) || lines.has(e.replace(/\/$/, "")) || lines.has(".ynm/") || lines.has(".ynm");
   const missing = entries.filter((e) => !covered(e));
   if (!missing.length) return [];
+  mkdirSync(dirname(file), { recursive: true });
   const lead = text === "" || text.endsWith("\n") ? "" : "\n";
   writeFileSync(file, `${text}${lead}${missing.join("\n")}\n`);
   return missing;
@@ -92,8 +99,8 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
     configWritten = true;
   }
 
-  const ignored = ensureIgnored(repo, LOCAL_STATE_IGNORES);
-  if (ignored.length) notes.push(`added ${ignored.join(" and ")} to .gitignore`);
+  const excluded = await ensureExcluded(repo, LOCAL_STATE_IGNORES);
+  if (excluded.length) notes.push(`added ${excluded.join(" and ")} to .git/info/exclude`);
 
   const remote = opts.remote ?? "origin";
   const refspecs: string[] = [];

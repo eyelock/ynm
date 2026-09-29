@@ -11,8 +11,7 @@ From inside the repository:
 ynm init
 ```
 
-`ynm init` changes no branch, tag or commit, and no tracked file except a `.gitignore` that gains
-two lines. It does five things:
+`ynm init` changes no branch, tag, commit or tracked file. It does five things:
 
 - writes `.ynm/config.json`, which records the anchor (the repository's root commit) and is the
   one file worth committing, so teammates share the anchor and any mounts or redaction settings;
@@ -21,8 +20,8 @@ two lines. It does five things:
   note and you re-run `init` after adding it);
 - installs a `pre-push` hook that runs `ynm sync --quiet`, unless you pass `--no-hooks` or set
   `"hooks": false` in your config;
-- adds `.ynm/wiki/` and `.ynm/index/` to `.gitignore` when they are not already ignored, and says
-  so in a note;
+- adds `.ynm/wiki/` and `.ynm/index/` to `.git/info/exclude` (git's per-clone ignore file, never
+  committed) when they are not already ignored, and says so in a note;
 - builds the search index under `.ynm/index/`.
 
 Memory itself appears only when someone writes it, as refs under `refs/notes/ynm/`. Teammates who
@@ -30,7 +29,9 @@ have not run `ynm init` see nothing and are not affected.
 
 ## What to commit
 
-Commit `.ynm/config.json` and the `.gitignore` change. `init` added the derived directories to it:
+Commit `.ynm/config.json`. Nothing else changed in the work tree: the derived directories are
+excluded through `.git/info/exclude`, which git keeps per clone and never commits. If you would
+rather have the rule in the repository's own `.gitignore` so it applies to every clone, add:
 
 ```text
 .ynm/wiki/

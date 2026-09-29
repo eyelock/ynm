@@ -30,8 +30,8 @@ ynm init
 
 Expected: an `initialised` line with the project path, then five indented lines. The anchor is
 the repository's root commit (`root-commit`), the config file is `.ynm/config.json`, a
-`pre-push` hook was installed, one note says the local wiki and index directories were added to
-`.gitignore`, and another says remote `origin` was not found so refspecs were not configured.
+`pre-push` hook was installed, one note says the local wiki and index directories were excluded
+in `.git/info/exclude`, and another says remote `origin` was not found so refspecs were not configured.
 Ends with a `next:` hint.
 
 ```text
@@ -39,22 +39,23 @@ initialised <project path>
   anchor    <40-hex sha> (root-commit)
   config    <project path>/.ynm/config.json
   hooks     <project path>/.git/hooks/pre-push
-  note      added .ynm/wiki/ and .ynm/index/ to .gitignore
+  note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
   note      remote "origin" not found; refspecs not configured (re-run init after adding it)
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
 `ynm init` changes no branch, commit or tracked file. It wrote `.ynm/config.json`, which records
-the anchor (commit it so teammates share the same anchor), and a `.gitignore` that keeps the
-derived `.ynm/wiki/` and `.ynm/index/` directories out of the repository:
+the anchor (commit it so teammates share the same anchor). The derived `.ynm/wiki/` and
+`.ynm/index/` directories are kept out of the repository by `.git/info/exclude`, git's per-clone
+ignore file, so no tracked file changed:
 
 ```bash
 cat .ynm/config.json
 git status --short
 ```
 
-Expected: a JSON object with a single `anchor` key holding the same sha, and `?? .gitignore` and
-`?? .ynm/` as the only changes.
+Expected: a JSON object with a single `anchor` key holding the same sha, and `?? .ynm/` as the
+only change.
 
 ## Two mounts
 

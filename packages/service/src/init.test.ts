@@ -45,23 +45,20 @@ describe("ynm init (ADR-009 retrofit)", () => {
     expect(again.notes).toEqual([]);
   });
 
-  it("ignores the local wiki and index directories once, keeping existing entries", async () => {
+  it("excludes the local wiki and index directories via .git/info/exclude, never a tracked file", async () => {
     const repo = await createRepo(1);
-    writeFileSync(join(repo, ".gitignore"), "node_modules");
+    writeFileSync(join(repo, ".gitignore"), "node_modules\n");
+    const exclude = join(repo, ".git", "info", "exclude");
+    const before = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
     const report = await initProject({ cwd: repo, hooks: false });
-    expect(readFileSync(join(repo, ".gitignore"), "utf8")).toBe(
-      "node_modules\n.ynm/wiki/\n.ynm/index/\n"
+    expect(report.notes).toContain("added .ynm/wiki/ and .ynm/index/ to .git/info/exclude");
+    expect(readFileSync(exclude, "utf8")).toBe(
+      `${before}${before.endsWith("\n") || before === "" ? "" : "\n"}.ynm/wiki/\n.ynm/index/\n`
     );
-    expect(report.notes).toContain("added .ynm/wiki/ and .ynm/index/ to .gitignore");
-    await initProject({ cwd: repo, hooks: false });
-    expect(readFileSync(join(repo, ".gitignore"), "utf8")).toBe(
-      "node_modules\n.ynm/wiki/\n.ynm/index/\n"
-    );
-    const covered = await createRepo(1);
-    writeFileSync(join(covered, ".gitignore"), ".ynm/wiki\n.ynm/index/\n");
-    const notes = (await initProject({ cwd: covered, hooks: false })).notes;
-    expect(notes.filter((n) => n.includes(".gitignore"))).toEqual([]);
-    expect(readFileSync(join(covered, ".gitignore"), "utf8")).toBe(".ynm/wiki\n.ynm/index/\n");
+    expect(readFileSync(join(repo, ".gitignore"), "utf8")).toBe("node_modules\n");
+    const second = await initProject({ cwd: repo, hooks: false });
+    expect(second.notes.filter((n) => n.includes("exclude"))).toEqual([]);
+    expect(readFileSync(exclude, "utf8").match(/\.ynm\/wiki\//g)).toHaveLength(1);
   });
 
   it("takes the hook default from the hooks config key; the flag wins", async () => {

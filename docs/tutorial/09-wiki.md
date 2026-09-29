@@ -72,8 +72,9 @@ Expected:
 .ynm/wiki/topics/deploy.md
 ```
 
-The wiki lives under `.ynm/wiki`, next to the config. Git sees it as untracked; add
-`.ynm/wiki` to `.gitignore` if you do not want to commit it.
+The wiki lives under `.ynm/wiki`, next to the config. Git ignores it: `ynm init` listed it in
+`.git/info/exclude`. To commit the wiki instead, remove that line, or use the orphan-branch
+target below, which keeps it in git without touching your working branch.
 
 ## Read the index
 
