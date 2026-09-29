@@ -88,9 +88,8 @@ Cases handled:
 - Multiple root commits: oldest by date, recorded in config (ADR-003).
 - Shallow clones: work, because the anchor SHA is only a tree path (ADR-003).
 - Existing users of `refs/notes/commits` or other notes: untouched, separate namespace.
-- Existing ACME data: `ynm import --from-acme` reads `refs/notes/acme-*` JSONL and writes records
-  whose provenance points at the old entry (thoughts → episodic or semantic, rules and standards →
-  procedural, the rest skipped or archived).
+- Existing ACME data: not imported. ACME never left one laptop, so there is nothing to migrate;
+  `ynm import` takes ynm's own JSONL only (decided 2026-09-29).
 - Monorepos: several projects share the root commit and are separated by namespace (ADR-001).
 - Forks and mirrors: notes do not follow unless the fetch refspec is configured there; the doctor
   checks.
