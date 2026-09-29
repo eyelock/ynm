@@ -35,12 +35,18 @@ importers:
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
+      '@ynm/models':
+        specifier: workspace:*
+        version: link:../models
       '@ynm/service':
         specifier: workspace:*
         version: link:../service
       '@ynm/store':
         specifier: workspace:*
         version: link:../store
+      '@ynm/wiki':
+        specifier: workspace:*
+        version: link:../wiki
       zod:
         specifier: ^4.3.6
         version: 4.6.5
@@ -75,12 +81,18 @@ importers:
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
+      '@ynm/models':
+        specifier: workspace:*
+        version: link:../models
       '@ynm/service':
         specifier: workspace:*
         version: link:../service
       '@ynm/store':
         specifier: workspace:*
         version: link:../store
+      '@ynm/wiki':
+        specifier: workspace:*
+        version: link:../wiki
       fast-check:
         specifier: ^4.6.0
         version: 4.10.2
@@ -152,6 +164,9 @@ importers:
       '@ynm/store':
         specifier: workspace:*
         version: link:../store
+      '@ynm/wiki':
+        specifier: workspace:*
+        version: link:../wiki
       zod:
         specifier: ^4.3.6
         version: 4.6.5
@@ -203,6 +218,34 @@ importers:
         specifier: ^4.1.4
         version: 4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(vite@8.3.1(@types/node@26.6.3))
 
+  packages/models:
+    dependencies:
+      '@ynm/model':
+        specifier: workspace:*
+        version: link:../model
+      zod:
+        specifier: ^4.3.6
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: ^26.0.1
+        version: 26.6.3
+      '@vitest/coverage-v8':
+        specifier: ^4.1.4
+        version: 4.1.11(vitest@4.1.11)
+      '@ynm/typescript-config':
+        specifier: workspace:*
+        version: link:../shared/typescript
+      '@ynm/vitest-config':
+        specifier: workspace:*
+        version: link:../shared/vitest
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(vite@8.3.1(@types/node@26.6.3))
+
   packages/service:
     dependencies:
       '@ynm/index':
@@ -211,9 +254,15 @@ importers:
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
+      '@ynm/models':
+        specifier: workspace:*
+        version: link:../models
       '@ynm/store':
         specifier: workspace:*
         version: link:../store
+      '@ynm/wiki':
+        specifier: workspace:*
+        version: link:../wiki
       zod:
         specifier: ^4.3.6
         version: 4.6.5
@@ -275,6 +324,9 @@ importers:
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
+      '@ynm/store':
+        specifier: workspace:*
+        version: link:../store
     devDependencies:
       '@types/node':
         specifier: ^26.0.1

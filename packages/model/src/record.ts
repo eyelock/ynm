@@ -253,6 +253,7 @@ export const RecordFilterSchema = z
     since: IsoDateTimeSchema.optional(),
     until: IsoDateTimeSchema.optional(),
     includeTombstoned: z.boolean().default(false),
+    needsReview: z.boolean().optional().describe("Only memories flagged for review"),
     limit: z.number().int().positive().max(10_000).optional(),
   })
   .strict();

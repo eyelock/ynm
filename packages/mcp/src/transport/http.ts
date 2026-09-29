@@ -12,7 +12,7 @@ import {
 export interface HttpOptions {
   port?: number;
   host?: string;
-  /** Static bearer token (dev and tests); OAuth introspection and JWT arrive in M5 (ADR-009). */
+  /** Static bearer token (dev and tests); OAuth introspection and JWT arrive with the hosted service (ADR-009). */
   authToken?: string;
   /** Origins allowed by CORS and origin validation; localhost only by default. */
   allowedOrigins?: string[];

@@ -78,6 +78,16 @@ export interface RecordLog {
   health(): Promise<HealthReport>;
   /** Present only on replicating providers. */
   sync?(options?: SyncOptions): Promise<SyncResult>;
+  /**
+   * Physically removes every line of a memory (ADR-002 purge). Rewrites the affected shards;
+   * with `forgetHistory` the shard's revision history is dropped too where the provider has one.
+   */
+  purge(memoryId: string, options?: { forgetHistory?: boolean }): Promise<PurgeResult>;
+}
+
+export interface PurgeResult {
+  removed: number;
+  shards: ShardKey[];
 }
 
 export const BUCKET_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;

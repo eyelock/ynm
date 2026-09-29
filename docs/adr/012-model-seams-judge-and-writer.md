@@ -130,4 +130,22 @@ unchanged and the writer-supplied defaults apply.
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
-- (none yet)
+- 2026-09-29 (M4): seams shipped in `@ynm/models`. Judges: `typesafe` (built to the documented
+  HTTP contract, verified live against Jev 1.13: two rephrasings judged the same fact at 0.98 for
+  445 input tokens), `heuristic` (question-id aware, honest 0.5 for anything it does not know),
+  `writer-emulated` (uncalibrated). Writers: `claude-cli` (headless `claude -p` on the user's
+  subscription, no key), `openai-compatible` (Ollama and friends, json_schema response format),
+  `none`. Every writer goes through one fail-closed loop: extract JSON, validate with Zod, retry
+  once with the issues, reject.
+- 2026-09-29 (M4): policy added: an **uncalibrated judge never reaches the act band**; the most it
+  can do is flag for review. Explicit user signals (a `promote` tag) bypass the judge entirely.
+  This keeps heuristic and emulated judges safe to run by default.
+- 2026-09-29 (M4): the `mcp-sampling` writer is deferred to M5. On SDK v2 sampling is a pull-model
+  `InputRequiredResult` round trip, which needs the multi-round plumbing the hosted server will
+  carry anyway; the two local writers cover the M4 evals.
+- 2026-09-29 (M4): write-path judge as decided: importance scored (0..4 levels mapped to 0..1) only
+  when the caller left the default, and content the judge flags as sensitive at 0.9 or above is
+  refused like a redaction hit. Judgments are stored in the record's `data.judgments`.
+- 2026-09-29 (M4): secrets come from `~/.ynm/env` or a gitignored repo-root `.env`, loaded without
+  overriding the process environment; a `.claude/settings.json` deny list stops the agent reading
+  or printing them.

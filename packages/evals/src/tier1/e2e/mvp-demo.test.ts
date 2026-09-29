@@ -10,12 +10,12 @@ const repoRoot = join(import.meta.dirname, "..", "..", "..", "..", "..");
 const cli = join(repoRoot, "packages", "cli", "bin", "run.js");
 const mcpBin = join(repoRoot, "packages", "mcp", "bin", "run.js");
 
-/** The MVP script (ADR-014 M3 exit): init, install, two agent sessions, recall across them. */
+/** The MVP script (ADR-014): init, install, two agent sessions, recall across them. */
 describe("tier1 e2e: MVP demo", () => {
   it("init, client install, remember in one process, recall in another", async () => {
     const repo = await createRepo(2);
     const home = join(mkdtempSync(join(tmpdir(), "ynm-mvp-home-")), ".ynm");
-    const env = { ...process.env, YNM_HOME: home, YNM_USER: "demo" };
+    const env = { ...process.env, YNM_HOME: home, YNM_USER: "demo", YNM_NO_CLAUDE_CLI: "1" };
     const ynm = (...args: string[]) =>
       spawnSync("node", [cli, ...args], { cwd: repo, encoding: "utf8", env });
     expect(ynm("init", "--no-hooks").status).toBe(0);
@@ -45,7 +45,7 @@ describe("tier1 e2e: MVP demo", () => {
       arguments: {
         type: "procedural",
         level: "distributed",
-        content: "Release checklist: run pnpm gate M3 before tagging.",
+        content: "Release checklist: run the release gate before tagging.",
       },
     });
     expect(r.isError).toBeFalsy();
@@ -57,7 +57,7 @@ describe("tier1 e2e: MVP demo", () => {
       arguments: { text: "release tagging gate" },
     });
     const found = (hits.structuredContent as { data: Array<{ content: string }> }).data;
-    expect(found[0]?.content).toMatch(/gate M3/);
+    expect(found[0]?.content).toMatch(/release gate/);
     await two.close();
 
     const listed = JSON.parse(ynm("list", "--json").stdout) as Array<{ mount: string }>;

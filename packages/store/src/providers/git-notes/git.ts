@@ -20,7 +20,7 @@ export interface GitOptions {
   env?: NodeJS.ProcessEnv;
 }
 
-/** Counts spawned git processes; the M1 gate proves reads are batched, not per shard. */
+/** Counts spawned git processes; tests prove reads are batched, not per shard. */
 export const gitStats = { spawned: 0 };
 
 /**

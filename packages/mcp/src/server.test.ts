@@ -7,7 +7,12 @@ import { createBare, createRepo, fx } from "@ynm/store/testing/git";
 import { createYnmServer, MCP_TOOLS, parseArgs, serviceCache } from "./index.js";
 
 async function connected(cwd: string, home = mkdtempSync(join(tmpdir(), "ynm-mcp-home-"))) {
-  const env = { ...process.env, YNM_HOME: join(home, ".ynm"), YNM_USER: "proto" };
+  const env = {
+    ...process.env,
+    YNM_HOME: join(home, ".ynm"),
+    YNM_USER: "proto",
+    YNM_NO_CLAUDE_CLI: "1",
+  };
   const opts = { cwd, env };
   const server = createYnmServer(opts, serviceCache(opts));
   const [clientT, serverT] = InMemoryTransport.createLinkedPair();

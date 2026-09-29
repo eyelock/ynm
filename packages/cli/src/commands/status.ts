@@ -16,7 +16,6 @@ export default class Status extends YnmCommand {
     const value = {
       name: "ynm",
       version: this.config.version,
-      milestone: "M2",
       config: loaded.files,
       repo: worktree.isGitRepo ? worktree.mainRepoPath : null,
       ...status,

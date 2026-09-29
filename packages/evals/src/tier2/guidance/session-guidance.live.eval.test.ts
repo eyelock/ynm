@@ -31,9 +31,9 @@ const SCENARIOS: Scenario[] = [
   {
     name: "remember an explicit instruction",
     prompt:
-      "Please remember for future sessions: our release process requires running `pnpm gate M3` before tagging a release. Store it as a procedural memory, then reply with the single word DONE.",
+      "Please remember for future sessions: our release process requires running the release gate before tagging a release. Store it as a procedural memory, then reply with the single word DONE.",
     expect: (_a, after, before) =>
-      after.length > before && after.some((m) => /gate M3/.test(m.content)),
+      after.length > before && after.some((m) => /release gate/i.test(m.content)),
   },
   {
     name: "recall a seeded fact",

@@ -26,7 +26,7 @@ function ynm(cwd: string, home: string, ...args: string[]) {
   const r = spawnSync("node", [cli, ...args], {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, YNM_HOME: home, YNM_USER: "gate" },
+    env: { ...process.env, YNM_HOME: home, YNM_USER: "gate", YNM_NO_CLAUDE_CLI: "1" },
   });
   return { stdout: r.stdout, stderr: r.stderr, status: r.status };
 }

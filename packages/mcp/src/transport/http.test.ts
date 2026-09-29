@@ -13,7 +13,7 @@ async function hosted(token?: string) {
   const home = mkdtempSync(join(tmpdir(), "ynm-http-home-"));
   const opts = {
     cwd: bare,
-    env: { ...process.env, YNM_HOME: join(home, ".ynm"), YNM_USER: "http" },
+    env: { ...process.env, YNM_HOME: join(home, ".ynm"), YNM_USER: "http", YNM_NO_CLAUDE_CLI: "1" },
     noPersonal: true,
   };
   const getYnm = serviceCache(opts);

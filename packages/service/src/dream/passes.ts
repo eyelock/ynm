@@ -1,0 +1,463 @@
+import { z } from "zod";
+import { durationMs } from "../lifecycle.js";
+import type { MemoryWithMount } from "../ynm.js";
+import {
+  PAIR_QUESTIONS,
+  PROMOTE_QUESTIONS,
+  SUPERSEDE_QUESTION,
+  VERIFY_QUESTIONS,
+} from "./questions.js";
+import {
+  addUsage,
+  band,
+  type DreamContext,
+  emptyReport,
+  type PassReport,
+  storedJudgment,
+} from "./types.js";
+
+function brief(m: MemoryWithMount) {
+  return {
+    summary: m.current.summary ?? "",
+    content: (m.current.content ?? "").slice(0, 2000),
+    type: m.type,
+    namespace: m.namespace,
+    subject: m.subject ?? null,
+    updatedAt: m.updatedAt,
+  };
+}
+
+async function flag(
+  ctx: DreamContext,
+  ids: string[],
+  data: Record<string, unknown>,
+  reason: string
+): Promise<void> {
+  if (ctx.dryRun) return;
+  for (const memoryId of ids) await ctx.ynm.annotate({ memoryId, needsReview: true, reason, data });
+}
+
+/** Pass 1: tombstone working memory past its ttl. No model. */
+export async function expire(ctx: DreamContext): Promise<PassReport> {
+  const r = emptyReport();
+  const now = ctx.now().getTime();
+  for (const m of await ctx.ynm.list({
+    type: "working",
+    namespace: ctx.namespace,
+    includeTombstoned: false,
+  })) {
+    if (!m.current.ttl) continue;
+    r.candidates += 1;
+    if (Date.parse(m.updatedAt) + durationMs(m.current.ttl) <= now) {
+      if (!ctx.dryRun) await ctx.ynm.forget({ memoryId: m.memoryId, reason: "expired" });
+      r.changed.push(m.memoryId);
+    }
+  }
+  return r;
+}
+
+/**
+ * Pass 2: working memory that should outlive the session. An explicit `promote` tag acts without
+ * a model; otherwise the judge decides and only a calibrated judge may act.
+ */
+export async function promote(ctx: DreamContext): Promise<PassReport> {
+  const r = emptyReport();
+  const at = ctx.now().toISOString();
+  for (const m of await ctx.ynm.list({
+    type: "working",
+    namespace: ctx.namespace,
+    includeTombstoned: false,
+  })) {
+    r.candidates += 1;
+    let target: "semantic" | "episodic" | "procedural" | "reference" = "episodic";
+    let decision: "act" | "review" | "ignore";
+    let judgmentData: Record<string, unknown> | undefined;
+    if (m.tags.includes("promote")) decision = "act";
+    else {
+      if (ctx.pairsJudged.n >= ctx.maxPairs) {
+        r.skipped += 1;
+        continue;
+      }
+      const j = await ctx.judge.judge({ memory: brief(m) }, PROMOTE_QUESTIONS);
+      ctx.pairsJudged.n += 1;
+      r.judged += 1;
+      addUsage(r.usage, j.usage);
+      const p = (j.answers.usefulLater as { noul: number }).noul;
+      decision = band(p, ctx.config.thresholds.promote, j.calibrated);
+      const kind = (j.answers.kind as { choice: string }).choice;
+      if (kind === "semantic" || kind === "procedural" || kind === "reference") target = kind;
+      r.fallback ||= !j.calibrated;
+      judgmentData = { judgments: [storedJudgment("promote", j, PROMOTE_QUESTIONS, at, decision)] };
+    }
+    if (decision === "act") {
+      if (!ctx.dryRun) {
+        const namespace = ctx.ynm.defaultNamespace(m.level);
+        const created = await ctx.ynm.remember({
+          type: target,
+          level: m.level,
+          namespace,
+          content: m.current.content ?? "",
+          summary: m.current.summary,
+          subject: m.subject,
+          tags: m.tags.filter((t) => t !== "promote"),
+          importance: m.importance,
+          links: [{ rel: "derives-from", to: m.memoryId }],
+        });
+        await ctx.ynm.forget({ memoryId: m.memoryId, reason: `promoted to ${created.memoryId}` });
+        if (judgmentData)
+          await ctx.ynm.annotate({
+            memoryId: created.memoryId,
+            data: judgmentData,
+            reason: "promotion judgment",
+          });
+      }
+      r.changed.push(m.memoryId);
+    } else if (decision === "review") {
+      await flag(ctx, [m.memoryId], judgmentData ?? {}, "promotion needs review");
+      r.flagged.push(m.memoryId);
+    }
+  }
+  return r;
+}
+
+interface Pair {
+  a: MemoryWithMount;
+  b: MemoryWithMount;
+}
+
+/** Candidate pairs from the index: each memory's nearest neighbours of the same type and mount. */
+async function candidatePairs(
+  ctx: DreamContext,
+  types: Array<MemoryWithMount["type"]>
+): Promise<Pair[]> {
+  const memories = (
+    await ctx.ynm.list({ namespace: ctx.namespace, includeTombstoned: false })
+  ).filter((m) => types.includes(m.type));
+  const byId = new Map(memories.map((m) => [m.memoryId, m]));
+  const seen = new Set<string>();
+  const pairs: Pair[] = [];
+  for (const m of memories) {
+    const text = `${m.current.summary ?? ""} ${(m.current.content ?? "").slice(0, 400)}`;
+    const hits = await ctx.ynm.recall({
+      text,
+      type: [m.type],
+      namespace: ctx.namespace,
+      mount: m.mount,
+      rerank: false, // candidates come from the index only; the judge sees pairs, not queries
+      limit: ctx.config.candidatesPerMemory + 1,
+    });
+    for (const h of hits) {
+      if (h.memoryId === m.memoryId) continue;
+      const other = byId.get(h.memoryId);
+      if (!other) continue;
+      const key = [m.memoryId, h.memoryId].sort().join(":");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const [a, b] = m.updatedAt <= other.updatedAt ? [m, other] : [other, m];
+      pairs.push({ a, b });
+    }
+  }
+  return pairs;
+}
+
+const MergedSchema = z.object({ content: z.string().min(1), summary: z.string().min(1).max(280) });
+
+/** Pass 3: duplicates. Survivor is the newer memory; the older is tombstoned and linked. */
+export async function dedupe(ctx: DreamContext, pairsOut?: Pair[]): Promise<PassReport> {
+  const r = emptyReport();
+  const at = ctx.now().toISOString();
+  const pairs = await candidatePairs(ctx, [
+    "semantic",
+    "procedural",
+    "episodic",
+    "reference",
+    "reflective",
+  ]);
+  r.candidates = pairs.length;
+  for (const { a, b } of pairs) {
+    if (ctx.pairsJudged.n >= ctx.maxPairs) {
+      r.skipped += 1;
+      continue;
+    }
+    const j = await ctx.judge.judge({ a: brief(a), b: brief(b) }, PAIR_QUESTIONS);
+    ctx.pairsJudged.n += 1;
+    r.judged += 1;
+    addUsage(r.usage, j.usage);
+    r.fallback ||= !j.calibrated;
+    const same = (j.answers.sameFact as { noul: number }).noul;
+    const contradicts = (j.answers.contradicts as { noul: number }).noul;
+    if (contradicts >= ctx.config.thresholds.contradict.review) pairsOut?.push({ a, b });
+    const decision = band(same, ctx.config.thresholds.dedupe, j.calibrated);
+    const data = {
+      judgments: [storedJudgment("dedupe", j, PAIR_QUESTIONS, at, decision)],
+      pair: [a.memoryId, b.memoryId],
+    };
+    if (decision === "act") {
+      if (!ctx.dryRun) {
+        let merged: { content: string; summary: string } | undefined;
+        if (ctx.writer.name !== "none") {
+          try {
+            const w = await ctx.writer.write({
+              instructions:
+                "Merge these two memories that state the same fact into one. Keep every material detail, drop repetition, prefer the newer phrasing where they differ. Return the merged markdown content and a one-line summary.",
+              state: { older: brief(a), newer: brief(b) },
+              schema: MergedSchema,
+              schemaName: "merged_memory",
+            });
+            merged = w.value;
+            addUsage(r.usage, w.usage);
+          } catch (e) {
+            r.notes.push(`merge text fallback for ${b.memoryId}: ${(e as Error).message}`);
+            r.fallback = true;
+          }
+        } else r.fallback = true;
+        if (merged)
+          await ctx.ynm.supersede({
+            memoryId: b.memoryId,
+            content: merged.content,
+            summary: merged.summary,
+            tags: a.tags,
+            links: [{ rel: "derives-from", to: a.memoryId }],
+          });
+        else
+          await ctx.ynm.annotate({
+            memoryId: b.memoryId,
+            links: [{ rel: "derives-from", to: a.memoryId }],
+            tags: a.tags,
+            data,
+            reason: "duplicate merged",
+          });
+        await ctx.ynm.forget({ memoryId: a.memoryId, reason: `duplicate of ${b.memoryId}` });
+      }
+      r.changed.push(a.memoryId);
+    } else if (decision === "review") {
+      await flag(ctx, [a.memoryId, b.memoryId], data, "possible duplicate");
+      r.flagged.push(a.memoryId, b.memoryId);
+    }
+  }
+  return r;
+}
+
+/** Pass 4: contradictions among memories sharing a subject (plus pairs dedupe flagged). */
+export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise<PassReport> {
+  const r = emptyReport();
+  const at = ctx.now().toISOString();
+  const memories = (
+    await ctx.ynm.list({ namespace: ctx.namespace, includeTombstoned: false })
+  ).filter((m) => m.subject && m.type !== "working");
+  const bySubject = new Map<string, MemoryWithMount[]>();
+  for (const m of memories) {
+    const list = bySubject.get(`${m.mount}:${m.subject}`) ?? [];
+    list.push(m);
+    bySubject.set(`${m.mount}:${m.subject}`, list);
+  }
+  const pairs: Pair[] = [...extra];
+  const seen = new Set(extra.map((p) => [p.a.memoryId, p.b.memoryId].sort().join(":")));
+  for (const list of bySubject.values()) {
+    const sorted = [...list].sort((x, y) => (x.updatedAt < y.updatedAt ? -1 : 1));
+    for (let i = 0; i < sorted.length; i++)
+      for (let k = i + 1; k < sorted.length; k++) {
+        const key = [sorted[i]?.memoryId, sorted[k]?.memoryId].sort().join(":");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push({ a: sorted[i] as MemoryWithMount, b: sorted[k] as MemoryWithMount });
+      }
+  }
+  r.candidates = pairs.length;
+  for (const { a, b } of pairs) {
+    if (ctx.pairsJudged.n >= ctx.maxPairs) {
+      r.skipped += 1;
+      continue;
+    }
+    const questions = { contradicts: PAIR_QUESTIONS.contradicts, ...SUPERSEDE_QUESTION };
+    const j = await ctx.judge.judge({ a: brief(a), b: brief(b) }, questions);
+    ctx.pairsJudged.n += 1;
+    r.judged += 1;
+    addUsage(r.usage, j.usage);
+    r.fallback ||= !j.calibrated;
+    const c = (j.answers.contradicts as { noul: number }).noul;
+    const decision = band(c, ctx.config.thresholds.contradict, j.calibrated);
+    if (decision === "ignore") continue;
+    const supersedes = (j.answers.newerSupersedes as { noul: number }).noul;
+    const data = {
+      judgments: [storedJudgment("contradict", j, questions, at, decision)],
+      pair: [a.memoryId, b.memoryId],
+    };
+    if (!ctx.dryRun) {
+      await ctx.ynm.annotate({
+        memoryId: b.memoryId,
+        links: [{ rel: "contradicts", to: a.memoryId }],
+        data,
+        reason: "contradiction",
+      });
+      await ctx.ynm.annotate({
+        memoryId: a.memoryId,
+        links: [{ rel: "contradicts", to: b.memoryId }],
+        reason: "contradiction",
+      });
+    }
+    if (decision === "act" && supersedes >= ctx.config.thresholds.contradict.act) {
+      if (!ctx.dryRun)
+        await ctx.ynm.forget({
+          memoryId: a.memoryId,
+          reason: `superseded by ${b.memoryId} (contradiction resolved)`,
+        });
+      r.changed.push(a.memoryId);
+    } else {
+      await flag(ctx, [a.memoryId, b.memoryId], {}, "contradiction needs review");
+      r.flagged.push(a.memoryId, b.memoryId);
+    }
+  }
+  return r;
+}
+
+const ReflectionSchema = z.object({
+  summary: z.string().min(1).max(280),
+  content: z.string().min(1),
+});
+
+/** Pass 5: one reflective memory per subject with enough episodes, verified before it is written. */
+export async function reflect(ctx: DreamContext): Promise<PassReport> {
+  const r = emptyReport();
+  const at = ctx.now().toISOString();
+  const all = await ctx.ynm.list({ namespace: ctx.namespace, includeTombstoned: false });
+  const episodes = new Map<string, MemoryWithMount[]>();
+  const reflections = new Map<string, MemoryWithMount>();
+  for (const m of all) {
+    if (!m.subject) continue;
+    const key = `${m.mount}:${m.subject}`;
+    if (m.type === "episodic") episodes.set(key, [...(episodes.get(key) ?? []), m]);
+    if (m.type === "reflective") reflections.set(key, m);
+  }
+  for (const [key, list] of episodes) {
+    if (list.length < ctx.config.thresholds.reflect.minEpisodes) continue;
+    const latest = list.reduce((x, y) => (x.updatedAt > y.updatedAt ? x : y));
+    const existing = reflections.get(key);
+    if (existing && existing.updatedAt >= latest.updatedAt) continue;
+    r.candidates += 1;
+    if (ctx.writer.name === "none") {
+      r.skipped += 1;
+      r.fallback = true;
+      continue;
+    }
+    const sample = list
+      .sort((x, y) => (x.updatedAt < y.updatedAt ? -1 : 1))
+      .slice(-12)
+      .map((m) => ({
+        date: m.updatedAt.slice(0, 10),
+        summary: m.current.summary ?? "",
+        content: (m.current.content ?? "").slice(0, 800),
+      }));
+    const subject = list[0]?.subject as string;
+    let written: { summary: string; content: string };
+    try {
+      const w = await ctx.writer.write({
+        instructions: `Write a reflective memory about ${subject} that summarises what these episodes state. Report only facts, dates and outcomes that appear in the episodes; you may note that a cause or outcome repeats, but do not add causes, recommendations, or claims the episodes do not contain. Keep dates absolute.`,
+        state: { subject, episodes: sample },
+        schema: ReflectionSchema,
+        schemaName: "reflection",
+      });
+      written = w.value;
+      addUsage(r.usage, w.usage);
+    } catch (e) {
+      r.notes.push(`reflect skipped ${subject}: ${(e as Error).message}`);
+      r.skipped += 1;
+      continue;
+    }
+    const sources = sample.map((s) => `[${s.date}] ${s.summary}: ${s.content}`).join("\n");
+    const j = await ctx.judge.judge({ summary: written.content, sources }, VERIFY_QUESTIONS);
+    r.judged += 1;
+    addUsage(r.usage, j.usage);
+    r.fallback ||= !j.calibrated;
+    const flags = Object.entries(j.answers)
+      .filter(([, a]) => (a as { noul: number }).noul >= ctx.config.thresholds.reflect.flagAt)
+      .map(([k]) => k);
+    r.notes.push(
+      `verify ${subject}: ${Object.entries(j.answers)
+        .map(([k, a]) => `${k}=${(a as { noul: number }).noul.toFixed(2)}`)
+        .join(" ")}`
+    );
+    const data = {
+      judgments: [
+        storedJudgment("reflect", j, VERIFY_QUESTIONS, at, flags.length ? "review" : "act"),
+      ],
+    };
+    if (flags.length) {
+      r.flagged.push(...list.map((m) => m.memoryId));
+      r.notes.push(`reflection for ${subject} not written: ${flags.join(", ")} flagged`);
+      continue;
+    }
+    if (!ctx.dryRun) {
+      const first = list[0] as MemoryWithMount;
+      const created = await ctx.ynm.remember(
+        {
+          type: "reflective",
+          level: first.level,
+          namespace: first.namespace,
+          subject,
+          content: written.content,
+          summary: written.summary,
+          tags: [...new Set(list.flatMap((m) => m.tags))],
+          links: list.map((m) => ({ rel: "derives-from" as const, to: m.memoryId })),
+        },
+        first.mount
+      );
+      await ctx.ynm.annotate({ memoryId: created.memoryId, data, reason: "reflection verified" });
+      if (existing)
+        await ctx.ynm.forget({
+          memoryId: existing.memoryId,
+          reason: `replaced by ${created.memoryId}`,
+        });
+    }
+    r.changed.push(key);
+  }
+  return r;
+}
+
+const RELATIVE =
+  /\b(today|yesterday|tomorrow|last week|next week|this week|last month|next month|(\d+) days? ago)\b/gi;
+
+export function absolutise(text: string, recordedAt: string): string {
+  const base = new Date(recordedAt);
+  const day = (offset: number) =>
+    new Date(base.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
+  return text.replace(RELATIVE, (m, _w, n) => {
+    const l = m.toLowerCase();
+    if (l === "today") return day(0);
+    if (l === "yesterday") return day(-1);
+    if (l === "tomorrow") return day(1);
+    if (l === "last week") return `the week of ${day(-7)}`;
+    if (l === "next week") return `the week of ${day(7)}`;
+    if (l === "this week") return `the week of ${day(0)}`;
+    if (l === "last month") return `around ${day(-30)}`;
+    if (l === "next month") return `around ${day(30)}`;
+    if (n) return day(-Number(n));
+    return m;
+  });
+}
+
+/** Pass 6: relative dates become absolute (no model); importance re-scored by a calibrated judge. */
+export async function normalise(ctx: DreamContext): Promise<PassReport> {
+  const r = emptyReport();
+  for (const m of await ctx.ynm.list({ namespace: ctx.namespace, includeTombstoned: false })) {
+    const content = m.current.content ?? "";
+    if (!RELATIVE.test(content)) {
+      RELATIVE.lastIndex = 0;
+      continue;
+    }
+    RELATIVE.lastIndex = 0;
+    r.candidates += 1;
+    const fixed = absolutise(content, m.current.recordedAt);
+    if (fixed === content) continue;
+    if (!ctx.dryRun)
+      await ctx.ynm.supersede({
+        memoryId: m.memoryId,
+        content: fixed,
+        summary: m.current.summary,
+        tags: [],
+        links: [],
+      });
+    r.changed.push(m.memoryId);
+  }
+  return r;
+}

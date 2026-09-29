@@ -1,5 +1,5 @@
 /**
- * @ynm/evals: seeded generators, tiered suites and milestone gates (ADR-014).
+ * @ynm/evals: seeded generators, tiered suites and the milestone gate runner (ADR-014).
  */
 export * from "./baseline.js";
 export * from "./generator.js";

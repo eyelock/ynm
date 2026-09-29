@@ -72,4 +72,8 @@ wiki" but through the log.
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
-- (none yet)
+- 2026-09-29 (M4): generator and two targets shipped with golden-file tests: `index.md`,
+  `log.md`, `memories/<id>.md` (one page per memory, frontmatter holds the memoryId), entity pages
+  per subject with the reflection first, topic pages per tag. `ynm wiki build [--target
+  orphan-branch]` and `ynm wiki ingest <page>` (an edited memory page becomes a supersede).
+  MCP resource `memory://{mount}/wiki/{path}` serves pages generated on demand.

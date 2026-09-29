@@ -112,6 +112,32 @@ it at consolidation time.
   The draft 100 ms recall budget at 100k is revised to 200 ms: the OR-of-terms FTS5 query joined
   to the metadata table does not take FTS5's fast rank path. Levers if it matters: order by the
   FTS `rank` column without the join, or push metadata filters into FTS columns.
+- 2026-09-29 (M4): the first calibrated consolidation run exposed the synthetic corpus, not the
+  judge: "duplicates" shared one sentence and differed in a second random-word sentence, so Jev
+  correctly called them related-not-same (precision 1.0, recall 0.26). The generator now produces
+  realistic templated memories (entity and value slots, several paraphrases per claim); a
+  duplicate is another paraphrase with the same value, a contradiction the same entity with a
+  different value. Retrieval baselines were re-recorded on the new corpus (recall@10 0.97).
+- 2026-09-29 (M4): calibrated evals are opt-in (`YNM_EVAL_CALIBRATED=1`) in addition to the key,
+  after two unintended runs cost about $0.08: the eval support loads the repo `.env`, so
+  unsetting the variable in the shell was not enough. Baseline-writing runs no longer assert
+  regression against the numbers they are replacing.
+- 2026-09-29 (M4): heuristic (no-model) baselines on the 300-memory corpus: dedupe precision 0.09
+  recall 0.57 (it flags, never acts), contradiction 0 (it needs a negation cue; value swaps are
+  invisible to it), promotion accuracy 0.65. These are the floor a calibrated judge is measured
+  against.
+- 2026-09-29 (M4): paid usage is capped in code. `SpendGuard` in `@ynm/models` reserves an
+  estimate before every metered call and charges actual usage after; crossing the budget throws
+  instead of spending. The process default is 2M input tokens (`YNM_TOKEN_BUDGET`); the evals use
+  their own 250k-token guard (`YNM_EVAL_TOKEN_BUDGET`, about $0.01 at Jev list price) and small
+  corpora by default (60 memories for consolidation, 120 for the cleanup run, 10 queries for
+  rerank). Bigger runs are an explicit choice. Measured: a pair judgment costs about 700 input
+  tokens with the current question texts, so 250k tokens buys roughly 350 pairs; the guard was
+  seen stopping two oversized runs at the cap, a cent each, in thirteen seconds. The first such
+  overrun was a real leak, not eval size: candidate-pair generation went through `recall`, which
+  with a calibrated judge configured ran the reranker (fifteen judge calls per memory). Candidate
+  generation is now lexical-only, and the pair cap applies per pass so dedupe cannot starve the
+  contradiction pass.
 - 2026-09-28 (M0): milestone gates exist in code from the first commit. One file per milestone
   at `packages/evals/src/gates/m<n>.gate.test.ts`; each check is named now and is an `it.todo`
   until built. `pnpm gate M<n>` runs one; a milestone closes only when its gate is green with

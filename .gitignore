@@ -1,6 +1,9 @@
 # dependencies
 node_modules
 
+# secrets
+.env*
+
 # build outputs
 dist
 *.tsbuildinfo
@@ -22,4 +25,5 @@ tmp/
 .ynm/config.local.json
 
 # planning working docs stay out of the repo (ADRs under docs/adr are the record)
-.claude/
+.claude/plans
+.claude/*.local.*

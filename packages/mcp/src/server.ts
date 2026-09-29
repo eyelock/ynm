@@ -1,6 +1,6 @@
 import { type CallToolResult, McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
 import { guidance, guidanceNames } from "@ynm/model";
-import { openYnm, TOOL_SPECS, type ToolSpec, type Ynm } from "@ynm/service";
+import { openYnm, TOOL_SPECS, type ToolSpec, wikiPages, type Ynm } from "@ynm/service";
 import { z } from "zod";
 
 export interface YnmServerOptions {
@@ -126,6 +126,24 @@ export function createYnmServer(
           { uri: uri.href, mimeType: "application/json", text: JSON.stringify(m, null, 2) },
         ],
       };
+    }
+  );
+
+  server.registerResource(
+    "wiki",
+    new ResourceTemplate("memory://{mount}/wiki/{+path}", { list: undefined }),
+    {
+      description:
+        "A page of the markdown projection: index.md, log.md, memories/<id>.md, entities/<slug>.md, topics/<slug>.md",
+      mimeType: "text/markdown",
+    },
+    async (uri, variables) => {
+      const ynm = await getYnm();
+      const mount = ynm.mount(String(variables.mount));
+      const path = String(variables.path);
+      const page = (await wikiPages(ynm, mount)).find((p) => p.path === path);
+      if (!page) throw new Error(`no wiki page ${path} in mount ${mount.id}`);
+      return { contents: [{ uri: uri.href, mimeType: "text/markdown", text: page.content }] };
     }
   );
 

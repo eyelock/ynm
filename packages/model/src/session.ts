@@ -32,8 +32,15 @@ export const SessionEndInputSchema = z
   .strict();
 export type SessionEndInput = z.infer<typeof SessionEndInputSchema>;
 
-/** Consolidation passes available before the model-backed ones arrive in M4 (ADR-006). */
-export const CONSOLIDATE_PASSES = ["expire"] as const;
+/** Consolidation passes (ADR-006); model-backed passes fall back to non-model behaviour. */
+export const CONSOLIDATE_PASSES = [
+  "expire",
+  "promote",
+  "dedupe",
+  "contradict",
+  "reflect",
+  "normalise",
+] as const;
 export const ConsolidateInputSchema = z
   .object({
     passes: z
@@ -42,6 +49,7 @@ export const ConsolidateInputSchema = z
       .describe("Passes to run"),
     namespace: z.string().optional().describe("Restrict to a namespace prefix"),
     dryRun: z.boolean().default(false).describe("Report what would change"),
+    maxPairs: z.number().int().positive().optional().describe("Cap on judged pairs this run"),
   })
   .strict();
 export type ConsolidateInput = z.infer<typeof ConsolidateInputSchema>;

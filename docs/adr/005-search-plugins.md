@@ -88,6 +88,9 @@ as markdown. This is the always-in-context tier (Letta blocks, MEMORY.md).
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
+- 2026-09-29 (M4): the Judge-backed reranker is the final recall stage when a calibrated judge is
+  configured (`dream.rerank`, top K default 15): one Noul per candidate asking whether the memory
+  helps with the query, blended 0.7 judge / 0.3 prior score. Per-query `rerank: false` disables it.
 - 2026-09-29 (M2): the `node:sqlite` spike passed. Node 24's bundled SQLite (3.53) has FTS5 with
   `bm25()`, so the default index uses `node:sqlite` and the project has no native module.
   Engines pinned to Node 22.13+, where `node:sqlite` is unflagged.

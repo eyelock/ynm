@@ -5,6 +5,7 @@ import {
   groupByShard,
   type HealthReport,
   type ParseProblem,
+  type PurgeResult,
   type RecordLog,
   type ShardFilter,
   type ShardInfo,
@@ -58,6 +59,21 @@ export class MemoryLog implements RecordLog {
 
   async health(): Promise<HealthReport> {
     return { ok: true, problems: [], details: { shards: this.store.size } };
+  }
+
+  async purge(memoryId: string): Promise<PurgeResult> {
+    let removed = 0;
+    const shards: ShardKey[] = [];
+    for (const shard of this.store.values()) {
+      const before = shard.records.length;
+      shard.records = shard.records.filter((r) => r.memoryId !== memoryId);
+      if (shard.records.length !== before) {
+        removed += before - shard.records.length;
+        shard.revision += 1;
+        shards.push(shard.key);
+      }
+    }
+    return { removed, shards };
   }
 
   /** Test helper: the id of a shard as the log sees it. */

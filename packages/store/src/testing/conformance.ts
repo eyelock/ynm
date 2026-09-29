@@ -130,6 +130,25 @@ export function runRecordLogConformance(name: string, opts: ConformanceOptions):
       expect((await collect(log)).length).toBe(200);
     });
 
+    it("purges every line of a memory and nothing else (ADR-002)", async () => {
+      const log = await opts.create("personal");
+      const keep = makeRecord();
+      const gone = makeRecord();
+      const later: MemoryRecord = {
+        ...makeRecord(),
+        memoryId: gone.memoryId,
+        op: "annotate",
+        content: undefined,
+        tags: ["x"],
+      };
+      await log.append([keep, gone, later]);
+      const res = await log.purge(gone.memoryId);
+      expect(res.removed).toBe(2);
+      expect(res.shards.length).toBeGreaterThan(0);
+      expect((await collect(log)).map((r) => r.id)).toEqual([keep.id]);
+      expect((await log.purge("nope")).removed).toBe(0);
+    });
+
     if (opts.corrupt) {
       const corrupt = opts.corrupt;
       it("skips and reports a corrupt line, never fatal (NFR-7)", async () => {

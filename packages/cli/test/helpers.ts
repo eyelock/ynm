@@ -15,7 +15,12 @@ export function ynm(
   const r = spawnSync("node", [bin, ...args], {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, YNM_HOME: join(home, ".ynm"), YNM_USER: "tester" },
+    env: {
+      ...process.env,
+      YNM_HOME: join(home, ".ynm"),
+      YNM_USER: "tester",
+      YNM_NO_CLAUDE_CLI: "1",
+    },
   });
   return { stdout: r.stdout, stderr: r.stderr, status: r.status };
 }

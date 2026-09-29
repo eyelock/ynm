@@ -18,6 +18,7 @@ import {
   groupByShard,
   type HealthReport,
   type ParseProblem,
+  type PurgeResult,
   type RecordLog,
   type ShardFilter,
   type ShardInfo,
@@ -126,5 +127,23 @@ export class FsLog implements RecordLog {
         );
     }
     return { ok: problems.length === 0, problems, details: { dir: this.dir, shards } };
+  }
+
+  async purge(memoryId: string): Promise<PurgeResult> {
+    let removed = 0;
+    const shards: ShardKey[] = [];
+    for (const { key, file } of this.walk()) {
+      const { records } = parseJsonl(readFileSync(file, "utf8"));
+      const kept = records.filter((r) => r.memoryId !== memoryId);
+      if (kept.length === records.length) continue;
+      await withLock(`${file}.lock`, async () => {
+        const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+        writeFileSync(tmp, serializeJsonl(kept));
+        renameSync(tmp, file);
+      });
+      removed += records.length - kept.length;
+      shards.push(key);
+    }
+    return { removed, shards };
   }
 }

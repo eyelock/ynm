@@ -19,7 +19,15 @@ ynm remember --type procedural --level distributed --content "Run pnpm check bef
 ynm recall --text "before pushing"
 ynm context                       # the session-start block agents read
 ynm sync                          # fetch, cat_sort_uniq merge, push shared memory
+ynm dream --dry-run               # consolidation: expire, promote, dedupe, contradict, reflect, normalise
+ynm review list                   # memories a low-confidence decision flagged for a human
+ynm wiki build                    # markdown projection under .ynm/wiki (or --target orphan-branch)
 ```
+
+Consolidation and the write-path checks use two pluggable model seams (ADR-012): a **Judge**
+(decision model; TypeSafe Jev when `TYPESAFE_API_KEY` is set, else a heuristic that can only
+flag, never act) and a **Writer** (headless `claude -p`, or any OpenAI-compatible endpoint such
+as Ollama). Keys go in `~/.ynm/env` or a gitignored `.env`, never in config.
 
 Personal memory lives in `~/.ynm/store.git` and never enters a project repo. Shared memory lives
 in `refs/notes/ynm/shared/*` of the project and syncs with its remote. The MCP server is

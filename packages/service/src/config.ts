@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { join } from "node:path";
+import { DreamConfigSchema } from "@ynm/model";
 import { z } from "zod";
 
 export const ShaSchema = z
@@ -56,6 +57,7 @@ export const YnmConfigSchema = z
       .enum(["sqlite-fts", "memory"])
       .default("sqlite-fts")
       .describe("Index implementation (ADR-005)"),
+    dream: DreamConfigSchema.prefault({}).describe("Judge, Writer and consolidation thresholds"),
   })
   .strict();
 export type YnmConfig = z.infer<typeof YnmConfigSchema>;
@@ -85,6 +87,38 @@ function readJson(file: string): Record<string, unknown> | null {
 
 export function ynmHome(env: NodeJS.ProcessEnv = process.env): string {
   return env.YNM_HOME ?? join(homedir(), ".ynm");
+}
+
+/**
+ * Secrets live in `<home>/env` (KEY=VALUE lines, mode 600, never in a repo) and are loaded into
+ * the process environment without overriding values already set. Keys are never logged.
+ */
+export function loadEnvFile(
+  dir: string,
+  env: NodeJS.ProcessEnv = process.env,
+  name = "env"
+): string[] {
+  const file = join(dir, name);
+  if (!existsSync(file)) return [];
+  const loaded: string[] = [];
+  for (const raw of readFileSync(file, "utf8").split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const m = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
+    if (!m) continue;
+    const key = m[1] as string;
+    let value = (m[2] as string).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    )
+      value = value.slice(1, -1);
+    if (env[key] === undefined) {
+      env[key] = value;
+      loaded.push(key);
+    }
+  }
+  return loaded;
 }
 
 export function configPaths(src: ConfigSources): { global: string; repo?: string; local?: string } {

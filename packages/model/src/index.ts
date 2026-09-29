@@ -3,6 +3,7 @@
  * (ADR-001), inputs shared by MCP and CLI (ADR-008). Nothing here touches storage.
  */
 export * from "./guidance/index.js";
+export * from "./judgments.js";
 export * from "./query.js";
 export * from "./record.js";
 export * from "./session.js";

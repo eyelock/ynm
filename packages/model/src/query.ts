@@ -21,6 +21,10 @@ export const RecallQuerySchema = z
     includeTombstoned: z.boolean().default(false),
     limit: z.number().int().positive().max(200).default(10),
     explain: z.boolean().default(false).describe("Return score components"),
+    rerank: z
+      .boolean()
+      .optional()
+      .describe("Judge-backed rerank of the top candidates (default from config)"),
     mount: z.string().optional().describe("Only this mount"),
   })
   .strict();

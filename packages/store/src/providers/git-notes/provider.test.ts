@@ -133,6 +133,20 @@ describe("GitNotesLog specifics (ADR-003)", () => {
     expect((await collect(log)).map((x) => x.id)).toEqual([r.id]);
   });
 
+  it("purge keeps ref history unless asked to forget it", async () => {
+    const log = await personalLog();
+    const r = makeRecord();
+    await log.append([r]);
+    await log.append([makeRecord()]);
+    const [ref] = (await log.shards()).map((s) => refFor(s));
+    expect((await fx(log.repo, "rev-list", "--count", ref as string)).trim()).toBe("2");
+    await log.purge(r.memoryId);
+    expect((await fx(log.repo, "rev-list", "--count", ref as string)).trim()).toBe("3");
+    expect(await fx(log.repo, "log", "--format=%s", "-1", ref as string)).toMatch(/purge/);
+    await log.purge((await collect(log))[0]?.memoryId as string, { forgetHistory: true });
+    expect((await fx(log.repo, "rev-list", "--count", ref as string)).trim()).toBe("1");
+  });
+
   it("reports health with anchor presence and bad lines", async () => {
     const log = await personalLog();
     const h = await log.health();

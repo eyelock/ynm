@@ -22,7 +22,8 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@ynm/model": "workspace:*"
+    "@ynm/model": "workspace:*",
+    "@ynm/store": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

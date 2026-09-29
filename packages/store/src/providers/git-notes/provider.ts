@@ -7,6 +7,7 @@ import {
   groupByShard,
   type HealthReport,
   type ParseProblem,
+  type PurgeResult,
   type RecordLog,
   type ShardFilter,
   type ShardInfo,
@@ -265,6 +266,50 @@ export class GitNotesLog implements RecordLog {
           remote: options.remote ?? this.remote,
           env: this.identity(),
         }),
+      LOCK_TIMEOUT_MS
+    );
+  }
+
+  /** Rewrites each shard holding the memory; `forgetHistory` starts the ref's history afresh. */
+  async purge(memoryId: string, options: { forgetHistory?: boolean } = {}): Promise<PurgeResult> {
+    const lock = await this.lockPath();
+    return withLock(
+      lock,
+      async () => {
+        const env = await this.identity();
+        const refs = await this.listRefs();
+        const contents = await this.readAll(refs);
+        let removed = 0;
+        const shards: ShardKey[] = [];
+        for (const { ref, key, sha } of refs) {
+          const { records } = parseJsonl(contents.get(ref) ?? "");
+          const kept = records.filter((r) => r.memoryId !== memoryId);
+          if (kept.length === records.length) continue;
+          const { others } = await this.readNote(sha);
+          const blob = (
+            await git(["hash-object", "-w", "--stdin"], {
+              cwd: this.repo,
+              input: serializeJsonl(kept),
+            })
+          ).trim();
+          const treeLines = [
+            ...others.map((e) => `${e.mode} ${e.type} ${e.sha}\t${e.path}`),
+            `100644 blob ${blob}\t${this.anchor}`,
+          ];
+          const tree = (
+            await git(["mktree"], { cwd: this.repo, input: `${treeLines.join("\n")}\n` })
+          ).trim();
+          const parentArgs = options.forgetHistory ? [] : ["-p", sha];
+          const message = `ynm: purge ${memoryId} from ${key.level}/${key.namespace}/${key.type}/${key.bucket}${options.forgetHistory ? " (history dropped)" : ""}`;
+          const commit = (
+            await git(["commit-tree", tree, ...parentArgs, "-m", message], { cwd: this.repo, env })
+          ).trim();
+          await git(["update-ref", ref, commit, sha], { cwd: this.repo });
+          removed += records.length - kept.length;
+          shards.push(key);
+        }
+        return { removed, shards };
+      },
       LOCK_TIMEOUT_MS
     );
   }

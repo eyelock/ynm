@@ -8,6 +8,8 @@ import {
   sessionNamespace,
   ulid,
 } from "@ynm/model";
+import { dream } from "./dream/engine.js";
+import type { DreamReport } from "./dream/types.js";
 import type { Ynm } from "./ynm.js";
 
 /** ISO 8601 duration to milliseconds; enough for the TTL shapes the schema allows. */
@@ -37,9 +39,11 @@ export interface SessionStartResult {
 export interface ConsolidateReport {
   dryRun: boolean;
   passes: Record<string, { candidates: number; changed: string[] }>;
+  /** Present when the full engine ran. */
+  full?: DreamReport;
 }
 
-/** Session lifecycle and the no-model consolidation passes available before M4 (ADR-006). */
+/** Session lifecycle and the entry point to consolidation (ADR-006). */
 export class Lifecycle {
   constructor(
     private readonly ynm: Ynm,
@@ -71,9 +75,27 @@ export class Lifecycle {
     return { sessionId: input.sessionId, expired };
   }
 
-  /** Tombstones working memories whose ttl has elapsed (ADR-006, pass 1). */
+  /** Runs consolidation passes (ADR-006); the full engine when models are configured, else expire only. */
   async consolidate(raw: ConsolidateInput | Record<string, unknown>): Promise<ConsolidateReport> {
     const input = ConsolidateInputSchema.parse(raw);
+    if (this.ynm.models && this.ynm.dreamConfig) {
+      const full = await dream(this.ynm, input, {
+        judge: this.ynm.models.judge,
+        writer: this.ynm.models.writer,
+        config: this.ynm.dreamConfig,
+        now: this.now,
+      });
+      return {
+        dryRun: full.dryRun,
+        passes: Object.fromEntries(
+          Object.entries(full.passes).map(([k, v]) => [
+            k,
+            { candidates: v.candidates, changed: v.changed },
+          ])
+        ),
+        full,
+      };
+    }
     const report: ConsolidateReport = { dryRun: input.dryRun, passes: {} };
     if (input.passes.includes("expire")) {
       const changed: string[] = [];

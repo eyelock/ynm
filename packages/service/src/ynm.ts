@@ -9,9 +9,11 @@ import {
 import type {
   AnnotateInput,
   ContextQuery,
+  DreamConfig,
   ForgetInput,
   Level,
   MemoryRecord,
+  PurgeInput,
   RecallQuery,
   RecordFilter,
   RememberInput,
@@ -23,12 +25,14 @@ import {
   ContextQuerySchema,
   ForgetInputSchema,
   MemoryRecordSchema,
+  PurgeInputSchema,
   RecallQuerySchema,
   RememberInputSchema,
   SupersedeInputSchema,
   summarize,
   ulid,
 } from "@ynm/model";
+import type { Models } from "@ynm/models";
 import {
   fold,
   type Memory,
@@ -40,6 +44,7 @@ import {
   type SyncResult,
   serializeJsonl,
 } from "@ynm/store";
+import { RERANK_QUESTION, WRITE_QUESTIONS } from "./dream/questions.js";
 import type { FreshnessReport, IndexManager } from "./indexing.js";
 import type { Mount } from "./mounts.js";
 import { findRedactions, RedactionError } from "./redaction.js";
@@ -49,8 +54,11 @@ export interface YnmOptions {
   actor: string;
   userId: string;
   redaction: readonly string[];
-  /** Optional in M1-style setups (tests); recall and context require it. */
+  /** Optional (tests); recall and context require it. */
   index?: IndexManager;
+  /** Judge and Writer (ADR-012); optional, resolved by openYnm. */
+  models?: Models;
+  dream?: DreamConfig;
   now?: () => Date;
 }
 
@@ -97,6 +105,8 @@ export class Ynm {
   private readonly redaction: readonly string[];
   private readonly now: () => Date;
   readonly index?: IndexManager;
+  readonly models?: Models;
+  readonly dreamConfig?: DreamConfig;
 
   constructor(opts: YnmOptions) {
     this.mounts = opts.mounts;
@@ -104,6 +114,8 @@ export class Ynm {
     this.userId = opts.userId;
     this.redaction = opts.redaction;
     this.index = opts.index;
+    this.models = opts.models;
+    this.dreamConfig = opts.dream;
     const source = opts.now ?? (() => new Date());
     let last = 0;
     // Strictly increasing timestamps within a process keep record order deterministic (ADR-002).
@@ -236,7 +248,41 @@ export class Ynm {
       }
     }
     out.sort((a, b) => b.score - a.score || (a.updatedAt < b.updatedAt ? 1 : -1));
-    return out.slice(0, q.limit);
+    return this.rerank(q, out);
+  }
+
+  /**
+   * Judge-backed final stage (ADR-005): one noul per top candidate asking whether the memory
+   * answers the query; skipped without a calibrated judge or when disabled.
+   */
+  private async rerank(q: RecallQuery, ranked: RecallHit[]): Promise<RecallHit[]> {
+    const judge = this.models?.judge;
+    const cfg = this.dreamConfig;
+    if (!q.text || !judge?.calibrated || !cfg?.rerank || q.rerank === false)
+      return ranked.slice(0, q.limit);
+    const top = ranked.slice(0, Math.max(q.limit, cfg.rerankTopK));
+    const scored = await Promise.all(
+      top.map(async (h) => {
+        try {
+          const j = await judge.judge(
+            {
+              query: q.text ?? "",
+              memory: { summary: h.summary, content: h.content.slice(0, 2000) },
+            },
+            RERANK_QUESTION
+          );
+          const p = (j.answers.answers as { noul: number }).noul;
+          const explain = h.explain
+            ? { ...h.explain, relevance: p, total: 0.7 * p + 0.3 * h.score }
+            : undefined;
+          return { ...h, score: 0.7 * p + 0.3 * h.score, explain };
+        } catch {
+          return h;
+        }
+      })
+    );
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, q.limit);
   }
 
   /** Pinned plus top memories packed to a token budget, as markdown (ADR-005). */
@@ -274,11 +320,101 @@ export class Ynm {
     return this.annotate({ memoryId, pinned, reason: pinned ? "pinned" : "unpinned" });
   }
 
+  /** Physical removal with an audit marker (ADR-002). History stays unless forgetHistory. */
+  async purge(
+    raw: PurgeInput | Record<string, unknown>
+  ): Promise<{ memoryId: string; removed: number; mount: string }> {
+    const input = PurgeInputSchema.parse(raw);
+    const prior = await this.existing(input.memoryId);
+    const mount = this.mount(prior.mount);
+    const res = await mount.log.purge(input.memoryId, { forgetHistory: input.forgetHistory });
+    const marker = this.stamp({
+      memoryId: input.memoryId,
+      op: "purge-marker",
+      type: prior.type,
+      level: prior.level,
+      namespace: prior.namespace,
+      tags: [],
+      links: [],
+      reason: `${input.reason}${input.forgetHistory ? " (history dropped)" : ""}`,
+      provenance: {},
+    });
+    await mount.log.append([marker]);
+    if (this.index) {
+      const ix = await this.index.indexFor(mount);
+      await ix.remove([input.memoryId]);
+      await this.index.rebuild(mount);
+    }
+    return { memoryId: input.memoryId, removed: res.removed, mount: mount.id };
+  }
+
+  /** Memories waiting for a human or agent decision after a low-confidence model call. */
+  async reviewQueue(mountId?: string): Promise<MemoryWithMount[]> {
+    return (await this.list({ includeTombstoned: false, mount: mountId })).filter(
+      (m) => m.needsReview
+    );
+  }
+
   async indexStatus(): Promise<FreshnessReport[]> {
     if (!this.index) return [];
     const out: FreshnessReport[] = [];
     for (const mount of this.mounts) out.push(await this.index.freshness(mount));
     return out;
+  }
+
+  /** Where a record goes when the caller names no namespace (ADR-001 well-known namespaces). */
+  defaultNamespace(level: Level): string {
+    return level === "personal" ? `user/${this.userId}` : "common";
+  }
+
+  /**
+   * Write-path judge (ADR-012, decided): when a calibrated judge is available, score importance
+   * (only if the caller left the default) and refuse content it flags as sensitive.
+   */
+  private async judgeOnWrite(
+    input: RememberInput
+  ): Promise<{ importance?: number; judgment?: Record<string, unknown> }> {
+    const judge = this.models?.judge;
+    if (!judge?.calibrated || this.dreamConfig?.judgeOnWrite === false) return {};
+    try {
+      const j = await judge.judge(
+        {
+          memory: {
+            type: input.type,
+            content: input.content.slice(0, 4000),
+            summary: input.summary ?? "",
+          },
+        },
+        WRITE_QUESTIONS
+      );
+      const sensitive = (j.answers.sensitive as { noul: number }).noul;
+      if (sensitive >= 0.9)
+        throw new RedactionError([
+          { pattern: "judge:sensitive", sample: `p=${sensitive.toFixed(2)}` },
+        ]);
+      const score = j.answers.importance as { score: number; confidence: number };
+      const importance =
+        input.importance === 0.5 && score.confidence >= 0.5 ? score.score / 4 : undefined;
+      return {
+        importance,
+        judgment: {
+          judgments: [
+            {
+              pass: "write",
+              model: j.model,
+              calibrated: j.calibrated,
+              at: this.now().toISOString(),
+              questions: WRITE_QUESTIONS,
+              answers: j.answers,
+              usage: j.usage,
+            },
+          ],
+        },
+      };
+    } catch (e) {
+      if (e instanceof RedactionError) throw e;
+      return {};
+    }
   }
 
   async remember(
@@ -292,6 +428,7 @@ export class Ynm {
         : input.namespace;
     const mount = this.routeFor(input.level, mountId);
     this.guard(input.level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+    const judged = await this.judgeOnWrite(input);
     const record = this.stamp({
       memoryId: "",
       op: "create",
@@ -302,14 +439,14 @@ export class Ynm {
       tags: input.tags,
       content: input.content,
       summary: input.summary ?? summarize(input.content),
-      data: input.data,
       dataSchema: input.dataSchema,
-      importance: input.importance,
+      importance: judged.importance ?? input.importance,
       confidence: input.confidence,
       validFrom: input.validFrom,
       validTo: input.validTo,
       ttl: input.ttl,
       links: input.links,
+      data: judged.judgment ? { ...(input.data ?? {}), ...judged.judgment } : input.data,
       provenance: { session: input.session, source: input.source },
     });
     return this.write(mount, record);
@@ -463,6 +600,7 @@ export class Ynm {
         if (m.tombstoned && !f.includeTombstoned) continue;
         if (f.since && m.updatedAt < f.since) continue;
         if (f.until && m.updatedAt > f.until) continue;
+        if (f.needsReview !== undefined && m.needsReview !== f.needsReview) continue;
         out.push({ ...m, mount: mount.id });
       }
     }

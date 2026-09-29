@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Bash(cat .env*)",
+      "Bash(cat ./.env*)",
+      "Bash(head .env*)",
+      "Bash(head ./.env*)",
+      "Bash(tail .env*)",
+      "Bash(tail ./.env*)",
+      "Bash(less .env*)",
+      "Bash(more .env*)",
+      "Bash(grep * .env*)",
+      "Bash(bat .env*)",
+      "Bash(sed * .env*)",
+      "Bash(awk * .env*)",
+      "Bash(strings .env*)",
+      "Bash(xxd .env*)",
+      "Bash(od * .env*)",
+      "Bash(base64 .env*)",
+      "Bash(cp .env* *)",
+      "Bash(echo $TYPESAFE_API_KEY*)",
+      "Bash(echo $ANTHROPIC_API_KEY*)",
+      "Bash(printenv*)",
+      "Bash(env)",
+      "Bash(export -p*)"
+    ]
+  }
+}

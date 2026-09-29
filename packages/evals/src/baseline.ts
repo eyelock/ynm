@@ -60,7 +60,11 @@ export function record(t: Timing): { baseline?: Timing; ratio?: number } {
     mkdirSync(dir, { recursive: true });
     writeFileSync(BASELINE_FILE, `${JSON.stringify(all, null, 2)}\n`);
   }
-  const ratio = baseline ? t.p95Ms / Math.max(baseline.p95Ms, 0.01) : undefined;
+  // While establishing a baseline the old numbers are being replaced, so nothing can "regress".
+  const ratio =
+    baseline && process.env.YNM_WRITE_BASELINE !== "1"
+      ? t.p95Ms / Math.max(baseline.p95Ms, 0.01)
+      : undefined;
   console.info(
     `bench ${key}: p50 ${t.p50Ms}ms p95 ${t.p95Ms}ms${baseline ? ` (baseline p95 ${baseline.p95Ms}ms, x${ratio?.toFixed(2)})` : " (no baseline)"}`
   );
@@ -88,7 +92,8 @@ export function recordMetric(
     mkdirSync(dir, { recursive: true });
     writeFileSync(BASELINE_FILE, `${JSON.stringify(all, null, 2)}\n`);
   }
-  const regressed = !!baseline && baseline.value - m.value > tolerance;
+  const regressed =
+    !!baseline && process.env.YNM_WRITE_BASELINE !== "1" && baseline.value - m.value > tolerance;
   console.info(
     `metric ${key}: ${m.value.toFixed(4)}${baseline ? ` (baseline ${baseline.value.toFixed(4)})` : " (no baseline)"}`
   );

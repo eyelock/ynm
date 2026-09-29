@@ -85,6 +85,19 @@ record; requires `--yes` and rewrites that shard's ref, so it needs a coordinate
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
+- 2026-09-29 (M4): all six passes exist in `packages/service/src/dream`: expire, promote, dedupe,
+  contradict, reflect, normalise. Candidate pairs come from the index (each memory's nearest
+  neighbours of the same type and mount), capped per pass by `maxPairsPerRun`. Dedupe keeps the
+  newer memory, merges text through the Writer when one exists, otherwise links and tombstones;
+  contradiction links both sides and tombstones the older only when the judge says the newer
+  supersedes it; reflect writes one reflective memory per subject only after the Noul battery
+  (unsupported, lost fact, wrong date) passes; normalise rewrites relative dates from
+  `recordedAt` with no model. Every decision that changes a memory stores its judgment.
+- 2026-09-29 (M4): the review queue is `needsReview` on the memory (`ynm review list|clear`,
+  `ynm list --needs-review`); the dream report carries per-pass candidates, judged, changed,
+  flagged, skipped, fallback and token usage, and an estimated cost at Jev list price.
+- 2026-09-29 (M4): purge is `ynm purge <id> --reason … --yes`; it rewrites the affected shards,
+  appends a purge marker, and with `--forget-history` starts the shard's ref history afresh.
 - 2026-09-29 (M3): the first pass exists ahead of M4: `expire` tombstones working memory whose
   ttl has elapsed (no model). Exposed as `memory_consolidate` and `ynm dream`, and run by
   `memory_session end` for that session's namespace.

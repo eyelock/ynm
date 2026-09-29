@@ -1,3 +1,4 @@
-import config from "@ynm/vitest-config";
+import shared from "@ynm/vitest-config";
+import { defineConfig, mergeConfig } from "vitest/config";
 
-export default config;
+export default mergeConfig(shared, defineConfig({ test: { testTimeout: 30_000 } }));

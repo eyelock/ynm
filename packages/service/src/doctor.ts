@@ -19,7 +19,7 @@ export interface DoctorReport {
   checks: Check[];
 }
 
-/** Health checks from ADR-009; offline only in M1 (divergence is reported by `ynm sync --dry-run`). */
+/** Health checks from ADR-009; offline (divergence is reported by `ynm sync --dry-run`). */
 export async function doctor(opts: {
   loaded: LoadedConfig;
   worktree: WorktreeInfo;
