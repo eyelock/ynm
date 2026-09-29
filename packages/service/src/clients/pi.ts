@@ -92,10 +92,13 @@ export function typeboxSource(s: Json): string {
 /** Source for one Pi tool: the schema in TypeBox and an `execute` that shells out to `ynm <command> --json`. */
 function toolSource(spec: ToolSpec): string {
   const json = z.toJSONSchema(spec.input, { io: "input", unrepresentable: "any" }) as Json;
-  return `  pi.registerTool(${JSON.stringify(spec.name)}, {
+  const label = spec.name.replace(/^memory_/, "").replace(/_/g, " ");
+  return `  pi.registerTool({
+    name: ${JSON.stringify(spec.name)},
+    label: ${JSON.stringify(`Memory: ${label}`)},
     description: ${JSON.stringify(spec.description)},
-    schema: ${typeboxSource(json)},
-    execute: async (params) => run(${JSON.stringify(spec.command)}, params),
+    parameters: ${typeboxSource(json)},
+    execute: async (_toolCallId, params) => run(${JSON.stringify(spec.command)}, params as Record<string, unknown>),
   });`;
 }
 
@@ -108,19 +111,22 @@ export const PI_EXTENSION_HEADER =
  */
 export function piExtensionSource(): string {
   return `${PI_EXTENSION_HEADER}
-// memory_* tool shells out to \`ynm <command> --json\`, so the ynm CLI must be on PATH.
+// memory_* tool shells out to \`ynm <command> --json\`, so the ynm CLI must be on PATH.\n// Contract: ToolDefinition from @earendil-works/pi-coding-agent (registerTool(tool), execute(id, params)).
 import { spawn } from "node:child_process";
-import { Type } from "@sinclair/typebox";
+import { Type } from "@earendil-works/pi-ai";
 
 interface ToolResult {
-  content: string;
-  details?: unknown;
+  content: Array<{ type: "text"; text: string }>;
+  details: unknown;
 }
 interface PiApi {
-  registerTool(
-    name: string,
-    tool: { description: string; schema: unknown; execute: (params: Record<string, unknown>) => Promise<ToolResult> }
-  ): void;
+  registerTool(tool: {
+    name: string;
+    label: string;
+    description: string;
+    parameters: unknown;
+    execute: (toolCallId: string, params: unknown) => Promise<ToolResult>;
+  }): void;
 }
 
 function kebab(s: string): string {
@@ -141,6 +147,10 @@ export function argsFor(command: string, params: Record<string, unknown>): strin
   return args;
 }
 
+function text(t: string, details: unknown = undefined): ToolResult {
+  return { content: [{ type: "text", text: t }], details };
+}
+
 function run(command: string, params: Record<string, unknown>): Promise<ToolResult> {
   return new Promise((resolve) => {
     const child = spawn(process.env.YNM_BIN ?? "ynm", argsFor(command, params), { stdio: ["ignore", "pipe", "pipe"] });
@@ -152,14 +162,13 @@ function run(command: string, params: Record<string, unknown>): Promise<ToolResu
     child.stderr.on("data", (d) => {
       err += d;
     });
-    child.on("error", (e) => resolve({ content: \`ynm failed to start: \${e.message}\` }));
+    child.on("error", (e) => resolve(text(\`ynm failed to start: \${e.message}\`)));
     child.on("exit", (code) => {
-      if (code !== 0) return resolve({ content: \`ynm \${command} exited \${code}: \${err.trim() || out.trim()}\` });
+      if (code !== 0) return resolve(text(\`ynm \${command} exited \${code}: \${err.trim() || out.trim()}\`));
       try {
-        const details = JSON.parse(out);
-        resolve({ content: out.trim(), details });
+        resolve(text(out.trim(), JSON.parse(out)));
       } catch {
-        resolve({ content: out.trim() });
+        resolve(text(out.trim()));
       }
     });
   });

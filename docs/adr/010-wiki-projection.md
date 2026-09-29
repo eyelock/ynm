@@ -1,6 +1,6 @@
 # ADR-010: Compiled markdown wiki as a derived view
 
-Status: draft
+Status: accepted (2026-09-29)
 Satisfies: FR-19, FR-9
 
 ## Context
@@ -12,14 +12,16 @@ kept current, and that humans can read and grep it. Its weaknesses (from the com
 lossy compression, has no benchmarks, and needs real retrieval past a few hundred pages. Google's
 Open Knowledge Format (OKF) is a markdown-with-frontmatter spec for the same layout.
 
-## Decision (current position)
+## Decision
 
-The wiki is a **projection**, generated from the folded memory state, never the source of truth:
+The wiki is a **projection**, generated from the folded memory state, never the source of truth,
+and ships in v1. Pages:
 
 - `index.md`: one line per non-tombstoned memory grouped by namespace and type, using `summary`.
-  Also the exact content returned by `memory://<mount>/wiki/index.md` and the basis of the pinned
-  context block.
+  It is the full catalog, also served as `memory://<mount>/wiki/index.md`. The pinned context
+  block is a separately ranked set packed to a token budget, not a copy of `index.md`.
 - `log.md`: `## [date] <op> | <summary>` per record, newest last; derived from the log itself.
+- `memories/<id>.md`: one page per memory; the frontmatter holds the memoryId.
 - `entities/<subject>.md` and `topics/<tag>.md`: pages assembled from the memories sharing that
   subject or tag, with the reflective memory (if any) at the top and episodic entries below.
 - Frontmatter follows OKF (`type` required) so other OKF-aware tools can read it.
@@ -31,15 +33,15 @@ seam, mirroring the store and index seams:
 interface WikiTarget { write(pages: WikiPage[]): Promise<void>; read(path: string): Promise<string | null>; list(): Promise<string[]> }
 ```
 
-Implementations: **directory** (default, `.ynm/wiki/` gitignored, or any path such as an
-Obsidian vault), **orphan branch** `ynm/wiki` for teams that want it browsable on a forge,
-**notes-tree** (non-note files inside the ynm notes tree, invisible to normal tools but carried
-with the refs), and **resources-only** (nothing on disk; pages served through
-`memory://<mount>/wiki/*`). Written by `ynm wiki build` and by the dream pass.
+Two targets exist: **directory** (default, `.ynm/wiki/` gitignored, or any path such as an
+Obsidian vault) and **orphan branch** `ynm/wiki` for teams that want it browsable on a forge.
+`ynm wiki build [--target orphan-branch]` writes them, as does the dream pass. Independently of
+any target, the MCP resource `memory://{mount}/wiki/{path}` serves pages generated on demand, so
+a client can read the wiki with nothing on disk.
 
-Edits made to wiki files by hand are **not** read back automatically. `ynm wiki ingest <file>`
-turns an edited page into `supersede` records, mirroring Karpathy's "file answers back into the
-wiki" but through the log.
+Edits made to wiki files by hand are **not** read back automatically. `ynm wiki ingest <page>`
+turns an edited memory page into a `supersede` record, mirroring Karpathy's "file answers back
+into the wiki" but through the log.
 
 ## Alternatives considered
 
@@ -56,24 +58,11 @@ wiki" but through the log.
 - `lint` in Karpathy's sense is the dream pass (ADR-006), reporting orphans, contradictions and
   stale claims into `ynm status`.
 
-## Decided
-
-- The wiki is a derived projection behind a `WikiTarget` seam; directory is the default target,
-  orphan branch the first alternative (2026-09-28). In v1.
-- The pinned context block is a separately ranked set packed to a token budget; `index.md` is
-  the full catalog (default, 2026-09-28).
-
 ## Open questions
 
-- None outstanding.
+None.
 
-## Addenda
+## History
 
-Dated notes added while building. Anything here that changes the Decision above is folded into
-it at consolidation time.
-
-- 2026-09-29 (M4): generator and two targets shipped with golden-file tests: `index.md`,
-  `log.md`, `memories/<id>.md` (one page per memory, frontmatter holds the memoryId), entity pages
-  per subject with the reflection first, topic pages per tag. `ynm wiki build [--target
-  orphan-branch]` and `ynm wiki ingest <page>` (an edited memory page becomes a supersede).
-  MCP resource `memory://{mount}/wiki/{path}` serves pages generated on demand.
+- 2026-09-29 (M4): generator, directory and orphan-branch targets, `wiki build` / `wiki ingest`
+  and the on-demand wiki resource shipped with golden-file tests.

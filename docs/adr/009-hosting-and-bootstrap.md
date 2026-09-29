@@ -1,6 +1,6 @@
 # ADR-009: Hosting topologies and bootstrap
 
-Status: draft
+Status: accepted (2026-09-29)
 Satisfies: FR-20, FR-21, NFR-6, NFR-11, NFR-14
 
 ## Context
@@ -10,33 +10,70 @@ no forge protection, multi-writer contention). mcp-toolkit `spec-update` already
 Streamable HTTP transports on SDK v2 with origin/host validation and bearer auth; ACME has OAuth
 introspection and JWT verifiers.
 
-## Decision (current position)
+## Decision
 
-Four topologies, one codebase, selected by mounts in config:
+Four topologies, one codebase, selected by mounts in config. The hosted service is a first-class
+topology, not a later addition, and that shaped the design from the start: the server is
+stateless, the service layer never assumes a local checkout or a working tree, and every provider
+works against a bare repo.
 
 1. **Local in-repo**: stdio server launched by the client; mounts `personal` (`~/.ynm/store.git`)
    and `project` (this repo's shared refs). Sync via the repo's remote.
 2. **Personal global**: same, without a project mount. Works outside any git repo.
-3. **Dedicated shared repo**: a memory-only bare repo (on disk, GitHub, GitLab, Bitbucket) mounted
-   as `org`; stdio locally or HTTP.
-4. **Hosted service**: Docker image running the HTTP transport in front of a bare repo (or the
-   sqlite provider). The server is the single writer, so no ref contention; clients never need
-   git. Auth: bearer for dev, OAuth introspection or JWT via JWKS for production. Includes the
-   dream worker and a scheduler.
+3. **Dedicated shared repo**: a memory-only bare repo (on disk, GitHub, GitLab, Bitbucket, Gitea)
+   mounted as `org`; stdio locally or HTTP. Proven by the Gitea container test (NFR-6).
+4. **Hosted service**: the HTTP transport in front of a bare repo (or the sqlite provider). The
+   server is the single writer, so no ref contention; clients never need git.
 
-`ynm init` steps (project): detect repo/worktree; create root commit if none; write
-`.ynm/config.json` (mounts, index, redaction, dream thresholds); add `remote.<r>.fetch`
-`refs/notes/ynm/shared/*:refs/ynm-remote/shared/*` (not forced, into a temp namespace) and
-`remote.<r>.push refs/notes/ynm/shared/*`; install `pre-push` (run `ynm sync`) and
-`post-checkout` (no-op guard, prints reminder if refs missing) hooks; build the index; print the
-CLAUDE.md / AGENTS.md snippet. `--personal` and `--bare <target>` variants create the root commit
-in a fresh bare repo. `ynm mcp install --client <name>` writes client config.
+**One binary.** `ynm serve` starts the MCP server: stdio by default (what client adapters
+register), `--http` for the hosted service. `ynm-mcp` remains as the server package's own bin.
+This is what lets a single Homebrew formula cover the CLI, the stdio server and the hosted
+service.
 
-`ynm doctor`: refspecs present, hooks present, anchor reachable, shards parse, index fresh,
-divergence per shard, personal refs absent from push refspecs, node/git versions.
+**Transports.** stdio through `serveStdio`; Streamable HTTP (protocol 2026-07-28 with the SDK's
+legacy fallback) through `createMcpHandler` plus `toNodeHandler` with a fresh server per request,
+host and origin validation in front, localhost CORS, and `/health` outside auth. The MCP server
+opens the service once per process and relies on index freshness for writes from elsewhere.
+Binding to `0.0.0.0` disables the Host header check (`--allow-host *`) because a container's own
+hostname is unknown; a public listener sets `--allow-host <name>`.
 
-Config precedence (copied from ACME): defaults → `~/.ynm/config.json` → `<repo>/.ynm/config.json`
-→ `<worktree>/.ynm/config.local.json` → env `YNM_*`.
+**Auth.** Three verifiers behind the SDK's `OAuthTokenVerifier` seam: static tokens (dev), RFC
+7662 introspection with a cache (copied in spirit from ACME), and JWT via JWKS with jose. The
+transport uses `verifyBearerToken` and answers RFC 6750 challenges (401 `invalid_token`, 403
+`insufficient_scope`); verifiers throw the SDK's `OAuthError` (anything else becomes a 500) and
+every `AuthInfo` carries an expiry (the SDK rejects one without). Mode is chosen from the
+environment: `YNM_JWKS_URL` > `YNM_OAUTH_INTROSPECTION_URL` > `YNM_MCP_TOKEN` > none;
+`YNM_REQUIRED_SCOPES` enforces scopes.
+
+**Scheduler.** The dream worker is a scheduler inside the hosted process (`--dream-every`,
+`--sync-every`): runs never overlap, a failing run is recorded and the next tick retries, stats
+are on `/health`. Hosted consolidation is also reachable through `memory_consolidate` over HTTP.
+
+**Packaging.** A Docker image (alpine, `Dockerfile`; the entrypoint creates or adopts the bare
+repo and optionally serves it over git:// with `YNM_GIT_DAEMON=1`) and a compose demo under
+`infra/docker/` (`demo.sh`: a store, an agent with no git, a developer clone that syncs through
+the container). The release workflow publishes the image to ghcr.io.
+
+**`ynm init`** (project): detect repo and worktree; create a root commit if none; write
+`.ynm/config.json` (anchor, mounts, index, redaction, dream thresholds); add
+`remote.<r>.fetch +refs/notes/ynm/shared/*:refs/notes/ynm-remote/<r>/shared/*` and
+`remote.<r>.push refs/notes/ynm/shared/*` (prepending `HEAD` to the push refspecs when none
+exist, because an explicit push refspec otherwise replaces git's default and plain `git push`
+would stop pushing the branch); install a `pre-push` hook that runs `ynm sync --quiet`; build the
+index. Sync sets `YNM_SYNC_IN_PROGRESS=1` on its own git calls and the hook exits when it sees
+it, otherwise the hook re-enters sync forever. `--personal` and `--bare <target>` create the root
+commit in a fresh bare repo; the personal store's anchor is recomputed from its `main` root on
+every open rather than cached. `ynm client install <name>` writes client config (ADR-013).
+
+**`ynm doctor`**: refspecs present, hooks present, anchor reachable, shards parse, index fresh,
+divergence per shard, personal refs absent from push refspecs, client status, node and git
+versions.
+
+**Config precedence** (copied from ACME): defaults → `~/.ynm/config.json` →
+`<repo>/.ynm/config.json` → `<worktree>/.ynm/config.local.json` → env `YNM_*`.
+
+`memory_sync` against a repo with no remote reports the missing remote in the result instead of
+failing.
 
 ## Retrofit into an existing repository
 
@@ -65,62 +102,25 @@ Cases handled:
 - Hosted-only (like Mem0 cloud). Rejected: local-first is the point of git notes.
 - Local-only. Rejected: production agents without a git checkout need the HTTP shape.
 
-## Decided
-
-- The hosted service is a **v1, first-class** topology (2026-09-28): a central memory store that
-  agents connect to over Streamable HTTP is part of the deliverable, not a later addition.
-- Design constraints that follow, applied from Phase 1: the server is stateless; the service layer
-  never assumes a local checkout or a working tree; every provider works against a bare repo; the
-  HTTP transport ships with the MCP server (Phase 3), with auth hardening, Docker, scheduler and
-  operations docs in Phase 5.
-
 ## Consequences
 
-- The hosted service needs its own operational docs: backups (`git bundle --all`), key rotation,
-  scaling (one writer per store), and how local clones sync with a hosted store (the hosted repo
-  is simply their remote).
+- Operations are documented in `docs/operations.md`: auth modes and key rotation, backups with
+  `git bundle --all`, one writer per store (scale by store, not by replicas), and how local
+  clones sync with a hosted store (the hosted repo is simply their remote).
 - A client that talks to the hosted store and also has a local project mount gets two mounts;
   recall spans both and labels the origin.
+- Release packaging (tarball, Homebrew formula, image) is described in `docs/release.md`.
 
 ## Open questions
 
-- Client installation is its own seam, see ADR-013 (Claude Code, Copilot CLI, OpenCode, Pi, ynh;
-  Cursor dropped).
+- None.
 
-## Addenda
+## History
 
-Dated notes added while building. Anything here that changes the Decision above is folded into
-it at consolidation time.
-
-- 2026-09-29 (M3): both transports ship. stdio through `serveStdio`; Streamable HTTP through
-  `createMcpHandler` plus `toNodeHandler` with a fresh server per request, host and origin
-  validation in front, localhost CORS, static bearer and `/health`. The MCP server opens the
-  service once per process and relies on index freshness for writes from elsewhere. A hosted
-  server runs with `--no-personal` against a bare repo; proven by the protocol and HTTP tests.
-- 2026-09-29 (M3): `memory_sync` against a repo with no remote reports the missing remote in the
-  result instead of failing.
-- 2026-09-29 (M1): the installed pre-push hook runs `ynm sync --quiet`, and sync itself pushes,
-  so without a guard the hook re-enters sync forever (it did, under pnpm where `ynm` is on PATH).
-  Sync now sets `YNM_SYNC_IN_PROGRESS=1` on its own git calls and the hook exits when it sees it.
-- 2026-09-29 (M1): `ynm init` adds `HEAD` to `remote.<r>.push` before the shared-notes refspec
-  when no push refspec exists, because an explicit push refspec otherwise replaces git's default
-  and plain `git push` would stop pushing the branch.
-- 2026-09-29 (M1): the personal store's anchor is recomputed from its `main` root on every open
-  rather than cached in config; cheap and immune to the notes-root confusion above.
-- 2026-09-29 (M5): hosted auth ships as three verifiers behind the SDK's `OAuthTokenVerifier`
-  seam: static tokens, RFC 7662 introspection (cached, copied in spirit from ACME) and JWT via
-  JWKS with jose. The transport uses `verifyBearerToken` and answers RFC 6750 challenges
-  (401 `invalid_token`, 403 `insufficient_scope`); verifiers must throw the SDK's `OAuthError`
-  or the failure becomes a 500, and every `AuthInfo` needs an expiry or the SDK rejects it.
-  Mode is chosen from the environment (`YNM_JWKS_URL` > `YNM_OAUTH_INTROSPECTION_URL` >
-  `YNM_MCP_TOKEN` > none).
-- 2026-09-29 (M5): the dream worker is a scheduler inside the hosted process (`--dream-every`,
-  `--sync-every`), never overlapping runs, stats on `/health`. One binary: `ynm serve` starts
-  the MCP server (stdio by default, `--http` hosted) and is what client adapters register;
-  `ynm-mcp` remains as an alias for the server package. Docker image (`Dockerfile`, alpine,
-  git-daemon optional) and the compose demo under `infra/docker/` prove the topology: an agent
-  with no git and a developer clone that syncs through the container. Binding to `0.0.0.0`
-  disables the Host header check (`--allow-host *`) since a container's own hostname is unknown.
-- 2026-09-29 (M5): operations doc at `docs/operations.md` (auth modes, rotation, `git bundle`
-  backups, one writer per store, clones as remotes). A Gitea container test shows two clones
-  syncing a dedicated shared repo through a forge with concurrent writes merged (NFR-6).
+- 2026-09-28: hosted service made a first-class v1 topology.
+- 2026-09-29 (M1): pre-push hook recursion guard; `HEAD` prepended to push refspecs; personal
+  anchor recomputed on open.
+- 2026-09-29 (M3): both transports shipped; `memory_sync` without a remote reports it.
+- 2026-09-29 (M5): auth verifiers, in-process scheduler, `ynm serve`, Docker image and compose
+  demo, operations doc, Gitea test.
+- 2026-09-29 (M6): release workflow publishes the tarball, the Homebrew formula and the image.

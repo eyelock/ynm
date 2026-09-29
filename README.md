@@ -10,8 +10,8 @@ Status: pre-alpha, MVP reached (M3). The architecture is recorded as draft ADRs 
 ## Try it
 
 ```bash
-pnpm install && pnpm build
-alias ynm="node $PWD/packages/cli/bin/run.js"
+brew install eyelock/tap/ynm      # or, from a checkout:
+pnpm install && pnpm build && alias ynm="node $PWD/packages/cli/bin/run.js"
 cd /path/to/your/repo
 ynm init                          # anchor, config, shared-only refspecs, pre-push hook
 ynm client install claude-code    # also: copilot-cli, opencode, pi, ynh (ADR-013)
@@ -43,6 +43,14 @@ infra/docker/demo.sh   # store + an agent with no git + a developer clone syncin
 ```
 
 Operations (auth modes, key rotation, backups, scaling): [`docs/operations.md`](docs/operations.md).
+Releasing (tarball, Homebrew tap, image): [`docs/release.md`](docs/release.md).
+
+## Benchmarks
+
+Tier 1 and 2 evals run on every change (`pnpm test`, `pnpm bench`); tier 3 drives LoCoMo and
+LongMemEval-S through memory and reports evidence recall plus, when opted in, answer accuracy
+(`pnpm bench:public`). Reports per release live in `packages/evals/reports/<version>/`; see
+[ADR-014](docs/adr/014-evals-and-benchmarks.md) for what the numbers mean and do not mean.
 
 ## Development
 

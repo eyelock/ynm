@@ -1,6 +1,6 @@
 # ADR-000: Requirements
 
-Status: draft
+Status: accepted (2026-09-29)
 
 ## Context
 
@@ -118,9 +118,6 @@ Numbered so ADRs and tests can cite them.
   Jev) and generative models sit behind separate seams (ADR-012); judgments are stored as data
   with probabilities and confidence, and thresholds live in config.
 
-## Addenda
+## History
 
-Dated notes added while building. Anything here that changes a requirement is folded into it at
-consolidation time.
-
-- (none yet)
+- No addenda were recorded before consolidation; the requirements above stand as first drafted.

@@ -1,6 +1,6 @@
 # ADR-001: Memory types, levels and namespaces
 
-Status: draft
+Status: accepted (2026-09-29)
 Satisfies: FR-1, FR-2, FR-6, NFR-5
 
 ## Context
@@ -12,17 +12,20 @@ them: Mem0 uses user/agent/app/run ids, LangGraph uses hierarchical namespaces, 
 managed/user/project/local tiers. ACME had one axis only (entry type) and one implicit scope (the
 repo), which made "personal vs shared" impossible.
 
-## Decision (current position)
+## Decision
 
 Three orthogonal fields on every record:
 
 1. **type**, one of: `working`, `episodic`, `semantic`, `procedural`, `reflective`, `reference`.
-2. **level**, one of: `personal`, `distributed`. Fixed at write time. Determines which store and
-   which refs the record can ever live on. Moving a record from personal to distributed is an
-   explicit copy that creates a new record with a `derives-from` link.
+2. **level**, one of: `personal`, `distributed`. The level is binary: audience finer than that is a
+   namespace convention plus which remote a store syncs to; the schema does not enforce it. Level
+   is fixed at write time and determines which store and which refs the record can ever live on.
+   Moving a record from personal to distributed is an explicit copy that creates a new record with
+   a `derives-from` link.
 3. **namespace**, a `/`-separated path of unbounded depth, such as `common`, `user/david`,
    `agent/reviewer`, `org/eyelock/team/platform/project/ynm`, `session/<id>`. Segments are
-   `[a-z0-9._-]+`. Namespaces are hierarchical so recall can filter by prefix, and they are the
+   `[a-z0-9][a-z0-9._-]*` (no leading dot, no `..`, no `.lock` suffix, so every segment is a
+   valid git ref component; ADR-003). Namespaces are hierarchical so recall can filter by prefix, and they are the
    only grouping mechanism above the record: team, project, client, org are all namespaces, not
    levels. A record has exactly one namespace.
 
@@ -35,6 +38,7 @@ Plus two free-form grouping fields:
 
 - **subject**: an optional entity or topic key (`entity:git-notes`, `topic:release-process`) so
   episodic memories about a recurring theme can be recalled together and consolidated as a series.
+  It is a field, not a link, so it can be filtered cheaply.
 - **tags**: string list.
 
 Working memory is `type: working`, always `namespace: session/<id>`, always carries a TTL, and is
@@ -55,21 +59,10 @@ the only type that a consolidation pass may promote into another type.
 - `level` must be enforced by the store, not just the schema: a `personal` record cannot be written
   to a distributed ref.
 
-## Decided
-
-- Level is binary, `personal | distributed` (2026-09-28). Audience finer than that is a namespace
-  convention plus which remote a store syncs to; the schema does not enforce it.
-- Namespaces are unbounded hierarchical paths with `common` as the shared default.
-
-- `subject` stays a field, not a link, so it can be filtered cheaply (default, 2026-09-28).
-
 ## Open questions
 
-- None outstanding.
+None.
 
-## Addenda
+## History
 
-Dated notes added while building. Anything here that changes the Decision above is folded into
-it at consolidation time.
-
-- (none yet)
+No addenda were recorded during the build.

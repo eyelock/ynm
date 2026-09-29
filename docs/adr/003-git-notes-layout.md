@@ -1,6 +1,6 @@
 # ADR-003: Refs, anchors, sharding, writes, merging
 
-Status: draft
+Status: accepted (2026-09-29)
 Satisfies: FR-15, FR-16, NFR-1, NFR-2, NFR-3, NFR-8
 
 ## Context
@@ -18,7 +18,7 @@ Facts about git notes that drive this decision (verified against git 2.54 and it
 - Reading many notes must use batched plumbing (`ls-tree`, `cat-file --batch`), never one process
   per note.
 
-## Decision (current position)
+## Decision
 
 **Refs.** One notes ref per (level, namespace, type, time bucket):
 
@@ -27,19 +27,31 @@ refs/notes/ynm/personal/<namespace>/<type>/<yyyy-mm>
 refs/notes/ynm/shared/<namespace>/<type>/<yyyy-mm>
 ```
 
-Namespace path separators map to `-` inside the ref name. `personal/*` refs exist only in the
-user's own store (`~/.ynm/store.git`), never in a project or org repo (ADR-007). Time buckets bound the size of any single blob (NFR-3) and make old
-buckets effectively immutable, which suits consolidation snapshots.
+Namespace segments are real ref path components
+(`refs/notes/ynm/shared/org/eyelock/project/ynm/semantic/2026-09`). Type and bucket have fixed
+forms, so parsing a ref back is unambiguous and hyphenated namespaces cannot collide. Segments
+must therefore be valid ref components: ADR-001's namespace rule forbids a leading dot, `..` and a
+`.lock` suffix. `personal/*` refs exist only in the user's own store (`~/.ynm/store.git`), never
+in a project or org repo (ADR-007).
 
-**Anchor (agreed 2026-09-28).** Every note in a ref is attached to the **root commit** of the
-repository. It always exists, is reachable from every branch, and no rebase touches it. The root
-commit is never rewritten by ynm; it is only the address the notes hang off, like a table name.
+Buckets are months. They are deterministic across clones, which matters for merging; daily
+buckets would mean thousands of refs a year and yearly ones would mean one blob rewritten all
+year. Time buckets bound the size of any single blob (NFR-3) and make old buckets effectively
+immutable, which suits consolidation snapshots.
 
-Selection rule: `git rev-list --max-parents=0 --all`, oldest by committer date if there are
-several (repos built from merges or subtree imports can have more than one). The chosen SHA is
-written to `.ynm/config.json` as `anchor` so every clone agrees. For a dedicated memory repo
-(`ynm init --bare`) we create exactly one empty root commit. If a repo has no commits yet,
-`ynm init` creates one.
+**Anchor.** Every note in a ref is attached to the **root commit** of the repository. It always
+exists, is reachable from every branch, and no rebase touches it. The root commit is never
+rewritten by ynm; it is only the address the notes hang off, like a table name.
+
+Selection rule: the parentless commits (`git rev-list --max-parents=0`) of every ref except
+`refs/notes/*`, oldest by committer date if there are several (repos built from merges or subtree
+imports can have more than one). Notes refs must be excluded because every notes history starts
+with a parentless commit; when one lands in the same second as the real root the tie-break can
+pick it, which made the personal store unreadable intermittently. The chosen SHA is written to
+`.ynm/config.json` as `anchor` so every clone agrees. `anchor` may also be set by hand to any
+stable commit SHA, for repos that want the notes visibly separate in `git log --notes`. For a
+dedicated memory repo (`ynm init --bare`) we create exactly one empty root commit. If a repo has
+no commits yet, `ynm init` creates one.
 
 Shallow clones (CI, depth 1) may not have the root commit object. That is fine: the plumbing
 writer and the batched reader only use the SHA as a tree path. Only the `git notes` porcelain and
@@ -52,12 +64,19 @@ namespace, not the anchor, is the partition key.
 **History is the transaction log.** Every append is a new commit on the shard ref whose parent is
 the previous notes commit, so `git log <ref>` is the write history and `git show <commit>:<path>`
 recovers the blob at any point. The blob itself is also append-only (ADR-002). Consolidation only
-appends records, so its inputs always remain to re-run it from. The fold (current state) is derived
-and cached in the index; it is never stored as the truth.
+appends records, so its inputs always remain to re-run it from. Ref history is never rewritten by
+normal operation; only `ynm purge --forget-history` drops it, as a separate audited command. The
+fold (current state) is derived and cached in the index; it is never stored as the truth.
+
+**Fold order.** Merging and concurrent writers can put a record in a shard before its memory's
+base (the `create` or `supersede` it belongs to). The fold treats such records as "before": they
+count as versions and contribute tags and links, the later base wins on any field it sets, and a
+tombstone is revived only by a supersede.
 
 **Snapshots.** The dream pass may append a `snapshot` record (ADR-002) holding the folded state of
 a shard at that moment. Readers can bootstrap from the last snapshot plus the tail instead of
-folding from the first record: the classic log-plus-checkpoint pattern.
+folding from the first record: the classic log-plus-checkpoint pattern. Snapshots carry orphans
+(records folded before their base) so snapshot-plus-tail stays exactly equal to the full fold.
 
 **Size.** Blob versions are delta-compressed in packfiles, so history costs about the size of the
 appended lines, not records squared. At 1 KB per record: 100 records/day is roughly 36 MB raw per
@@ -76,6 +95,10 @@ plumbing so it can compare-and-swap:
    fanout: write the flat 40-hex path; git reads either); `commit-tree -p old`.
 4. `update-ref <ref> <new> <old>`; on failure re-read and retry (bounded).
 5. Release the lock; notify the index of the appended records.
+
+That is seven git spawns per append (`rev-parse`, `ls-tree`, `cat-file`, `hash-object`, `mktree`,
+`commit-tree`, `update-ref`). Fine for single writes; batching many records into one append is
+the lever for bulk loads.
 
 Commit messages are structured (`ynm: 3 records project/ynm semantic 2026-09`) so the ref's
 `git log` reads as an audit trail.
@@ -117,39 +140,19 @@ unreachable.
 - Remote hosting on a forge works with any provider because only `refs/notes/*` push access is
   required. No forge protects these refs; the hosted topology (ADR-009) is the answer where that
   matters.
-
-## Decided
-
-- Root commit as anchor, with the selection rule above (2026-09-28).
-- Month buckets: deterministic across clones, which matters for merging. Daily would mean
-  thousands of refs a year; yearly would mean one blob rewritten all year.
-- Ref history is the transaction log and is never rewritten by normal operation. Only
-  `ynm purge --forget-history` drops it, as a separate audited command.
-- `anchor` in `.ynm/config.json` may override the root commit with any stable commit SHA, for
-  repos that want the notes visibly separate in `git log --notes` (default, 2026-09-28).
+- Append cost baselines live in `packages/evals/baselines`.
 
 ## Open questions
 
-- None outstanding.
+None.
 
-## Addenda
+## History
 
-Dated notes added while building. Anything here that changes the Decision above is folded into
-it at consolidation time.
-
-- 2026-09-29 (M1): namespace segments are real ref path components
-  (`refs/notes/ynm/shared/org/eyelock/project/ynm/semantic/2026-09`), not mapped to hyphens as
-  drafted. Type and bucket have fixed forms, so parsing a ref back is unambiguous, and hyphenated
-  namespaces cannot collide. Consequence: segments must be valid ref components, so ADR-001's
-  namespace rule now forbids a leading dot, `..` and a `.lock` suffix.
-- 2026-09-29 (M1): root-commit selection must exclude `refs/notes/*`. Every notes history starts
-  with a parentless commit; when it lands in the same second as the real root the tie-break can
-  pick it, which made the personal store unreadable intermittently. Found by the CLI workflow
-  test.
-- 2026-09-29 (M1): the fold treats records that arrive before their memory's base (create or
-  supersede) as "before": they count as versions and contribute tags and links, the later base
-  wins on any field it sets, and a tombstone is revived only by a supersede. Snapshots carry
-  orphans so snapshot-plus-tail stays exactly equal to the full fold. Found by the property suite.
-- 2026-09-29 (M1): the store write path is seven git spawns per append (rev-parse, ls-tree,
-  cat-file, hash-object, mktree, commit-tree, update-ref). Fine for single writes; batching many
-  records into one append is the lever for bulk loads. Baselines in `packages/evals/baselines`.
+- 2026-09-29 (M1): namespace segments became real ref path components instead of hyphen-mapped,
+  adding the ref-component constraints to ADR-001's namespace rule.
+- 2026-09-29 (M1): root-commit selection excludes `refs/notes/*` after a notes root won the
+  tie-break and made the personal store unreadable intermittently.
+- 2026-09-29 (M1): the fold's handling of records that arrive before their base, and snapshots
+  carrying orphans, were fixed by the property suite.
+- 2026-09-29 (M1): the write path was measured at seven git spawns per append; batching is the
+  bulk-load lever.

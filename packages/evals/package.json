@@ -16,13 +16,14 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run --exclude 'src/gates/**' --exclude 'src/tier1/latency/**' --exclude 'src/tier2/**' --exclude 'src/tier1/hosted/**'",
-    "test:coverage": "vitest run --coverage --exclude 'src/gates/**' --exclude 'src/tier1/latency/**' --exclude 'src/tier2/**' --exclude 'src/tier1/hosted/**'",
+    "test": "vitest run --exclude 'src/gates/**' --exclude 'src/tier1/latency/**' --exclude 'src/tier2/**' --exclude 'src/tier1/hosted/**' --exclude 'src/tier3/public-benchmarks.test.ts'",
+    "test:coverage": "vitest run --coverage --exclude 'src/gates/**' --exclude 'src/tier1/latency/**' --exclude 'src/tier2/**' --exclude 'src/tier1/hosted/**' --exclude 'src/tier3/public-benchmarks.test.ts'",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo coverage",
     "bench": "vitest run src/tier1/latency --reporter=verbose",
     "gate": "node scripts/gate.mjs",
-    "test:hosted": "vitest run src/tier1/hosted --reporter=verbose"
+    "test:hosted": "vitest run src/tier1/hosted --reporter=verbose",
+    "bench:public": "vitest run src/tier3/public-benchmarks.test.ts --reporter=verbose"
   },
   "dependencies": {
     "@ynm/model": "workspace:*",

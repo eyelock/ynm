@@ -1,0 +1,228 @@
+{
+  "dataset": "locomo",
+  "datasetSha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+  "datasetLicense": "CC BY-NC 4.0",
+  "ranAt": "2026-09-29T09:11:56.155Z",
+  "ynmVersion": "0.1.0",
+  "setup": {
+    "ingest": "turn-episodic",
+    "index": "sqlite-fts",
+    "k": 10,
+    "cases": 10,
+    "questions": 1986,
+    "writer": "claude-cli",
+    "judge": "typesafe",
+    "judgeCalibrated": true
+  },
+  "retrieval": {
+    "evidenceRecallAtK": 0.5718,
+    "fullEvidenceAtK": 0.5333,
+    "byCategory": {
+      "temporal": {
+        "n": 321,
+        "evidenceRecall": 0.6623
+      },
+      "open-domain": {
+        "n": 92,
+        "evidenceRecall": 0.2488
+      },
+      "multi-hop": {
+        "n": 282,
+        "evidenceRecall": 0.237
+      },
+      "single-hop": {
+        "n": 841,
+        "evidenceRecall": 0.6421
+      },
+      "adversarial": {
+        "n": 446,
+        "evidenceRecall": 0.6525
+      }
+    }
+  },
+  "timing": {
+    "ingestMs": 478,
+    "memories": 5882,
+    "recallMs": 2666
+  },
+  "answering": {
+    "n": 20,
+    "accuracy": 0.55,
+    "byCategory": {
+      "temporal": {
+        "n": 10,
+        "accuracy": 0.7
+      },
+      "open-domain": {
+        "n": 2,
+        "accuracy": 0.5
+      },
+      "multi-hop": {
+        "n": 8,
+        "accuracy": 0.375
+      }
+    },
+    "samples": [
+      {
+        "id": "conv-26:q0",
+        "question": "When did Caroline go to the LGBTQ support group?",
+        "gold": "7 May 2023",
+        "hypothesis": "On 2023-05-07, the day before she mentioned it on 2023-05-08.",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "conv-26:q1",
+        "question": "When did Melanie paint a sunrise?",
+        "gold": "2022",
+        "hypothesis": "In 2022, the year before she mentioned it on 2023-05-08 (she said she painted the lake sunrise \"last year\").",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "conv-26:q2",
+        "question": "What fields would Caroline be likely to pursue in her educaton?",
+        "gold": "Psychology, counseling certification",
+        "hypothesis": "Counseling (she was pursuing counseling), and likely art, given her painting about her trans experience.",
+        "correct": false,
+        "p": 0.46
+      },
+      {
+        "id": "conv-26:q3",
+        "question": "What did Caroline research?",
+        "gold": "Adoption agencies",
+        "hypothesis": "Adoption agencies, to start a family and give a loving home to kids who need it.",
+        "correct": true,
+        "p": 0.94
+      },
+      {
+        "id": "conv-26:q4",
+        "question": "What is Caroline's identity?",
+        "gold": "Transgender woman",
+        "hypothesis": "Caroline is a transgender woman who has transitioned and come out, and is an artist and advocate for the trans community.",
+        "correct": true,
+        "p": 0.93
+      },
+      {
+        "id": "conv-26:q5",
+        "question": "When did Melanie run a charity race?",
+        "gold": "The sunday before 25 May 2023",
+        "hypothesis": "The Saturday before 2023-05-25, i.e. 2023-05-20.",
+        "correct": false,
+        "p": 0.02
+      },
+      {
+        "id": "conv-26:q6",
+        "question": "When is Melanie planning on going camping?",
+        "gold": "June 2023",
+        "hypothesis": "Next month after May 25, 2023, i.e. June 2023, during the kids' summer break.",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "conv-26:q7",
+        "question": "What is Caroline's relationship status?",
+        "gold": "Single",
+        "hypothesis": "I don't know.",
+        "correct": false,
+        "p": 0.03
+      },
+      {
+        "id": "conv-26:q8",
+        "question": "When did Caroline give a speech at a school?",
+        "gold": "The week before 9 June 2023",
+        "hypothesis": "About a week before 2023-06-09, i.e. early June 2023 (the week of roughly June 1–2, 2023).",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "conv-26:q9",
+        "question": "When did Caroline meet up with her friends, family, and mentors?",
+        "gold": "The week before 9 June 2023",
+        "hypothesis": "About a week before June 9, 2023 (roughly early June 2023).",
+        "correct": true,
+        "p": 0.98
+      },
+      {
+        "id": "conv-26:q10",
+        "question": "How long has Caroline had her current group of friends for?",
+        "gold": "4 years",
+        "hypothesis": "I don't know.",
+        "correct": false,
+        "p": 0.02
+      },
+      {
+        "id": "conv-26:q11",
+        "question": "Where did Caroline move from 4 years ago?",
+        "gold": "Sweden",
+        "hypothesis": "Her home country (she moved from her home country 4 years before June 2023).",
+        "correct": false,
+        "p": 0.33
+      },
+      {
+        "id": "conv-26:q12",
+        "question": "How long ago was Caroline's 18th birthday?",
+        "gold": "10 years ago",
+        "hypothesis": "Ten years before June 2023 (around 2013), so roughly 13 years ago as of today.",
+        "correct": false,
+        "p": 0.03
+      },
+      {
+        "id": "conv-26:q13",
+        "question": "What career path has Caroline decided to persue?",
+        "gold": "counseling or mental health for Transgender people",
+        "hypothesis": "Counseling and mental health, to help people who have gone through similar experiences.",
+        "correct": true,
+        "p": 0.68
+      },
+      {
+        "id": "conv-26:q14",
+        "question": "Would Caroline still want to pursue counseling as a career if she hadn't received support growing up?",
+        "gold": "Likely no",
+        "hypothesis": "Probably not; her motivation to become a counselor stems directly from the support she received during her transition and mental health struggles, which made her want to pass that same help on to others.",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "conv-26:q15",
+        "question": "What activities does Melanie partake in?",
+        "gold": "pottery, camping, painting, swimming",
+        "hypothesis": "Melanie takes a pottery class.",
+        "correct": false,
+        "p": 0.14
+      },
+      {
+        "id": "conv-26:q16",
+        "question": "When did Melanie sign up for a pottery class?",
+        "gold": "2 July 2023",
+        "hypothesis": "On 2023-07-02, the day before her 2023-07-03 message.",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "conv-26:q17",
+        "question": "When is Caroline going to the transgender conference?",
+        "gold": "July 2023",
+        "hypothesis": "In July 2023 (\"this month\" as of 2023-07-03); she attended it around 2023-07-10.",
+        "correct": true,
+        "p": 0.86
+      },
+      {
+        "id": "conv-26:q18",
+        "question": "Where has Melanie camped?",
+        "gold": "beach, mountains, forest",
+        "hypothesis": "I don't know.",
+        "correct": false,
+        "p": 0.03
+      },
+      {
+        "id": "conv-26:q19",
+        "question": "What do Melanie's kids like?",
+        "gold": "dinosaurs, nature",
+        "hypothesis": "I don't know.",
+        "correct": false,
+        "p": 0.02
+      }
+    ]
+  }
+}

@@ -95,8 +95,7 @@ describe("opencode adapter (ADR-013)", () => {
 describe("pi adapter (ADR-013)", () => {
   it("generates one TypeBox tool per tool spec; the checked-in extension and skill match", () => {
     const src = piExtensionSource();
-    for (const spec of TOOL_SPECS)
-      expect(src).toContain(`pi.registerTool(${JSON.stringify(spec.name)}`);
+    for (const spec of TOOL_SPECS) expect(src).toContain(`name: ${JSON.stringify(spec.name)},`);
     expect(src).not.toContain("Type.Any(");
     expect(readFileSync(join(repoRoot, "clients", "pi", "ynm.ts"), "utf8")).toBe(src);
     expect(readFileSync(join(repoRoot, "clients", "pi", "SKILL.md"), "utf8")).toBe(piSkill());
@@ -143,7 +142,7 @@ describe("pi adapter (ADR-013)", () => {
     // Compile the generated TypeScript, stub TypeBox, load it with a fake Pi API.
     const dir = mkdtempSync(join(tmpdir(), "ynm-pi-ext-"));
     const js = ts.transpileModule(
-      piExtensionSource().replace('from "@sinclair/typebox"', 'from "./typebox.mjs"'),
+      piExtensionSource().replace('from "@earendil-works/pi-ai"', 'from "./typebox.mjs"'),
       {
         compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
       }
@@ -164,9 +163,9 @@ describe("pi adapter (ADR-013)", () => {
         execute: (p: Record<string, unknown>) => Promise<{ content: string; details?: unknown }>;
       }
     >();
-    mod.default({ registerTool: (name: string, t: never) => tools.set(name, t) });
+    mod.default({ registerTool: (t: Tool) => tools.set(t.name, t) });
     expect([...tools.keys()]).toEqual(TOOL_SPECS.map((t) => t.name));
-    expect((tools.get("memory_remember")?.schema as { kind: string } | undefined)?.kind).toBe(
+    expect((tools.get("memory_remember")?.parameters as { kind: string } | undefined)?.kind).toBe(
       "Object"
     );
     expect(
@@ -211,14 +210,16 @@ exec ${process.execPath} ${join(repoRoot, "packages", "cli", "bin", "run.js")} "
     try {
       const r = await tools
         .get("memory_remember")
-        ?.execute({ type: "semantic", content: "pi remembers", level: "personal" });
+        ?.execute("call-1", { type: "semantic", content: "pi remembers", level: "personal" });
       expect((r?.details as { memoryId: string } | undefined)?.memoryId).toMatch(/^[0-9A-Z]{26}$/);
-      const hits = await tools.get("memory_recall")?.execute({ text: "pi remembers" });
+      const hits = await tools.get("memory_recall")?.execute("call-2", { text: "pi remembers" });
       expect((hits?.details as Array<{ content: string }> | undefined)?.[0]?.content).toBe(
         "pi remembers"
       );
-      const bad = await tools.get("memory_remember")?.execute({ type: "nope", content: "x" });
-      expect(bad?.content).toMatch(/exited/);
+      const bad = await tools
+        .get("memory_remember")
+        ?.execute("call-3", { type: "nope", content: "x" });
+      expect(bad?.content[0]?.text).toMatch(/exited/);
     } finally {
       delete process.env.YNM_BIN;
     }

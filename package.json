@@ -19,7 +19,9 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "changeset": "changeset",
     "release:version": "changeset version && pnpm install --no-frozen-lockfile",
-    "gen:clients": "node scripts/gen-clients.mjs"
+    "gen:clients": "node scripts/gen-clients.mjs",
+    "release:pack": "node scripts/release/pack.mjs",
+    "bench:public": "pnpm --filter @ynm/evals bench:public"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",

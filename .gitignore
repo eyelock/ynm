@@ -6,6 +6,7 @@ node_modules
 
 # build outputs
 dist
+dist-release
 *.tsbuildinfo
 .turbo
 oclif.manifest.json

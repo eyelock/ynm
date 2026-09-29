@@ -1,6 +1,6 @@
 # ADR-002: Append-only record format, identity, supersession, time
 
-Status: draft
+Status: accepted (2026-09-29)
 Satisfies: FR-3, FR-4, FR-5, FR-13, NFR-4, NFR-7
 
 ## Context
@@ -11,7 +11,7 @@ Git notes merge conflict-free only if records are line-oriented and order-indepe
 whole entries with the same id and resolved "latest" three different ways; effort entries had no id
 at all.
 
-## Decision (current position)
+## Decision
 
 One JSON object per line. Each line is an immutable **record**. A **memory** is the fold of all
 records sharing a `memoryId`. Current state is derived, never stored.
@@ -46,8 +46,11 @@ Rules:
 
 - `id` and `memoryId` are ULIDs so sorting by id is sorting by time and `cat_sort_uniq` reordering
   is harmless.
+- `content` is markdown and required. `data` is an optional JSON object for typed memories, with
+  `dataSchema` as a plain string tag naming its expected shape; there is no schema registry.
 - `supersede` carries the full new content, not a diff, and links `supersedes` the prior record.
-  The fold takes the latest `supersede` by `recordedAt` as current. Ties broken by `id`.
+  It replaces `data` whole, like `content`. The fold takes the latest `supersede` by `recordedAt`
+  as current. Ties broken by `id`.
 - `tombstone` hides the memory from recall and the wiki; history remains. `purge-marker` records
   that a physical purge was performed (the purged lines are gone; the marker is the audit trail).
 - `annotate` adds links, tags or score changes without changing content (e.g. a consolidation pass
@@ -55,6 +58,8 @@ Rules:
   stored as `annotate` records with `data: { judgments: [...] }` holding questions, answers,
   probabilities, confidence, model id and version (ADR-012), so weights can be recombined without
   re-inference and the audit trail shows why.
+- `importance` is set by the writer (default 0.5) and re-scored only by the dream pass, since the
+  write path is LLM-free (ADR-006).
 - `snapshot` holds the folded state of a shard at `recordedAt` (a checkpoint). Readers may start
   the fold from the latest snapshot and apply only later records. Snapshots are written by the
   dream pass and by `ynm compact`; they are optimisation, never the only copy of anything.
@@ -73,24 +78,14 @@ Rules:
 
 - Storage grows with every change. Bounded by sharding (ADR-003) and by purge.
 - Every provider (ADR-004) implements the same fold; it lives in `store` and is tested once.
-- The wiki (ADR-010) and indexes (ADR-005) are pure functions of the folded state.
-
-## Decided
-
-- `content` is markdown and required; `data` is an optional JSON object for typed memories, with
-  `dataSchema` as a plain string tag and no schema registry in v1 (2026-09-28). Supersede replaces
-  `data` whole, like `content`. The wiki renders `data` as frontmatter; the index puts its string
-  values into the lexical index and its keys into the metadata index so recall can filter on them.
-- Importance is set by the writer (default 0.5) and re-scored only by the dream pass, since the
-  write path is LLM-free (ADR-006).
+- The wiki (ADR-010) and indexes (ADR-005) are pure functions of the folded state. The wiki
+  renders `data` as frontmatter; the index puts its string values into the lexical index and its
+  keys into the metadata index so recall can filter on them.
 
 ## Open questions
 
-- None outstanding.
+None.
 
-## Addenda
+## History
 
-Dated notes added while building. Anything here that changes the Decision above is folded into
-it at consolidation time.
-
-- (none yet)
+No addenda were recorded during the build.

@@ -1,16 +1,17 @@
 # Architecture Decision Records
 
-These ADRs are **drafts and malleable** for the whole build. Lifecycle:
+These ADRs were **drafts and malleable** for the whole build and were consolidated at v0.1.0
+(2026-09-29). Lifecycle:
 
 1. **Draft** (now): each file is edited in place as a decision changes. No supersession chain.
    Defaults chosen without strong evidence are marked `(default, <date>)` in Decided.
 2. **Build**: as the system is built, dated notes go into each ADR's **Addenda** section rather
    than rewriting the Decision, so the trail of what was learned stays visible.
-3. **Consolidate**: close to a working product, each ADR's Decision is rewritten to absorb its
-   addenda, and the status moves to `accepted`. From then on changes get a new ADR.
+3. **Consolidate** (done): close to a working product, each ADR's Decision was rewritten to
+   absorb its addenda, and the status moved to `accepted`. From then on changes get a new ADR.
 
-Each ADR has: Status, Context, Decision (current position), Alternatives, Consequences, Decided,
-Open questions, Addenda, and the FR/NFR ids from ADR-000 it satisfies.
+Each ADR has: Status, Context, Decision, Alternatives, Consequences, Open questions, History (one
+line per addendum that was folded in), and the FR/NFR ids from ADR-000 it satisfies.
 
 | ADR | Decision |
 |---|---|

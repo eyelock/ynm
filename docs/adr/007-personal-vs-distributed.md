@@ -1,6 +1,6 @@
 # ADR-007: Privacy boundary and sync
 
-Status: draft
+Status: accepted (2026-09-29)
 Satisfies: FR-2, FR-16, FR-18, NFR-5
 
 ## Context
@@ -10,15 +10,17 @@ set of refs and a forced fetch refspec, and its docs wrongly claimed prompts wer
 Code separates human-written tiers (managed, user, project, local) from machine-written auto memory
 kept outside the repo. Letta and Mem0 scope by ids but keep one store.
 
-## Decision (current position)
+## Decision
 
-- **Personal memory** lives only in the user's own store, `~/.ynm/store.git` (a bare repo with
-  one root commit). Personal refs never exist inside a project repo, so a hand-run
-  `git push origin 'refs/notes/*'` or a mirror job cannot leak them. Personal memory about a
-  project is namespaced (`project/ynm`) inside the personal store; recall spans mounts. Pushing
-  personal memory anywhere requires an explicit `ynm sync --personal --remote <private-remote>`.
-  This mirrors the User → Project layering every LLM vendor uses for configuration (Claude Code's
-  `~/.claude` vs `.claude/`, and its per-project auto-memory kept under the home directory).
+- **Personal memory** always stays in the user's own store, `~/.ynm/store.git` (a bare repo with
+  one root commit). There is no `personal/*` ref namespace in project repos: the ref layout in
+  ADR-003 has `refs/notes/ynm/shared/*` in project and org repos, and `refs/notes/ynm/personal/*`
+  only in `~/.ynm/store.git`. So a hand-run `git push origin 'refs/notes/*'` or a mirror job
+  cannot leak personal memory. Personal memory about a project is namespaced (`project/ynm`)
+  inside the personal store; recall spans mounts. Pushing personal memory anywhere requires an
+  explicit `ynm sync --personal --remote <private-remote>`. This mirrors the User → Project
+  layering every LLM vendor uses for configuration (Claude Code's `~/.claude` vs `.claude/`, and
+  its per-project auto-memory kept under the home directory).
 - **Distributed memory** lives in `refs/notes/ynm/shared/*` in the project repo or in a
   dedicated shared memory repo. `ynm init` adds fetch and push refspecs for `shared/*` only.
 - The `level` is fixed at write time and enforced by the mount table (ADR-004): a `personal` record
@@ -42,15 +44,10 @@ kept outside the repo. Letta and Mem0 scope by ids but keep one store.
 - Recall spanning both levels merges results from two logs and labels each hit with its level.
 - Users get a personal store with zero setup (NFR-14); teams opt in to shared.
 
-## Decided
+## Open questions
 
-- Personal memory always stays in the user's own store; there is no `personal/*` ref namespace in
-  project repos (2026-09-28). The ref layout in ADR-003 therefore has `refs/notes/ynm/shared/*`
-  in project and org repos, and `refs/notes/ynm/personal/*` only in `~/.ynm/store.git`.
+None.
 
-## Addenda
+## History
 
-Dated notes added while building. Anything here that changes the Decision above is folded into
-it at consolidation time.
-
-- (none yet)
+- No addenda were recorded during the build; accepted as drafted on 2026-09-28.

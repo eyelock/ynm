@@ -134,6 +134,12 @@ describe.skipIf(!available)("hosted service in Docker (ADR-009)", () => {
       "expiry by the dream worker"
     );
 
+    // consolidation runs over HTTP too: the hosted process owns the dream passes (ADR-006)
+    const dreamed = data<{ passes: Record<string, { candidates: number }> }>(
+      await a.callTool({ name: "memory_consolidate", arguments: { dryRun: true } })
+    );
+    expect(Object.keys(dreamed.passes)).toContain("expire");
+
     // a local clone: the container is its git remote; shared notes sync both ways
     const work = mkdtempSync(join(tmpdir(), "ynm-docker-clone-"));
     const home = join(mkdtempSync(join(tmpdir(), "ynm-docker-home-")), ".ynm");

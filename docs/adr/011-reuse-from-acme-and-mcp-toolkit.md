@@ -1,6 +1,6 @@
 # ADR-011: What is copied from ACME and mcp-toolkit
 
-Status: draft
+Status: accepted (2026-09-29)
 Satisfies: NFR-10, NFR-12
 
 ## Context
@@ -10,7 +10,7 @@ Both old repos are unpublished. ACME (`/Users/david/Storage/Workspace/eyelock/ac
 (`/Users/david/Storage/Workspace/eyelock/mcp-toolkit`) has a current-spec transport layer on its
 unmerged `spec-update` branch (SDK v2, protocol 2026-07-28). Neither depends on the other.
 
-## Decision (current position)
+## Decision
 
 Reuse by **copying files into ynm and owning them**. No workspace dependency, vendored tree or
 submodule on either repo. Copied files get ynm package names and are refactored freely.
@@ -22,8 +22,10 @@ Copy from mcp-toolkit (`spec-update` branch):
   `@ynm/store/working`
 - `packages/mcp/src/strategy/index.ts`, `elicitation/helpers.ts` → `@ynm/mcp/delegation`
 - `packages/mcp/src/spec/logging.ts` → `@ynm/service/logging`
-- `packages/core/src/hooks/*` → `@ynm/mcp/guidance` (only if guidance injection needs it)
 - Makefile, `scripts/mcp-install.sh`, shared tsconfig/vitest/esbuild configs
+
+The mcp-toolkit hook composer (`packages/core/src/hooks/*`) is not copied: guidance is plain
+markdown per tool appended to results (ADR-008).
 
 Copy from ACME:
 
@@ -42,8 +44,8 @@ Copy from ACME:
 - Tooling: pnpm, turbo, biome, vitest projects with coverage merge, changesets
 
 Not copied: ACME domain schemas, state machine, hook wiring, reporting, plan/PR tools,
-Dockerfiles, AWS infra; mcp-toolkit toolkit package, its CLI, workflow tracker, demo sampling and
-resource templates.
+Dockerfiles, AWS infra; mcp-toolkit toolkit package, its CLI, workflow tracker, hook composer,
+demo sampling and resource templates.
 
 Baseline versions: Node 22 LTS or newer, `@modelcontextprotocol/server` and `/node` 2.x,
 Zod 4 (native `toJSONSchema`), oclif 4, vitest 4, biome 2, TypeScript 6.
@@ -54,18 +56,10 @@ Zod 4 (native `toJSONSchema`), oclif 4, vitest 4, biome 2, TypeScript 6.
   interpolation in `notes-sync.ts` that must not survive the copy.
 - Coverage thresholds are set per package, starting at 80% for new code.
 
-## Decided
-
-- The hook composer is not copied; guidance is plain markdown per tool appended to results
-  (default, 2026-09-28).
-
 ## Open questions
 
-- None outstanding.
+None.
 
-## Addenda
+## History
 
-Dated notes added while building. Anything here that changes the Decision above is folded into
-it at consolidation time.
-
-- (none yet)
+- No addenda were recorded during the build; accepted as drafted on 2026-09-28.
