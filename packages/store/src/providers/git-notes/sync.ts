@@ -45,6 +45,7 @@ export async function syncShared(p: SyncParams): Promise<SyncResult> {
   const doPull = p.pull ?? true;
   const doPush = p.push ?? true;
   if ((await gitOrNull(["remote", "get-url", p.remote], { cwd: p.repo })) === null) {
+    result.skipped = `remote "${p.remote}" not configured; nothing to sync`;
     result.conflicts.push(
       `remote "${p.remote}" is not configured; add it and run \`ynm init\` again`
     );

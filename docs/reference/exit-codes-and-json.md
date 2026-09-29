@@ -8,7 +8,7 @@ for the common commands. Captured from the CLI; ids, hashes, paths and times var
 | Code | Meaning | Examples |
 |---|---|---|
 | `0` | Success | Also: `recall` with no matches, `doctor` with only warnings |
-| `1` | The command ran and failed | `sync` reported a conflict or a missing remote; `doctor` found an error-level check failing; an unknown memory id; a malformed JSON flag value; git or store errors |
+| `1` | The command ran and failed | `sync` reported a conflict; `doctor` found an error-level check failing; an unknown memory id; a malformed JSON flag value; git or store errors |
 | `2` | The command refused its input | a missing required flag or argument; a value outside a flag's options; an unknown command; input the schema rejects (`invalid input: ...`); the redaction gate (`refused: ...`); `purge` without `--yes`; `session end`, `review clear` or `wiki ingest` without their id or file; syncing the personal mount without `--remote` |
 
 Errors are printed on stderr, prefixed `Error:`. Output on stdout is only ever the result.
@@ -168,12 +168,13 @@ One entry per synced mount:
     "merged": [],
     "pushed": [],
     "conflicts": ["remote \"origin\" is not configured; add it and run `ynm init` again"],
+    "skipped": "remote \"origin\" not configured; nothing to sync",
     "retries": 0
   }
 }
 ```
 
-A non-empty `conflicts` on any mount makes the exit code 1.
+A non-empty `conflicts` on any mount makes the exit code 1, except when `skipped` is set (no such remote): that is a report, printed as `remote "origin" not configured; nothing to sync`, and the exit code is 0.
 
 ### status
 
