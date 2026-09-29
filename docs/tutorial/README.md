@@ -15,31 +15,31 @@ you should see. A model can read a tutorial, run it and check it, exactly as you
 |---|---|
 | [1. First memory](01-first-memory.md) | Create your personal store, remember two facts, recall them, see what was written to git |
 | [2. Project memory](02-project-memory.md) | `ynm init` in a repository, distributed memory, namespaces, the redaction gate |
-| 3. Recall and context | Filters, tags, subjects, score explanations, the context block, pinning |
-| 4. Editing history | Supersede, annotate, forget, purge, export and import |
-| 5. Sessions and working memory | Session start and end, TTLs, expiry |
+| [3. Recall and context](03-recall-and-context.md) | Filters, tags, subjects, score explanations, the context block, pinning |
+| [4. Editing history](04-editing-history.md) | Supersede, annotate, forget, purge, export and import |
+| [5. Sessions and working memory](05-sessions-and-working-memory.md) | Session start and end, TTLs, expiry |
 
 ### Share
 
 | Tutorial | What you will learn |
 |---|---|
-| 6. Sync | A bare remote, two clones, concurrent writes merged, the pre-push hook |
-| 7. Connect an agent | `client install` for every supported client, `serve` over stdio, a scripted MCP call |
+| [6. Sync](06-sync.md) | A bare remote, two clones, concurrent writes merged, the pre-push hook |
+| [7. Connect an agent](07-connect-an-agent.md) | `client install` for every supported client, `serve` over stdio, a scripted MCP call |
 
 ### Consolidate
 
 | Tutorial | What you will learn |
 |---|---|
-| 8. Dreaming | Dry runs, the heuristic judge, and with a key: dedupe, contradict, review queue, promote |
-| 9. Wiki projection | Build the markdown wiki, edit a page and ingest it, the orphan branch target |
+| [8. Dreaming](08-dreaming.md) | Dry runs, the heuristic judge, and with a key: dedupe, contradict, review queue, promote |
+| [9. Wiki projection](09-wiki.md) | Build the markdown wiki, edit a page and ingest it, the orphan branch target |
 
 ### Operate
 
 | Tutorial | What you will learn |
 |---|---|
-| 10. Hosted service | `serve --http` with a token, health, the Docker demo, a clone syncing through it |
-| 11. Doctor and maintenance | Doctor, reindex, the sqlite provider, backup and restore |
-| 12. Evals and benchmarks | `pnpm bench`, milestone gates, `bench:public` |
+| [10. Hosted service](10-hosted.md) | `serve --http` with a token, health, the Docker demo, a clone syncing through it |
+| [11. Doctor and maintenance](11-doctor-and-maintenance.md) | Doctor, reindex, the sqlite provider, backup and restore |
+| [12. Evals and benchmarks](12-evals-and-benchmarks.md) | `pnpm bench`, milestone gates, `bench:public` |
 
 Tutorials without a link are planned; the table is the order they will arrive in.
 
