@@ -44,3 +44,4 @@ packages/evals/.cache/
 .idea/
 .vscode/
 *.swp
+.claude/worktrees/
