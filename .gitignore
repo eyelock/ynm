@@ -28,3 +28,19 @@ tmp/
 # planning working docs stay out of the repo (ADRs under docs/adr are the record)
 .claude/plans
 .claude/*.local.*
+
+# benchmark datasets are downloaded on demand into ~/.ynm/bench, never committed
+locomo*.json
+longmemeval*.json
+*.bench.json
+
+# release and eval scratch
+dist-release/
+packages/evals/.cache/
+*.tar.gz
+*.tgz
+
+# editor and OS
+.idea/
+.vscode/
+*.swp

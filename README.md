@@ -42,8 +42,8 @@ docker run -d -p 3000:3000 -v ynm-data:/data -e YNM_MCP_TOKEN=change-me -e YNM_D
 infra/docker/demo.sh   # store + an agent with no git + a developer clone syncing through it
 ```
 
-Operations (auth modes, key rotation, backups, scaling): [`docs/operations.md`](docs/operations.md).
-Releasing (tarball, Homebrew tap, image): [`docs/release.md`](docs/release.md).
+Operations (auth modes, key rotation, backups, scaling): [`docs/how-to/operate-a-hosted-store.md`](docs/how-to/operate-a-hosted-store.md).
+Releasing (tarball, Homebrew tap, image): [`docs/how-to/cut-a-release.md`](docs/how-to/cut-a-release.md).
 
 ## Benchmarks
 

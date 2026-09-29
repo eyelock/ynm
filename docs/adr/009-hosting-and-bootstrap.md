@@ -103,12 +103,12 @@ Cases handled:
 
 ## Consequences
 
-- Operations are documented in `docs/operations.md`: auth modes and key rotation, backups with
+- Operations are documented in `docs/how-to/operate-a-hosted-store.md`: auth modes and key rotation, backups with
   `git bundle --all`, one writer per store (scale by store, not by replicas), and how local
   clones sync with a hosted store (the hosted repo is simply their remote).
 - A client that talks to the hosted store and also has a local project mount gets two mounts;
   recall spans both and labels the origin.
-- Release packaging (tarball, Homebrew formula, image) is described in `docs/release.md`.
+- Release packaging (tarball, Homebrew formula, image) is described in `docs/how-to/cut-a-release.md`.
 
 ## Open questions
 

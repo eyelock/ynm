@@ -1,0 +1,89 @@
+# ynm Tutorial Series
+
+Ordered lessons from a first memory to running benchmarks. Each tutorial builds on the previous
+one but can be run on its own; each starts by wiping and recreating its sandbox.
+
+Every tutorial is also an acceptance test. Each step is a command block followed by the output
+you should see. A model can read a tutorial, run it and check it, exactly as you would; see
+[Running tutorials as evals](RUNNING.md).
+
+## Tutorials
+
+### Remember and recall
+
+| Tutorial | What you will learn |
+|---|---|
+| [1. First memory](01-first-memory.md) | Create your personal store, remember two facts, recall them, see what was written to git |
+| 2. Project memory | `ynm init` in a repository, distributed memory, namespaces, the redaction gate |
+| 3. Recall and context | Filters, tags, subjects, score explanations, the context block, pinning |
+| 4. Editing history | Supersede, annotate, forget, purge, export and import |
+| 5. Sessions and working memory | Session start and end, TTLs, expiry |
+
+### Share
+
+| Tutorial | What you will learn |
+|---|---|
+| 6. Sync | A bare remote, two clones, concurrent writes merged, the pre-push hook |
+| 7. Connect an agent | `client install` for every supported client, `serve` over stdio, a scripted MCP call |
+
+### Consolidate
+
+| Tutorial | What you will learn |
+|---|---|
+| 8. Dreaming | Dry runs, the heuristic judge, and with a key: dedupe, contradict, review queue, promote |
+| 9. Wiki projection | Build the markdown wiki, edit a page and ingest it, the orphan branch target |
+
+### Operate
+
+| Tutorial | What you will learn |
+|---|---|
+| 10. Hosted service | `serve --http` with a token, health, the Docker demo, a clone syncing through it |
+| 11. Doctor and maintenance | Doctor, reindex, the sqlite provider, backup and restore |
+| 12. Evals and benchmarks | `pnpm bench`, milestone gates, `bench:public` |
+
+Tutorials without a link are planned; the table is the order they will arrive in.
+
+## Install
+
+<!-- tabs:start -->
+
+#### **Homebrew (recommended)**
+
+```bash
+brew install eyelock/tap/ynm
+ynm --version
+```
+
+#### **From source**
+
+Requires Node 22.13 or later and pnpm.
+
+```bash
+git clone https://github.com/eyelock/ynm.git
+cd ynm
+pnpm install && pnpm build
+mkdir -p ~/.ynm/bin
+printf '#!/bin/sh\nexec node %s/packages/cli/bin/run.js "$@"\n' "$PWD" > ~/.ynm/bin/ynm
+chmod +x ~/.ynm/bin/ynm
+export PATH="$HOME/.ynm/bin:$PATH"
+ynm --version
+```
+
+Expected: `@ynm/cli/0.1.0 <platform> node-v<version>`.
+
+<!-- tabs:end -->
+
+## The sandbox
+
+Every tutorial starts with the same block. It points ynm at a throwaway home so your real
+personal store is never touched, and fixes the user id so namespaces match the expected output:
+
+```bash
+rm -rf /tmp/ynm-tutorial
+mkdir -p /tmp/ynm-tutorial
+export YNM_HOME=/tmp/ynm-tutorial/home
+export YNM_USER=tutorial
+cd /tmp/ynm-tutorial
+```
+
+Steps that need a paid model key or a particular tool are marked and can be skipped.
