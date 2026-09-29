@@ -14,6 +14,7 @@
   * [8. Dreaming](/tutorial/08-dreaming.md)
   * [9. Wiki projection](/tutorial/09-wiki.md)
   * [10. Hosted service](/tutorial/10-hosted.md)
+  * [11. Doctor and maintenance](/tutorial/11-doctor-and-maintenance.md)
   * [Running tutorials as evals](/tutorial/RUNNING.md)
 
 * **How-to guides**

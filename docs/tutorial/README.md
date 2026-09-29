@@ -38,7 +38,7 @@ you should see. A model can read a tutorial, run it and check it, exactly as you
 | Tutorial | What you will learn |
 |---|---|
 | [10. Hosted service](10-hosted.md) | `serve --http` with a token, health, the Docker demo, a clone syncing through it |
-| 11. Doctor and maintenance | Doctor, reindex, the sqlite provider, backup and restore |
+| [11. Doctor and maintenance](11-doctor-and-maintenance.md) | Doctor, reindex, the sqlite provider, backup and restore |
 | 12. Evals and benchmarks | `pnpm bench`, milestone gates, `bench:public` |
 
 Tutorials without a link are planned; the table is the order they will arrive in.
