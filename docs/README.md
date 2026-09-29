@@ -22,9 +22,9 @@ job.
 | | |
 |---|---|
 | [Tutorials](tutorial/README.md) | Ordered lessons. Each is a script you run, with the expected output of every step. They double as the acceptance tests for the CLI: a model reads them, runs them, and checks. |
-| How-to guides | Recipes for a goal you already have: run a hosted store, rotate keys, cut a release. |
-| [Explanation](explanation/memory-types.md) | Why things are the way they are, starting with the six memory types. The [decision records](adr/README.md) are the long form. |
-| Reference | The facts: commands, tools, config keys, record format. |
+| [How-to guides](how-to/README.md) | Recipes for a goal you already have: run a hosted store, rotate keys, cut a release. |
+| [Explanation](explanation/README.md) | Why things are the way they are, starting with the six memory types. The [decision records](adr/README.md) are the long form. |
+| [Reference](reference/README.md) | The facts: commands, tools, config keys, record format. |
 
 ## The shape of it
 

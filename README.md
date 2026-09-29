@@ -24,10 +24,10 @@ CLI command. `ynm serve` is the MCP server (stdio), `ynm serve --http` the hoste
 [eyelock.github.io/ynm](https://eyelock.github.io/ynm) (source in [`docs/`](docs/README.md)):
 
 - [Tutorials](docs/tutorial/README.md): ordered lessons that double as the acceptance tests.
-- [How-to guides](docs/how-to/operate-a-hosted-store.md): hosted stores, keys, releases.
-- [Explanation](docs/explanation/memory-types.md): the six memory types, and the
+- [How-to guides](docs/how-to/README.md): hosted stores, keys, releases.
+- [Explanation](docs/explanation/README.md): the six memory types, and the
   [decision records](docs/adr/README.md) behind the design.
-- Reference: commands, tools, configuration.
+- [Reference](docs/reference/README.md): commands, tools, configuration.
 
 Contributing, building and running the evals: [CONTRIBUTING.md](CONTRIBUTING.md).
 

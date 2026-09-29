@@ -20,6 +20,7 @@
   * [Manual test plan](/tutorial/manual-test-plan.md)
 
 * **How-to guides**
+  * [How-to overview](/how-to/README.md)
   * [Retrofit an existing repo](/how-to/retrofit-an-existing-repo.md)
   * [Share an org store](/how-to/share-an-org-store.md)
   * [Choose the SQLite provider](/how-to/choose-the-sqlite-provider.md)
@@ -31,6 +32,7 @@
   * [Cut a release](/how-to/cut-a-release.md)
 
 * **Explanation**
+  * [Explanation overview](/explanation/README.md)
   * [The six memory types](/explanation/memory-types.md)
   * [Why git notes](/explanation/why-git-notes.md)
   * [Personal and distributed memory](/explanation/personal-and-distributed.md)
@@ -39,6 +41,7 @@
   * [Decision records (ADRs)](/adr/README.md)
 
 * **Reference**
+  * [Reference overview](/reference/README.md)
   * [CLI](/reference/cli.md)
   * [MCP tools, resources and prompts](/reference/mcp.md)
   * [Configuration](/reference/configuration.md)
