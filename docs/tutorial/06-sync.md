@@ -29,7 +29,7 @@ git init -q --bare -b main /tmp/ynm-tutorial/remote.git
 git init -q -b main /tmp/ynm-tutorial/alice
 git -C /tmp/ynm-tutorial/alice remote add origin /tmp/ynm-tutorial/remote.git
 git -C /tmp/ynm-tutorial/alice -c user.name=alice -c user.email=alice@example.com commit -q --allow-empty -m "first commit"
-git -C /tmp/ynm-tutorial/alice push -q origin main
+git -C /tmp/ynm-tutorial/alice push -q -u origin main
 git clone -q /tmp/ynm-tutorial/remote.git /tmp/ynm-tutorial/bob
 git -C /tmp/ynm-tutorial/bob log --oneline
 ```
@@ -53,18 +53,17 @@ initialised <project path>
   anchor    <40-hex sha> (root-commit)
   config    <project path>/.ynm/config.json
   refspecs  +refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
-            HEAD
-            refs/notes/ynm/shared/*:refs/notes/ynm/shared/*
   hooks     <project path>/.git/hooks/pre-push
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
-The first refspec is a fetch, the last two are pushes. Git's own configuration is the source
-of truth:
+That one refspec is a fetch. `ynm init` adds no push refspec: the pre-push hook, below, is the
+only thing that pushes notes, so git's own push never races it. Git's own configuration is the
+source of truth:
 
 ```bash
 git -C /tmp/ynm-tutorial/alice config --get-all remote.origin.fetch
-git -C /tmp/ynm-tutorial/alice config --get-all remote.origin.push
+git -C /tmp/ynm-tutorial/alice config --get-all remote.origin.push || echo "no push refspec"
 ```
 
 Expected: the fetch lines are the ordinary branch refspec and a second one that brings the
@@ -75,8 +74,7 @@ remote's shared memory into a separate namespace, so it can be merged rather tha
 +refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
 ```
 
-The push lines are `HEAD` and `refs/notes/ynm/shared/*:refs/notes/ynm/shared/*`, so a plain
-`git push` sends shared memory along with the code. Only `shared` is ever mapped; the
+The second command prints only `no push refspec`: there are no push lines. Only `shared` is ever mapped; the
 personal level has no refspec at all.
 
 Now Bob:
@@ -183,9 +181,8 @@ Expected: two trace lines that run `.git/hooks/pre-push origin <remote path>`. T
 
 Two things to know about it. It never blocks a push: it ends with `exit 0` even if sync fails,
 and you can repair with a manual `ynm sync`. And the push above found nothing new to send; when
-a push does carry new shared memory, the hook publishes it first and git may then report its own
-attempt on the same ref as rejected. The memory is on the remote regardless; a manual `ynm sync`
-confirms it.
+a push does carry new shared memory, the hook publishes it first, then git pushes the branch and
+exits 0.
 
 ## Doctor sees the remote
 
@@ -194,8 +191,7 @@ cd /tmp/ynm-tutorial/alice
 ynm doctor
 ```
 
-Expected: every line starts with `ok`. Among them are `shared fetch refspec`, `shared push
-refspec`, `personal refs never pushed: no personal refspecs in remote config (ADR-007)`,
+Expected: every line starts with `ok`. Among them are `shared fetch refspec`, `personal refs never pushed: no personal refspecs in remote config (ADR-007)`,
 `no personal refs in project repo: ok (ADR-007)` and `pre-push hook`. The two mount lines
 report `"remote":"origin"`.
 

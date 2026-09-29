@@ -33,7 +33,6 @@ export interface InitReport {
 
 export const SHARED_FETCH = (remote: string): string =>
   `+${NOTES_PREFIX}/shared/*:${REMOTE_PREFIX}/${remote}/shared/*`;
-export const SHARED_PUSH = `${NOTES_PREFIX}/shared/*:${NOTES_PREFIX}/shared/*`;
 
 const PRE_PUSH_HOOK = `#!/bin/sh
 # ynm: sync shared memory notes alongside code pushes (installed by \`ynm init\`)
@@ -44,7 +43,8 @@ exit 0
 
 /**
  * Retrofits a repository (ADR-009): no branch, tag or tracked file changes. Writes
- * .ynm/config.json with the anchor, adds shared-only refspecs and a pre-push hook.
+ * .ynm/config.json with the anchor, adds the shared fetch refspec and a pre-push hook. Notes are pushed only by the hook
+ * (`ynm sync`), never by a push refspec, so a plain `git push` does not race it.
  */
 export async function initProject(opts: InitProjectOptions): Promise<InitReport> {
   const wt = await detectWorktree(opts.cwd);
@@ -80,17 +80,6 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
     if (!fetches.split("\n").includes(fetch)) {
       await git(["config", "--add", `remote.${remote}.fetch`, fetch], { cwd: repo });
       refspecs.push(fetch);
-    }
-    const pushes =
-      (await gitOrNull(["config", "--get-all", `remote.${remote}.push`], { cwd: repo })) ?? "";
-    if (!pushes.split("\n").includes(SHARED_PUSH)) {
-      // Keep normal branch pushes working: an explicit push refspec would otherwise replace the default.
-      if (!pushes.split("\n").some((l) => l === "HEAD" || l.startsWith("refs/heads/"))) {
-        await git(["config", "--add", `remote.${remote}.push`, "HEAD"], { cwd: repo });
-        refspecs.push("HEAD");
-      }
-      await git(["config", "--add", `remote.${remote}.push`, SHARED_PUSH], { cwd: repo });
-      refspecs.push(SHARED_PUSH);
     }
   } else {
     notes.push(

@@ -15,7 +15,7 @@ ynm init
 
 - writes `.ynm/config.json`, which records the anchor (the repository's root commit) and is the
   one file worth committing, so teammates share the anchor and any mounts or redaction settings;
-- adds a fetch refspec and push refspecs for `refs/notes/ynm/shared/*` to `remote.origin` in
+- adds a fetch refspec for `refs/notes/ynm/shared/*` to `remote.origin` in
   `.git/config` (pass `--remote <name>` to use another remote; without the remote it prints a
   note and you re-run `init` after adding it);
 - installs a `pre-push` hook that runs `ynm sync --quiet`, unless you pass `--no-hooks`;
@@ -60,6 +60,6 @@ its `retries` field. If retries stay high for a busy store, move that store to t
 
 ## Undo
 
-Remove the hook (`.git/hooks/pre-push`), the `remote.origin.fetch` and `remote.origin.push`
-lines that mention `refs/notes/ynm`, and `.ynm/`. Memory written so far stays in
+Remove the hook (`.git/hooks/pre-push`), the `remote.origin.fetch`
+line that mentions `refs/notes/ynm`, and `.ynm/`. Memory written so far stays in
 `refs/notes/ynm/`; delete those refs only if you mean to discard it.

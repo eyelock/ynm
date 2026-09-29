@@ -150,7 +150,7 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 8.5 | [Flag for real](08-dreaming.md#flag-for-real) | `ynm dream` |  |
 | 8.6 | [Decide, and clear the flag](08-dreaming.md#decide-and-clear-the-flag) | `ynm review list \| grep "API" \| cut -d' ' -f1 \| while read -r id; do y...` |  |
 | 8.7 | [Promote to the team](08-dreaming.md#promote-to-the-team) | `THURSDAY=$(ynm review list \| head -1 \| cut -d' ' -f1)` |  |
-| 8.8 | [With a model: dedupe and contradict act](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `ynm dream --passes dedupe --passes contradict --max-pairs 10` | needs `TYPESAFE_API_KEY` |
+| 8.8 | [With a model: dedupe and contradict act](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `echo '{"dream":{"judge":"auto"}}' > /tmp/ynm-tutorial/home/config.json` | needs `TYPESAFE_API_KEY` |
 | 8.9 | [With a model: dedupe and contradict act (2)](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `ynm list` | needs `TYPESAFE_API_KEY` |
 | 8.10 | [Cleanup](08-dreaming.md#cleanup) | `cd /tmp` |  |
 

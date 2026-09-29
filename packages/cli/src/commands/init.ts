@@ -16,7 +16,7 @@ export default class Init extends YnmCommand {
     bare: Flags.string({
       description: "Create or adopt a dedicated bare memory repo at this path",
     }),
-    remote: Flags.string({ description: "Remote for shared refspecs", default: "origin" }),
+    remote: Flags.string({ description: "Remote for the shared fetch refspec", default: "origin" }),
     hooks: Flags.boolean({
       description: "Install the pre-push hook",
       default: true,

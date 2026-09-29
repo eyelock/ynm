@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gitOrNull, NOTES_PREFIX } from "@ynm/store";
 import type { LoadedConfig } from "./config.js";
-import { SHARED_FETCH, SHARED_PUSH } from "./init.js";
+import { SHARED_FETCH } from "./init.js";
 import type { Mount } from "./mounts.js";
 import { projectInitialised } from "./mounts.js";
 import type { WorktreeInfo } from "./worktree.js";
@@ -89,11 +89,6 @@ export async function doctor(opts: {
         );
         const pushes =
           (await gitOrNull(["config", "--get-all", `remote.${remote}.push`], { cwd: repo })) ?? "";
-        add(
-          "shared push refspec",
-          pushes.includes(SHARED_PUSH),
-          pushes.includes(SHARED_PUSH) ? SHARED_PUSH : "missing; run `ynm init`"
-        );
         add(
           "personal refs never pushed",
           !/personal/.test(pushes) && !/personal/.test(fetches),

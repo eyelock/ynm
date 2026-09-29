@@ -34,9 +34,8 @@ describe("ynm init (ADR-009 retrofit)", () => {
     const fetch = await fx(repo, "config", "--get-all", "remote.origin.fetch");
     expect(fetch).toContain("+refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*");
     expect(fetch).not.toMatch(/personal/);
-    const push = await fx(repo, "config", "--get-all", "remote.origin.push");
-    expect(push).toContain("refs/notes/ynm/shared/*:refs/notes/ynm/shared/*");
-    expect(push).not.toMatch(/personal/);
+    const push = await fx(repo, "config", "--get-all", "remote.origin.push").catch(() => "");
+    expect(push).toBe("");
     expect(report.hooksInstalled).toHaveLength(1);
     expect(existsSync(join(repo, ".git", "hooks", "pre-push"))).toBe(true);
     const again = await initProject({ cwd: repo });
@@ -89,6 +88,26 @@ describe("openYnm end to end on git notes", () => {
     expect(personalRefs).toMatch(/refs\/notes\/ynm\/personal\/user\/david\/semantic/);
     const all = await ynm.list();
     expect(all.map((m) => m.mount).sort()).toEqual(["personal", "project"]);
+  });
+
+  it("writes no notes push refspec, so a plain push after sync exits 0", async () => {
+    const home = await createRepo(0);
+    const repo = await createRepo(1);
+    const origin = await createBare();
+    await fx(repo, "remote", "add", "origin", origin);
+    await initProject({ cwd: repo, hooks: false });
+    const pushes = await fx(repo, "config", "--get-all", "remote.origin.push").catch(() => "");
+    expect(pushes).toBe("");
+    const env = { YNM_HOME: join(home, ".ynm") };
+    const ctx = await openYnm({ cwd: repo, env });
+    const checks = (await doctor(ctx)).checks.map((c) => c.name);
+    expect(checks).not.toContain("shared push refspec");
+    await ctx.ynm.remember({ type: "semantic", level: "distributed", content: "shared fact" });
+    await ctx.ynm.sync();
+    await fx(repo, "commit", "--allow-empty", "-m", "x");
+    await fx(repo, "push", "origin", "HEAD:refs/heads/topic");
+    const remoteRefs = await fx(origin, "for-each-ref", "--format=%(refname)", "refs/notes/");
+    expect(remoteRefs).toMatch(/refs\/notes\/ynm\/shared\/common\/semantic/);
   });
 
   it("doctor is clean after init and warns before", async () => {

@@ -267,7 +267,7 @@ ynm init [flags]
 |---|---|---|---|---|
 | `--personal` | boolean |  | `false` | Create the personal store only |
 | `--bare <value>` | string |  |  | Create or adopt a dedicated bare memory repo at this path |
-| `--remote <value>` | string |  | `origin` | Remote for shared refspecs |
+| `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
 | `--[no-]hooks` | boolean |  | `true` | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
 
