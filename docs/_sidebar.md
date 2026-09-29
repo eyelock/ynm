@@ -19,6 +19,7 @@
   * [Running tutorials as evals](/tutorial/RUNNING.md)
 
 * **How-to guides**
+  * [Retrofit an existing repo](/how-to/retrofit-an-existing-repo.md)
   * [Operate a hosted store](/how-to/operate-a-hosted-store.md)
   * [Cut a release](/how-to/cut-a-release.md)
 
