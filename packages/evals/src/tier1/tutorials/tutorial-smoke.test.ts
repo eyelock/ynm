@@ -1,63 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sandboxBin, tutorialBlocks, tutorialFiles, tutorials } from "./support.js";
 
 /**
  * Layer 2 of the tutorial evals (docs/tutorial/RUNNING.md): every bash block of every tutorial
  * runs in order in a sandbox and must exit zero. No output matching; that is layer 1's job.
  */
-const repoRoot = join(import.meta.dirname, "..", "..", "..", "..", "..");
-const tutorials = join(repoRoot, "docs", "tutorial");
-const cli = join(repoRoot, "packages", "cli", "bin", "run.js");
-
-export interface TutorialBlock {
-  heading: string;
-  code: string;
-  /** From an HTML comment on the line before the fence: `<!-- tutorial: skip unless X -->`. */
-  skipUnlessEnv?: string;
-}
-
-/** Extracts the bash blocks of a tutorial with the nearest heading and any skip marker. */
-export function tutorialBlocks(markdown: string): TutorialBlock[] {
-  const out: TutorialBlock[] = [];
-  let heading = "";
-  let pending: string | undefined;
-  const lines = markdown.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] as string;
-    const h = /^#{1,3}\s+(.*)$/.exec(line);
-    if (h) heading = h[1] as string;
-    const skip = /^<!--\s*tutorial:\s*skip unless\s+([A-Z0-9_]+)\s*-->$/.exec(line.trim());
-    if (skip) {
-      pending = skip[1];
-      continue;
-    }
-    if (line.trim() === "```bash") {
-      const code: string[] = [];
-      for (i += 1; i < lines.length && (lines[i] as string).trim() !== "```"; i++)
-        code.push(lines[i] as string);
-      out.push({ heading, code: code.join("\n"), skipUnlessEnv: pending });
-      pending = undefined;
-    } else if (line.trim() !== "") pending = undefined;
-  }
-  return out;
-}
-
-export function tutorialFiles(): string[] {
-  return readdirSync(tutorials)
-    .filter((f) => /^\d{2}-.*\.md$/.test(f))
-    .sort();
-}
-
-/** A PATH entry with `ynm` pointing at this checkout, as the tutorial index tells humans to make. */
-export function sandboxBin(): string {
-  const bin = mkdtempSync(join(tmpdir(), "ynm-tutorial-bin-"));
-  writeFileSync(join(bin, "ynm"), `#!/bin/sh\nexec node ${cli} "$@"\n`);
-  chmodSync(join(bin, "ynm"), 0o755);
-  return bin;
-}
-
 describe("tutorial smoke (every command block exits zero)", () => {
   for (const file of tutorialFiles()) {
     it(file, () => {

@@ -5,11 +5,7 @@ import { join } from "node:path";
 import { extractJson } from "@ynm/models";
 import { z } from "zod";
 import { recordMetric } from "../../baseline.js";
-import {
-  sandboxBin,
-  tutorialBlocks,
-  tutorialFiles,
-} from "../../tier1/tutorials/tutorial-smoke.test.js";
+import { sandboxBin, tutorialBlocks, tutorialFiles } from "../../tier1/tutorials/support.js";
 
 /**
  * Layer 1 of the tutorial evals (docs/tutorial/RUNNING.md): a model reads each tutorial, runs

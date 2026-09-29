@@ -29,12 +29,6 @@
     "indentWidth": 2,
     "lineWidth": 100
   },
-  "overrides": [
-    {
-      "includes": ["**/packages/evals/src/tier1/tutorials/tutorial-smoke.test.ts"],
-      "linter": { "rules": { "suspicious": { "noExportsInTest": "off" } } }
-    }
-  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "double",
@@ -53,7 +47,8 @@
       "!**/*.d.ts",
       "!**/.turbo",
       "!**/pnpm-lock.yaml",
-      "!**/test/golden"
+      "!**/test/golden",
+      "!**/.claude"
     ]
   }
 }
