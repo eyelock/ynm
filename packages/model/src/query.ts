@@ -18,8 +18,11 @@ export const RecallQuerySchema = z
     since: IsoDateTimeSchema.optional().describe("Updated at or after"),
     until: IsoDateTimeSchema.optional().describe("Updated at or before"),
     pinnedOnly: z.boolean().default(false).describe("Only pinned memories"),
-    includeTombstoned: z.boolean().default(false),
-    limit: z.number().int().positive().max(200).default(10),
+    includeTombstoned: z
+      .boolean()
+      .default(false)
+      .describe("Include forgotten (tombstoned) memories"),
+    limit: z.number().int().positive().max(200).default(10).describe("Maximum number of hits"),
     explain: z.boolean().default(false).describe("Return score components"),
     rerank: z
       .boolean()
@@ -34,8 +37,8 @@ export type RecallQuery = z.infer<typeof RecallQuerySchema>;
 export const ContextQuerySchema = z
   .object({
     namespace: z.string().optional().describe("Namespace prefix"),
-    level: z.array(LevelSchema).optional(),
-    type: z.array(MemoryTypeSchema).optional(),
+    level: z.array(LevelSchema).optional().describe("Restrict to these levels"),
+    type: z.array(MemoryTypeSchema).optional().describe("Restrict to these memory types"),
     text: z.string().max(2000).optional().describe("Optional focus text for the ranked part"),
     budgetTokens: z
       .number()
@@ -44,7 +47,7 @@ export const ContextQuerySchema = z
       .max(50_000)
       .default(1500)
       .describe("Approximate token budget"),
-    mount: z.string().optional(),
+    mount: z.string().optional().describe("Only this mount"),
   })
   .strict();
 export type ContextQuery = z.infer<typeof ContextQuerySchema>;

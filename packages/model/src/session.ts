@@ -57,9 +57,9 @@ export type ConsolidateInput = z.infer<typeof ConsolidateInputSchema>;
 export const SyncInputSchema = z
   .object({
     remote: z.string().optional().describe("Remote name"),
-    push: z.boolean().default(true),
-    pull: z.boolean().default(true),
-    dryRun: z.boolean().default(false),
+    push: z.boolean().default(true).describe("Push after merging"),
+    pull: z.boolean().default(true).describe("Fetch and merge first"),
+    dryRun: z.boolean().default(false).describe("Report what would change"),
     mount: z.string().optional().describe("Only this mount"),
   })
   .strict();

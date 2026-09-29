@@ -10,12 +10,15 @@ export const ShaSchema = z
 
 export const MountConfigSchema = z
   .object({
-    id: z.string().min(1),
-    level: z.enum(["personal", "distributed"]),
-    provider: z.enum(["git-notes", "fs", "sqlite", "memory"]).default("git-notes"),
+    id: z.string().min(1).describe("Mount id, shown on every hit and accepted by `--mount`"),
+    level: z.enum(["personal", "distributed"]).describe("Which records the mount accepts"),
+    provider: z
+      .enum(["git-notes", "fs", "sqlite", "memory"])
+      .default("git-notes")
+      .describe("Record store provider for this mount"),
     path: z.string().min(1).describe("Repository or directory path"),
-    anchor: ShaSchema.optional(),
-    remote: z.string().optional(),
+    anchor: ShaSchema.optional().describe("Anchor commit for this mount's notes"),
+    remote: z.string().optional().describe("Remote used when syncing this mount"),
   })
   .strict();
 export type MountConfig = z.infer<typeof MountConfigSchema>;

@@ -5,7 +5,7 @@ import { flagsFromSchema, inputFromFlags } from "../lib/flags.js";
 
 export default class Dream extends YnmCommand {
   static override description =
-    "Run consolidation passes (currently: expire working memory past its ttl)";
+    "Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting.";
   static override examples = [
     "<%= config.bin %> <%= command.id %>",
     "<%= config.bin %> <%= command.id %> --dry-run --json",

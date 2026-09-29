@@ -120,12 +120,12 @@ export const MemoryRecordSchema = z
     v: z.literal(MODEL_SCHEMA_VERSION).describe("Record schema version"),
     id: UlidSchema.describe("Record id; sortable by time"),
     memoryId: UlidSchema.describe("Memory this record belongs to; equals id for the first record"),
-    op: OpSchema,
+    op: OpSchema.describe("What the record does to its memory (see the list below)"),
     type: MemoryTypeSchema,
     level: LevelSchema,
     namespace: NamespaceSchema,
     subject: z.string().max(200).optional().describe("Entity or topic key, e.g. entity:git-notes"),
-    tags: z.array(z.string().min(1).max(64)).default([]),
+    tags: z.array(z.string().min(1).max(64)).default([]).describe("Free-form tags"),
     content: z.string().max(65_536).optional().describe("Markdown; the memory itself"),
     summary: z.string().max(280).optional().describe("One line for index.md and pinned context"),
     data: JsonObjectSchema.optional().describe("Optional structured payload for typed memories"),
@@ -139,7 +139,7 @@ export const MemoryRecordSchema = z
     validTo: IsoDateTimeSchema.nullable().optional().describe("Event time it stopped being true"),
     ttl: IsoDurationSchema.optional().describe("Working memory only"),
     provenance: ProvenanceSchema,
-    links: z.array(LinkSchema).default([]),
+    links: z.array(LinkSchema).default([]).describe("Typed links to other memories"),
     reason: z
       .string()
       .max(1000)
@@ -244,7 +244,7 @@ export const AnnotateInputSchema = z
     pinned: z.boolean().optional().describe("Pin or unpin"),
     needsReview: z.boolean().optional().describe("Flag or clear review"),
     reason: z.string().max(1000).optional().describe("Why"),
-    session: z.string().optional(),
+    session: z.string().optional().describe("Session id for provenance"),
     data: JsonObjectSchema.optional().describe("Judgment or other structured annotation data"),
   })
   .strict();
@@ -254,7 +254,7 @@ export const ForgetInputSchema = z
   .object({
     memoryId: UlidSchema.describe("Memory to tombstone"),
     reason: z.string().max(1000).optional().describe("Why"),
-    session: z.string().optional(),
+    session: z.string().optional().describe("Session id for provenance"),
   })
   .strict();
 export type ForgetInput = z.infer<typeof ForgetInputSchema>;
@@ -265,11 +265,14 @@ export const RecordFilterSchema = z
     level: LevelSchema.optional(),
     type: MemoryTypeSchema.optional(),
     namespace: z.string().optional().describe("Namespace prefix"),
-    since: IsoDateTimeSchema.optional(),
-    until: IsoDateTimeSchema.optional(),
-    includeTombstoned: z.boolean().default(false),
+    since: IsoDateTimeSchema.optional().describe("Updated at or after"),
+    until: IsoDateTimeSchema.optional().describe("Updated at or before"),
+    includeTombstoned: z
+      .boolean()
+      .default(false)
+      .describe("Include forgotten (tombstoned) memories"),
     needsReview: z.boolean().optional().describe("Only memories flagged for review"),
-    limit: z.number().int().positive().max(10_000).optional(),
+    limit: z.number().int().positive().max(10_000).optional().describe("Maximum number of results"),
   })
   .strict();
 export type RecordFilter = z.infer<typeof RecordFilterSchema>;

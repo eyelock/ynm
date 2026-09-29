@@ -96,7 +96,7 @@ function defaultText(v) {
  * `parent[].child` and `parent.child` rows. `defaults` is the parsed empty value, used where a
  * default sits on a parent object rather than on the leaf.
  */
-function schemaRows(json, { prefix = "", defaults, notes = {}, expand = true } = {}) {
+function schemaRows(json, { prefix = "", defaults, expand = true } = {}) {
   const rows = [];
   const required = new Set(json.required ?? []);
   for (const [name, raw] of Object.entries(json.properties ?? {})) {
@@ -105,7 +105,7 @@ function schemaRows(json, { prefix = "", defaults, notes = {}, expand = true } =
     const dflt = s.default !== undefined ? s.default : defaults?.[name];
     const isObject = s.type === "object" && s.properties;
     const isObjArray = s.type === "array" && unwrap(s.items).type === "object";
-    const description = s.description ?? notes[path] ?? "";
+    const description = s.description ?? "";
     rows.push({
       name: path,
       type: typeText(s),
@@ -119,11 +119,10 @@ function schemaRows(json, { prefix = "", defaults, notes = {}, expand = true } =
         ...schemaRows(s, {
           prefix: `${path}.`,
           defaults: dflt && typeof dflt === "object" ? dflt : undefined,
-          notes,
         })
       );
     if (expand && isObjArray)
-      rows.push(...schemaRows(unwrap(s.items), { prefix: `${path}[].`, notes }));
+      rows.push(...schemaRows(unwrap(s.items), { prefix: `${path}[].` }));
   }
   return rows;
 }
@@ -136,7 +135,7 @@ function schemaRows(json, { prefix = "", defaults, notes = {}, expand = true } =
  * field name (flagsFromSchema's fallback when the schema has none).
  */
 function flagDescription(flag, description = "") {
-  const d = description.replace(/( \((JSON array|JSON object|number)\))+$/, "");
+  const d = description.replace(/( \((JSON array|JSON object|number|default: [^)]*)\))+$/, "");
   const bare = d.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
   return bare === flag ? "" : d;
 }
@@ -363,44 +362,6 @@ async function mcpReference() {
 // ---------------------------------------------------------------------------------------------
 // Partly generated reference pages
 
-/** Descriptions for keys whose schema carries none. Move them into the schema when it is next edited. */
-const CONFIG_NOTES = {
-  "mounts[].id": "Mount id, shown on every hit and accepted by `--mount`",
-  "mounts[].level": "Which records the mount accepts",
-  "mounts[].provider": "Record store provider for this mount",
-  "mounts[].anchor": "Anchor commit for this mount's notes",
-  "mounts[].remote": "Remote used when syncing this mount",
-  "dream.judge":
-    "Judge seam. `auto`: TypeSafe when its key is set, else emulated over the Writer, else heuristic",
-  "dream.writer":
-    "Writer seam. `auto`: the `claude` CLI when installed, else an OpenAI-compatible endpoint when a key or `YNM_OPENAI_BASE_URL` is set, else none",
-  "dream.thresholds": "Confidence bands per pass",
-  "dream.thresholds.dedupe": "Bands for merging near-duplicates",
-  "dream.thresholds.dedupe.act": "At or above: act (calibrated judge only)",
-  "dream.thresholds.dedupe.review": "At or above: flag for review",
-  "dream.thresholds.contradict": "Bands for resolving contradictions",
-  "dream.thresholds.contradict.act": "At or above: act (calibrated judge only)",
-  "dream.thresholds.contradict.review": "At or above: flag for review",
-  "dream.thresholds.promote": "Bands for promoting working memory",
-  "dream.thresholds.promote.act": "At or above: act (calibrated judge only)",
-  "dream.thresholds.promote.review": "At or above: flag for review",
-  "dream.thresholds.reflect": "Settings for the reflect pass",
-  "dream.thresholds.reflect.minEpisodes": "Episodes a subject needs before it is reflected on",
-  "dream.thresholds.reflect.flagAt": "A verification question at or above this withholds the draft",
-  "dream.maxPairsPerRun": "Cap on judged pairs per dream run",
-  "dream.candidatesPerMemory": "Nearest neighbours considered per memory",
-  "dream.rerankTopK": "Candidates the reranker judges",
-  "dream.typesafe": "TypeSafe judge settings",
-  "dream.typesafe.model": "Model id; default: the service's latest Jev",
-  "dream.typesafe.apiKeyEnv": "Environment variable holding the key",
-  "dream.openai": "OpenAI-compatible writer settings",
-  "dream.openai.baseUrl": "Endpoint base URL (`YNM_OPENAI_BASE_URL` overrides under `auto`)",
-  "dream.openai.model": "Model name (`YNM_OPENAI_MODEL` overrides under `auto`)",
-  "dream.openai.apiKeyEnv": "Environment variable holding the key",
-  "dream.claude": "Claude CLI writer settings",
-  "dream.claude.model": "Model passed to `claude -p`; default: the CLI's own",
-};
-
 function keyTable(rows) {
   return table(
     ["Key", "Type", "Default", "Description"],
@@ -420,13 +381,11 @@ async function configurationBlocks() {
   const defaults = YnmConfigSchema.parse({});
   const top = schemaRows({ ...json, properties: { ...json.properties, dream: undefined } }, {
     defaults,
-    notes: CONFIG_NOTES,
   }).filter((r) => r.name !== "dream");
   const dreamJson = jsonSchema(DreamConfigSchema);
   const dream = schemaRows(dreamJson, {
     prefix: "dream.",
     defaults: DreamConfigSchema.parse({}),
-    notes: CONFIG_NOTES,
   });
   return {
     "config-keys": keyTable(top),

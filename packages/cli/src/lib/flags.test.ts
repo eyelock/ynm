@@ -1,4 +1,10 @@
-import { RememberInputSchema } from "@ynm/model";
+import {
+  AnnotateInputSchema,
+  ContextQuerySchema,
+  ForgetInputSchema,
+  RecallQuerySchema,
+  RememberInputSchema,
+} from "@ynm/model";
 import { flagsFromSchema, InvalidInputError, inputFromFlags, toKebab } from "./flags.js";
 
 describe("flags from Zod (ADR-008)", () => {
@@ -42,6 +48,29 @@ describe("flags from Zod (ADR-008)", () => {
     expect(() =>
       inputFromFlags(RememberInputSchema, { type: "semantic", content: "x", data: "{bad" })
     ).toThrow(InvalidInputError);
+  });
+  it("shows schema defaults in the description and does not repeat the JSON suffix", () => {
+    const flags = flagsFromSchema(RememberInputSchema);
+    const d = (name: string) => (flags[name] as { description?: string }).description;
+    expect(d("importance")).toBe("0..1 (number) (default: 0.5)");
+    expect(d("namespace")).toContain("(default: common)");
+    expect(d("data")).toBe("Structured payload (JSON object)");
+    expect(d("tags")).not.toContain("default");
+  });
+  it("gives the flags that were once bare a description", () => {
+    for (const [schema, names] of [
+      [ContextQuerySchema, ["level", "type", "mount"]],
+      [RecallQuerySchema, ["include-tombstoned", "limit"]],
+      [AnnotateInputSchema, ["session"]],
+      [ForgetInputSchema, ["session"]],
+    ] as const) {
+      const flags = flagsFromSchema(schema);
+      for (const n of names) {
+        const desc = (flags[n] as { description?: string }).description ?? "";
+        expect(desc, `${n}`).not.toBe("");
+        expect(toKebab(desc), `${n}`).not.toBe(n);
+      }
+    }
   });
   it("kebab-cases camelCase", () => {
     expect(toKebab("validFrom")).toBe("valid-from");

@@ -36,6 +36,13 @@ function typeOf(s: JsonSchema): string {
   return t ?? (s.enum ? "string" : "string");
 }
 
+/** A scalar default worth showing in `--help`; empty arrays and objects are noise. */
+function defaultText(s: JsonSchema): string | undefined {
+  const d = s.default;
+  if (d === undefined || d === null || typeof d === "object") return undefined;
+  return String(d);
+}
+
 /**
  * oclif flags generated from a Zod object via its JSON Schema (ADR-008 parity). Strings, enums,
  * numbers, booleans and string arrays map directly; objects and object arrays take JSON.
@@ -50,7 +57,10 @@ export function flagsFromSchema<T extends z.ZodObject>(
     if (options.exclude?.includes(name)) continue;
     const prop = unwrap(raw);
     const required = (json.required ?? []).includes(name) && prop.default === undefined;
-    const description = prop.description ?? name;
+    const base = prop.description ?? name;
+    const dflt = defaultText(prop);
+    const withDefault = (d: string): string => (dflt ? `${d} (default: ${dflt})` : d);
+    const description = withDefault(base);
     const flag = toKebab(name);
     const t = typeOf(prop);
     if (prop.enum) {
@@ -60,23 +70,24 @@ export function flagsFromSchema<T extends z.ZodObject>(
     } else if (t === "integer") {
       out[flag] = Flags.integer({ description, required });
     } else if (t === "number") {
-      out[flag] = Flags.string({ description: `${description} (number)`, required });
+      out[flag] = Flags.string({ description: withDefault(`${base} (number)`), required });
     } else if (t === "array") {
       const item = prop.items ? unwrap(prop.items) : {};
       if (typeOf(item) === "string" || item.enum) {
         out[flag] = Flags.string({
-          description: item.enum
-            ? description
-            : `${description} (repeat the flag or separate with commas)`,
+          description: item.enum ? base : `${base} (repeat the flag or separate with commas)`,
           required,
           multiple: true,
           options: item.enum?.map(String),
         });
       } else {
-        out[flag] = Flags.string({ description: `${description} (JSON array)`, required });
+        out[flag] = Flags.string({ description: `${base} (JSON array)`, required });
       }
     } else if (t === "object") {
-      out[flag] = Flags.string({ description: `${description} (JSON object)`, required });
+      out[flag] = Flags.string({
+        description: base.endsWith("(JSON object)") ? base : `${base} (JSON object)`,
+        required,
+      });
     } else {
       out[flag] = Flags.string({ description, required });
     }

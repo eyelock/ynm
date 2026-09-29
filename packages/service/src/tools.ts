@@ -38,7 +38,13 @@ const MemorySessionInputSchema = zod
     action: zod.enum(["start", "end"]).describe("start or end a session"),
     sessionId: zod.string().optional().describe("Session id (required for end)"),
     namespace: zod.string().optional().describe("Namespace prefix for the context block"),
-    budgetTokens: zod.number().int().positive().max(50_000).default(1500),
+    budgetTokens: zod
+      .number()
+      .int()
+      .positive()
+      .max(50_000)
+      .default(1500)
+      .describe("Context block budget"),
     ttl: zod.string().default("PT8H").describe("Default working-memory TTL"),
     expire: zod.boolean().default(true).describe("On end: tombstone expired working memory"),
   })
@@ -173,7 +179,7 @@ export const TOOL_SPECS = [
     name: "memory_consolidate",
     command: "dream",
     description:
-      "Run consolidation passes. Currently: expire (tombstone working memory past its ttl). Model-backed passes arrive later.",
+      "Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting.",
     input: ConsolidateInputSchema,
     readOnly: false,
     async run(ynm, input) {
