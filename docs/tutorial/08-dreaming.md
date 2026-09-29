@@ -18,6 +18,7 @@ export YNM_USER=tutorial
 export YNM_NO_CLAUDE_CLI=1
 cd /tmp/ynm-tutorial
 ynm init --personal
+echo '{"dream":{"judge":"heuristic"}}' > /tmp/ynm-tutorial/home/config.json
 git init -q -b main project
 cd project
 git -c user.name=tutorial -c user.email=tutorial@example.com commit -q --allow-empty -m "first commit"
@@ -27,9 +28,10 @@ ynm init
 Expected: `personal store created at /tmp/ynm-tutorial/home/store.git`, then the `initialised`
 report from tutorial 2 with the note that remote `origin` was not found.
 
-`YNM_NO_CLAUDE_CLI=1` matters here. If a `claude` CLI is on your PATH, ynm will use it as a
-model on its own, which changes what `dream` does. Setting the variable pins this tutorial to
-the no-model behaviour.
+Two things pin this tutorial to the no-model behaviour until the last section. If a `claude`
+CLI is on your PATH, ynm will use it as a model on its own; `YNM_NO_CLAUDE_CLI=1` stops that.
+And if a `TYPESAFE_API_KEY` is set, ynm picks the calibrated judge, which acts instead of
+flagging; the config line pins the judge to `heuristic` regardless.
 
 ## Seed a mess
 
@@ -148,8 +150,12 @@ environment. Skip it if you do not have one; nothing later depends on it.
 <!-- tutorial: skip unless TYPESAFE_API_KEY -->
 
 ```bash
+echo '{"dream":{"judge":"auto"}}' > /tmp/ynm-tutorial/home/config.json
 ynm dream --passes dedupe --passes contradict --max-pairs 10
 ```
+
+The first line lifts the pin from the prerequisites: with `judge: auto` and the key set, the
+calibrated judge is chosen.
 
 Expected: with a calibrated judge the two passes are allowed to act. `dedupe` reports at least
 one memory changed: of the two API duplicates, the older is tombstoned as
@@ -166,10 +172,13 @@ ynm list
 ynm review list
 ```
 
-Expected: `list` no longer shows both API memories or the Tuesday memory. Each judgment is stored
-on the memory it changed, with the questions asked, the probabilities, the model and its
-version, so you can see why. Judges advise; the code applies thresholds and does the writing
-(ADR-012).
+Expected: `list` no longer shows both API memories or the Tuesday memory; the surviving
+memories are the Thursday rule (personal and its promoted copy), one API memory and the
+database memory. `review list` still shows the Thursday memory: the heuristic run flagged it
+earlier and nothing has cleared that flag, so clear it now with `ynm review clear <id>` if you
+like. Each judgment is stored on the memory it changed, with the questions asked, the
+probabilities, the model and its version, so you can see why. Judges advise; the code applies
+thresholds and does the writing (ADR-012).
 
 ## Cleanup
 
