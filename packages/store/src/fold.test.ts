@@ -1,6 +1,6 @@
 import type { MemoryRecord } from "@ynm/model";
 import { ulid } from "@ynm/model";
-import { fold, foldWithSnapshot, snapshotData } from "./fold.js";
+import { Folder, fold, foldWithSnapshot, snapshotData } from "./fold.js";
 
 let t = 1_000_000;
 function at(): string {
@@ -122,6 +122,23 @@ describe("fold (ADR-002)", () => {
     const m = fold([c, dup, p]).memories.get(c.memoryId);
     expect(m?.current.id).toBe(c.id);
     expect(m?.versions).toBe(3);
+  });
+
+  it("Folder folds incrementally to the same state as a full fold", () => {
+    const c1 = create();
+    const c2 = create();
+    const a = on(c1, "annotate", { tags: ["late"] });
+    const s = on(c2, "supersede");
+    const tomb = on(c1, "tombstone");
+    const f = new Folder();
+    expect(f.add([c1]).sort()).toEqual([c1.memoryId]);
+    f.add([s, tomb]);
+    f.add([c2, a]);
+    f.add([a]);
+    const full = fold([c1, c2, a, s, tomb]);
+    expect([...f.result().memories.entries()].sort()).toEqual([...full.memories.entries()].sort());
+    expect(f.result().orphans).toEqual([]);
+    expect(f.size).toBe(2);
   });
 
   it("snapshot plus tail equals full fold", () => {

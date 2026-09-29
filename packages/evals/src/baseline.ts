@@ -68,3 +68,29 @@ export function record(t: Timing): { baseline?: Timing; ratio?: number } {
 }
 
 export const REGRESSION_LIMIT = 3;
+
+export interface Metric {
+  name: string;
+  size: number;
+  value: number;
+}
+
+/** Records a quality metric (higher is better); a drop of more than `tolerance` vs baseline fails. */
+export function recordMetric(
+  m: Metric,
+  tolerance = 0.02
+): { baseline?: Metric; regressed: boolean } {
+  const key = `${m.name}@${m.size}`;
+  const all = readBaseline() as Record<string, Timing | Metric>;
+  const baseline = all[key] as Metric | undefined;
+  if (process.env.YNM_WRITE_BASELINE === "1") {
+    all[key] = m;
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(BASELINE_FILE, `${JSON.stringify(all, null, 2)}\n`);
+  }
+  const regressed = !!baseline && baseline.value - m.value > tolerance;
+  console.info(
+    `metric ${key}: ${m.value.toFixed(4)}${baseline ? ` (baseline ${baseline.value.toFixed(4)})` : " (no baseline)"}`
+  );
+  return { baseline: baseline && "value" in baseline ? baseline : undefined, regressed };
+}

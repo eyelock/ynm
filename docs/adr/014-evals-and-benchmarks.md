@@ -106,6 +106,12 @@ it at consolidation time.
   8 s at 100k); a single remember is over (about 90 ms vs 50 ms) because each append is seven git
   spawns. Budget for remember revised to 150 ms p95; the lever if it matters is batching records
   per append, not fewer spawns. Gating is relative (3x p95 regression fails), as decided.
+- 2026-09-29 (M2): recall baselines on the reference machine: reindex 284 ms at 10k and 2.3 s at
+  100k; recall p95 28 ms at 10k and 158 ms at 100k; context p95 19 ms and 66 ms; remember with
+  index update p95 84 ms and 111 ms; recall@10 1.0 and MRR 0.94 on the 2k synthetic corpus.
+  The draft 100 ms recall budget at 100k is revised to 200 ms: the OR-of-terms FTS5 query joined
+  to the metadata table does not take FTS5's fast rank path. Levers if it matters: order by the
+  FTS `rank` column without the join, or push metadata filters into FTS columns.
 - 2026-09-28 (M0): milestone gates exist in code from the first commit. One file per milestone
   at `packages/evals/src/gates/m<n>.gate.test.ts`; each check is named now and is an `it.todo`
   until built. `pnpm gate M<n>` runs one; a milestone closes only when its gate is green with

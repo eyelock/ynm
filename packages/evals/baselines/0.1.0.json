@@ -47,5 +47,81 @@
     "p50Ms": 214.37,
     "p95Ms": 315.88,
     "samples": 5
+  },
+  "recall@1@2000": {
+    "name": "recall@1",
+    "size": 2000,
+    "value": 0.88
+  },
+  "recall@5@2000": {
+    "name": "recall@5",
+    "size": 2000,
+    "value": 1
+  },
+  "recall@10@2000": {
+    "name": "recall@10",
+    "size": 2000,
+    "value": 1
+  },
+  "mrr@2000": {
+    "name": "mrr",
+    "size": 2000,
+    "value": 0.94
+  },
+  "reindex@10000": {
+    "name": "reindex",
+    "size": 10000,
+    "p50Ms": 284.25,
+    "p95Ms": 284.25,
+    "samples": 1
+  },
+  "recall@10000": {
+    "name": "recall",
+    "size": 10000,
+    "p50Ms": 26.36,
+    "p95Ms": 28.32,
+    "samples": 20
+  },
+  "context@10000": {
+    "name": "context",
+    "size": 10000,
+    "p50Ms": 18.38,
+    "p95Ms": 18.83,
+    "samples": 10
+  },
+  "remember+index@10000": {
+    "name": "remember+index",
+    "size": 10000,
+    "p50Ms": 82.02,
+    "p95Ms": 84.05,
+    "samples": 10
+  },
+  "reindex@100000": {
+    "name": "reindex",
+    "size": 100000,
+    "p50Ms": 2329.49,
+    "p95Ms": 2329.49,
+    "samples": 1
+  },
+  "recall@100000": {
+    "name": "recall",
+    "size": 100000,
+    "p50Ms": 135.88,
+    "p95Ms": 157.7,
+    "samples": 20
+  },
+  "context@100000": {
+    "name": "context",
+    "size": 100000,
+    "p50Ms": 59.18,
+    "p95Ms": 65.8,
+    "samples": 10
+  },
+  "remember+index@100000": {
+    "name": "remember+index",
+    "size": 100000,
+    "p50Ms": 108.53,
+    "p95Ms": 111.16,
+    "samples": 10
   }
 }

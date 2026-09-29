@@ -29,6 +29,9 @@ importers:
       '@oclif/core':
         specifier: ^4.10.5
         version: 4.14.0
+      '@ynm/index':
+        specifier: workspace:*
+        version: link:../index
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
@@ -63,6 +66,9 @@ importers:
 
   packages/evals:
     dependencies:
+      '@ynm/index':
+        specifier: workspace:*
+        version: link:../index
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
@@ -100,6 +106,9 @@ importers:
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
+      '@ynm/store':
+        specifier: workspace:*
+        version: link:../store
     devDependencies:
       '@types/node':
         specifier: ^26.0.1
@@ -175,6 +184,9 @@ importers:
 
   packages/service:
     dependencies:
+      '@ynm/index':
+        specifier: workspace:*
+        version: link:../index
       '@ynm/model':
         specifier: workspace:*
         version: link:../model

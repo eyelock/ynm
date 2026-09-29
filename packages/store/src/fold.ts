@@ -55,7 +55,8 @@ function mergeTags(existing: string[], incoming: string[]): string[] {
   return out;
 }
 
-function fromBase(r: MemoryRecord): Memory {
+/** A new memory from its first create or supersede record. */
+export function memoryFromBase(r: MemoryRecord): Memory {
   return {
     memoryId: r.memoryId,
     current: r,
@@ -76,7 +77,8 @@ function fromBase(r: MemoryRecord): Memory {
   };
 }
 
-function apply(m: Memory, r: MemoryRecord): void {
+/** Applies one record that is newer than everything already folded into `m`. */
+export function applyRecord(m: Memory, r: MemoryRecord): void {
   m.versions += 1;
   m.updatedAt = r.recordedAt;
   switch (r.op) {
@@ -163,11 +165,11 @@ function foldSorted(
     if (r.op === "snapshot") continue;
     const m = memories.get(r.memoryId);
     if (m) {
-      apply(m, r);
+      applyRecord(m, r);
       continue;
     }
     if (r.op === "create" || r.op === "supersede") {
-      const base = fromBase(r);
+      const base = memoryFromBase(r);
       const late = pending.get(r.memoryId);
       if (late) {
         for (const p of late.sort(compareRecords)) applyBefore(base, p);
@@ -217,6 +219,67 @@ export function foldWithSnapshot(snapshot: MemoryRecord, tail: Iterable<MemoryRe
   }
   const later = [...tail].filter((r) => compareRecords(r, snapshot) > 0).sort(compareRecords);
   return foldSorted(later, memories, pending);
+}
+
+/**
+ * Incremental fold: keeps memories and pending records so a process that just appended can
+ * update its view without re-reading the log. Records may arrive in any order and any batch size.
+ */
+export class Folder {
+  private readonly memories = new Map<string, Memory>();
+  private readonly pending = new Map<string, MemoryRecord[]>();
+  private readonly seen = new Set<string>();
+
+  /** Applies records; returns the ids of memories whose state changed (or were created). */
+  add(records: Iterable<MemoryRecord>): string[] {
+    const fresh = [...records].filter((r) => !this.seen.has(r.id));
+    for (const r of fresh) this.seen.add(r.id);
+    const touched = new Set<string>();
+    // Records already folded stay folded; late records are merged by re-folding affected memories.
+    const affected = new Set(fresh.map((r) => r.memoryId));
+    const all: MemoryRecord[] = [];
+    for (const id of affected) {
+      const existing = this.memories.get(id);
+      if (existing) all.push(...(this.recordsOf.get(id) ?? []));
+      all.push(...(this.pending.get(id) ?? []));
+      this.pending.delete(id);
+      this.memories.delete(id);
+    }
+    all.push(...fresh);
+    for (const r of fresh) {
+      const list = this.recordsOf.get(r.memoryId) ?? [];
+      list.push(r);
+      this.recordsOf.set(r.memoryId, list);
+    }
+    const result = foldSorted(all.sort(compareRecords), new Map(), new Map());
+    for (const [id, m] of result.memories) {
+      this.memories.set(id, m);
+      touched.add(id);
+    }
+    for (const o of result.orphans) {
+      const q = this.pending.get(o.memoryId) ?? [];
+      q.push(o);
+      this.pending.set(o.memoryId, q);
+    }
+    return [...touched];
+  }
+
+  /** Records kept per memory so late arrivals can be re-folded exactly. */
+  private readonly recordsOf = new Map<string, MemoryRecord[]>();
+
+  get(memoryId: string): Memory | undefined {
+    return this.memories.get(memoryId);
+  }
+
+  result(): FoldResult {
+    const orphans: MemoryRecord[] = [];
+    for (const q of this.pending.values()) orphans.push(...q);
+    return { memories: this.memories, orphans };
+  }
+
+  get size(): number {
+    return this.memories.size;
+  }
 }
 
 /** Builds the snapshot record's payload from a fold. */

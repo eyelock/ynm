@@ -49,13 +49,14 @@ export class FsLog implements RecordLog {
     for (const group of groupByShard(records).values()) {
       const file = this.shardPath(group.key);
       mkdirSync(join(file, ".."), { recursive: true });
+      const previous = existsSync(file) ? String(statSync(file).mtimeMs) : null;
       await withLock(`${file}.lock`, async () => {
         const existing = existsSync(file) ? readFileSync(file, "utf8") : "";
         const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
         writeFileSync(tmp, existing + serializeJsonl(group.records));
         renameSync(tmp, file);
       });
-      touched.push({ key: group.key, revision: String(statSync(file).mtimeMs) });
+      touched.push({ key: group.key, revision: String(statSync(file).mtimeMs), previous });
     }
     return { appended: records.length, shards: touched };
   }
@@ -107,7 +108,9 @@ export class FsLog implements RecordLog {
 
   async shards(filter?: ShardFilter): Promise<ShardInfo[]> {
     const out: ShardInfo[] = [];
-    for (const { key } of this.walk()) if (shardMatches(key, filter)) out.push({ ...key });
+    for (const { key, file } of this.walk()) {
+      if (shardMatches(key, filter)) out.push({ ...key, revision: String(statSync(file).mtimeMs) });
+    }
     return out;
   }
 

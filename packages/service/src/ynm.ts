@@ -1,16 +1,29 @@
+import {
+  buildContext,
+  type ContextBlock,
+  type Hit,
+  type IndexedMemory,
+  type Ranked,
+  rank,
+} from "@ynm/index";
 import type {
   AnnotateInput,
+  ContextQuery,
   ForgetInput,
   Level,
   MemoryRecord,
+  RecallQuery,
   RecordFilter,
   RememberInput,
+  ScoreExplain,
   SupersedeInput,
 } from "@ynm/model";
 import {
   AnnotateInputSchema,
+  ContextQuerySchema,
   ForgetInputSchema,
   MemoryRecordSchema,
+  RecallQuerySchema,
   RememberInputSchema,
   SupersedeInputSchema,
   summarize,
@@ -27,6 +40,7 @@ import {
   type SyncResult,
   serializeJsonl,
 } from "@ynm/store";
+import type { FreshnessReport, IndexManager } from "./indexing.js";
 import type { Mount } from "./mounts.js";
 import { findRedactions, RedactionError } from "./redaction.js";
 
@@ -35,7 +49,26 @@ export interface YnmOptions {
   actor: string;
   userId: string;
   redaction: readonly string[];
+  /** Optional in M1-style setups (tests); recall and context require it. */
+  index?: IndexManager;
   now?: () => Date;
+}
+
+export interface RecallHit {
+  memoryId: string;
+  mount: string;
+  score: number;
+  explain?: ScoreExplain;
+  type: IndexedMemory["type"];
+  level: Level;
+  namespace: string;
+  subject?: string;
+  tags: string[];
+  summary: string;
+  content: string;
+  pinned: boolean;
+  importance: number;
+  updatedAt: string;
 }
 
 export interface MemoryWithMount extends Memory {
@@ -63,12 +96,14 @@ export class Ynm {
   private readonly userId: string;
   private readonly redaction: readonly string[];
   private readonly now: () => Date;
+  readonly index?: IndexManager;
 
   constructor(opts: YnmOptions) {
     this.mounts = opts.mounts;
     this.actor = opts.actor;
     this.userId = opts.userId;
     this.redaction = opts.redaction;
+    this.index = opts.index;
     const source = opts.now ?? (() => new Date());
     let last = 0;
     // Strictly increasing timestamps within a process keep record order deterministic (ADR-002).
@@ -135,12 +170,115 @@ export class Ynm {
 
   private async write(mount: Mount, record: MemoryRecord): Promise<WriteResult> {
     const res = await mount.log.append([record]);
+    await this.index?.afterWrite(mount, record, res);
     return {
       memoryId: record.memoryId,
       recordId: record.id,
       mount: mount.id,
       revision: res.shards[0]?.revision ?? "",
     };
+  }
+
+  private requireIndex(): IndexManager {
+    if (!this.index) throw new Error("no index configured; recall and context need one (ADR-005)");
+    return this.index;
+  }
+
+  private mountsFor(q: { mount?: string; level?: Level[] }): Mount[] {
+    return this.mounts.filter(
+      (m) => (!q.mount || m.id === q.mount) && (!q.level?.length || q.level.includes(m.level))
+    );
+  }
+
+  /** Indexed, ranked recall across mounts (ADR-005). */
+  async recall(raw: RecallQuery | Record<string, unknown>): Promise<RecallHit[]> {
+    const q = RecallQuerySchema.parse(raw);
+    const index = this.requireIndex();
+    const out: RecallHit[] = [];
+    const candidates = Math.max(q.limit * 4, 40);
+    for (const mount of this.mountsFor(q)) {
+      const ix = await index.ensureFresh(mount);
+      const hits = await ix.search({
+        text: q.text,
+        type: q.type,
+        level: q.level,
+        namespace: q.namespace,
+        subject: q.subject,
+        tags: q.tags,
+        dataKey: q.dataKey,
+        since: q.since,
+        until: q.until,
+        pinnedOnly: q.pinnedOnly,
+        includeTombstoned: q.includeTombstoned,
+        limit: candidates,
+      });
+      const byId = await ix.get(hits.map((h) => h.memoryId));
+      const ranked = rank([hits], byId, { hasText: !!q.text, now: this.now(), explain: q.explain });
+      for (const r of ranked) {
+        const m = byId.get(r.memoryId);
+        if (!m) continue;
+        out.push({
+          memoryId: m.memoryId,
+          mount: mount.id,
+          score: r.score,
+          explain: r.explain,
+          type: m.type,
+          level: m.level,
+          namespace: m.namespace,
+          subject: m.subject,
+          tags: m.tags,
+          summary: m.summary,
+          content: m.content,
+          pinned: m.pinned,
+          importance: m.importance,
+          updatedAt: m.updatedAt,
+        });
+      }
+    }
+    out.sort((a, b) => b.score - a.score || (a.updatedAt < b.updatedAt ? 1 : -1));
+    return out.slice(0, q.limit);
+  }
+
+  /** Pinned plus top memories packed to a token budget, as markdown (ADR-005). */
+  async context(raw: ContextQuery | Record<string, unknown>): Promise<ContextBlock> {
+    const q = ContextQuerySchema.parse(raw);
+    const index = this.requireIndex();
+    const pinned: IndexedMemory[] = [];
+    const lists: Hit[][] = [];
+    const byId = new Map<string, IndexedMemory>();
+    for (const mount of this.mountsFor(q)) {
+      const ix = await index.ensureFresh(mount);
+      const base = { namespace: q.namespace, level: q.level, type: q.type };
+      const p = await ix.search({ ...base, pinnedOnly: true, limit: 200 });
+      for (const m of (await ix.get(p.map((h) => h.memoryId))).values()) pinned.push(m);
+      const hits = await ix.search({ ...base, text: q.text, limit: 100 });
+      lists.push(hits);
+      for (const [id, m] of await ix.get(hits.map((h) => h.memoryId))) byId.set(id, m);
+    }
+    const ranked: Ranked[] = rank([lists.flat()], byId, { hasText: !!q.text, now: this.now() });
+    pinned.sort((a, b) => b.importance - a.importance || (a.updatedAt < b.updatedAt ? 1 : -1));
+    return buildContext(pinned, ranked, byId, q.budgetTokens);
+  }
+
+  async reindex(mountId?: string): Promise<Record<string, number>> {
+    const index = this.requireIndex();
+    const out: Record<string, number> = {};
+    for (const mount of this.mounts) {
+      if (mountId && mount.id !== mountId) continue;
+      out[mount.id] = await index.rebuild(mount);
+    }
+    return out;
+  }
+
+  async pin(memoryId: string, pinned = true): Promise<WriteResult> {
+    return this.annotate({ memoryId, pinned, reason: pinned ? "pinned" : "unpinned" });
+  }
+
+  async indexStatus(): Promise<FreshnessReport[]> {
+    if (!this.index) return [];
+    const out: FreshnessReport[] = [];
+    for (const mount of this.mounts) out.push(await this.index.freshness(mount));
+    return out;
   }
 
   async remember(

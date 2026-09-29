@@ -12,6 +12,8 @@ export interface ShardKey {
 export interface ShardInfo extends ShardKey {
   /** Number of records, when the provider knows cheaply; otherwise undefined. */
   records?: number;
+  /** Provider revision of the shard (git commit sha, file mtime, counter). Changes on every append. */
+  revision: string;
 }
 
 export interface ShardFilter {
@@ -26,8 +28,11 @@ export interface ShardFilter {
 
 export interface AppendResult {
   appended: number;
-  /** Shards touched, with provider-specific revision (git commit sha, file mtime, ...). */
-  shards: Array<{ key: ShardKey; revision: string }>;
+  /**
+   * Shards touched, with the provider revision after the append and the one before it. An index
+   * that last saw a different `previous` knows another writer got in between (ADR-005).
+   */
+  shards: Array<{ key: ShardKey; revision: string; previous: string | null }>;
 }
 
 export interface ParseProblem {

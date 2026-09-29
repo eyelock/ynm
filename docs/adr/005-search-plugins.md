@@ -88,4 +88,25 @@ as markdown. This is the always-in-context tier (Letta blocks, MEMORY.md).
 Dated notes added while building. Anything here that changes the Decision above is folded into
 it at consolidation time.
 
-- (none yet)
+- 2026-09-29 (M2): the `node:sqlite` spike passed. Node 24's bundled SQLite (3.53) has FTS5 with
+  `bm25()`, so the default index uses `node:sqlite` and the project has no native module.
+  Engines pinned to Node 22.13+, where `node:sqlite` is unflagged.
+- 2026-09-29 (M2): freshness is decided by comparing the log's shard revisions (git ref sha, file
+  mtime, counter) with the revisions the index recorded; any difference rebuilds that mount's
+  index from a full scan. One `for-each-ref` plus one small query when fresh.
+- 2026-09-29 (M2): the index stores each memory's folded state alongside its projection. A
+  process that just appended applies its own record to that state with the fold's `applyRecord`
+  and upserts, so its own writes are visible immediately without a rebuild. If the append shows
+  another writer touched the shard in between (`previous` revision differs from the one the index
+  saw), the shard is marked stale and the next read rebuilds. Exactness is proven by the service
+  recall tests and the reindex-reproduces-hits gate check.
+- 2026-09-29 (M2): ranker weights as shipped: with text, relevance 0.6, recency 0.2, importance
+  0.15, pinned 0.05; filter-only, recency 0.55, importance 0.35, pinned 0.1. FTS5 column weights
+  summary 2.0, content 1.0, subject 1.5, tags 1.0, porter stemming. Tune against ADR-014 tier 1.
+- 2026-09-29 (M2): first bench of the SQLite index found a quadratic write path: deleting the old
+  FTS row by `memoryId` scans the FTS table because that column is UNINDEXED in FTS5 (7.8 s to
+  index 10k, fifteen minutes at 100k). FTS rows now share the memories table's rowid so replace
+  and remove are indexed lookups, and a rebuild skips the lookup on emptied tables.
+- 2026-09-29 (M2): recall breakdown per type and namespace is not yet reported by the retrieval
+  suite; the gate measures the overall recall@k and MRR. Add the breakdown when the corpus is
+  large enough per type to be meaningful.

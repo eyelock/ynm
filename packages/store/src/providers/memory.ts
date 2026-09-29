@@ -31,10 +31,11 @@ export class MemoryLog implements RecordLog {
     const touched: AppendResult["shards"] = [];
     for (const [sid, group] of groupByShard(records)) {
       const shard = this.store.get(sid) ?? { key: group.key, records: [], revision: 0 };
+      const previous = shard.revision ? String(shard.revision) : null;
       shard.records.push(...group.records);
       shard.revision += 1;
       this.store.set(sid, shard);
-      touched.push({ key: group.key, revision: String(shard.revision) });
+      touched.push({ key: group.key, revision: String(shard.revision), previous });
     }
     return { appended: records.length, shards: touched };
   }
@@ -52,7 +53,7 @@ export class MemoryLog implements RecordLog {
   async shards(filter?: ShardFilter): Promise<ShardInfo[]> {
     return [...this.store.values()]
       .filter((s) => shardMatches(s.key, filter))
-      .map((s) => ({ ...s.key, records: s.records.length }));
+      .map((s) => ({ ...s.key, records: s.records.length, revision: String(s.revision) }));
   }
 
   async health(): Promise<HealthReport> {

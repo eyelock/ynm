@@ -3,6 +3,7 @@
  */
 export * from "./config.js";
 export * from "./doctor.js";
+export * from "./indexing.js";
 export * from "./init.js";
 export * from "./mounts.js";
 export * from "./open.js";

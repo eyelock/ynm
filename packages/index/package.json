@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/conformance.d.ts",
+      "import": "./dist/testing/conformance.js"
     }
   },
   "files": [
@@ -22,7 +26,8 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@ynm/model": "workspace:*"
+    "@ynm/model": "workspace:*",
+    "@ynm/store": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
@@ -31,5 +36,13 @@
     "@vitest/coverage-v8": "^4.1.4",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
+  },
+  "peerDependencies": {
+    "vitest": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   }
 }

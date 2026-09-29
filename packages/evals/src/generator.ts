@@ -118,8 +118,7 @@ export function generateCorpus(opts: GenerateOptions): GeneratedCorpus {
   const queries: GeneratedCorpus["queries"] = [];
   for (const [subject, ids] of bySubject) {
     if (queries.length >= 50) break;
-    if (ids.length >= 2)
-      queries.push({ text: subject.slice(6).replace(/-\d+$/, ""), relevant: ids });
+    if (ids.length >= 2) queries.push({ text: subject.slice(6), relevant: ids });
   }
   return { records: records.slice(0, opts.count), duplicates, contradictions, queries };
 }

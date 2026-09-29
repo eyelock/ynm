@@ -113,7 +113,10 @@ export class GitNotesLog implements RecordLog {
     return { content, others };
   }
 
-  private async writeShard(key: ShardKey, records: MemoryRecord[]): Promise<string> {
+  private async writeShard(
+    key: ShardKey,
+    records: MemoryRecord[]
+  ): Promise<{ revision: string; previous: string | null }> {
     const ref = refFor(key);
     const env = await this.identity();
     for (let attempt = 0; attempt < MAX_CAS_RETRIES; attempt++) {
@@ -140,7 +143,7 @@ export class GitNotesLog implements RecordLog {
       await this.beforeUpdateRef?.(ref);
       const expected = old ?? "0".repeat(commit.length);
       const updated = await gitOrNull(["update-ref", ref, commit, expected], { cwd: this.repo });
-      if (updated !== null) return commit;
+      if (updated !== null) return { revision: commit, previous: old };
     }
     throw new Error(`compare-and-swap failed after ${MAX_CAS_RETRIES} attempts on ${ref}`);
   }
@@ -155,7 +158,7 @@ export class GitNotesLog implements RecordLog {
       async () => {
         const out: AppendResult["shards"] = [];
         for (const g of groups)
-          out.push({ key: g.key, revision: await this.writeShard(g.key, g.records) });
+          out.push({ key: g.key, ...(await this.writeShard(g.key, g.records)) });
         return out;
       },
       LOCK_TIMEOUT_MS
@@ -163,15 +166,22 @@ export class GitNotesLog implements RecordLog {
     return { appended: records.length, shards };
   }
 
-  private async listRefs(filter?: ShardFilter): Promise<Array<{ ref: string; key: ShardKey }>> {
+  private async listRefs(
+    filter?: ShardFilter
+  ): Promise<Array<{ ref: string; key: ShardKey; sha: string }>> {
     const prefix = filter?.level
       ? refPrefixFor(filter.level, filter.namespace)
       : `${NOTES_PREFIX}/`;
-    const out = await git(["for-each-ref", "--format=%(refname)", prefix], { cwd: this.repo });
-    const refs: Array<{ ref: string; key: ShardKey }> = [];
-    for (const ref of out.split("\n").filter(Boolean)) {
+    const out = await git(["for-each-ref", "--format=%(refname) %(objectname)", prefix], {
+      cwd: this.repo,
+    });
+    const refs: Array<{ ref: string; key: ShardKey; sha: string }> = [];
+    for (const line of out.split("\n").filter(Boolean)) {
+      const [ref, sha] = line.split(" ");
+      if (!ref || !sha) continue;
       const key = keyFromRef(ref);
-      if (key && key.level === this.level && shardMatches(key, filter)) refs.push({ ref, key });
+      if (key && key.level === this.level && shardMatches(key, filter))
+        refs.push({ ref, key, sha });
     }
     return refs;
   }
@@ -219,7 +229,7 @@ export class GitNotesLog implements RecordLog {
   }
 
   async shards(filter?: ShardFilter): Promise<ShardInfo[]> {
-    return (await this.listRefs(filter)).map(({ key }) => ({ ...key }));
+    return (await this.listRefs(filter)).map(({ key, sha }) => ({ ...key, revision: sha }));
   }
 
   async health(): Promise<HealthReport> {

@@ -28,7 +28,8 @@
     "@ynm/model": "workspace:*",
     "@ynm/service": "workspace:*",
     "@ynm/store": "workspace:*",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@ynm/index": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

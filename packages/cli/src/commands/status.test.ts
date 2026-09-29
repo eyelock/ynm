@@ -14,6 +14,7 @@ describe("ynm status", () => {
     };
     expect(parsed.name).toBe("ynm");
     expect(parsed.version).toBe("0.1.0");
+    expect((parsed as { index: unknown[] }).index).toHaveLength(1);
     expect(parsed.mounts.map((m) => m.id)).toEqual(["personal"]);
   });
 });

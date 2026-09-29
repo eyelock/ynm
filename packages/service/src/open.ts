@@ -1,4 +1,5 @@
 import { loadConfig, ynmHome } from "./config.js";
+import { defaultIndexLocator, IndexManager } from "./indexing.js";
 import { openMounts } from "./mounts.js";
 import { detectWorktree } from "./worktree.js";
 import { Ynm } from "./ynm.js";
@@ -24,11 +25,16 @@ export async function openYnm(opts: OpenOptions = {}) {
     env
   );
   const mounts = await openMounts({ loaded, worktree, noPersonal: opts.noPersonal });
+  const index = new IndexManager(
+    loaded.config.index,
+    defaultIndexLocator(loaded.home, worktree.isGitRepo ? worktree.mainRepoPath : undefined)
+  );
   const ynm = new Ynm({
     mounts,
     actor: opts.actor ?? (loaded.config.actor as string),
     userId: loaded.config.userId as string,
     redaction: loaded.config.redaction,
+    index,
   });
-  return { ynm, loaded, worktree, mounts };
+  return { ynm, loaded, worktree, mounts, index };
 }

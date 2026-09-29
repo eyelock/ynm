@@ -27,7 +27,8 @@
     "@ynm/model": "workspace:*",
     "@ynm/store": "workspace:*",
     "@ynm/service": "workspace:*",
-    "fast-check": "^4.6.0"
+    "fast-check": "^4.6.0",
+    "@ynm/index": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

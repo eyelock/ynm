@@ -52,6 +52,10 @@ export const YnmConfigSchema = z
       .optional()
       .describe("Explicit extra mounts (org stores, hosted stores)"),
     hooks: z.boolean().default(true).describe("Install git hooks on init"),
+    index: z
+      .enum(["sqlite-fts", "memory"])
+      .default("sqlite-fts")
+      .describe("Index implementation (ADR-005)"),
   })
   .strict();
 export type YnmConfig = z.infer<typeof YnmConfigSchema>;
@@ -118,6 +122,7 @@ export function loadConfig(src: ConfigSources, env: NodeJS.ProcessEnv = process.
   if (env.YNM_PERSONAL_STORE) fromEnv.personalStore = env.YNM_PERSONAL_STORE;
   if (env.YNM_USER) fromEnv.userId = env.YNM_USER;
   if (env.YNM_ACTOR) fromEnv.actor = env.YNM_ACTOR;
+  if (env.YNM_INDEX) fromEnv.index = env.YNM_INDEX;
   merged = { ...merged, ...fromEnv };
   const config = YnmConfigSchema.parse(merged);
   config.userId ??= safeUsername();

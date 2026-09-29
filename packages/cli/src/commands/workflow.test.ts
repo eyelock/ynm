@@ -4,6 +4,10 @@ import { join } from "node:path";
 import { createBare, createRepo, fx } from "@ynm/store/testing/git";
 import { ynm } from "../../test/helpers.js";
 
+function hitsIdOf(hits: Array<{ memoryId?: string }>): string {
+  return hits[0]?.memoryId ?? "";
+}
+
 describe("ynm CLI workflow on real git repos", () => {
   it("init, remember, list, supersede, annotate, forget, export, import, promote, doctor", async () => {
     const origin = await createBare();
@@ -128,5 +132,23 @@ describe("ynm CLI workflow on real git repos", () => {
 
     r = ynm(repo, "status");
     expect(r.stdout).toMatch(/project\s+distributed/);
+
+    r = ynm(repo, "recall", "--text", "pnpm check", "--json");
+    expect(r.status, r.stderr).toBe(0);
+    const hits = JSON.parse(r.stdout) as Array<{
+      memoryId: string;
+      mount: string;
+      content: string;
+    }>;
+    expect(hits[0]?.content).toMatch(/pnpm check/);
+    r = ynm(repo, "context", "--budget-tokens", "200");
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toMatch(/^## Memory/);
+    r = ynm(repo, "reindex", "--json");
+    expect(r.status, r.stderr).toBe(0);
+    r = ynm(repo, "pin", hitsIdOf(hits), "--json");
+    expect(r.status, r.stderr).toBe(0);
+    r = ynm(repo, "recall", "--pinned-only", "--json");
+    expect(JSON.parse(r.stdout)).toHaveLength(1);
   });
 });
