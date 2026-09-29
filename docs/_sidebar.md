@@ -11,6 +11,7 @@
   * [5. Sessions and working memory](/tutorial/05-sessions-and-working-memory.md)
   * [6. Sync](/tutorial/06-sync.md)
   * [7. Connect an agent](/tutorial/07-connect-an-agent.md)
+  * [8. Dreaming](/tutorial/08-dreaming.md)
   * [Running tutorials as evals](/tutorial/RUNNING.md)
 
 * **How-to guides**
