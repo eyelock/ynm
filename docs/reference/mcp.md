@@ -52,7 +52,7 @@ CLI: `ynm remember`.
 | `confidence` | number 0..1 |  | `1` | 0..1 |
 | `validFrom` | date-time |  |  | When it became true |
 | `validTo` | date-time |  |  | When it stopped being true |
-| `ttl` | string |  |  | Working memory TTL |
+| `ttl` | string |  |  | Working memory TTL; defaults to PT8H for type working |
 | `session` | string |  |  | Session id for provenance |
 | `source` | string |  |  | Source reference for provenance |
 | `links` | array of object |  | `[]` | Typed links to other memories |

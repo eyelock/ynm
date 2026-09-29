@@ -172,8 +172,11 @@ export const MemoryRecordSchema = z
 export type MemoryRecord = z.infer<typeof MemoryRecordSchema>;
 export type MemoryRecordInput = z.input<typeof MemoryRecordSchema>;
 
+/** Working memory always expires; this is the TTL when none is given (ADR-001). */
+export const DEFAULT_WORKING_TTL = "PT8H";
+
 /** Fields a caller supplies when creating a memory; everything else is stamped by the service. */
-export const RememberInputSchema = z
+const RememberFieldsSchema = z
   .object({
     type: MemoryTypeSchema,
     level: LevelSchema.default("personal"),
@@ -192,15 +195,20 @@ export const RememberInputSchema = z
     confidence: UnitSchema.default(1).describe("0..1"),
     validFrom: IsoDateTimeSchema.optional().describe("When it became true"),
     validTo: IsoDateTimeSchema.optional().describe("When it stopped being true"),
-    ttl: IsoDurationSchema.optional().describe("Working memory TTL"),
+    ttl: IsoDurationSchema.optional().describe(
+      `Working memory TTL; defaults to ${DEFAULT_WORKING_TTL} for type working`
+    ),
     session: z.string().optional().describe("Session id for provenance"),
     source: z.string().optional().describe("Source reference for provenance"),
     links: z.array(LinkSchema).default([]).describe("Typed links to other memories"),
   })
   .strict();
+export const RememberInputSchema = RememberFieldsSchema.overwrite((r) =>
+  r.type === "working" && r.ttl === undefined ? { ...r, ttl: DEFAULT_WORKING_TTL } : r
+);
 export type RememberInput = z.infer<typeof RememberInputSchema>;
 
-export const SupersedeInputSchema = RememberInputSchema.pick({
+export const SupersedeInputSchema = RememberFieldsSchema.pick({
   content: true,
   summary: true,
   subject: true,

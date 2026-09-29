@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IsoDurationSchema } from "./record.js";
+import { DEFAULT_WORKING_TTL, IsoDurationSchema } from "./record.js";
 
 export const SessionStartInputSchema = z
   .object({
@@ -17,7 +17,7 @@ export const SessionStartInputSchema = z
       .max(50_000)
       .default(1500)
       .describe("Context block budget"),
-    ttl: IsoDurationSchema.default("PT8H").describe(
+    ttl: IsoDurationSchema.default(DEFAULT_WORKING_TTL).describe(
       "Default TTL for working memory in this session"
     ),
   })

@@ -466,7 +466,7 @@ ynm remember [flags]
 | `--confidence <value>` | number 0..1 |  | `1` | 0..1 |
 | `--valid-from <value>` | date-time |  |  | When it became true |
 | `--valid-to <value>` | date-time |  |  | When it stopped being true |
-| `--ttl <value>` | string |  |  | Working memory TTL |
+| `--ttl <value>` | string |  |  | Working memory TTL; defaults to PT8H for type working |
 | `--session <value>` | string |  |  | Session id for provenance |
 | `--source <value>` | string |  |  | Source reference for provenance |
 | `--links <value>` | JSON array |  | `[]` | Typed links to other memories |

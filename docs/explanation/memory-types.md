@@ -38,7 +38,7 @@ interruption. Read it at session start; `memory_session start` returns it in the
 Do not use it for anything that should still be true next week.
 
 **What ynm does.** Working memory must live in a session namespace (`session/<id>`) and always
-carries a TTL; `memory_session start` defaults it to eight hours. When the session ends, or the
+carries a TTL: a write without one gets eight hours, the same default `memory_session start` reports. When the session ends, or the
 dream `expire` pass runs, expired working memory is tombstoned. The `promote` pass looks at what
 is left: a memory tagged `promote` is turned into an `episodic` memory (or the type you name)
 without a model; otherwise a calibrated Judge decides whether it deserves to outlive the session.
