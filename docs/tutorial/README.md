@@ -16,7 +16,7 @@ you should see. A model can read a tutorial, run it and check it, exactly as you
 | [1. First memory](01-first-memory.md) | Create your personal store, remember two facts, recall them, see what was written to git |
 | [2. Project memory](02-project-memory.md) | `ynm init` in a repository, distributed memory, namespaces, the redaction gate |
 | [3. Recall and context](03-recall-and-context.md) | Filters, tags, subjects, score explanations, the context block, pinning |
-| 4. Editing history | Supersede, annotate, forget, purge, export and import |
+| [4. Editing history](04-editing-history.md) | Supersede, annotate, forget, purge, export and import |
 | 5. Sessions and working memory | Session start and end, TTLs, expiry |
 
 ### Share
