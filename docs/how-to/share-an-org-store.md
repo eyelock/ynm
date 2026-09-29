@@ -64,8 +64,9 @@ git -C ~/.ynm/org.git remote add origin git@forge.example.com:eyelock/org-memory
 ynm sync --mount org
 ```
 
-Do not use `git clone --mirror` for the local copy: a mirror refuses the refspecs `ynm sync`
-pushes with, and the sync fails with `--mirror can't be combined with refspecs`.
+A `git clone --mirror` works as the local copy too: `ynm sync` notices `remote.<name>.mirror` and
+fetches and pushes the notes refs by the remote's URL, so a stale mirror never rewinds branches
+on the remote.
 
 ## Keep in mind
 

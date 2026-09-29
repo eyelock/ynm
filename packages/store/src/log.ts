@@ -60,6 +60,8 @@ export interface SyncResult {
   pushed: string[];
   conflicts: string[];
   retries: number;
+  /** Set when the sync could not run at all (no such remote); a report, not a failure. */
+  skipped?: string;
 }
 
 /**

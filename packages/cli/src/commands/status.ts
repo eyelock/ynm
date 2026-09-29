@@ -1,7 +1,9 @@
+import { toolSpec } from "@ynm/service";
 import { YnmCommand } from "../lib/base.js";
 
 export default class Status extends YnmCommand {
-  static override description = "Show mounts and configuration";
+  /** One description for the command and the memory_status tool. */
+  static override description = toolSpec("memory_status")?.description;
   static override examples = [
     "<%= config.bin %> <%= command.id %>",
     "<%= config.bin %> <%= command.id %> --json",

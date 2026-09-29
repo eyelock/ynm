@@ -213,6 +213,13 @@ describe("OpenAICompatibleWriter", () => {
 });
 
 describe("resolveModels", () => {
+  it("names the configured key variable in the resolution reason", () => {
+    const r = resolveModels(
+      { judge: "auto", writer: "none", typesafe: { apiKeyEnv: "MY_JUDGE_KEY" } },
+      { MY_JUDGE_KEY: "k" }
+    );
+    expect(r.resolution.judge).toBe("auto: MY_JUDGE_KEY present");
+  });
   it("prefers typesafe with a key, emulates over a writer, else heuristic", () => {
     expect(resolveModels(undefined, { TYPESAFE_API_KEY: "k" }).judge.name).toBe("typesafe");
     const emulated = resolveModels(undefined, {}, { claudeCli: true });

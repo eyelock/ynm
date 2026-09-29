@@ -14,12 +14,12 @@ decisions.
 | `v` | `1` | yes | Record schema version |
 | `id` | string | yes | Record id; sortable by time |
 | `memoryId` | string | yes | Memory this record belongs to; equals id for the first record |
-| `op` | `create` \| `supersede` \| `annotate` \| `tombstone` \| `purge-marker` \| `snapshot` | yes |  |
+| `op` | `create` \| `supersede` \| `annotate` \| `tombstone` \| `purge-marker` \| `snapshot` | yes | What the record does to its memory (see the list below) |
 | `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes | Memory type (ADR-001) |
 | `level` | `personal` \| `distributed` | yes | personal never leaves the user's store by default |
 | `namespace` | string (max 512) | yes | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `subject` | string (max 200) |  | Entity or topic key, e.g. entity:git-notes |
-| `tags` | array of string (max 64) |  |  |
+| `tags` | array of string (max 64) |  | Free-form tags |
 | `content` | string (max 65536) |  | Markdown; the memory itself |
 | `summary` | string (max 280) |  | One line for index.md and pinned context |
 | `data` | object |  | Optional structured payload for typed memories |
@@ -37,7 +37,7 @@ decisions.
 | `provenance.session` | string |  | Session id |
 | `provenance.source` | string |  | Source reference: URL, file, ticket, tool call |
 | `provenance.tool` | string |  | Tool or command that produced the record |
-| `links` | array of object |  |  |
+| `links` | array of object |  | Typed links to other memories |
 | `links[].rel` | `supersedes` \| `derives-from` \| `contradicts` \| `supports` \| `about` \| `in-session` | yes |  |
 | `links[].to` | string | yes | memoryId of the target |
 | `reason` | string (max 1000) |  | Why, for tombstone, purge-marker and annotate |

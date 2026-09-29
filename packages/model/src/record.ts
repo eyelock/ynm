@@ -77,7 +77,14 @@ export const normalizeSessionId = (id: string): string =>
 export const sessionNamespace = (id: string): string => `session/${normalizeSessionId(id)}`;
 
 export const UlidSchema = z.string().regex(ULID_PATTERN, "must be a ULID");
-export const IsoDateTimeSchema = z.iso.datetime({ offset: true }).describe("ISO 8601 date-time");
+/** A bare `YYYY-MM-DD` means midnight UTC. */
+const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const IsoDateTimeSchema = z
+  .preprocess(
+    (v) => (typeof v === "string" && BARE_DATE.test(v) ? `${v}T00:00:00.000Z` : v),
+    z.iso.datetime({ offset: true, error: "expected an ISO 8601 date-time" })
+  )
+  .describe("ISO 8601 date-time");
 export const IsoDurationSchema = z
   .string()
   .regex(
@@ -113,12 +120,12 @@ export const MemoryRecordSchema = z
     v: z.literal(MODEL_SCHEMA_VERSION).describe("Record schema version"),
     id: UlidSchema.describe("Record id; sortable by time"),
     memoryId: UlidSchema.describe("Memory this record belongs to; equals id for the first record"),
-    op: OpSchema,
+    op: OpSchema.describe("What the record does to its memory (see the list below)"),
     type: MemoryTypeSchema,
     level: LevelSchema,
     namespace: NamespaceSchema,
     subject: z.string().max(200).optional().describe("Entity or topic key, e.g. entity:git-notes"),
-    tags: z.array(z.string().min(1).max(64)).default([]),
+    tags: z.array(z.string().min(1).max(64)).default([]).describe("Free-form tags"),
     content: z.string().max(65_536).optional().describe("Markdown; the memory itself"),
     summary: z.string().max(280).optional().describe("One line for index.md and pinned context"),
     data: JsonObjectSchema.optional().describe("Optional structured payload for typed memories"),
@@ -132,7 +139,7 @@ export const MemoryRecordSchema = z
     validTo: IsoDateTimeSchema.nullable().optional().describe("Event time it stopped being true"),
     ttl: IsoDurationSchema.optional().describe("Working memory only"),
     provenance: ProvenanceSchema,
-    links: z.array(LinkSchema).default([]),
+    links: z.array(LinkSchema).default([]).describe("Typed links to other memories"),
     reason: z
       .string()
       .max(1000)
@@ -172,8 +179,11 @@ export const MemoryRecordSchema = z
 export type MemoryRecord = z.infer<typeof MemoryRecordSchema>;
 export type MemoryRecordInput = z.input<typeof MemoryRecordSchema>;
 
+/** Working memory always expires; this is the TTL when none is given (ADR-001). */
+export const DEFAULT_WORKING_TTL = "PT8H";
+
 /** Fields a caller supplies when creating a memory; everything else is stamped by the service. */
-export const RememberInputSchema = z
+const RememberFieldsSchema = z
   .object({
     type: MemoryTypeSchema,
     level: LevelSchema.default("personal"),
@@ -192,15 +202,20 @@ export const RememberInputSchema = z
     confidence: UnitSchema.default(1).describe("0..1"),
     validFrom: IsoDateTimeSchema.optional().describe("When it became true"),
     validTo: IsoDateTimeSchema.optional().describe("When it stopped being true"),
-    ttl: IsoDurationSchema.optional().describe("Working memory TTL"),
+    ttl: IsoDurationSchema.optional().describe(
+      `Working memory TTL; defaults to ${DEFAULT_WORKING_TTL} for type working`
+    ),
     session: z.string().optional().describe("Session id for provenance"),
     source: z.string().optional().describe("Source reference for provenance"),
     links: z.array(LinkSchema).default([]).describe("Typed links to other memories"),
   })
   .strict();
+export const RememberInputSchema = RememberFieldsSchema.overwrite((r) =>
+  r.type === "working" && r.ttl === undefined ? { ...r, ttl: DEFAULT_WORKING_TTL } : r
+);
 export type RememberInput = z.infer<typeof RememberInputSchema>;
 
-export const SupersedeInputSchema = RememberInputSchema.pick({
+export const SupersedeInputSchema = RememberFieldsSchema.pick({
   content: true,
   summary: true,
   subject: true,
@@ -229,7 +244,7 @@ export const AnnotateInputSchema = z
     pinned: z.boolean().optional().describe("Pin or unpin"),
     needsReview: z.boolean().optional().describe("Flag or clear review"),
     reason: z.string().max(1000).optional().describe("Why"),
-    session: z.string().optional(),
+    session: z.string().optional().describe("Session id for provenance"),
     data: JsonObjectSchema.optional().describe("Judgment or other structured annotation data"),
   })
   .strict();
@@ -239,7 +254,7 @@ export const ForgetInputSchema = z
   .object({
     memoryId: UlidSchema.describe("Memory to tombstone"),
     reason: z.string().max(1000).optional().describe("Why"),
-    session: z.string().optional(),
+    session: z.string().optional().describe("Session id for provenance"),
   })
   .strict();
 export type ForgetInput = z.infer<typeof ForgetInputSchema>;
@@ -250,11 +265,14 @@ export const RecordFilterSchema = z
     level: LevelSchema.optional(),
     type: MemoryTypeSchema.optional(),
     namespace: z.string().optional().describe("Namespace prefix"),
-    since: IsoDateTimeSchema.optional(),
-    until: IsoDateTimeSchema.optional(),
-    includeTombstoned: z.boolean().default(false),
+    since: IsoDateTimeSchema.optional().describe("Updated at or after"),
+    until: IsoDateTimeSchema.optional().describe("Updated at or before"),
+    includeTombstoned: z
+      .boolean()
+      .default(false)
+      .describe("Include forgotten (tombstoned) memories"),
     needsReview: z.boolean().optional().describe("Only memories flagged for review"),
-    limit: z.number().int().positive().max(10_000).optional(),
+    limit: z.number().int().positive().max(10_000).optional().describe("Maximum number of results"),
   })
   .strict();
 export type RecordFilter = z.infer<typeof RecordFilterSchema>;

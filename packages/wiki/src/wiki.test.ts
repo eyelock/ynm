@@ -123,6 +123,7 @@ describe("wiki generator (ADR-010)", () => {
     expect(parsed).toEqual({
       memoryId: "01M0000000000000000000DDDD",
       content: "Run pnpm gate twice before tagging.",
+      summary: "Run the gate",
     });
     expect(parseMemoryPage("no frontmatter")).toBeNull();
     expect(slug("entity:Git Notes!")).toBe("git-notes");

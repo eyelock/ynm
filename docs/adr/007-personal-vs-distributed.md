@@ -51,3 +51,4 @@ None.
 ## History
 
 - No addenda were recorded during the build; accepted as drafted on 2026-09-28.
+- 2026-09-29: correction: the command that pushes personal memory is `ynm sync --mount personal --remote <private-remote>`; there is no `--personal` flag on `sync`.

@@ -103,10 +103,18 @@ export async function openMounts(opts: OpenMountsOptions): Promise<Mount[]> {
       });
     }
   }
-  for (const m of config.mounts ?? []) mounts.push(openConfiguredMount(m));
+  for (const m of config.mounts ?? []) mounts.push(await openConfiguredMount(m));
   return mounts;
 }
 
-export function openConfiguredMount(m: MountConfig): Mount {
-  return { id: m.id, level: m.level, location: m.path, log: openLog(m.id, m.level, m) };
+/** An explicit mount from config; a git-notes mount without an `anchor` computes it, as the project mount does. */
+export async function openConfiguredMount(m: MountConfig): Promise<Mount> {
+  const anchor =
+    m.provider === "git-notes" && !m.anchor ? (await selectAnchor(m.path)).sha : m.anchor;
+  return {
+    id: m.id,
+    level: m.level,
+    location: m.path,
+    log: openLog(m.id, m.level, { ...m, anchor }),
+  };
 }

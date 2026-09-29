@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createBare, createRepo, fx, rootCommit } from "@ynm/store/testing/git";
 import { doctor } from "./doctor.js";
@@ -26,7 +26,8 @@ describe("ynm init (ADR-009 retrofit)", () => {
     await fx(repo, "remote", "add", "origin", origin);
     await fx(repo, "tag", "v1");
     const before = await snapshot(repo);
-    const report = await initProject({ cwd: repo });
+    const env = { YNM_HOME: join(await createRepo(0), ".ynm") };
+    const report = await initProject({ cwd: repo, env });
     expect(await snapshot(repo)).toBe(before);
     expect(report.anchor).toBe(await rootCommit(repo));
     expect(report.anchorSource).toBe("root-commit");
@@ -34,14 +35,45 @@ describe("ynm init (ADR-009 retrofit)", () => {
     const fetch = await fx(repo, "config", "--get-all", "remote.origin.fetch");
     expect(fetch).toContain("+refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*");
     expect(fetch).not.toMatch(/personal/);
-    const push = await fx(repo, "config", "--get-all", "remote.origin.push");
-    expect(push).toContain("refs/notes/ynm/shared/*:refs/notes/ynm/shared/*");
-    expect(push).not.toMatch(/personal/);
+    const push = await fx(repo, "config", "--get-all", "remote.origin.push").catch(() => "");
+    expect(push).toBe("");
     expect(report.hooksInstalled).toHaveLength(1);
     expect(existsSync(join(repo, ".git", "hooks", "pre-push"))).toBe(true);
-    const again = await initProject({ cwd: repo });
+    const again = await initProject({ cwd: repo, env });
     expect(again.configWritten).toBe(false);
     expect(again.refspecs).toEqual([]);
+    expect(again.notes).toEqual([]);
+  });
+
+  it("ignores the local wiki and index directories once, keeping existing entries", async () => {
+    const repo = await createRepo(1);
+    writeFileSync(join(repo, ".gitignore"), "node_modules");
+    const report = await initProject({ cwd: repo, hooks: false });
+    expect(readFileSync(join(repo, ".gitignore"), "utf8")).toBe(
+      "node_modules\n.ynm/wiki/\n.ynm/index/\n"
+    );
+    expect(report.notes).toContain("added .ynm/wiki/ and .ynm/index/ to .gitignore");
+    await initProject({ cwd: repo, hooks: false });
+    expect(readFileSync(join(repo, ".gitignore"), "utf8")).toBe(
+      "node_modules\n.ynm/wiki/\n.ynm/index/\n"
+    );
+    const covered = await createRepo(1);
+    writeFileSync(join(covered, ".gitignore"), ".ynm/wiki\n.ynm/index/\n");
+    const notes = (await initProject({ cwd: covered, hooks: false })).notes;
+    expect(notes.filter((n) => n.includes(".gitignore"))).toEqual([]);
+    expect(readFileSync(join(covered, ".gitignore"), "utf8")).toBe(".ynm/wiki\n.ynm/index/\n");
+  });
+
+  it("takes the hook default from the hooks config key; the flag wins", async () => {
+    const home = await createRepo(0);
+    mkdirSync(join(home, ".ynm"), { recursive: true });
+    writeFileSync(join(home, ".ynm", "config.json"), JSON.stringify({ hooks: false }));
+    const env = { YNM_HOME: join(home, ".ynm") };
+    const off = await createRepo(1);
+    expect((await initProject({ cwd: off, env })).hooksInstalled).toEqual([]);
+    expect(existsSync(join(off, ".git", "hooks", "pre-push"))).toBe(false);
+    const on = await createRepo(1);
+    expect((await initProject({ cwd: on, env, hooks: true })).hooksInstalled).toHaveLength(1);
   });
 
   it("creates the root commit in an empty repo", async () => {
@@ -89,6 +121,26 @@ describe("openYnm end to end on git notes", () => {
     expect(personalRefs).toMatch(/refs\/notes\/ynm\/personal\/user\/david\/semantic/);
     const all = await ynm.list();
     expect(all.map((m) => m.mount).sort()).toEqual(["personal", "project"]);
+  });
+
+  it("writes no notes push refspec, so a plain push after sync exits 0", async () => {
+    const home = await createRepo(0);
+    const repo = await createRepo(1);
+    const origin = await createBare();
+    await fx(repo, "remote", "add", "origin", origin);
+    await initProject({ cwd: repo, hooks: false });
+    const pushes = await fx(repo, "config", "--get-all", "remote.origin.push").catch(() => "");
+    expect(pushes).toBe("");
+    const env = { YNM_HOME: join(home, ".ynm") };
+    const ctx = await openYnm({ cwd: repo, env });
+    const checks = (await doctor(ctx)).checks.map((c) => c.name);
+    expect(checks).not.toContain("shared push refspec");
+    await ctx.ynm.remember({ type: "semantic", level: "distributed", content: "shared fact" });
+    await ctx.ynm.sync();
+    await fx(repo, "commit", "--allow-empty", "-m", "x");
+    await fx(repo, "push", "origin", "HEAD:refs/heads/topic");
+    const remoteRefs = await fx(origin, "for-each-ref", "--format=%(refname)", "refs/notes/");
+    expect(remoteRefs).toMatch(/refs\/notes\/ynm\/shared\/common\/semantic/);
   });
 
   it("doctor is clean after init and warns before", async () => {

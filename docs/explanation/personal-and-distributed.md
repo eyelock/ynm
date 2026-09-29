@@ -54,8 +54,8 @@ the shapes you know; the judge catches the ones you did not list.
 
 ## Sync respects the boundary
 
-`ynm init` adds fetch and push refspecs for `refs/notes/ynm/shared/*` only, and a pre-push hook
-that syncs them. `ynm sync` fetches, merges and pushes distributed shards. It does not touch the
+`ynm init` adds a fetch refspec for `refs/notes/ynm/shared/*` only, and a pre-push hook that
+syncs them (the hook is the only thing that pushes notes). `ynm sync` fetches, merges and pushes distributed shards. It does not touch the
 personal store unless you name the personal mount and give an explicit remote, which is how you
 back your personal memory up to a private repository of your own.
 

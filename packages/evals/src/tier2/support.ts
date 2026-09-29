@@ -19,7 +19,7 @@ loadEnvFile(repoRoot, process.env, ".env");
 /** Judges available on this machine; the calibrated one only with a key (cost-capped by callers). */
 /**
  * Evals spend real money only when opted in (YNM_EVAL_CALIBRATED=1) and never more than
- * YNM_EVAL_TOKEN_BUDGET input tokens per suite (default 150k, about $0.006 at Jev list price).
+ * YNM_EVAL_TOKEN_BUDGET input tokens per suite (default 250k, about $0.01 at Jev list price).
  */
 export const EVAL_GUARD = new SpendGuard(
   Number(process.env.YNM_EVAL_TOKEN_BUDGET ?? 250_000),

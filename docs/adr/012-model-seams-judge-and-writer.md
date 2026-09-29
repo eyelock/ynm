@@ -143,3 +143,4 @@ None.
 - 2026-09-29 (M4): write-path judge shipped: importance only when defaulted, sensitive content
   refused at 0.9, judgments in `data.judgments`.
 - 2026-09-29 (M4): secrets loaded from `~/.ynm/env` or a gitignored `.env`, denied to the agent.
+- 2026-09-29: correction: the write-path judge switch is the config key `dream.judgeOnWrite` (not `judge.onWrite`), and there is no `memory-dream-review` prompt; memories flagged for review are listed by `ynm review`, and the wiki page frontmatter carries `needsReview`.

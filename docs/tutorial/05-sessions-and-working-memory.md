@@ -55,7 +55,7 @@ Expected: the same 26-character id.
 
 ## Write working memory
 
-Working memory is the one memory type that needs a session namespace and a TTL. Write two
+Working memory is the one memory type that needs a session namespace and always carries a TTL (eight hours if you give none). Write two
 notes: a throwaway that lives one second, and a decision tagged `promote` that lives the
 default eight hours:
 

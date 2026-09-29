@@ -24,7 +24,7 @@ its nearest neighbours of the same type in the same mount.
 | Type | Rule | Enforced by |
 |---|---|---|
 | `working` | `namespace` must be `session/<id>` | the record schema; a write elsewhere is refused |
-| `working` | expires `ttl` (an ISO 8601 duration) after its `updatedAt`. The write does not require or default a `ttl`; `ynm session start` reports a suggested one (`PT8H` unless `--ttl`), and a working memory written without one never expires | the expire pass, run by `ynm dream` and `ynm session end` |
+| `working` | expires `ttl` (an ISO 8601 duration) after its `updatedAt`. A write without a `ttl` gets `PT8H`, the same default `ynm session start` reports (override it with `--ttl`) | the expire pass, run by `ynm dream` and `ynm session end` |
 | `working` | tagged `promote`: the promote pass turns it into an `episodic` memory without a judge and tombstones the original | the promote pass |
 | `working` | untagged: promoted only when a calibrated judge scores it useful beyond the session at or above `dream.thresholds.promote.act`; the judge also picks `semantic`, `procedural` or `reference` as the target | the promote pass |
 | `episodic` | three or more with the same `subject` (`dream.thresholds.reflect.minEpisodes`) are summarised into one `reflective` memory | the reflect pass, which needs a Writer |

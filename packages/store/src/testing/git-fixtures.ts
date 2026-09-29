@@ -40,6 +40,13 @@ export async function clone(source: string): Promise<string> {
   return dir;
 }
 
+/** A mirror clone of `source`: a bare repo whose remote carries `mirror = true`. */
+export async function cloneMirror(source: string): Promise<string> {
+  const dir = tempDir("ynm-mirror-");
+  await fx(dir, "clone", "-q", "--mirror", source, ".");
+  return dir;
+}
+
 export async function rootCommit(cwd: string): Promise<string> {
   return fx(cwd, "rev-list", "--max-parents=0", "HEAD");
 }

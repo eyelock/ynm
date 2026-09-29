@@ -10,14 +10,18 @@ import {
   REMOTE_PREFIX,
   selectAnchor,
 } from "@ynm/store";
+import { loadConfig, ynmHome } from "./config.js";
 import { ensurePersonalStore } from "./personal-store.js";
 import { detectWorktree } from "./worktree.js";
 
 export interface InitProjectOptions {
   cwd: string;
   remote?: string;
+  /** Install the pre-push hook; default: the `hooks` config key (true unless configured off). */
   hooks?: boolean;
   anchor?: string;
+  /** Environment used to find the config layers; default process.env. */
+  env?: NodeJS.ProcessEnv;
 }
 
 export interface InitReport {
@@ -33,7 +37,6 @@ export interface InitReport {
 
 export const SHARED_FETCH = (remote: string): string =>
   `+${NOTES_PREFIX}/shared/*:${REMOTE_PREFIX}/${remote}/shared/*`;
-export const SHARED_PUSH = `${NOTES_PREFIX}/shared/*:${NOTES_PREFIX}/shared/*`;
 
 const PRE_PUSH_HOOK = `#!/bin/sh
 # ynm: sync shared memory notes alongside code pushes (installed by \`ynm init\`)
@@ -42,9 +45,28 @@ command -v ynm >/dev/null 2>&1 && ynm sync --quiet || true
 exit 0
 `;
 
+/** Derived, per-clone state that must never be committed (ADR-010). */
+const LOCAL_STATE_IGNORES = [".ynm/wiki/", ".ynm/index/"];
+
+/** Appends any of `entries` the repository's .gitignore does not already cover; returns those added. */
+function ensureIgnored(repo: string, entries: string[]): string[] {
+  const file = join(repo, ".gitignore");
+  const text = existsSync(file) ? readFileSync(file, "utf8") : "";
+  const lines = new Set(text.split(/\r?\n/).map((l) => l.trim().replace(/^\//, "")));
+  const covered = (e: string): boolean =>
+    lines.has(e) || lines.has(e.replace(/\/$/, "")) || lines.has(".ynm/") || lines.has(".ynm");
+  const missing = entries.filter((e) => !covered(e));
+  if (!missing.length) return [];
+  const lead = text === "" || text.endsWith("\n") ? "" : "\n";
+  writeFileSync(file, `${text}${lead}${missing.join("\n")}\n`);
+  return missing;
+}
+
 /**
  * Retrofits a repository (ADR-009): no branch, tag or tracked file changes. Writes
- * .ynm/config.json with the anchor, adds shared-only refspecs and a pre-push hook.
+ * .ynm/config.json with the anchor, adds the shared fetch refspec and a pre-push hook, and
+ * ignores the local index and wiki directories. Notes are pushed only by the hook (`ynm sync`),
+ * never by a push refspec, so a plain `git push` does not race it.
  */
 export async function initProject(opts: InitProjectOptions): Promise<InitReport> {
   const wt = await detectWorktree(opts.cwd);
@@ -70,6 +92,9 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
     configWritten = true;
   }
 
+  const ignored = ensureIgnored(repo, LOCAL_STATE_IGNORES);
+  if (ignored.length) notes.push(`added ${ignored.join(" and ")} to .gitignore`);
+
   const remote = opts.remote ?? "origin";
   const refspecs: string[] = [];
   const hasRemote = (await gitOrNull(["remote", "get-url", remote], { cwd: repo })) !== null;
@@ -81,17 +106,6 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
       await git(["config", "--add", `remote.${remote}.fetch`, fetch], { cwd: repo });
       refspecs.push(fetch);
     }
-    const pushes =
-      (await gitOrNull(["config", "--get-all", `remote.${remote}.push`], { cwd: repo })) ?? "";
-    if (!pushes.split("\n").includes(SHARED_PUSH)) {
-      // Keep normal branch pushes working: an explicit push refspec would otherwise replace the default.
-      if (!pushes.split("\n").some((l) => l === "HEAD" || l.startsWith("refs/heads/"))) {
-        await git(["config", "--add", `remote.${remote}.push`, "HEAD"], { cwd: repo });
-        refspecs.push("HEAD");
-      }
-      await git(["config", "--add", `remote.${remote}.push`, SHARED_PUSH], { cwd: repo });
-      refspecs.push(SHARED_PUSH);
-    }
   } else {
     notes.push(
       `remote "${remote}" not found; refspecs not configured (re-run init after adding it)`
@@ -99,7 +113,11 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
   }
 
   const hooksInstalled: string[] = [];
-  if (opts.hooks ?? true) {
+  const installHooks =
+    opts.hooks ??
+    loadConfig({ home: ynmHome(opts.env ?? process.env), repo }, opts.env ?? process.env).config
+      .hooks;
+  if (installHooks) {
     const hooksDir = (
       (await gitOrNull(["rev-parse", "--path-format=absolute", "--git-path", "hooks"], {
         cwd: repo,

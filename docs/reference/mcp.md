@@ -52,7 +52,7 @@ CLI: `ynm remember`.
 | `confidence` | number 0..1 |  | `1` | 0..1 |
 | `validFrom` | date-time |  |  | When it became true |
 | `validTo` | date-time |  |  | When it stopped being true |
-| `ttl` | string |  |  | Working memory TTL |
+| `ttl` | string |  |  | Working memory TTL; defaults to PT8H for type working |
 | `session` | string |  |  | Session id for provenance |
 | `source` | string |  |  | Source reference for provenance |
 | `links` | array of object |  | `[]` | Typed links to other memories |
@@ -77,8 +77,8 @@ CLI: `ynm recall`.
 | `since` | date-time |  |  | Updated at or after |
 | `until` | date-time |  |  | Updated at or before |
 | `pinnedOnly` | boolean |  | `false` | Only pinned memories |
-| `includeTombstoned` | boolean |  | `false` |  |
-| `limit` | integer 1..200 |  | `10` |  |
+| `includeTombstoned` | boolean |  | `false` | Include forgotten (tombstoned) memories |
+| `limit` | integer 1..200 |  | `10` | Maximum number of hits |
 | `explain` | boolean |  | `false` | Return score components |
 | `rerank` | boolean |  |  | Judge-backed rerank of the top candidates (default from config) |
 | `mount` | string |  |  | Only this mount |
@@ -92,11 +92,11 @@ CLI: `ynm context`.
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `namespace` | string |  |  | Namespace prefix |
-| `level` | array of `personal` \| `distributed` |  |  |  |
-| `type` | array of `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  |  |
+| `level` | array of `personal` \| `distributed` |  |  | Restrict to these levels |
+| `type` | array of `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Restrict to these memory types |
 | `text` | string (max 2000) |  |  | Optional focus text for the ranked part |
 | `budgetTokens` | integer 1..50000 |  | `1500` | Approximate token budget |
-| `mount` | string |  |  |  |
+| `mount` | string |  |  | Only this mount |
 
 ### memory_supersede
 
@@ -141,7 +141,7 @@ CLI: `ynm annotate`.
 | `pinned` | boolean |  |  | Pin or unpin |
 | `needsReview` | boolean |  |  | Flag or clear review |
 | `reason` | string (max 1000) |  |  | Why |
-| `session` | string |  |  |  |
+| `session` | string |  |  | Session id for provenance |
 | `data` | object |  |  | Judgment or other structured annotation data |
 
 ### memory_forget
@@ -154,7 +154,7 @@ CLI: `ynm forget`.
 |---|---|---|---|---|
 | `memoryId` | string | yes |  | Memory to tombstone |
 | `reason` | string (max 1000) |  |  | Why |
-| `session` | string |  |  |  |
+| `session` | string |  |  | Session id for provenance |
 
 ### memory_session
 
@@ -167,13 +167,13 @@ CLI: `ynm session`.
 | `action` | `start` \| `end` | yes |  | start or end a session |
 | `sessionId` | string |  |  | Session id (required for end) |
 | `namespace` | string |  |  | Namespace prefix for the context block |
-| `budgetTokens` | integer 1..50000 |  | `1500` |  |
+| `budgetTokens` | integer 1..50000 |  | `1500` | Context block budget |
 | `ttl` | string |  | `PT8H` | Default working-memory TTL |
 | `expire` | boolean |  | `true` | On end: tombstone expired working memory |
 
 ### memory_consolidate
 
-Run consolidation passes. Currently: expire (tombstone working memory past its ttl). Model-backed passes arrive later.
+Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting.
 
 CLI: `ynm dream`.
 
@@ -193,9 +193,9 @@ CLI: `ynm sync`.
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `remote` | string |  |  | Remote name |
-| `push` | boolean |  | `true` |  |
-| `pull` | boolean |  | `true` |  |
-| `dryRun` | boolean |  | `false` |  |
+| `push` | boolean |  | `true` | Push after merging |
+| `pull` | boolean |  | `true` | Fetch and merge first |
+| `dryRun` | boolean |  | `false` | Report what would change |
 | `mount` | string |  |  | Only this mount |
 
 ### memory_status

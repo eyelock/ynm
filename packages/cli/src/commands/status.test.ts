@@ -1,7 +1,16 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { toolSpec } from "@ynm/service";
 import { ynm } from "../../test/helpers.js";
+import Status from "./status.js";
+
+describe("status description", () => {
+  it("is the memory_status tool's description", () => {
+    expect(Status.description).toBe(toolSpec("memory_status")?.description);
+    expect(Status.description).toBeTruthy();
+  });
+});
 
 describe("ynm status", () => {
   it("reports name, version and the personal mount as JSON", () => {

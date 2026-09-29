@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IsoDurationSchema } from "./record.js";
+import { DEFAULT_WORKING_TTL, IsoDurationSchema } from "./record.js";
 
 export const SessionStartInputSchema = z
   .object({
@@ -17,7 +17,7 @@ export const SessionStartInputSchema = z
       .max(50_000)
       .default(1500)
       .describe("Context block budget"),
-    ttl: IsoDurationSchema.default("PT8H").describe(
+    ttl: IsoDurationSchema.default(DEFAULT_WORKING_TTL).describe(
       "Default TTL for working memory in this session"
     ),
   })
@@ -57,9 +57,9 @@ export type ConsolidateInput = z.infer<typeof ConsolidateInputSchema>;
 export const SyncInputSchema = z
   .object({
     remote: z.string().optional().describe("Remote name"),
-    push: z.boolean().default(true),
-    pull: z.boolean().default(true),
-    dryRun: z.boolean().default(false),
+    push: z.boolean().default(true).describe("Push after merging"),
+    pull: z.boolean().default(true).describe("Fetch and merge first"),
+    dryRun: z.boolean().default(false).describe("Report what would change"),
     mount: z.string().optional().describe("Only this mount"),
   })
   .strict();

@@ -12,6 +12,10 @@ export default class Export extends YnmCommand {
   static override flags = {
     ...YnmCommand.baseFlags,
     ...flagsFromSchema(RecordFilterSchema, { exclude: ["includeTombstoned", "limit"] }),
+    level: Flags.string({
+      description: "Only records at this level (default: every level of the mounts exported)",
+      options: ["personal", "distributed"],
+    }),
     mount: Flags.string({ description: "Only this mount" }),
   };
 

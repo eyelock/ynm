@@ -2,7 +2,14 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { ulid } from "@ynm/model";
 import { collect, makeRecord, runRecordLogConformance } from "../../testing/conformance.js";
-import { clone, createBare, createRepo, fx, rootCommit } from "../../testing/git-fixtures.js";
+import {
+  clone,
+  cloneMirror,
+  createBare,
+  createRepo,
+  fx,
+  rootCommit,
+} from "../../testing/git-fixtures.js";
 import { selectAnchor } from "./anchor.js";
 import { git, gitStats } from "./git.js";
 import { GitNotesLog } from "./provider.js";
@@ -267,6 +274,32 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
       recordedAt: "2026-09-10T00:00:00.000Z",
       ...over,
     });
+
+  it("syncs a `clone --mirror` store without explicit refspecs", async () => {
+    const { origin, anchor, logA } = await pair();
+    const ra = shared();
+    await logA.append([ra]);
+    await logA.sync();
+    const mirror = await cloneMirror(origin);
+    expect(await fx(mirror, "config", "--get", "remote.origin.mirror")).toBe("true");
+    const logM = new GitNotesLog("m", "distributed", { repo: mirror, anchor });
+    expect((await collect(logM)).map((r) => r.id)).toEqual([ra.id]);
+    const rm = shared();
+    await logM.append([rm]);
+    const other = await clone(origin);
+    await fx(other, "commit", "-q", "--allow-empty", "-m", "moved on");
+    await fx(other, "push", "-q", "origin", "HEAD:main");
+    const moved = await fx(other, "rev-parse", "HEAD");
+    const s = await logM.sync();
+    expect(s.conflicts).toEqual([]);
+    expect(s.pushed.length).toBeGreaterThan(0);
+    // the stale mirror must not rewind a branch that moved on the remote
+    expect(await fx(origin, "rev-parse", "main")).toBe(moved);
+    await logA.sync();
+    expect((await collect(logA)).map((r) => r.id).sort()).toEqual([ra.id, rm.id].sort());
+    // a second sync with nothing new is clean
+    expect((await logM.sync()).conflicts).toEqual([]);
+  });
 
   it("moves records both ways with zero loss", async () => {
     const { logA, logB } = await pair();

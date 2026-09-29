@@ -124,13 +124,16 @@ export function generateWiki(input: WikiInput): WikiPage[] {
   return pages.sort((a, b) => (a.path < b.path ? -1 : 1));
 }
 
-/** Parses an edited memory page back into (memoryId, content) for `wiki ingest`. */
-export function parseMemoryPage(text: string): { memoryId: string; content: string } | null {
+/** Parses an edited memory page back into (memoryId, content, page title as summary) for `wiki ingest`. */
+export function parseMemoryPage(
+  text: string
+): { memoryId: string; content: string; summary?: string } | null {
   const m = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
   if (!m) return null;
   const idMatch = /^memoryId:\s*"?([0-9A-Z]{26})"?\s*$/m.exec(m[1] as string);
   if (!idMatch) return null;
+  const title = /^# ([^\n]*)\n/.exec(m[2] as string)?.[1]?.trim();
   const body = (m[2] as string).replace(/^# [^\n]*\n\n?/, "");
   const content = body.split(/\n```json\n|\n## Links\n/)[0]?.trim() ?? "";
-  return { memoryId: idMatch[1] as string, content };
+  return { memoryId: idMatch[1] as string, content, ...(title ? { summary: title } : {}) };
 }

@@ -31,14 +31,15 @@ export default class Sync extends YnmCommand {
       dryRun: flags["dry-run"],
       mount: flags.mount,
     });
-    const failed = Object.values(results).some((r) => r.conflicts.length);
+    const failed = Object.values(results).some((r) => r.conflicts.length && !r.skipped);
     if (flags.quiet && !failed) return;
     this.emit(flags.json, results, () =>
       Object.entries(results).length
         ? Object.entries(results)
-            .map(
-              ([id, r]) =>
-                `${id}: fetched ${r.fetched}, merged ${r.merged.length}, pushed ${r.pushed.length}, retries ${r.retries}${r.conflicts.length ? `, conflicts: ${r.conflicts.join("; ")}` : ""}`
+            .map(([id, r]) =>
+              r.skipped
+                ? `${id}: ${r.skipped}`
+                : `${id}: fetched ${r.fetched}, merged ${r.merged.length}, pushed ${r.pushed.length}, retries ${r.retries}${r.conflicts.length ? `, conflicts: ${r.conflicts.join("; ")}` : ""}`
             )
             .join("\n")
         : "nothing to sync (no replicating distributed mount)"

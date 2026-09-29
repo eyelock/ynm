@@ -26,7 +26,7 @@ ynm remember --type semantic --level distributed --content "Backups are taken wi
 ```
 
 Expected: `personal store created at /tmp/ynm-tutorial/home/store.git`, the `initialised` report with
-its `refspecs` and `hooks` lines, and `remembered <26-character id> in project`.
+its `refspecs`, `hooks` and `.gitignore` note lines, and `remembered <26-character id> in project`.
 
 ## A healthy doctor
 
@@ -37,12 +37,11 @@ ynm doctor
 Expected: every line starts with `ok`, and the command exits 0. The lines, in order: git is
 available, the config file, the `personal` mount and the `project` mount (each with a JSON blob
 of its repository, anchor, number of shards and `"badLines":0`), the project anchor, the shared
-fetch and push refspecs, that personal refs are never pushed, that no personal refs are in the
+fetch refspec, that personal refs are never pushed, that no personal refs are in the
 project repo, and the pre-push hook.
 
 ```text
 ok    shared fetch refspec: +refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
-ok    shared push refspec: refs/notes/ynm/shared/*:refs/notes/ynm/shared/*
 ok    personal refs never pushed: no personal refspecs in remote config (ADR-007)
 ok    no personal refs in project repo: ok (ADR-007)
 ok    pre-push hook: <project path>/.git/hooks/pre-push
@@ -50,19 +49,19 @@ ok    pre-push hook: <project path>/.git/hooks/pre-push
 
 ## Break it
 
-Delete the hook and take out the push refspec, the two things `ynm init` added to make sync
-automatic:
+Delete the hook and take out the notes fetch refspec, the two things `ynm init` added to make
+sync work:
 
 ```bash
 rm .git/hooks/pre-push
-git config --unset-all remote.origin.push
+git config --unset remote.origin.fetch '^\+refs/notes/ynm/'
 ynm doctor || echo "exit $?"
 ```
 
 Expected: the same lines as before, except two. A failure, and a warning:
 
 ```text
-FAIL  shared push refspec: missing; run `ynm init`
+FAIL  shared fetch refspec: missing; run `ynm init`
 warn  pre-push hook: not installed
 exit 1
 ```

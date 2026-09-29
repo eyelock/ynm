@@ -24,7 +24,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`client`](#ynm-client) | Install or inspect ynm in an agent client (claude-code, copilot-cli, opencode, pi, ynh) |
 | [`context`](#ynm-context) | Print the session-start memory block: pinned first, then ranked, within a token budget |
 | [`doctor`](#ynm-doctor) | Check configuration, mounts, refspecs and hooks |
-| [`dream`](#ynm-dream) | Run consolidation passes (currently: expire working memory past its ttl) |
+| [`dream`](#ynm-dream) | Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting. |
 | [`export`](#ynm-export) | Export raw records as JSONL (the log, including history) |
 | [`forget`](#ynm-forget) | Tombstone a memory (history is kept) |
 | [`import`](#ynm-import) | Import JSONL records (from a file or stdin), routed by level |
@@ -39,7 +39,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`review`](#ynm-review) | List memories flagged for review, or clear a flag after deciding |
 | [`serve`](#ynm-serve) | Start the MCP server (stdio by default, --http for the hosted service) |
 | [`session`](#ynm-session) | Start a session (prints the context block) or end one (expires working memory) |
-| [`status`](#ynm-status) | Show mounts and configuration |
+| [`status`](#ynm-status) | Mounts, shard counts and index freshness. |
 | [`supersede`](#ynm-supersede) | Record a new version of an existing memory |
 | [`sync`](#ynm-sync) | Fetch, merge and push shared memory (never personal unless --mount personal) |
 | [`wiki`](#ynm-wiki) | Build the markdown projection (index, log, memories, entities, topics) or ingest an edited page |
@@ -55,14 +55,14 @@ ynm annotate [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--memory-id <value>` | string | yes |  | Memory to annotate |
-| `--tags <value>` | string (max 64), repeatable |  |  | Tags to add |
+| `--tags <value>` | string (max 64), repeatable |  |  | Tags to add (repeat the flag or separate with commas) |
 | `--links <value>` | JSON array |  |  | Links to add |
 | `--importance <value>` | number 0..1 |  |  | New importance |
 | `--confidence <value>` | number 0..1 |  |  | New confidence |
 | `--[no-]pinned` | boolean |  |  | Pin or unpin |
 | `--[no-]needs-review` | boolean |  |  | Flag or clear review |
 | `--reason <value>` | string (max 1000) |  |  | Why |
-| `--session <value>` | string |  |  |  |
+| `--session <value>` | string |  |  | Session id for provenance |
 | `--data <value>` | JSON object |  |  | Judgment or other structured annotation data |
 
 Common flags: `--json`, `--cwd`.
@@ -120,11 +120,11 @@ ynm context [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--namespace <value>` | string |  |  | Namespace prefix |
-| `--level <value>` | `personal` \| `distributed`, repeatable |  |  |  |
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference`, repeatable |  |  |  |
+| `--level <value>` | `personal` \| `distributed`, repeatable |  |  | Restrict to these levels |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference`, repeatable |  |  | Restrict to these memory types |
 | `--text <value>` | string (max 2000) |  |  | Optional focus text for the ranked part |
 | `--budget-tokens <value>` | integer 1..50000 |  | `1500` | Approximate token budget |
-| `--mount <value>` | string |  |  |  |
+| `--mount <value>` | string |  |  | Only this mount |
 
 Common flags: `--json`, `--cwd`.
 
@@ -155,7 +155,7 @@ ynm doctor
 
 ## ynm dream
 
-Run consolidation passes (currently: expire working memory past its ttl)
+Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting.
 
 ```text
 ynm dream [flags]
@@ -189,11 +189,11 @@ ynm export [flags]
 
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `--level <value>` | `personal` \| `distributed` |  |  | personal never leaves the user's store by default |
+| `--level <value>` | `personal` \| `distributed` |  |  | Only records at this level |
 | `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type (ADR-001) |
 | `--namespace <value>` | string |  |  | Namespace prefix |
-| `--since <value>` | date-time |  |  | ISO 8601 date-time |
-| `--until <value>` | date-time |  |  | ISO 8601 date-time |
+| `--since <value>` | date-time |  |  | Updated at or after |
+| `--until <value>` | date-time |  |  | Updated at or before |
 | `--[no-]needs-review` | boolean |  |  | Only memories flagged for review |
 | `--mount <value>` | string |  |  | Only this mount |
 
@@ -218,7 +218,7 @@ ynm forget [flags]
 |---|---|---|---|---|
 | `--memory-id <value>` | string | yes |  | Memory to tombstone |
 | `--reason <value>` | string (max 1000) |  |  | Why |
-| `--session <value>` | string |  |  |  |
+| `--session <value>` | string |  |  | Session id for provenance |
 
 Common flags: `--json`, `--cwd`.
 
@@ -267,8 +267,8 @@ ynm init [flags]
 |---|---|---|---|---|
 | `--personal` | boolean |  | `false` | Create the personal store only |
 | `--bare <value>` | string |  |  | Create or adopt a dedicated bare memory repo at this path |
-| `--remote <value>` | string |  | `origin` | Remote for shared refspecs |
-| `--[no-]hooks` | boolean |  | `true` | Install the pre-push hook |
+| `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
+| `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
 
 Common flags: `--json`, `--cwd`.
@@ -294,11 +294,11 @@ ynm list [flags]
 | `--level <value>` | `personal` \| `distributed` |  |  | personal never leaves the user's store by default |
 | `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type (ADR-001) |
 | `--namespace <value>` | string |  |  | Namespace prefix |
-| `--since <value>` | date-time |  |  | ISO 8601 date-time |
-| `--until <value>` | date-time |  |  | ISO 8601 date-time |
-| `--[no-]include-tombstoned` | boolean |  | `false` |  |
+| `--since <value>` | date-time |  |  | Updated at or after |
+| `--until <value>` | date-time |  |  | Updated at or before |
+| `--[no-]include-tombstoned` | boolean |  | `false` | Include forgotten (tombstoned) memories |
 | `--[no-]needs-review` | boolean |  |  | Only memories flagged for review |
-| `--limit <value>` | integer 1..10000 |  |  |  |
+| `--limit <value>` | integer 1..10000 |  |  | Maximum number of results |
 | `--mount <value>` | string |  |  | Only this mount |
 
 Common flags: `--json`, `--cwd`.
@@ -400,13 +400,13 @@ ynm recall [flags]
 | `--level <value>` | `personal` \| `distributed`, repeatable |  |  | Restrict to these levels |
 | `--namespace <value>` | string |  |  | Namespace prefix |
 | `--subject <value>` | string |  |  | Exact subject key |
-| `--tags <value>` | string, repeatable |  |  | All of these tags must be present |
+| `--tags <value>` | string, repeatable |  |  | All of these tags must be present (repeat the flag or separate with commas) |
 | `--data-key <value>` | string |  |  | Only memories whose data has this key |
 | `--since <value>` | date-time |  |  | Updated at or after |
 | `--until <value>` | date-time |  |  | Updated at or before |
 | `--[no-]pinned-only` | boolean |  | `false` | Only pinned memories |
-| `--[no-]include-tombstoned` | boolean |  | `false` |  |
-| `--limit <value>` | integer 1..200 |  | `10` |  |
+| `--[no-]include-tombstoned` | boolean |  | `false` | Include forgotten (tombstoned) memories |
+| `--limit <value>` | integer 1..200 |  | `10` | Maximum number of hits |
 | `--[no-]explain` | boolean |  | `false` | Return score components |
 | `--[no-]rerank` | boolean |  |  | Judge-backed rerank of the top candidates (default from config) |
 | `--mount <value>` | string |  |  | Only this mount |
@@ -459,14 +459,14 @@ ynm remember [flags]
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `--summary <value>` | string (max 280) |  |  | One line summary; derived from content if omitted |
 | `--subject <value>` | string (max 200) |  |  | Entity or topic key |
-| `--tags <value>` | string (max 64), repeatable |  | `[]` | Free-form tags |
+| `--tags <value>` | string (max 64), repeatable |  | `[]` | Free-form tags (repeat the flag or separate with commas) |
 | `--data <value>` | JSON object |  |  | Structured payload |
 | `--data-schema <value>` | string (max 100) |  |  | Name of the shape of data |
 | `--importance <value>` | number 0..1 |  | `0.5` | 0..1 |
 | `--confidence <value>` | number 0..1 |  | `1` | 0..1 |
 | `--valid-from <value>` | date-time |  |  | When it became true |
 | `--valid-to <value>` | date-time |  |  | When it stopped being true |
-| `--ttl <value>` | string |  |  | Working memory TTL |
+| `--ttl <value>` | string |  |  | Working memory TTL; defaults to PT8H for type working |
 | `--session <value>` | string |  |  | Session id for provenance |
 | `--source <value>` | string |  |  | Source reference for provenance |
 | `--links <value>` | JSON array |  | `[]` | Typed links to other memories |
@@ -573,7 +573,7 @@ ynm session end <sessionId>
 
 ## ynm status
 
-Show mounts and configuration
+Mounts, shard counts and index freshness.
 
 ```text
 ynm status [flags]
@@ -603,7 +603,7 @@ ynm supersede [flags]
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `--summary <value>` | string (max 280) |  |  | One line summary; derived from content if omitted |
 | `--subject <value>` | string (max 200) |  |  | Entity or topic key |
-| `--tags <value>` | string (max 64), repeatable |  | `[]` | Free-form tags |
+| `--tags <value>` | string (max 64), repeatable |  | `[]` | Free-form tags (repeat the flag or separate with commas) |
 | `--data <value>` | JSON object |  |  | Structured payload |
 | `--data-schema <value>` | string (max 100) |  |  | Name of the shape of data |
 | `--importance <value>` | number 0..1 |  | `0.5` | 0..1 |

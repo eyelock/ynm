@@ -1,5 +1,11 @@
-import { RememberInputSchema } from "@ynm/model";
-import { flagsFromSchema, inputFromFlags, toKebab } from "./flags.js";
+import {
+  AnnotateInputSchema,
+  ContextQuerySchema,
+  ForgetInputSchema,
+  RecallQuerySchema,
+  RememberInputSchema,
+} from "@ynm/model";
+import { flagsFromSchema, InvalidInputError, inputFromFlags, toKebab } from "./flags.js";
 
 describe("flags from Zod (ADR-008)", () => {
   it("generates a flag per field with kebab names and enum options", () => {
@@ -25,6 +31,46 @@ describe("flags from Zod (ADR-008)", () => {
     expect(input.dataSchema).toBe("profile/1");
     expect(input.links[0]?.rel).toBe("about");
     expect(input.level).toBe("personal");
+  });
+  it("splits comma-separated string-array values and says so in the description", () => {
+    const flags = flagsFromSchema(RememberInputSchema);
+    expect((flags.tags as { description?: string }).description).toContain(
+      "repeat the flag or separate with commas"
+    );
+    const input = inputFromFlags(RememberInputSchema, {
+      type: "semantic",
+      content: "x",
+      tags: ["a,b", "c"],
+    });
+    expect(input.tags).toEqual(["a", "b", "c"]);
+  });
+  it("reports malformed JSON as an InvalidInputError, not a SyntaxError", () => {
+    expect(() =>
+      inputFromFlags(RememberInputSchema, { type: "semantic", content: "x", data: "{bad" })
+    ).toThrow(InvalidInputError);
+  });
+  it("shows schema defaults in the description and does not repeat the JSON suffix", () => {
+    const flags = flagsFromSchema(RememberInputSchema);
+    const d = (name: string) => (flags[name] as { description?: string }).description;
+    expect(d("importance")).toBe("0..1 (number) (default: 0.5)");
+    expect(d("namespace")).toContain("(default: common)");
+    expect(d("data")).toBe("Structured payload (JSON object)");
+    expect(d("tags")).not.toContain("default");
+  });
+  it("gives the flags that were once bare a description", () => {
+    for (const [schema, names] of [
+      [ContextQuerySchema, ["level", "type", "mount"]],
+      [RecallQuerySchema, ["include-tombstoned", "limit"]],
+      [AnnotateInputSchema, ["session"]],
+      [ForgetInputSchema, ["session"]],
+    ] as const) {
+      const flags = flagsFromSchema(schema);
+      for (const n of names) {
+        const desc = (flags[n] as { description?: string }).description ?? "";
+        expect(desc, `${n}`).not.toBe("");
+        expect(toKebab(desc), `${n}`).not.toBe(n);
+      }
+    }
   });
   it("kebab-cases camelCase", () => {
     expect(toKebab("validFrom")).toBe("valid-from");

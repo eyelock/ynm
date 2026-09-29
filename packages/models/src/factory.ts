@@ -105,7 +105,7 @@ export function resolveModels(
     default:
       if (typesafeKey) {
         judge = new TypeSafeJudge({ apiKey: typesafeKey, model: c.typesafe.model });
-        judgeWhy = "auto: TYPESAFE_API_KEY present";
+        judgeWhy = `auto: ${c.typesafe.apiKeyEnv} present`;
       } else if (writer.name !== "none") {
         judge = new WriterEmulatedJudge(writer);
         judgeWhy = `auto: emulated over ${writer.name} (uncalibrated)`;

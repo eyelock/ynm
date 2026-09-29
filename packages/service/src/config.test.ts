@@ -1,7 +1,20 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadConfig, loadEnvFile } from "./config.js";
+import { z } from "zod";
+import { loadConfig, loadEnvFile, MountConfigSchema } from "./config.js";
+
+describe("config schema descriptions", () => {
+  it("every mount key has a description", () => {
+    const json = z.toJSONSchema(MountConfigSchema, { io: "input" }) as {
+      properties: Record<string, { description?: string }>;
+    };
+    const missing = Object.entries(json.properties)
+      .filter(([, p]) => !p.description)
+      .map(([k]) => k);
+    expect(missing).toEqual([]);
+  });
+});
 
 describe("loadConfig (ADR-009)", () => {
   const home = mkdtempSync(join(tmpdir(), "ynm-home-"));

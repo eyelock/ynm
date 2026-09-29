@@ -110,6 +110,12 @@ describe("input schemas", () => {
     expect(i.importance).toBe(0.5);
     expect(i.confidence).toBe(1);
   });
+  it("RememberInput gives working memory a default TTL and keeps an explicit one", () => {
+    const base = { type: "working", namespace: "session/abc", content: "x" };
+    expect(RememberInputSchema.parse(base).ttl).toBe("PT8H");
+    expect(RememberInputSchema.parse({ ...base, ttl: "PT1H" }).ttl).toBe("PT1H");
+    expect(RememberInputSchema.parse({ type: "semantic", content: "x" }).ttl).toBeUndefined();
+  });
   it("AnnotateInput needs a memoryId", () => {
     expect(AnnotateInputSchema.safeParse({ pinned: true }).success).toBe(false);
   });

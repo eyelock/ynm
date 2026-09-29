@@ -128,12 +128,12 @@ ynm recall --text "Wednesdays" --json
 ```
 
 Expected: a JSON array of one hit, of type `semantic` and level `distributed`, whose `content`
-is `Deploys happen on Wednesdays.`.
+and `summary` are both `Deploys happen on Wednesdays.`.
 
-Only the body is read back. The page's heading is the memory's one-line summary, and `ingest`
-does not update it: the same hit's `summary` field still says `Deploys happen on Tuesdays.`, and
-so do the heading, the log and the one-line output of `ynm recall` and `ynm list`. Give the
-memory a fresh summary with `ynm supersede --summary` if that matters to you.
+Only the body is read back, and it is enough. The page's heading is the memory's one-line
+summary; when the body changed and the heading did not, `ingest` lets ynm derive a fresh summary
+from the new content, as `ynm supersede` does. Edit the heading as well and your heading becomes
+the summary.
 
 ## The orphan branch target
 

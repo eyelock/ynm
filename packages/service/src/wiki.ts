@@ -67,10 +67,16 @@ export async function ingestWikiPage(
   if (!m) throw new Error(`unknown memory ${parsed.memoryId}`);
   if ((m.current.content ?? "").trim() === parsed.content.trim())
     return { memoryId: parsed.memoryId, changed: false };
+  // The content changed, so the stored summary is stale: keep a summary only when the page title
+  // was itself edited, otherwise let supersede derive a fresh one from the new content.
+  const titleEdited =
+    parsed.summary !== undefined &&
+    parsed.summary !== parsed.memoryId &&
+    parsed.summary !== m.current.summary;
   await ynm.supersede({
     memoryId: parsed.memoryId,
     content: parsed.content,
-    summary: m.current.summary,
+    summary: titleEdited ? parsed.summary : undefined,
     tags: [],
     links: [],
   });
