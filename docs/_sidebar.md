@@ -9,6 +9,7 @@
   * [3. Recall and context](/tutorial/03-recall-and-context.md)
   * [4. Editing history](/tutorial/04-editing-history.md)
   * [5. Sessions and working memory](/tutorial/05-sessions-and-working-memory.md)
+  * [6. Sync](/tutorial/06-sync.md)
   * [Running tutorials as evals](/tutorial/RUNNING.md)
 
 * **How-to guides**
