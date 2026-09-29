@@ -15,6 +15,7 @@
   * [9. Wiki projection](/tutorial/09-wiki.md)
   * [10. Hosted service](/tutorial/10-hosted.md)
   * [11. Doctor and maintenance](/tutorial/11-doctor-and-maintenance.md)
+  * [12. Evals and benchmarks](/tutorial/12-evals-and-benchmarks.md)
   * [Running tutorials as evals](/tutorial/RUNNING.md)
 
 * **How-to guides**
