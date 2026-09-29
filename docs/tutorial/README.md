@@ -24,7 +24,7 @@ you should see. A model can read a tutorial, run it and check it, exactly as you
 | Tutorial | What you will learn |
 |---|---|
 | [6. Sync](06-sync.md) | A bare remote, two clones, concurrent writes merged, the pre-push hook |
-| 7. Connect an agent | `client install` for every supported client, `serve` over stdio, a scripted MCP call |
+| [7. Connect an agent](07-connect-an-agent.md) | `client install` for every supported client, `serve` over stdio, a scripted MCP call |
 
 ### Consolidate
 
