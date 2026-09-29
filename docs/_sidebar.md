@@ -5,6 +5,7 @@
 * **Tutorials**
   * [Tutorial overview](/tutorial/README.md)
   * [1. First memory](/tutorial/01-first-memory.md)
+  * [2. Project memory](/tutorial/02-project-memory.md)
   * [Running tutorials as evals](/tutorial/RUNNING.md)
 
 * **How-to guides**
