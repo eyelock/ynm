@@ -43,3 +43,176 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 2.10 | [Where it went (2)](02-project-memory.md#where-it-went) | `ynm doctor` |  |
 | 2.11 | [The hook](02-project-memory.md#the-hook) | `cat .git/hooks/pre-push` |  |
 | 2.12 | [Cleanup](02-project-memory.md#cleanup) | `cd /tmp` |  |
+
+## [Recall and Context](03-recall-and-context.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 3.1 | [Prerequisites](03-recall-and-context.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 3.2 | [Seed five memories](03-recall-and-context.md#seed-five-memories) | `REF=$(ynm remember --type reference --content "The runbook for on-cal...` |  |
+| 3.3 | [Recall with text](03-recall-and-context.md#recall-with-text) | `ynm recall --text "roll back"` |  |
+| 3.4 | [Ask why: explain](03-recall-and-context.md#ask-why-explain) | `ynm recall --text "roll back" --explain` |  |
+| 3.5 | [Ask why: explain (2)](03-recall-and-context.md#ask-why-explain) | `ynm recall --text "roll back" --explain --json --limit 1` |  |
+| 3.6 | [Filter by type](03-recall-and-context.md#filter-by-type) | `ynm recall --text "staging" --type episodic` |  |
+| 3.7 | [Filter by tag](03-recall-and-context.md#filter-by-tag) | `ynm recall --tags release` |  |
+| 3.8 | [Filter by subject](03-recall-and-context.md#filter-by-subject) | `ynm recall --subject entity:staging` |  |
+| 3.9 | [Recall by time](03-recall-and-context.md#recall-by-time) | `ynm recall --since 2026-01-01T00:00:00Z --limit 2` |  |
+| 3.10 | [The context block](03-recall-and-context.md#the-context-block) | `ynm context` |  |
+| 3.11 | [The context block (2)](03-recall-and-context.md#the-context-block) | `ynm context --text "staging" --budget-tokens 60` |  |
+| 3.12 | [The context block (3)](03-recall-and-context.md#the-context-block) | `ynm context --budget-tokens 40` |  |
+| 3.13 | [Pin a memory](03-recall-and-context.md#pin-a-memory) | `ynm pin "$REF"` |  |
+| 3.14 | [Pin a memory (2)](03-recall-and-context.md#pin-a-memory) | `ynm recall --pinned-only` |  |
+| 3.15 | [Pin a memory (3)](03-recall-and-context.md#pin-a-memory) | `ynm pin "$REF" --unpin` |  |
+| 3.16 | [Annotate without changing content](03-recall-and-context.md#annotate-without-changing-content) | `ynm annotate --memory-id "$REF" --importance 0.9 --tags favourite` |  |
+| 3.17 | [Cleanup](03-recall-and-context.md#cleanup) | `cd /tmp` |  |
+
+## [Editing History](04-editing-history.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 4.1 | [Prerequisites](04-editing-history.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 4.2 | [Four memories](04-editing-history.md#four-memories) | `DEPLOY=$(ynm remember --type semantic --content "We deploy on Tuesday...` |  |
+| 4.3 | [Supersede: a new version of the same memory](04-editing-history.md#supersede-a-new-version-of-the-same-memory) | `ynm supersede --memory-id "$DEPLOY" --content "We deploy on Wednesday...` |  |
+| 4.4 | [Link two memories](04-editing-history.md#link-two-memories) | `ynm annotate --memory-id "$DEPLOY" --links "[{\"rel\":\"about\",\"to\...` |  |
+| 4.5 | [Forget: hide, but keep](04-editing-history.md#forget-hide-but-keep) | `ynm forget --memory-id "$WIKI" --reason "wiki was retired"` |  |
+| 4.6 | [Forget: hide, but keep (2)](04-editing-history.md#forget-hide-but-keep) | `ynm recall --text "wiki"` |  |
+| 4.7 | [Purge: remove for good](04-editing-history.md#purge-remove-for-good) | `ynm purge "$TOKEN" --reason "secret pasted by mistake" \|\| echo "exit $?"` |  |
+| 4.8 | [Purge: remove for good (2)](04-editing-history.md#purge-remove-for-good) | `ynm purge "$TOKEN" --reason "secret pasted by mistake" --yes` |  |
+| 4.9 | [Purge and history](04-editing-history.md#purge-and-history) | `git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/persona...` |  |
+| 4.10 | [Purge and history (2)](04-editing-history.md#purge-and-history) | `SECRET=$(ynm remember --type semantic --content "Password for the dem...` |  |
+| 4.11 | [Export the log](04-editing-history.md#export-the-log) | `ynm export > /tmp/ynm-tutorial/backup.jsonl` |  |
+| 4.12 | [Export the log (2)](04-editing-history.md#export-the-log) | `grep -o '"op":"[a-z-]*"' /tmp/ynm-tutorial/backup.jsonl \| sort \| uniq -c` |  |
+| 4.13 | [Import into a fresh store](04-editing-history.md#import-into-a-fresh-store) | `export YNM_HOME=/tmp/ynm-tutorial/home2` |  |
+| 4.14 | [Import into a fresh store (2)](04-editing-history.md#import-into-a-fresh-store) | `ynm recall --text "deploy"` |  |
+| 4.15 | [Cleanup](04-editing-history.md#cleanup) | `cd /tmp` |  |
+
+## [Sessions and Working Memory](05-sessions-and-working-memory.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 5.1 | [Prerequisites](05-sessions-and-working-memory.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 5.2 | [Start a session](05-sessions-and-working-memory.md#start-a-session) | `ynm session start \| tee /tmp/ynm-tutorial/session.txt` |  |
+| 5.3 | [Start a session (2)](05-sessions-and-working-memory.md#start-a-session) | `SID=$(head -1 /tmp/ynm-tutorial/session.txt \| cut -d' ' -f2)` |  |
+| 5.4 | [Write working memory](05-sessions-and-working-memory.md#write-working-memory) | `ynm remember --type working --namespace "session/$SID" --ttl PT1S --c...` |  |
+| 5.5 | [The namespace rule](05-sessions-and-working-memory.md#the-namespace-rule) | `ynm remember --type working --ttl PT1S --content "Where does this go?...` |  |
+| 5.6 | [Let the first note expire](05-sessions-and-working-memory.md#let-the-first-note-expire) | `sleep 2` |  |
+| 5.7 | [Dry-run the consolidation](05-sessions-and-working-memory.md#dry-run-the-consolidation) | `ynm dream --dry-run` |  |
+| 5.8 | [End the session](05-sessions-and-working-memory.md#end-the-session) | `ynm session end "$SID"` |  |
+| 5.9 | [Promote a working note](05-sessions-and-working-memory.md#promote-a-working-note) | `ynm dream` |  |
+| 5.10 | [Promote a working note (2)](05-sessions-and-working-memory.md#promote-a-working-note) | `ynm list --include-tombstoned` |  |
+| 5.11 | [Cleanup](05-sessions-and-working-memory.md#cleanup) | `cd /tmp` |  |
+
+## [Sync](06-sync.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 6.1 | [Prerequisites](06-sync.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 6.2 | [A remote and two clones](06-sync.md#a-remote-and-two-clones) | `git init -q --bare -b main /tmp/ynm-tutorial/remote.git` |  |
+| 6.3 | [Initialise both clones](06-sync.md#initialise-both-clones) | `cd /tmp/ynm-tutorial/alice` |  |
+| 6.4 | [Initialise both clones (2)](06-sync.md#initialise-both-clones) | `git -C /tmp/ynm-tutorial/alice config --get-all remote.origin.fetch` |  |
+| 6.5 | [Initialise both clones (3)](06-sync.md#initialise-both-clones) | `cd /tmp/ynm-tutorial/bob` |  |
+| 6.6 | [Write in both, before either syncs](06-sync.md#write-in-both-before-either-syncs) | `cd /tmp/ynm-tutorial/alice` |  |
+| 6.7 | [Sync](06-sync.md#sync-1) | `cd /tmp/ynm-tutorial/alice` |  |
+| 6.8 | [Sync (2)](06-sync.md#sync-1) | `cd /tmp/ynm-tutorial/bob` |  |
+| 6.9 | [Sync (3)](06-sync.md#sync-1) | `cd /tmp/ynm-tutorial/alice` |  |
+| 6.10 | [Personal memory stays home](06-sync.md#personal-memory-stays-home) | `cd /tmp/ynm-tutorial/alice` |  |
+| 6.11 | [The pre-push hook](06-sync.md#the-pre-push-hook) | `git -C /tmp/ynm-tutorial/alice -c user.name=alice -c user.email=alice...` |  |
+| 6.12 | [Doctor sees the remote](06-sync.md#doctor-sees-the-remote) | `cd /tmp/ynm-tutorial/alice` |  |
+| 6.13 | [Cleanup](06-sync.md#cleanup) | `cd /tmp` |  |
+
+## [Connect an Agent](07-connect-an-agent.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 7.1 | [Prerequisites](07-connect-an-agent.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 7.2 | [What is installed](07-connect-an-agent.md#what-is-installed) | `ynm client status` |  |
+| 7.3 | [Claude Code: plan, then install](07-connect-an-agent.md#claude-code-plan-then-install) | `ynm client plan claude-code` |  |
+| 7.4 | [Claude Code: plan, then install (2)](07-connect-an-agent.md#claude-code-plan-then-install) | `ynm client install claude-code` |  |
+| 7.5 | [Claude Code: plan, then install (3)](07-connect-an-agent.md#claude-code-plan-then-install) | `cat CLAUDE.md` |  |
+| 7.6 | [The other clients](07-connect-an-agent.md#the-other-clients) | `ynm client plan copilot-cli` |  |
+| 7.7 | [The other clients (2)](07-connect-an-agent.md#the-other-clients) | `ynm client install opencode` |  |
+| 7.8 | [The other clients (3)](07-connect-an-agent.md#the-other-clients) | `ynm client install pi` |  |
+| 7.9 | [The other clients (4)](07-connect-an-agent.md#the-other-clients) | `ynm client install ynh` |  |
+| 7.10 | [The other clients (5)](07-connect-an-agent.md#the-other-clients) | `ynm client status` |  |
+| 7.11 | [Serve](07-connect-an-agent.md#serve) | `ynm serve --help` |  |
+| 7.12 | [Talk to it yourself](07-connect-an-agent.md#talk-to-it-yourself) | `ynm remember --type semantic --content "Deploys happen on Tuesdays." ...` |  |
+| 7.13 | [Talk to it yourself (2)](07-connect-an-agent.md#talk-to-it-yourself) | `mkdir -p /tmp/ynm-tutorial/work` |  |
+| 7.14 | [Cleanup](07-connect-an-agent.md#cleanup) | `cd /tmp` |  |
+
+## [Dreaming](08-dreaming.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 8.1 | [Prerequisites](08-dreaming.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 8.2 | [Seed a mess](08-dreaming.md#seed-a-mess) | `ynm remember --type semantic --content "The API listens on port 8080....` |  |
+| 8.3 | [A dry run](08-dreaming.md#a-dry-run) | `ynm dream --dry-run` |  |
+| 8.4 | [A dry run (2)](08-dreaming.md#a-dry-run) | `ynm dream --dry-run --json` |  |
+| 8.5 | [Flag for real](08-dreaming.md#flag-for-real) | `ynm dream` |  |
+| 8.6 | [Decide, and clear the flag](08-dreaming.md#decide-and-clear-the-flag) | `ynm review list \| grep "API" \| cut -d' ' -f1 \| while read -r id; do y...` |  |
+| 8.7 | [Promote to the team](08-dreaming.md#promote-to-the-team) | `THURSDAY=$(ynm review list \| head -1 \| cut -d' ' -f1)` |  |
+| 8.8 | [With a model: dedupe and contradict act](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `ynm dream --passes dedupe --passes contradict --max-pairs 10` | needs `TYPESAFE_API_KEY` |
+| 8.9 | [With a model: dedupe and contradict act (2)](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `ynm list` | needs `TYPESAFE_API_KEY` |
+| 8.10 | [Cleanup](08-dreaming.md#cleanup) | `cd /tmp` |  |
+
+## [Wiki Projection](09-wiki.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 9.1 | [Prerequisites](09-wiki.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 9.2 | [Three memories to project](09-wiki.md#three-memories-to-project) | `ynm remember --type semantic --level distributed --content "Deploys h...` |  |
+| 9.3 | [Build the wiki](09-wiki.md#build-the-wiki) | `ynm wiki build` |  |
+| 9.4 | [Build the wiki (2)](09-wiki.md#build-the-wiki) | `find .ynm/wiki -type f \| sed 's/[0-9A-Z]\{26\}/<id>/' \| sort` |  |
+| 9.5 | [Read the index](09-wiki.md#read-the-index) | `cat .ynm/wiki/index.md` |  |
+| 9.6 | [Edit a page and ingest it](09-wiki.md#edit-a-page-and-ingest-it) | `PAGE=$(grep -l "Deploys happen on Tuesdays" .ynm/wiki/memories/*.md)` |  |
+| 9.7 | [Edit a page and ingest it (2)](09-wiki.md#edit-a-page-and-ingest-it) | `ynm wiki ingest "$PAGE"` |  |
+| 9.8 | [Edit a page and ingest it (3)](09-wiki.md#edit-a-page-and-ingest-it) | `ynm recall --text "Wednesdays" --json` |  |
+| 9.9 | [The orphan branch target](09-wiki.md#the-orphan-branch-target) | `ynm wiki build --target orphan-branch --mount project` |  |
+| 9.10 | [The orphan branch target (2)](09-wiki.md#the-orphan-branch-target) | `git ls-tree -r --name-only ynm/wiki` |  |
+| 9.11 | [Cleanup](09-wiki.md#cleanup) | `cd /tmp` |  |
+
+## [Hosted Service](10-hosted.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 10.1 | [Prerequisites](10-hosted.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 10.2 | [Start the server](10-hosted.md#start-the-server) | `ynm serve --http --port 3999 --token demo --no-personal --cwd /tmp/yn...` |  |
+| 10.3 | [Health](10-hosted.md#health) | `curl -s http://localhost:3999/health` |  |
+| 10.4 | [No token, no entry](10-hosted.md#no-token-no-entry) | `curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:399...` |  |
+| 10.5 | [Talk MCP with a token](10-hosted.md#talk-mcp-with-a-token) | `curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer d...` |  |
+| 10.6 | [Talk MCP with a token (2)](10-hosted.md#talk-mcp-with-a-token) | `curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer d...` |  |
+| 10.7 | [See it land in the repository](10-hosted.md#see-it-land-in-the-repository) | `ynm list --level distributed --cwd /tmp/ynm-tutorial/store.git` |  |
+| 10.8 | [Stop the server](10-hosted.md#stop-the-server) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` |  |
+| 10.9 | [The Docker demo](10-hosted.md#the-docker-demo) | `infra/docker/demo.sh` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.10 | [Cleanup](10-hosted.md#cleanup) | `cd /tmp` |  |
+
+## [Doctor and Maintenance](11-doctor-and-maintenance.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 11.1 | [Prerequisites](11-doctor-and-maintenance.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
+| 11.2 | [A healthy doctor](11-doctor-and-maintenance.md#a-healthy-doctor) | `ynm doctor` |  |
+| 11.3 | [Break it](11-doctor-and-maintenance.md#break-it) | `rm .git/hooks/pre-push` |  |
+| 11.4 | [Break it (2)](11-doctor-and-maintenance.md#break-it) | `ynm init` |  |
+| 11.5 | [The index](11-doctor-and-maintenance.md#the-index) | `ynm status` |  |
+| 11.6 | [The index (2)](11-doctor-and-maintenance.md#the-index) | `rm -rf .ynm/index` |  |
+| 11.7 | [The index (3)](11-doctor-and-maintenance.md#the-index) | `ynm reindex` |  |
+| 11.8 | [Try the SQLite provider](11-doctor-and-maintenance.md#try-the-sqlite-provider) | `cd /tmp/ynm-tutorial` |  |
+| 11.9 | [Try the SQLite provider (2)](11-doctor-and-maintenance.md#try-the-sqlite-provider) | `ynm remember --type semantic --level distributed --content "This proj...` |  |
+| 11.10 | [Try the SQLite provider (3)](11-doctor-and-maintenance.md#try-the-sqlite-provider) | `ynm doctor` |  |
+| 11.11 | [Back up and restore](11-doctor-and-maintenance.md#back-up-and-restore) | `cd /tmp/ynm-tutorial/project` |  |
+| 11.12 | [Back up and restore (2)](11-doctor-and-maintenance.md#back-up-and-restore) | `git clone -q /tmp/ynm-tutorial/backup.bundle /tmp/ynm-tutorial/restored` |  |
+| 11.13 | [Back up and restore (3)](11-doctor-and-maintenance.md#back-up-and-restore) | `cd /tmp/ynm-tutorial/restored` |  |
+| 11.14 | [Cleanup](11-doctor-and-maintenance.md#cleanup) | `cd /tmp` |  |
+
+## [Evals and Benchmarks](12-evals-and-benchmarks.md)
+
+| # | Step | First command | Condition |
+|---|---|---|---|
+| 12.1 | [Run the tests](12-evals-and-benchmarks.md#run-the-tests) | `cd "$YNM_REPO"` | needs `YNM_REPO` |
+| 12.2 | [Run a gate](12-evals-and-benchmarks.md#run-a-gate) | `cd "$YNM_REPO"` | needs `YNM_REPO` |
+| 12.3 | [Measure latency](12-evals-and-benchmarks.md#measure-latency) | `cd "$YNM_REPO"` | needs `YNM_REPO` |
+| 12.4 | [Where baselines and reports live](12-evals-and-benchmarks.md#where-baselines-and-reports-live) | `cd "$YNM_REPO"` | needs `YNM_REPO` |
+| 12.5 | [Public benchmarks](12-evals-and-benchmarks.md#public-benchmarks) | `cd "$YNM_REPO"` | needs `YNM_REPO` |
+| 12.6 | [Public benchmarks (2)](12-evals-and-benchmarks.md#public-benchmarks) | `mkdir -p "$HOME/.ynm/bench"` | needs `YNM_BENCH_DATASETS` |
+| 12.7 | [Read a report](12-evals-and-benchmarks.md#read-a-report) | `cd "$YNM_REPO"` | needs `YNM_REPO` |
+| 12.8 | [Cleanup](12-evals-and-benchmarks.md#cleanup) | `unset YNM_REPO` |  |

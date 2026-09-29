@@ -29,6 +29,8 @@ describe("tutorial smoke (every command block exits zero)", () => {
           ...process.env,
           PATH: `${sandboxBin()}:${process.env.PATH ?? ""}`,
           YNM_NO_CLAUDE_CLI: "1",
+          YNM_HOME: "/tmp/ynm-tutorial/home",
+          YNM_USER: "tutorial",
         },
       });
       const lastStep = (r.stdout.match(/### step \d+[^\n]*/g) ?? []).pop();

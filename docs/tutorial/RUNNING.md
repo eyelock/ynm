@@ -38,6 +38,9 @@ a broken command is caught before a model spends a token.
 pnpm --filter @ynm/evals exec vitest run src/tier1/tutorials
 ```
 
+Both layers also set `YNM_HOME` and `YNM_USER` to the sandbox values in the process environment,
+so a step that loses its shell exports still lands in the sandbox and never in a real store.
+
 ## Writing a tutorial so both layers work
 
 - Start with the sandbox block from the [tutorial index](README.md#the-sandbox).

@@ -77,6 +77,8 @@ describe.skipIf(!enabled)("tier2 tutorial reader (live)", () => {
             ...process.env,
             PATH: `${sandboxBin()}:${process.env.PATH ?? ""}`,
             YNM_NO_CLAUDE_CLI: "1",
+            YNM_HOME: "/tmp/ynm-tutorial/home",
+            YNM_USER: "tutorial",
             CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
           },
         }
