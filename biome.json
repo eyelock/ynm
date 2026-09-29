@@ -46,7 +46,8 @@
       "!**/coverage",
       "!**/*.d.ts",
       "!**/.turbo",
-      "!**/pnpm-lock.yaml"
+      "!**/pnpm-lock.yaml",
+      "!**/test/golden"
     ]
   }
 }

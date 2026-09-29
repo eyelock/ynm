@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ynm": {
+      "type": "http",
+      "url": "https://memory.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer t0k3n"
+      },
+      "tools": [
+        "*"
+      ]
+    }
+  }
+}

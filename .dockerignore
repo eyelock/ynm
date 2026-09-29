@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.turbo
+**/coverage
+.git
+.claude
+.env*
+docs
+infra/aws
+infra/github
+*.log

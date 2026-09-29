@@ -1,0 +1,49 @@
+# Demo topology (ADR-009): one hosted store, one HTTP agent client, one syncing clone.
+#   infra/docker/demo.sh   (brings up the store, runs the agent, then the clone)
+services:
+  store:
+    build:
+      context: ../..
+    image: ynm:local
+    environment:
+      YNM_MCP_TOKEN: demo-token
+      YNM_GIT_DAEMON: "1"
+      YNM_DREAM_EVERY: 30s
+    ports:
+      - "3000:3000"
+      - "9418:9418"
+    volumes:
+      - store:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  agent:
+    image: ynm:local
+    profiles: ["demo"]
+    depends_on:
+      store:
+        condition: service_healthy
+    environment:
+      YNM_URL: http://store:3000/mcp
+      YNM_MCP_TOKEN: demo-token
+    entrypoint: ["node", "/app/infra/docker/demo-agent.mjs"]
+    volumes:
+      - ./demo-agent.mjs:/app/infra/docker/demo-agent.mjs:ro
+
+  clone:
+    image: ynm:local
+    profiles: ["demo"]
+    depends_on:
+      store:
+        condition: service_healthy
+    environment:
+      YNM_HOME: /tmp/home
+    entrypoint: ["/bin/sh", "/app/infra/docker/clone.sh"]
+    volumes:
+      - ./clone.sh:/app/infra/docker/clone.sh:ro
+
+volumes:
+  store:

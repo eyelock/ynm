@@ -30,7 +30,8 @@
     "@ynm/index": "workspace:*",
     "zod": "^4.3.6",
     "@ynm/store": "workspace:*",
-    "@ynm/wiki": "workspace:*"
+    "@ynm/wiki": "workspace:*",
+    "jose": "^6.2.12"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

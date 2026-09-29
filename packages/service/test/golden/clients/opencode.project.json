@@ -1,0 +1,18 @@
+{
+  "mcp": {
+    "other": {
+      "type": "local",
+      "command": [
+        "x"
+      ]
+    },
+    "ynm": {
+      "type": "local",
+      "command": [
+        "ynm",
+        "serve"
+      ],
+      "enabled": true
+    }
+  }
+}

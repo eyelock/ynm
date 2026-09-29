@@ -11,7 +11,7 @@ import {
   ynhSkill,
 } from "./index.js";
 
-const stdio = { kind: "stdio" as const, command: "ynm-mcp", args: ["--stdio"] };
+const stdio = { kind: "stdio" as const, command: "ynm", args: ["serve"] };
 
 describe("client adapters (ADR-013)", () => {
   it("claude-code project scope merges .mcp.json and appends a delimited CLAUDE.md block, idempotently", async () => {
@@ -29,7 +29,7 @@ describe("client adapters (ADR-013)", () => {
       mcpServers: Record<string, unknown>;
     };
     expect(Object.keys(cfg.mcpServers).sort()).toEqual(["other", "ynm"]);
-    expect(cfg.mcpServers.ynm).toEqual({ command: "ynm-mcp", args: ["--stdio"] });
+    expect(cfg.mcpServers.ynm).toEqual({ command: "ynm", args: ["serve"] });
     const md = readFileSync(join(cwd, "CLAUDE.md"), "utf8");
     expect(md.startsWith("# Project\n\nExisting notes.\n\n")).toBe(true);
     expect(md.split(CLAUDE_MD_MARKER)).toHaveLength(3);

@@ -14,7 +14,7 @@ pnpm install && pnpm build
 alias ynm="node $PWD/packages/cli/bin/run.js"
 cd /path/to/your/repo
 ynm init                          # anchor, config, shared-only refspecs, pre-push hook
-ynm client install claude-code    # .mcp.json + CLAUDE.md guidance block (project scope)
+ynm client install claude-code    # also: copilot-cli, opencode, pi, ynh (ADR-013)
 ynm remember --type procedural --level distributed --content "Run pnpm check before pushing"
 ynm recall --text "before pushing"
 ynm context                       # the session-start block agents read
@@ -31,8 +31,18 @@ as Ollama). Keys go in `~/.ynm/env` or a gitignored `.env`, never in config.
 
 Personal memory lives in `~/.ynm/store.git` and never enters a project repo. Shared memory lives
 in `refs/notes/ynm/shared/*` of the project and syncs with its remote. The MCP server is
-`ynm-mcp --stdio` (local) or `ynm-mcp --http --port 3000 --token …` (hosted, against a bare repo).
+`ynm serve` (stdio, what clients launch) or `ynm serve --http` (hosted, against a bare repo or
+sqlite, with bearer, OAuth introspection or JWT auth and the dream worker on a timer).
 For ynh harnesses: `ynh install github.com/eyelock/ynm`.
+
+## Hosted
+
+```bash
+docker run -d -p 3000:3000 -v ynm-data:/data -e YNM_MCP_TOKEN=change-me -e YNM_DREAM_EVERY=15m ynm
+infra/docker/demo.sh   # store + an agent with no git + a developer clone syncing through it
+```
+
+Operations (auth modes, key rotation, backups, scaling): [`docs/operations.md`](docs/operations.md).
 
 ## Development
 

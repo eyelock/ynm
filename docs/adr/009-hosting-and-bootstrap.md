@@ -107,3 +107,20 @@ it at consolidation time.
   and plain `git push` would stop pushing the branch.
 - 2026-09-29 (M1): the personal store's anchor is recomputed from its `main` root on every open
   rather than cached in config; cheap and immune to the notes-root confusion above.
+- 2026-09-29 (M5): hosted auth ships as three verifiers behind the SDK's `OAuthTokenVerifier`
+  seam: static tokens, RFC 7662 introspection (cached, copied in spirit from ACME) and JWT via
+  JWKS with jose. The transport uses `verifyBearerToken` and answers RFC 6750 challenges
+  (401 `invalid_token`, 403 `insufficient_scope`); verifiers must throw the SDK's `OAuthError`
+  or the failure becomes a 500, and every `AuthInfo` needs an expiry or the SDK rejects it.
+  Mode is chosen from the environment (`YNM_JWKS_URL` > `YNM_OAUTH_INTROSPECTION_URL` >
+  `YNM_MCP_TOKEN` > none).
+- 2026-09-29 (M5): the dream worker is a scheduler inside the hosted process (`--dream-every`,
+  `--sync-every`), never overlapping runs, stats on `/health`. One binary: `ynm serve` starts
+  the MCP server (stdio by default, `--http` hosted) and is what client adapters register;
+  `ynm-mcp` remains as an alias for the server package. Docker image (`Dockerfile`, alpine,
+  git-daemon optional) and the compose demo under `infra/docker/` prove the topology: an agent
+  with no git and a developer clone that syncs through the container. Binding to `0.0.0.0`
+  disables the Host header check (`--allow-host *`) since a container's own hostname is unknown.
+- 2026-09-29 (M5): operations doc at `docs/operations.md` (auth modes, rotation, `git bundle`
+  backups, one writer per store, clones as remotes). A Gitea container test shows two clones
+  syncing a dedicated shared repo through a forge with concurrent writes merged (NFR-6).

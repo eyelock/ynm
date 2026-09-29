@@ -142,3 +142,10 @@ it at consolidation time.
   at `packages/evals/src/gates/m<n>.gate.test.ts`; each check is named now and is an `it.todo`
   until built. `pnpm gate M<n>` runs one; a milestone closes only when its gate is green with
   zero todos. CI runs the gate named by the `YNM_MILESTONE` repository variable (default M0).
+- 2026-09-29 (M5): hosted integration tests live under `packages/evals/src/tier1/hosted/` and
+  are excluded from the default `pnpm test` (they need a Docker daemon; `pnpm test:hosted`).
+  The Docker test builds the image, checks the bearer challenge, shares memory between two
+  HTTP clients, waits for the in-process dream worker to expire a working memory, then clones
+  the container's repo over git:// and syncs both ways. The Gitea test provisions a forge in a
+  container and syncs two clones with concurrent writes. The M5 gate runs both plus the compose
+  demo; when Docker is absent the gate fails loudly rather than skipping.

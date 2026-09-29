@@ -1,15 +1,28 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { claudeCode } from "./claude-code.js";
+import { copilotCli } from "./copilot-cli.js";
+import { opencode } from "./opencode.js";
+import { pi } from "./pi.js";
 import type { Change, ClientAdapter } from "./types.js";
 import { ynh } from "./ynh.js";
 
+export * from "./agents-md.js";
 export * from "./claude-code.js";
+export * from "./copilot-cli.js";
+export * from "./opencode.js";
+export * from "./pi.js";
 export * from "./types.js";
 export * from "./ynh.js";
 
 /** Registry: a new client is one file plus tests (ADR-013). */
-export const CLIENT_ADAPTERS: readonly ClientAdapter[] = [claudeCode, ynh];
+export const CLIENT_ADAPTERS: readonly ClientAdapter[] = [
+  claudeCode,
+  copilotCli,
+  opencode,
+  pi,
+  ynh,
+];
 
 export function clientAdapter(name: string): ClientAdapter {
   const a = CLIENT_ADAPTERS.find((c) => c.name === name);

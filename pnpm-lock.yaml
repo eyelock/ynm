@@ -32,6 +32,9 @@ importers:
       '@ynm/index':
         specifier: workspace:*
         version: link:../index
+      '@ynm/mcp':
+        specifier: workspace:*
+        version: link:../mcp
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
@@ -167,6 +170,9 @@ importers:
       '@ynm/wiki':
         specifier: workspace:*
         version: link:../wiki
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
       zod:
         specifier: ^4.3.6
         version: 4.6.5

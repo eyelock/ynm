@@ -12,7 +12,7 @@ export const MountConfigSchema = z
   .object({
     id: z.string().min(1),
     level: z.enum(["personal", "distributed"]),
-    provider: z.enum(["git-notes", "fs", "memory"]).default("git-notes"),
+    provider: z.enum(["git-notes", "fs", "sqlite", "memory"]).default("git-notes"),
     path: z.string().min(1).describe("Repository or directory path"),
     anchor: ShaSchema.optional(),
     remote: z.string().optional(),
@@ -35,7 +35,7 @@ export const YnmConfigSchema = z
     anchor: ShaSchema.optional().describe("Anchor commit for this repository's shared notes"),
     remote: z.string().default("origin").describe("Remote used by sync"),
     provider: z
-      .enum(["git-notes", "fs", "memory"])
+      .enum(["git-notes", "fs", "sqlite", "memory"])
       .default("git-notes")
       .describe("Default provider"),
     personalStore: z

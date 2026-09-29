@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Level } from "@ynm/model";
-import { FsLog, GitNotesLog, MemoryLog, type RecordLog, selectAnchor } from "@ynm/store";
+import { FsLog, GitNotesLog, MemoryLog, type RecordLog, SqliteLog, selectAnchor } from "@ynm/store";
 import type { LoadedConfig, MountConfig } from "./config.js";
 import { ensurePersonalStore } from "./personal-store.js";
 import type { WorktreeInfo } from "./worktree.js";
@@ -24,6 +24,12 @@ function openLog(
       return new FsLog(id, level, cfg.path);
     case "memory":
       return new MemoryLog(id, level);
+    case "sqlite":
+      return new SqliteLog(
+        id,
+        level,
+        cfg.path.endsWith(".sqlite") ? cfg.path : join(cfg.path, "store.sqlite")
+      );
     default:
       if (!cfg.anchor) throw new Error(`mount ${id}: git-notes provider needs an anchor`);
       return new GitNotesLog(id, level, { repo: cfg.path, anchor: cfg.anchor, remote: cfg.remote });

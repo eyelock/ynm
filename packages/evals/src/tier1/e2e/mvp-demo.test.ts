@@ -23,7 +23,7 @@ describe("tier1 e2e: MVP demo", () => {
     const mcpConfig = JSON.parse(readFileSync(join(repo, ".mcp.json"), "utf8")) as {
       mcpServers: { ynm: { command: string; args: string[] } };
     };
-    expect(mcpConfig.mcpServers.ynm).toEqual({ command: "ynm-mcp", args: ["--stdio"] });
+    expect(mcpConfig.mcpServers.ynm).toEqual({ command: "ynm", args: ["serve"] });
     expect(existsSync(join(repo, "CLAUDE.md"))).toBe(true);
 
     const session = async () => {

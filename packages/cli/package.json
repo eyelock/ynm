@@ -31,7 +31,8 @@
     "zod": "^4.3.6",
     "@ynm/index": "workspace:*",
     "@ynm/wiki": "workspace:*",
-    "@ynm/models": "workspace:*"
+    "@ynm/models": "workspace:*",
+    "@ynm/mcp": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

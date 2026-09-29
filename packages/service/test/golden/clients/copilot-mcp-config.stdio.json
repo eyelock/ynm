@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ynm": {
+      "type": "local",
+      "command": "ynm",
+      "args": [
+        "serve"
+      ],
+      "tools": [
+        "*"
+      ]
+    }
+  }
+}

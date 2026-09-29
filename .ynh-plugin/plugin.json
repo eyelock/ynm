@@ -16,9 +16,9 @@
   "default_vendor": "claude",
   "mcp_servers": {
     "ynm": {
-      "command": "ynm-mcp",
+      "command": "ynm",
       "args": [
-        "--stdio"
+        "serve"
       ]
     }
   },

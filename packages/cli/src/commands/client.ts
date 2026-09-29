@@ -22,10 +22,14 @@ function run(argv: string[]): Promise<void> {
 }
 
 export default class Client extends YnmCommand {
-  static override description = "Install or inspect ynm in an agent client (claude-code, ynh)";
+  static override description =
+    "Install or inspect ynm in an agent client (claude-code, copilot-cli, opencode, pi, ynh)";
   static override examples = [
     "<%= config.bin %> <%= command.id %> install claude-code",
     "<%= config.bin %> <%= command.id %> install claude-code --scope user",
+    "<%= config.bin %> <%= command.id %> install copilot-cli --http https://memory.example.com/mcp --token $TOKEN",
+    "<%= config.bin %> <%= command.id %> install opencode",
+    "<%= config.bin %> <%= command.id %> install pi --scope user",
     "<%= config.bin %> <%= command.id %> install ynh",
     "<%= config.bin %> <%= command.id %> status",
   ];
@@ -67,7 +71,7 @@ export default class Client extends YnmCommand {
     const adapter = clientAdapter(args.name);
     const transport = flags.http
       ? { kind: "http" as const, url: flags.http, bearer: flags.token }
-      : { kind: "stdio" as const, command: "ynm-mcp", args: ["--stdio"] };
+      : { kind: "stdio" as const, command: "ynm", args: ["serve"] };
     const plan = await adapter.plan({
       cwd,
       home: process.env.HOME ?? home,

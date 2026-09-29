@@ -93,3 +93,9 @@ Dated notes added while building. Anything here that changes the Decision above 
 it at consolidation time.
 
 - (none yet)
+- 2026-09-29 (M5): `SqliteLog` (`node:sqlite`, WAL, busy timeout) passes the same conformance
+  suite as git-notes, fs and memory, including cross-process concurrent writers. Shards are rows
+  with a revision counter so index freshness works unchanged; `purge` bumps the touched shards.
+  It is selectable as the default provider or per mount (`provider: "sqlite"`), and the hosted
+  HTTP suite runs unchanged on git-notes and sqlite. No sync: it is the scale escape hatch and
+  the git-free option, not a replicated store.
