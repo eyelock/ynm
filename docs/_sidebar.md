@@ -21,6 +21,7 @@
 * **How-to guides**
   * [Retrofit an existing repo](/how-to/retrofit-an-existing-repo.md)
   * [Share an org store](/how-to/share-an-org-store.md)
+  * [Choose the SQLite provider](/how-to/choose-the-sqlite-provider.md)
   * [Operate a hosted store](/how-to/operate-a-hosted-store.md)
   * [Cut a release](/how-to/cut-a-release.md)
 
