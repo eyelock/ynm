@@ -38,8 +38,7 @@ ynm recall --text "before pushing"
 
 - [Tutorials](docs/tutorial/README.md): ordered lessons that double as the acceptance tests.
 - [How-to guides](docs/how-to/README.md): hosted stores, keys, releases.
-- [Explanation](docs/explanation/README.md): the six memory types, and the
-  [decision records](docs/adr/README.md) behind the design.
+- [Explanation](docs/explanation/README.md): the six memory types, and why ynm works as it does.
 - [Reference](docs/reference/README.md): commands, tools, configuration.
 
 Contributing, building and running the evals: [CONTRIBUTING.md](CONTRIBUTING.md).

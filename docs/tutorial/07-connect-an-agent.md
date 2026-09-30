@@ -343,7 +343,7 @@ memory_* tools over the ynm CLI`, `ynm-memory skill`), then the two files:
 .pi/skills/ynm-memory/SKILL.md
 ```
 
-`ynm.ts` is generated; its first line says so and names `pnpm gen:clients`. Every `memory_*`
+`ynm.ts` is generated; its first line says so. Every `memory_*`
 tool in it shells out to `ynm <command> --json`, so `ynm` must be on the PATH Pi runs with. The
 skill carries the same guidance text as the `AGENTS.md` block.
 

@@ -39,7 +39,6 @@
   * [Personal and distributed memory](/explanation/personal-and-distributed.md)
   * [How recall ranks](/explanation/how-recall-ranks.md)
   * [Dreaming](/explanation/dreaming.md)
-  * [Decision records (ADRs)](/adr/README.md)
 
 * **Reference**
   * [Reference overview](/reference/README.md)
@@ -49,4 +48,3 @@
   * [Record format](/reference/record-format.md)
   * [Memory types](/reference/memory-types.md)
   * [Exit codes and JSON output](/reference/exit-codes-and-json.md)
-  * [Requirements (ADR-000)](/adr/000-requirements.md)

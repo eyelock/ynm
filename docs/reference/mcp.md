@@ -39,7 +39,7 @@ CLI: `ynm remember`.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type (ADR-001) |
+| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
 | `level` | `personal` \| `distributed` |  | `personal` | personal never leaves the user's store by default |
 | `namespace` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `content` | string (max 65536) | yes |  | Markdown; the memory itself |

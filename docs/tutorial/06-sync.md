@@ -195,8 +195,8 @@ cd /tmp/ynm-tutorial/alice
 ynm doctor
 ```
 
-Expected: every line starts with `ok`. Among them are `distributed fetch refspec`, `personal refs never pushed: no personal refspecs in remote config (ADR-007)`,
-`no personal refs in project repo: ok (ADR-007)` and `pre-push hook`. The two mount lines
+Expected: every line starts with `ok`. Among them are `distributed fetch refspec`, `personal refs never pushed: no personal refspecs in remote config`,
+`no personal refs in project repo: ok` and `pre-push hook`. The two mount lines
 report `"remote":"origin"`. Any `client` lines at the end are agent clients found on your
 machine, each saying `ynm not registered`: `ynm init` configured none in Alice's clone.
 

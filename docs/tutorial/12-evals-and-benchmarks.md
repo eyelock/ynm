@@ -64,7 +64,7 @@ make gate M=M0
 Expected: five passing checks and nothing pending, ending with `Tests  5 passed (5)`:
 
 ```text
- ✓ ... > gate M0: skeleton > repo carries the ADR record (docs/adr/README.md and ADR-000)
+ ✓ ... > gate M0: skeleton > repo carries its design record and requirements
  ✓ ... > gate M0: skeleton > ynh plugin manifest parses and declares the ynm MCP server
  ✓ ... > gate M0: skeleton > every package builds to dist with a type declaration
  ✓ ... > gate M0: skeleton > `ynm status --json` reports name and version
@@ -224,5 +224,5 @@ Nothing to remove, apart from any datasets you downloaded into `~/.ynm/bench`, a
 unset YNM_REPO
 ```
 
-This is the last tutorial. To go on, see the how-to guides for specific jobs, or the
-[decision records](../adr/README.md) for why ynm works the way it does.
+This is the last tutorial. To go on, see the [how-to guides](../how-to/README.md) for specific
+jobs, or the [explanation](../explanation/README.md) pages for why ynm works the way it does.

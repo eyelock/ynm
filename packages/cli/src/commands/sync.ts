@@ -22,7 +22,10 @@ export default class Sync extends YnmCommand {
   async run(): Promise<void> {
     const { flags } = await this.parse(Sync);
     if (flags.mount === "personal" && !flags.remote)
-      this.error("syncing the personal store needs an explicit --remote (ADR-007)", { exit: 2 });
+      this.error(
+        "syncing the personal store needs an explicit --remote: personal memory never goes to a project's remote",
+        { exit: 2 }
+      );
     const { ynm } = await this.open(flags);
     const results = await ynm.sync({
       remote: flags.remote,

@@ -178,7 +178,7 @@ database memory. `review list` still shows the Thursday memory: the heuristic ru
 earlier and nothing has cleared that flag, so clear it now with `ynm review clear <id>` if you
 like. Each judgment is stored on the memory it changed, with the questions asked, the
 probabilities, the model and its version, so you can see why. Judges advise; the code applies
-thresholds and does the writing (ADR-012).
+thresholds and does the writing.
 
 ## Cleanup
 

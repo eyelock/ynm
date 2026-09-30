@@ -2,8 +2,7 @@
 
 ynm keeps memory in git notes: refs under `refs/notes/ynm/`, next to the code, in the same
 repository, moved by the same `git fetch` and `git push`. This page explains why, what that
-buys you, and what it costs. [ADR-003](../adr/003-git-notes-layout.md) records the layout and
-[ADR-009](../adr/009-hosting-and-bootstrap.md) the hosting choices that follow from it.
+buys you, and what it costs.
 
 ## The problem
 

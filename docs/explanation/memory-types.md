@@ -7,7 +7,7 @@ it, when to write and read it, what ynm does with it on its own, and how you set
 
 The taxonomy is the one production agent-memory systems have converged on (working, episodic,
 semantic, procedural, from the CoALA paper) plus two that nearly every product adds: reflective
-and reference. [ADR-001](../adr/001-memory-model.md) records the decision.
+and reference.
 
 ## At a glance
 

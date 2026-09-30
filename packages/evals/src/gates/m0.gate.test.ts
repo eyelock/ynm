@@ -15,7 +15,7 @@ function run(cmd: string, args: string[]): string {
 }
 
 describe("gate M0: skeleton", () => {
-  it("repo carries the ADR record (docs/adr/README.md and ADR-000)", () => {
+  it("repo carries its design record and requirements", () => {
     expect(existsSync(join(repo, "docs", "adr", "README.md"))).toBe(true);
     expect(existsSync(join(repo, "docs", "adr", "000-requirements.md"))).toBe(true);
   });

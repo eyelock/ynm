@@ -48,8 +48,8 @@ guidance or hooks missing would be a `warn` line naming `ynm client install <cli
 
 ```text
 ok    distributed fetch refspec: +refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*
-ok    personal refs never pushed: no personal refspecs in remote config (ADR-007)
-ok    no personal refs in project repo: ok (ADR-007)
+ok    personal refs never pushed: no personal refspecs in remote config
+ok    no personal refs in project repo: ok
 ok    pre-push hook: <project path>/.git/hooks/pre-push
 ```
 

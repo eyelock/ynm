@@ -107,7 +107,7 @@ export async function doctor(opts: {
         add(
           "personal refs never pushed",
           !/personal/.test(pushes) && !/personal/.test(fetches),
-          "no personal refspecs in remote config (ADR-007)"
+          "no personal refspecs in remote config"
         );
       } else {
         add("remote", true, `remote "${remote}" not configured; sync unavailable`, "warn");
@@ -119,7 +119,7 @@ export async function doctor(opts: {
       add(
         "no personal refs in project repo",
         personalRefs.trim() === "",
-        personalRefs.trim() === "" ? "ok (ADR-007)" : personalRefs.trim()
+        personalRefs.trim() === "" ? "ok" : personalRefs.trim()
       );
       const hooksDir = (
         (await gitOrNull(["rev-parse", "--path-format=absolute", "--git-path", "hooks"], {

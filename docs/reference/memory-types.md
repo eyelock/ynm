@@ -1,9 +1,8 @@
 # Memory types reference
 
 The six values of `type`, the rules each one carries, and the ranker constants that depend on
-it. The half-life and weight tables are generated from the ranker by `pnpm docs:gen`. For what
-each type is for and when to use it, read [The six memory types](../explanation/memory-types.md);
-[ADR-001](../adr/001-memory-model.md) records the decision.
+it. The half-life and weight tables are generated from the ranker. For what
+each type is for and when to use it, read [The six memory types](../explanation/memory-types.md).
 
 ## Types
 

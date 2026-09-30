@@ -56,10 +56,7 @@ export const YnmConfigSchema = z
       .optional()
       .describe("Explicit extra mounts (org stores, hosted stores)"),
     hooks: z.boolean().default(true).describe("Install git hooks on init"),
-    index: z
-      .enum(["sqlite-fts", "memory"])
-      .default("sqlite-fts")
-      .describe("Index implementation (ADR-005)"),
+    index: z.enum(["sqlite-fts", "memory"]).default("sqlite-fts").describe("Index implementation"),
     dream: DreamConfigSchema.prefault({}).describe("Judge, Writer and consolidation thresholds"),
   })
   .strict();

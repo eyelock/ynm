@@ -2,9 +2,7 @@
 
 The on-disk format: one JSON object per line, one line per change, never edited. A memory is
 the fold of every record that shares its `memoryId`. The field table and the lists of ops and
-relations are generated from the record schema by `pnpm docs:gen`.
-[ADR-002](../adr/002-record-format.md) and [ADR-003](../adr/003-git-notes-layout.md) record the
-decisions.
+relations are generated from the record schema, so they always match the code.
 
 ## Record fields
 
@@ -15,7 +13,7 @@ decisions.
 | `id` | string | yes | Record id; sortable by time |
 | `memoryId` | string | yes | Memory this record belongs to; equals id for the first record |
 | `op` | `create` \| `supersede` \| `annotate` \| `tombstone` \| `purge-marker` \| `snapshot` | yes | What the record does to its memory (see the list below) |
-| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes | Memory type (ADR-001) |
+| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes | Memory type |
 | `level` | `personal` \| `distributed` | yes | personal never leaves the user's store by default |
 | `namespace` | string (max 512) | yes | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `subject` | string (max 200) |  | Entity or topic key, e.g. entity:git-notes |
@@ -32,7 +30,7 @@ decisions.
 | `validFrom` | date-time |  | Event time the memory became true |
 | `validTo` | date-time or null |  | Event time it stopped being true |
 | `ttl` | string |  | Working memory only |
-| `provenance` | object | yes | Where the record came from (ADR-002) |
+| `provenance` | object | yes | Where the record came from |
 | `provenance.actor` | string | yes | Who wrote it, e.g. agent:claude-code or user:david |
 | `provenance.session` | string |  | Session id |
 | `provenance.source` | string |  | Source reference: URL, file, ticket, tool call |

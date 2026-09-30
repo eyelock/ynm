@@ -194,7 +194,7 @@ ynm export [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--level <value>` | `personal` \| `distributed` |  |  | Only records at this level |
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type (ADR-001) |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type |
 | `--namespace <value>` | string |  |  | Namespace prefix |
 | `--since <value>` | date-time |  |  | Updated at or after |
 | `--until <value>` | date-time |  |  | Updated at or before |
@@ -324,7 +324,7 @@ ynm list [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--level <value>` | `personal` \| `distributed` |  |  | personal never leaves the user's store by default |
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type (ADR-001) |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type |
 | `--namespace <value>` | string |  |  | Namespace prefix |
 | `--since <value>` | date-time |  |  | Updated at or after |
 | `--until <value>` | date-time |  |  | Updated at or before |
@@ -485,7 +485,7 @@ ynm remember [flags]
 
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type (ADR-001) |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
 | `--level <value>` | `personal` \| `distributed` |  | `personal` | personal never leaves the user's store by default |
 | `--namespace <value>` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |

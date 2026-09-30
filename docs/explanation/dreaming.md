@@ -4,8 +4,7 @@ Writing a memory is fast and dumb on purpose: ynm stores what the agent gives it
 happens later, in a separate step called dreaming, which merges duplicates, notices
 contradictions, turns episodes into lessons and throws away scratch state. This page explains the
 passes, how a model's confidence decides what happens, and why the models that judge are kept
-apart from the models that write. [ADR-006](../adr/006-consolidation-lifecycle.md) records the
-lifecycle and [ADR-012](../adr/012-model-seams-judge-and-writer.md) the model seams.
+apart from the models that write.
 
 ## Why not tidy on write
 

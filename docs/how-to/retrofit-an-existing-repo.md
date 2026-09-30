@@ -1,7 +1,7 @@
 # Retrofit an existing repository
 
 Goal: give a repository that already has history, branches and a team a shared ynm memory,
-without disturbing any of it. Background: [ADR-009](../adr/009-hosting-and-bootstrap.md).
+without disturbing any of it.
 
 ## Run init
 

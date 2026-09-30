@@ -1,7 +1,7 @@
 # Configuration reference
 
 Every configuration key, where it is read from, and every environment variable ynm reads. The
-key tables are generated from the configuration schemas by `pnpm docs:gen`; the prose around
+key tables are generated from the configuration schemas; the prose around
 them is not.
 
 ## Files and precedence
@@ -52,7 +52,7 @@ After merging, three keys get runtime defaults when still unset:
 | `mounts[].anchor` | string |  | Anchor commit for this mount's notes |
 | `mounts[].remote` | string |  | Remote used when syncing this mount |
 | `hooks` | boolean | `true` | Install git hooks on init |
-| `index` | `sqlite-fts` \| `memory` | `sqlite-fts` | Index implementation (ADR-005) |
+| `index` | `sqlite-fts` \| `memory` | `sqlite-fts` | Index implementation |
 <!-- /gen:config-keys -->
 
 `anchor` is a full commit id (40 hex characters, or 64 for SHA-256 repositories).
@@ -216,5 +216,5 @@ The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_C
 | `YNM_DEV_BUILD` | Set by the `make install` launcher to the checkout path; `ynm --version` then reports `<version>-dev.<sha>` |
 | `YNM_WRITE_BASELINE` | `1` rewrites the baseline file |
 | `YNM_WRITE_GOLDEN` | `1` rewrites golden files |
-| `YNM_GATE` | Set by `pnpm gate` to the gate being run |
+| `YNM_GATE` | Set by `make gate` to the gate being run |
 | `YNM_MILESTONE` | CI variable naming the gate CI runs |

@@ -3,8 +3,6 @@
 Every memory ynm stores has a `level`, and there are only two: `personal` and `distributed`.
 The level decides where a memory is written, who can ever see it, and whether sync moves it.
 This page explains why the boundary is binary, how it is enforced, and how a memory crosses it.
-[ADR-007](../adr/007-personal-vs-distributed.md) records the decision, and
-[ADR-001](../adr/001-memory-model.md) the level field itself.
 
 ## Two stores, not two flags
 

@@ -172,7 +172,7 @@ No personal ref appears here, and `ynm doctor` checks that it never does:
 ynm doctor
 ```
 
-Expected: every line `ok`, including `no personal refs in project repo: ok (ADR-007)`, the
+Expected: every line `ok`, including `no personal refs in project repo: ok`, the
 pre-push hook, and `remote "origin" not configured; sync unavailable`. Tutorial 6 adds the
 remote. The `client` lines at the end, one per agent client on your machine (there may be none),
 say `ynm not registered` and name the `ynm client install` command, because init configured none
