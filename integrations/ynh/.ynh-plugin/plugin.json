@@ -14,6 +14,15 @@
     "agents"
   ],
   "default_vendor": "claude",
+  "includes": [
+    {
+      "git": "https://github.com/eyelock/ynm",
+      "path": "integrations",
+      "pick": [
+        "skills/ynm-memory"
+      ]
+    }
+  ],
   "mcp_servers": {
     "ynm": {
       "command": "ynm",

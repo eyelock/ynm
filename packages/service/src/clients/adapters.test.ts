@@ -102,8 +102,10 @@ describe("pi adapter (ADR-013)", () => {
     const src = piExtensionSource();
     for (const spec of TOOL_SPECS) expect(src).toContain(`name: ${JSON.stringify(spec.name)},`);
     expect(src).not.toContain("Type.Any(");
-    expect(readFileSync(join(repoRoot, "clients", "pi", "ynm.ts"), "utf8")).toBe(src);
-    expect(readFileSync(join(repoRoot, "clients", "pi", "SKILL.md"), "utf8")).toBe(piSkill());
+    expect(readFileSync(join(repoRoot, "integrations", "pi", "ynm.ts"), "utf8")).toBe(src);
+    expect(
+      readFileSync(join(repoRoot, "integrations", "skills", "ynm-memory", "SKILL.md"), "utf8")
+    ).toBe(piSkill());
     expectGolden("pi-extension.ts.txt", src);
   });
 

@@ -66,13 +66,13 @@ describe("client adapters (ADR-013)", () => {
   it("ynh plugin generation matches the checked-in manifest and skill", () => {
     const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
     const checked = JSON.parse(
-      readFileSync(join(repoRoot, ".ynh-plugin", "plugin.json"), "utf8")
+      readFileSync(join(repoRoot, "integrations", "ynh", ".ynh-plugin", "plugin.json"), "utf8")
     ) as Record<string, unknown>;
     const generated = ynhPlugin({ version: String(checked.version), transport: stdio });
     expect(generated).toEqual(checked);
-    expect(readFileSync(join(repoRoot, "skills", "ynm-memory", "SKILL.md"), "utf8")).toBe(
-      ynhSkill()
-    );
+    expect(
+      readFileSync(join(repoRoot, "integrations", "skills", "ynm-memory", "SKILL.md"), "utf8")
+    ).toBe(ynhSkill());
   });
 
   it("ynh install is a command and status finds an installed harness", async () => {
@@ -81,7 +81,7 @@ describe("client adapters (ADR-013)", () => {
     const plan = await ynh.plan({ cwd: "/x", home, scope: "user", transport: stdio });
     expect(plan[0]).toMatchObject({
       kind: "command",
-      argv: ["ynh", "install", "github.com/eyelock/ynm"],
+      argv: ["ynh", "install", "github.com/eyelock/ynm", "--path", "integrations/ynh"],
     });
     const dir = join(home, ".ynh", "harnesses", "eyelock", "ynm", ".ynh-plugin");
     await applyChanges([
@@ -129,7 +129,11 @@ describe("client adapters (ADR-013)", () => {
     });
     // the skill arrives by include, resolved by ynh; nothing is copied into the harness
     expect((m as unknown as { includes: unknown[] }).includes).toEqual([
-      { git: "https://github.com/eyelock/ynm", pick: ["skills/ynm-memory"] },
+      {
+        git: "https://github.com/eyelock/ynm",
+        path: "integrations",
+        pick: ["skills/ynm-memory"],
+      },
     ]);
     expect(existsSync(join(cwd, "skills"))).toBe(false);
     expect(await ynh.plan({ cwd, home, scope: "project", transport: stdio })).toEqual([]);
@@ -175,5 +179,36 @@ describe("client adapters (ADR-013)", () => {
 
   it("registry rejects unknown clients", () => {
     expect(() => clientAdapter("cursor")).toThrow(/unknown client/);
+  });
+});
+
+describe("ynh include from before the skill moved to integrations/", () => {
+  it("is replaced in place, not duplicated", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
+    mkdirSync(join(cwd, ".ynh-plugin"));
+    const file = join(cwd, ".ynh-plugin", "plugin.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        name: "h",
+        version: "0.1.0",
+        includes: [
+          { git: "https://github.com/eyelock/assistants", path: "skills/dev" },
+          { git: "https://github.com/eyelock/ynm", pick: ["skills/ynm-memory"] },
+        ],
+      })
+    );
+    const plan = await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio });
+    expect(plan[0]?.reason).toMatch(/updated to integrations\)/);
+    await applyChanges(plan);
+    const m = JSON.parse(readFileSync(file, "utf8")) as { includes: unknown[] };
+    expect(m.includes).toEqual([
+      { git: "https://github.com/eyelock/assistants", path: "skills/dev" },
+      {
+        git: "https://github.com/eyelock/ynm",
+        path: "integrations",
+        pick: ["skills/ynm-memory"],
+      },
+    ]);
   });
 });

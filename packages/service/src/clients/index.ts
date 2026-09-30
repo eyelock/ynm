@@ -16,6 +16,7 @@ export * from "./copilot-cli.js";
 export * from "./json-style.js";
 export * from "./opencode.js";
 export * from "./pi.js";
+export * from "./skill.js";
 export * from "./types.js";
 export * from "./ynh.js";
 

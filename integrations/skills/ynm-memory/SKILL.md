@@ -1,6 +1,6 @@
 ---
 name: ynm-memory
-description: Use persistent memory (ynm) deliberately - recall before answering, remember decisions and preferences, supersede rather than duplicate.
+description: Use persistent memory (ynm) deliberately - recall before answering, remember decisions and preferences, supersede rather than duplicate. The memory_* tools come from ynm's MCP server (in Pi, from its extension); every one is also `ynm <command> --json`.
 ---
 
 # Using memory in this session
@@ -44,3 +44,7 @@ secrets, or large pasted content. Prefer a one-line summary and a short body.
   before sharing; promotion copies it into the shared store and links back.
 - A distributed procedural memory is the closest thing to a rule; keep them short, imperative
   and specific to this project.
+
+## CLI parity
+
+Every tool is also a command with the same flags: `ynm remember`, `ynm recall`, `ynm context`, `ynm supersede`, `ynm annotate`, `ynm forget`, `ynm session`, `ynm dream`, `ynm sync`, `ynm status`. Add `--json` for machine-readable output.

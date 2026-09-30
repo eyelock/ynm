@@ -170,7 +170,7 @@ For each client the project uses, it writes, inside the repository only:
 | OpenCode | `opencode.json` | block in `AGENTS.md` | none |
 | Pi | `.pi/extensions/ynm.ts` (Pi has no MCP; the extension runs the CLI) | `.pi/skills/ynm-memory/SKILL.md` | none |
 | ynh, in a harness: via `ynm client install ynh`, not init | `mcp_servers.ynm` in `.ynh-plugin/plugin.json` | a skill include (`github.com/eyelock/ynm`, `skills/ynm-memory`) in the manifest; nothing is copied into the harness | `on_session_start`, `before_prompt`, `on_stop` in the manifest |
-| ynh, elsewhere | printed as `run: ynh install github.com/eyelock/ynm` | in that harness | in that harness |
+| ynh, elsewhere | printed as `run: ynh install github.com/eyelock/ynm --path integrations/ynh` | in that harness | in that harness |
 
 The hooks are what make an agent use ynm rather than its own memory: the session-start hook puts
 the memory context block in front of the agent, and the prompt hook, when the user asks it to

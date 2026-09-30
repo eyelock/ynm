@@ -1,7 +1,7 @@
 import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { guidance } from "@ynm/model";
 import { stringifyLike } from "./json-style.js";
+import { SKILLS_PATH, ynmSkill } from "./skill.js";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
 import { detectBySignals } from "./types.js";
 
@@ -39,6 +39,7 @@ export function ynhPlugin(opts: YnhPluginOptions): Record<string, unknown> {
     author: { name: "eyelock", url: "https://github.com/eyelock" },
     keywords: ["memory", "mcp", "git-notes", "agents"],
     default_vendor: "claude",
+    includes: [{ ...SKILL_INCLUDE, pick: [...SKILL_INCLUDE.pick] }],
     mcp_servers: { ynm: ynhServer(opts.transport) },
     hooks: Object.fromEntries(
       Object.entries(YNH_HOOKS).map(([event, command]) => [event, [{ command }]])
@@ -67,9 +68,8 @@ export function ynhPlugin(opts: YnhPluginOptions): Record<string, unknown> {
 }
 
 /** The skill ynh installs next to the manifest: the guidance, rendered once. */
-export function ynhSkill(): string {
-  return `---\nname: ynm-memory\ndescription: Use persistent memory (ynm) deliberately - recall before answering, remember decisions and preferences, supersede rather than duplicate.\n---\n\n${guidance("session-start").trim()}\n\n${guidance("when-to-remember").trim()}\n\n${guidance("when-to-promote").trim()}\n`;
-}
+/** The skill ynh gets is ynm's one skill (skill.ts), included from `integrations/skills`. */
+export const ynhSkill = ynmSkill;
 
 export const YNH_SOURCE = "github.com/eyelock/ynm";
 
@@ -82,20 +82,30 @@ export const harnessSkillPath = (cwd: string): string =>
  * kept current by ynh, the same way a harness pulls any other skill. Nothing is copied into the
  * harness's own `skills/`.
  */
+/** Where ynm's ynh harness lives in its repository (`ynh install ... --path`, include `path`). */
+export const YNH_PATH = "integrations/ynh";
+
 export const SKILL_INCLUDE = {
   git: "https://github.com/eyelock/ynm",
+  path: SKILLS_PATH,
   pick: ["skills/ynm-memory"],
 } as const;
+
+/** An include entry that points at ynm's repository, current or from before the harness moved. */
+function isYnmInclude(i: unknown): boolean {
+  const inc = i as { git?: unknown };
+  return typeof inc?.git === "string" && /github\.com\/eyelock\/ynm(\.git)?\/?$/.test(inc.git);
+}
 
 function includePresent(m: Manifest): boolean {
   const list = (m as { includes?: unknown }).includes;
   return (
     Array.isArray(list) &&
     list.some((i) => {
-      const inc = i as { git?: unknown; pick?: unknown };
+      const inc = i as { path?: unknown; pick?: unknown };
       return (
-        typeof inc?.git === "string" &&
-        /github\.com\/eyelock\/ynm(\.git)?\/?$/.test(inc.git) &&
+        isYnmInclude(i) &&
+        inc.path === SKILLS_PATH &&
         (!Array.isArray(inc.pick) || inc.pick.includes("skills/ynm-memory"))
       );
     })
@@ -157,11 +167,19 @@ function harnessPlan(t: InstallTarget): Change[] {
   let included = false;
   if (!includePresent(m)) {
     const list = (m as { includes?: unknown }).includes;
+    // An older ynm include (from before the harness moved to integrations/ynh) is replaced in
+    // place, not duplicated.
+    const others = Array.isArray(list) ? list.filter((i) => !isYnmInclude(i)) : [];
+    const replaced = Array.isArray(list) && others.length < list.length;
     (next as { includes?: unknown[] }).includes = [
-      ...(Array.isArray(list) ? list : []),
+      ...others,
       { ...SKILL_INCLUDE, pick: [...SKILL_INCLUDE.pick] },
     ];
-    done.push("include of the ynm-memory skill");
+    done.push(
+      replaced
+        ? `include of the ynm-memory skill (updated to ${SKILLS_PATH})`
+        : "include of the ynm-memory skill"
+    );
     included = true;
   }
   let hookCount = 0;
@@ -217,7 +235,7 @@ export const ynh: ClientAdapter = {
     return [
       {
         kind: "command",
-        argv: ["ynh", "install", YNH_SOURCE],
+        argv: ["ynh", "install", YNH_SOURCE, "--path", YNH_PATH],
         reason: "install the ynm harness plugin (MCP server, hooks, skill, focuses, sensor)",
       },
     ];
@@ -244,7 +262,7 @@ export const ynh: ClientAdapter = {
         checked: [
           `manifest  ${file}`,
           `server    ${srv ? `mcp_servers.ynm runs \`${[srv.command, ...((srv.args as string[] | undefined) ?? [])].filter(Boolean).join(" ") || srv.url}\`` : "missing"}`,
-          `guidance  ${includePresent(m as Manifest) ? `includes ${SKILL_INCLUDE.git} ${SKILL_INCLUDE.pick.join(", ")}` : existsSync(harnessSkillPath(cwd)) ? harnessSkillPath(cwd) : "missing"}`,
+          `guidance  ${includePresent(m as Manifest) ? `includes ${SKILL_INCLUDE.git} path ${SKILL_INCLUDE.path} pick ${SKILL_INCLUDE.pick.join(", ")}` : existsSync(harnessSkillPath(cwd)) ? harnessSkillPath(cwd) : "missing"}`,
           `hooks     ${hookNames.length ? hookNames.map(([e, c]) => `${e} runs \`${c}\``).join("; ") : "missing"}`,
         ],
       };
@@ -259,10 +277,14 @@ export const ynh: ClientAdapter = {
       }
     });
     if (!found)
-      return { client: "ynh", configured: false, detail: `run \`ynh install ${YNH_SOURCE}\`` };
+      return {
+        client: "ynh",
+        configured: false,
+        detail: `run \`ynh install ${YNH_SOURCE} --path ${YNH_PATH}\``,
+      };
     const harness = join(found, "..", "..");
     const m = readManifest(harness) ?? {};
-    const guided = existsSync(harnessSkillPath(harness));
+    const guided = includePresent(m as Manifest) || existsSync(harnessSkillPath(harness));
     const hooked = Object.entries(YNH_HOOKS).every(([e, c]) => hookPresent(m as Manifest, e, c));
     return {
       client: "ynh",

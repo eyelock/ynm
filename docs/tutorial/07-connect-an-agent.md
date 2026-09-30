@@ -396,7 +396,7 @@ find . -type f | sort
 Expected: the manifest gained the schema reference, the server, an include of ynm's memory
 skill, and three hooks under ynh's canonical event names, which ynh translates per vendor (for
 Claude Code: `SessionStart`, `UserPromptSubmit`, `Stop`). The skill is an include, not a copy:
-ynh fetches `skills/ynm-memory` from ynm's repository and keeps it current, so nothing is
+ynh fetches `skills/ynm-memory` from `integrations/` in ynm's repository and keeps it current, so nothing is
 written into the harness's own `skills/`, and the manifest is the only file:
 
 ```text
@@ -415,6 +415,7 @@ written into the harness's own `skills/`, and the manifest is the only file:
   "includes": [
     {
       "git": "https://github.com/eyelock/ynm",
+      "path": "integrations",
       "pick": [
         "skills/ynm-memory"
       ]
@@ -455,7 +456,7 @@ include, the hooks, and `ynm` itself on the PATH:
 ynh: valid
   ok    manifest  /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
   ok    server    mcp_servers.ynm runs `ynm serve`
-  ok    guidance  includes https://github.com/eyelock/ynm skills/ynm-memory
+  ok    guidance  includes https://github.com/eyelock/ynm path integrations pick skills/ynm-memory
   ok    hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
   ok    ynm       on PATH
 ```
@@ -477,13 +478,13 @@ ynh:
 already in place, nothing changed:
   manifest  /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
   server    mcp_servers.ynm runs `ynm serve`
-  guidance  includes https://github.com/eyelock/ynm skills/ynm-memory
+  guidance  includes https://github.com/eyelock/ynm path integrations pick skills/ynm-memory
   hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
 ```
 
 The merge keeps whatever indentation and trailing newline the manifest
 already had, so it does not rewrite the rest of the file. Outside a harness,
-`ynm client install ynh` prints `run: ynh install github.com/eyelock/ynm`, which installs ynm's
+`ynm client install ynh` prints `run: ynh install github.com/eyelock/ynm --path integrations/ynh`, which installs ynm's
 own harness with the same hooks.
 
 Once a harness carries ynm, the repositories you work on need nothing for the agent to have it:
