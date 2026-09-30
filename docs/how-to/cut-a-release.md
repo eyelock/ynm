@@ -1,14 +1,22 @@
 # Releasing ynm
 
-1. Land changesets on `main` (`make changeset` for each user-visible change). 0.1.0 is the
-   initial version the packages were born with, so it ships without a changeset.
-2. `make version` bumps package versions and CHANGELOGs from the changesets; commit.
-3. Freeze the evals for the version: `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1 make bench`
-   and the tier 1 quality suites, then `make bench-public` for the tier 3 reports
-   (`packages/evals/reports/<v>/`). Commit both.
+Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes land on
+`develop` through feature pull requests, and a release branch carries them to `main`.
+
+1. Land changesets on `develop` with the features (`make changeset` for each user-visible
+   change).
+2. Cut `release/vX.Y.Z` from `develop`. On it, `make version` bumps package versions and
+   CHANGELOGs from the changesets; commit.
+3. Freeze the evals for the version on the same branch:
+   `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1 make bench` and the tier 1 quality suites,
+   then `make bench-public` for the tier 3 reports (`packages/evals/reports/<v>/`). Commit both.
 4. `make gate M=M6` must be green. Its release check builds the slim tarball and this machine's
    standalone binary and runs both (below).
-5. Tag `v<version>` and push the tag. The `release` workflow then:
+5. Open a pull request from `release/vX.Y.Z` into `main`; merge it with a true merge (not
+   squash) once CI is green. Then open a second pull request from the release branch into
+   `develop` so `develop` has the version bump and frozen evals too (the mandatory back-merge),
+   and delete the release branch after both are in.
+6. Tag `v<version>` on `main` and push the tag. The `release` workflow then:
    - `verify`: re-runs build, check, typecheck, tests and the M6 gate;
    - `build`: on `macos-14` (both darwin targets) and `ubuntu-24.04` (both linux targets),
      builds the four standalone binaries and smoke-tests each runner's native one;
