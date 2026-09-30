@@ -24,7 +24,7 @@ you should see. A model can read a tutorial, run it and check it, exactly as you
 | Tutorial | What you will learn |
 |---|---|
 | [6. Sync](06-sync.md) | A bare remote, two clones, concurrent writes merged, the pre-push hook |
-| [7. Connect an agent](07-connect-an-agent.md) | `ynm init` configures your agent clients, the hooks that bring memory to the agent, `client install` by hand, a ynh harness, `serve` over stdio, a scripted MCP call |
+| [7. Connect an agent](07-connect-an-agent.md) | `ynm init` configures the agent clients a repository uses, the hooks that bring memory to the agent, `client install` by hand, a ynh harness, `serve` over stdio, a scripted MCP call |
 
 ### Consolidate
 
@@ -77,8 +77,9 @@ you are running the checkout, not a release.
 <!-- tabs:end -->
 
 After installing, `ynm init` in a repository is the one setup command: it creates the shared
-memory mount and configures every agent client it detects on the machine. Tutorial 2 shows what
-it does to the repository, tutorial 7 what it does for each client.
+memory mount and configures the agent clients the repository already uses; clients found only on
+the machine get a one-line suggestion. Tutorial 2 shows what it does to the repository, tutorial 7
+what it does for each client, and how a ynh harness gets ynm with `ynm client install ynh`.
 
 ## The sandbox
 
