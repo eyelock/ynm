@@ -170,7 +170,9 @@ describe("openYnm end to end on git notes", () => {
         run: [],
       },
     ]);
-    expect(existsSync(join(repo, ".claude", "settings.json"))).toBe(true);
+    // hooks land in the personal project settings, never the team's tracked settings.json
+    expect(existsSync(join(repo, ".claude", "settings.local.json"))).toBe(true);
+    expect(existsSync(join(repo, ".claude", "settings.json"))).toBe(false);
     const again = await initProject({ cwd: repo, hooks: false, clients });
     expect(again.clients).toEqual([
       { client: "claude-code", detected: ".mcp.json", applied: [], run: [] },
@@ -189,20 +191,29 @@ describe("openYnm end to end on git notes", () => {
     mkdirSync(join(home, ".pi", "agent"), { recursive: true });
     const repo = await createRepo(1);
     const r = await initProject({ cwd: repo, hooks: false, clients: { home, env: { PATH: bin } } });
-    expect(r.clients.map((c) => [c.client, c.detected])).toEqual([
-      ["copilot-cli", "copilot on PATH"],
-      ["pi", "~/.pi/agent"],
+    // Installed on the machine but not used by this project: suggested, never written.
+    expect(r.clients).toEqual([
+      {
+        client: "copilot-cli",
+        detected: "copilot on PATH",
+        applied: [],
+        run: ["ynm client install copilot-cli"],
+        skipped: "machine-only",
+      },
+      {
+        client: "pi",
+        detected: "~/.pi/agent",
+        applied: [],
+        run: ["ynm client install pi"],
+        skipped: "machine-only",
+      },
     ]);
-    const copilot = r.clients.find((c) => c.client === "copilot-cli");
-    expect(copilot).toMatchObject({
-      applied: ["AGENTS.md"],
-      run: ["ynm client install copilot-cli"],
-    });
+    expect(existsSync(join(repo, "AGENTS.md"))).toBe(false);
+    expect(existsSync(join(repo, ".pi"))).toBe(false);
     expect(existsSync(join(home, ".copilot"))).toBe(false);
-    expect(r.clients.find((c) => c.client === "pi")?.applied).toEqual(["extension", "skill"]);
   });
 
-  it("merges ynm into a ynh harness, and --client forces an undetected client", async () => {
+  it("never installs into a ynh harness on its own, and --client forces an undetected client", async () => {
     const home = await createRepo(0);
     const repo = await createRepo(1);
     mkdirSync(join(repo, ".ynh-plugin"));
@@ -211,15 +222,11 @@ describe("openYnm end to end on git notes", () => {
       JSON.stringify({ name: "h", version: "0.1.0" })
     );
     const clients = { home, env: { PATH: "" } };
+    const manifest = readFileSync(join(repo, ".ynh-plugin", "plugin.json"), "utf8");
     const r = await initProject({ cwd: repo, hooks: false, clients });
-    expect(r.clients).toEqual([
-      {
-        client: "ynh",
-        detected: ".ynh-plugin/plugin.json",
-        applied: ["harness manifest, 3 hooks", "skill"],
-        run: ["ynd validate ."],
-      },
-    ]);
+    expect(r.clients).toEqual([]);
+    expect(readFileSync(join(repo, ".ynh-plugin", "plugin.json"), "utf8")).toBe(manifest);
+    expect(existsSync(join(repo, "skills"))).toBe(false);
     const forced = await initProject({
       cwd: repo,
       hooks: false,
@@ -233,6 +240,16 @@ describe("openYnm end to end on git notes", () => {
         run: [],
       },
     ]);
+  });
+
+  it("refuses a ynh harness directory with a pointer to the harness install", async () => {
+    const dir = await createRepo(0);
+    const harness = join(dir, "..", `harness-${Date.now()}`);
+    mkdirSync(join(harness, ".ynh-plugin"), { recursive: true });
+    writeFileSync(join(harness, ".ynh-plugin", "plugin.json"), JSON.stringify({ name: "h" }));
+    await expect(initProject({ cwd: harness })).rejects.toThrow(
+      /ynh harness, not a project.*ynm client install ynh/
+    );
   });
 
   it("doctor warns about a client with the server but no guidance or hooks", async () => {

@@ -89,10 +89,22 @@ export default class Init extends YnmCommand {
           ? [`  hooks     ${report.hooksInstalled.join(", ")}`]
           : []),
         ...report.notes.map((n) => `  note      ${n}`),
-        ...report.clients.flatMap((c) => [
-          `  client    ${c.client}: ${c.applied.length ? c.applied.join(", ") : "unchanged"}`,
-          ...c.run.map((r) => `  run:      ${r}`),
-        ]),
+        ...report.clients
+          .filter((c) => !c.skipped)
+          .flatMap((c) => [
+            `  client    ${c.client}: ${c.applied.length ? c.applied.join(", ") : "unchanged"}`,
+            ...c.run.map((r) => `  run:      ${r}`),
+          ]),
+        ...(report.clients.some((c) => c.skipped)
+          ? [
+              `  also      ${report.clients
+                .filter((c) => c.skipped)
+                .map((c) => c.client)
+                .join(
+                  ", "
+                )} on this machine but not used here; add one with \`ynm client install <name>\``,
+            ]
+          : []),
         'next: `ynm remember --type semantic --content "..."` and `ynm doctor`',
       ].join("\n")
     );

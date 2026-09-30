@@ -78,15 +78,20 @@ export function claudeHooksChange(file: string, reason: string): Change | null {
   };
 }
 
+/**
+ * Where the hooks go: the user's settings for user scope; for a project, Claude Code's personal
+ * project file `.claude/settings.local.json`, never the team's tracked `.claude/settings.json`,
+ * because a hook that runs `ynm` fails for every teammate who does not have it.
+ */
 export function claudeSettingsPath(t: Pick<InstallTarget, "cwd" | "home" | "scope">): string {
   return t.scope === "user"
     ? join(t.home, ".claude", "settings.json")
-    : join(t.cwd, ".claude", "settings.json");
+    : join(t.cwd, ".claude", "settings.local.json");
 }
 
 /**
  * Claude Code: project scope writes `.mcp.json` (mcpServers), a delimited block in CLAUDE.md
- * and the hooks in `.claude/settings.json`; user scope goes through `claude mcp add` so the
+ * and the hooks in `.claude/settings.local.json`; user scope goes through `claude mcp add` so the
  * user's own server config is not hand-edited, and merges the hooks into
  * `~/.claude/settings.json` (Claude Code has no command for hooks).
  */
@@ -166,8 +171,10 @@ export const claudeCode: ClientAdapter = {
     const guided = [join(cwd, "CLAUDE.md"), join(home, ".claude", "CLAUDE.md")].some(
       (f) => existsSync(f) && readFileSync(f, "utf8").includes(CLAUDE_MD_MARKER)
     );
+    // A team may also have put them in the shared settings on purpose; any of the three counts.
     const hookFiles = [
       claudeSettingsPath({ cwd, home, scope: "project" }),
+      join(cwd, ".claude", "settings.json"),
       claudeSettingsPath({ cwd, home, scope: "user" }),
     ];
     const hooked = Object.keys(CLAUDE_HOOKS).every((event) =>

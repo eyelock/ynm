@@ -232,9 +232,9 @@ exec ${process.execPath} ${join(repoRoot, "packages", "cli", "bin", "run.js")} "
 });
 
 describe("claude-code hooks (ADR-016)", () => {
-  it("merges the three hooks into .claude/settings.json, keeping other hooks and keys, once", async () => {
+  it("merges the three hooks into .claude/settings.local.json, keeping other hooks and keys, once", async () => {
     const { cwd, home } = temp();
-    const settings = join(cwd, ".claude", "settings.json");
+    const settings = join(cwd, ".claude", "settings.local.json");
     mkdirSync(join(cwd, ".claude"), { recursive: true });
     writeFileSync(
       settings,
@@ -270,7 +270,7 @@ describe("claude-code hooks (ADR-016)", () => {
     await applyChanges(
       await claudeCode.plan({ cwd, home, scope: "project", transport: stdio, hooks: false })
     );
-    expect(existsSync(join(cwd, ".claude", "settings.json"))).toBe(false);
+    expect(existsSync(join(cwd, ".claude", "settings.local.json"))).toBe(false);
     const s = await claudeCode.status({ cwd, home });
     expect(s).toMatchObject({ configured: true, guidance: true, hooks: false });
     const report = (await clientReports({ cwd, home })).find((r) => r.client === "claude-code");

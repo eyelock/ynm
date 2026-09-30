@@ -85,7 +85,13 @@ async function ensureExcluded(repo: string, entries: string[]): Promise<string[]
  */
 export async function initProject(opts: InitProjectOptions): Promise<InitReport> {
   const wt = await detectWorktree(opts.cwd);
-  if (!wt.isGitRepo) throw new Error(`${opts.cwd} is not inside a git repository`);
+  if (!wt.isGitRepo) {
+    if (existsSync(join(opts.cwd, ".ynh-plugin", "plugin.json")))
+      throw new Error(
+        `${opts.cwd} is a ynh harness, not a project: memory is initialised in the repositories you work on. To add ynm to this harness run \`ynm client install ynh\``
+      );
+    throw new Error(`${opts.cwd} is not inside a git repository`);
+  }
   const repo = wt.mainRepoPath;
   const env = await identityEnv(repo);
   const notes: string[] = [];

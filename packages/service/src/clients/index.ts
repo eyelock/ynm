@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { claudeCode } from "./claude-code.js";
 import { copilotCli } from "./copilot-cli.js";
+import { stringifyLike } from "./json-style.js";
 import { opencode } from "./opencode.js";
 import { pi } from "./pi.js";
 import type { Change, ClientAdapter, ClientStatus, DetectTarget } from "./types.js";
@@ -10,6 +11,7 @@ import { ynh } from "./ynh.js";
 export * from "./agents-md.js";
 export * from "./claude-code.js";
 export * from "./copilot-cli.js";
+export * from "./json-style.js";
 export * from "./opencode.js";
 export * from "./pi.js";
 export * from "./types.js";
@@ -116,11 +118,10 @@ export async function applyChanges(changes: Change[], opts: ApplyOptions = {}): 
       writeFileSync(c.path, c.content);
       done.push(`wrote ${c.path}`);
     } else if (c.kind === "merge-json") {
-      const existing = existsSync(c.path)
-        ? (JSON.parse(readFileSync(c.path, "utf8")) as Record<string, unknown>)
-        : {};
+      const raw = existsSync(c.path) ? readFileSync(c.path, "utf8") : undefined;
+      const existing = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
       mkdirSync(dirname(c.path), { recursive: true });
-      writeFileSync(c.path, `${JSON.stringify(deepMerge(existing, c.patch), null, 2)}\n`);
+      writeFileSync(c.path, stringifyLike(raw, deepMerge(existing, c.patch)));
       done.push(`merged ${c.path}`);
     } else if (c.kind === "note") {
       done.push(`next: ${c.text}`);
@@ -154,6 +155,11 @@ export interface ClientSetup {
   applied: string[];
   /** Steps left for the user: commands, or installs that touch files outside the project. */
   run: string[];
+  /**
+   * Set when the client is on this machine but the project shows no sign of using it: init
+   * writes nothing for it and suggests the install command instead.
+   */
+  skipped?: "machine-only";
 }
 
 export interface ConfigureClientsOptions extends DetectTarget {
@@ -177,7 +183,23 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
   const out: ClientSetup[] = [];
   for (const a of adapters) {
     const d = await a.detect(opts);
-    if (!opts.only?.length && !d.installed) continue;
+    if (!opts.only?.length) {
+      // A ynh harness is configured on purpose (`ynm client install ynh`), never by init: a repo
+      // that holds a harness manifest may be a harness product, not a harness to install into.
+      if (a.name === "ynh" || !d.installed) continue;
+      // Only clients the project already uses get files; one installed on the machine alone is
+      // a suggestion, so init never adds a client's config to a repository that doesn't use it.
+      if (d.signals && !d.signals.project) {
+        out.push({
+          client: a.name,
+          detected: d.detail,
+          applied: [],
+          run: [`ynm client install ${a.name}`],
+          skipped: "machine-only",
+        });
+        continue;
+      }
+    }
     const plan = await a.plan({
       cwd: opts.cwd,
       home: opts.home,

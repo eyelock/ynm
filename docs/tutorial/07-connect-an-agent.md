@@ -106,7 +106,7 @@ file is safe, and installing again is harmless.
 The hooks, in the project's Claude Code settings:
 
 ```bash
-cat .claude/settings.json
+cat .claude/settings.local.json
 ```
 
 Expected: three events, each running a `ynm hook` subcommand:

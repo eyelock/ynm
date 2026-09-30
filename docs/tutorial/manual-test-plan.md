@@ -128,7 +128,7 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 7.2 | [One command: `ynm init`](07-connect-an-agent.md#one-command-ynm-init) | `ynm init --client claude-code` |  |
 | 7.3 | [What Claude Code got](07-connect-an-agent.md#what-claude-code-got) | `cat .mcp.json` |  |
 | 7.4 | [What Claude Code got (2)](07-connect-an-agent.md#what-claude-code-got) | `cat CLAUDE.md` |  |
-| 7.5 | [What Claude Code got (3)](07-connect-an-agent.md#what-claude-code-got) | `cat .claude/settings.json` |  |
+| 7.5 | [What Claude Code got (3)](07-connect-an-agent.md#what-claude-code-got) | `cat .claude/settings.local.json` |  |
 | 7.6 | [What the hooks do](07-connect-an-agent.md#what-the-hooks-do) | `ynm remember --type semantic --content "The user likes to be called D...` |  |
 | 7.7 | [What the hooks do (2)](07-connect-an-agent.md#what-the-hooks-do) | `echo '{"session_id":"tutorial-session","hook_event_name":"UserPromptS...` |  |
 | 7.8 | [What the hooks do (3)](07-connect-an-agent.md#what-the-hooks-do) | `echo '{"session_id":"tutorial-session","hook_event_name":"Stop"}' \| y...` |  |
