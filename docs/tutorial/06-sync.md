@@ -71,14 +71,14 @@ git -C /tmp/ynm-tutorial/alice config --get-all remote.origin.push || echo "no p
 ```
 
 Expected: the fetch lines are the ordinary branch refspec and a second one that brings the
-remote's shared memory into a separate namespace, so it can be merged rather than overwritten:
+remote's distributed memory into a separate namespace, so it can be merged rather than overwritten:
 
 ```text
 +refs/heads/*:refs/remotes/origin/*
 +refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*
 ```
 
-The second command prints only `no push refspec`: there are no push lines. Only `shared` is ever mapped; the
+The second command prints only `no push refspec`: there are no push lines. Only `distributed` is ever mapped; the
 personal level has no refspec at all.
 
 Now Bob:
@@ -106,7 +106,7 @@ Expected: `remembered <26-character id> in project` from each.
 
 ## Sync
 
-`ynm sync` fetches the remote's shared memory, merges it into yours, and pushes. Alice goes
+`ynm sync` fetches the remote's distributed memory, merges it into yours, and pushes. Alice goes
 first:
 
 ```bash
@@ -160,7 +160,7 @@ git -C /tmp/ynm-tutorial/remote.git for-each-ref --format='%(refname)'
 ```
 
 Expected: `remembered <id> in personal`, a sync line, and the remote's refs, only the code branch
-and the shared memory:
+and the distributed memory:
 
 ```text
 refs/heads/main
@@ -185,7 +185,7 @@ Expected: two trace lines that run `.git/hooks/pre-push origin <remote path>`. T
 
 Two things to know about it. It never blocks a push: it ends with `exit 0` even if sync fails,
 and you can repair with a manual `ynm sync`. And the push above found nothing new to send; when
-a push does carry new shared memory, the hook publishes it first, then git pushes the branch and
+a push does carry new distributed memory, the hook publishes it first, then git pushes the branch and
 exits 0.
 
 ## Doctor sees the remote

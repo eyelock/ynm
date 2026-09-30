@@ -186,7 +186,7 @@ CLI: `ynm dream`.
 
 ### memory_sync
 
-Fetch, merge and push shared memory with the configured remote. Personal memory is never synced by this tool.
+Fetch, merge and push distributed memory with the configured remote. Personal memory is never synced by this tool.
 
 CLI: `ynm sync`.
 

@@ -67,4 +67,4 @@ follow, is explained in [How recall ranks](../explanation/how-recall-ranks.md).
 | Level | Default namespace | Lives in | Synced by `ynm sync` |
 |---|---|---|---|
 | `personal` (default) | `user/<userId>` | the personal store, `~/.ynm/store.git` | only with `--mount personal` and an explicit `--remote` |
-| `distributed` | `common` | the project repository's `shared` refs, or a configured mount | yes |
+| `distributed` | `common` | the project repository's `distributed` refs, or a configured mount | yes |

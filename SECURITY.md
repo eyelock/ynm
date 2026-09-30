@@ -18,6 +18,6 @@ anything confirmed. Credit is given in the release notes unless you ask otherwis
 
 ynm stores memory in git repositories and serves it over MCP. Reports about these are
 especially welcome: a distributed write that bypasses the redaction gate, a personal record
-reaching a shared ref, an authentication bypass on the hosted HTTP transport, a client adapter
+reaching a distributed ref, an authentication bypass on the hosted HTTP transport, a client adapter
 writing outside the paths it documents, or the model-backed passes acting where the design
 says they may only flag.

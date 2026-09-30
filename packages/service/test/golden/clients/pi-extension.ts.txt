@@ -123,7 +123,7 @@ export default function ynm(pi: PiApi): void {
   pi.registerTool({
     name: "memory_sync",
     label: "Memory: sync",
-    description: "Fetch, merge and push shared memory with the configured remote. Personal memory is never synced by this tool.",
+    description: "Fetch, merge and push distributed memory with the configured remote. Personal memory is never synced by this tool.",
     parameters: Type.Object({ "remote": Type.Optional(Type.String({"description":"Remote name"})), "push": Type.Optional(Type.Boolean({"description":"Push after merging","default":true})), "pull": Type.Optional(Type.Boolean({"description":"Fetch and merge first","default":true})), "dryRun": Type.Optional(Type.Boolean({"description":"Report what would change","default":false})), "mount": Type.Optional(Type.String({"description":"Only this mount"})) }, {"additionalProperties":false}),
     execute: async (_toolCallId, params) => run("sync", params as Record<string, unknown>),
   });

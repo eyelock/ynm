@@ -35,7 +35,7 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 2.2 | [Initialise the repository](02-project-memory.md#initialise-the-repository) | `ynm init` |  |
 | 2.3 | [Initialise the repository (2)](02-project-memory.md#initialise-the-repository) | `cat .ynm/config.json` |  |
 | 2.4 | [Two mounts](02-project-memory.md#two-mounts) | `ynm status` |  |
-| 2.5 | [Write shared memory](02-project-memory.md#write-shared-memory) | `ynm remember --type procedural --level distributed --content "Run pnp...` |  |
+| 2.5 | [Write distributed memory](02-project-memory.md#write-distributed-memory) | `ynm remember --type procedural --level distributed --content "Run pnp...` |  |
 | 2.6 | [Namespaces](02-project-memory.md#namespaces) | `ynm remember --type semantic --level distributed --namespace org/eyel...` |  |
 | 2.7 | [Namespaces (2)](02-project-memory.md#namespaces) | `ynm recall --text "deploys" --namespace org/eyelock` |  |
 | 2.8 | [The redaction gate](02-project-memory.md#the-redaction-gate) | `ynm remember --type semantic --level distributed --content "Deploy to...` |  |

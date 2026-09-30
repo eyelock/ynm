@@ -78,7 +78,7 @@ export async function doctor(opts: {
       add(
         "project initialised",
         false,
-        "no .ynm/config.json; run `ynm init` to add a shared project mount",
+        "no .ynm/config.json; run `ynm init` to add a distributed project mount",
         "warn"
       );
     } else {

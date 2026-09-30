@@ -47,7 +47,7 @@ export const DISTRIBUTED_FETCH = (remote: string): string =>
   `+${NOTES_PREFIX}/distributed/*:${REMOTE_PREFIX}/${remote}/distributed/*`;
 
 const PRE_PUSH_HOOK = `#!/bin/sh
-# ynm: sync shared memory notes alongside code pushes (installed by \`ynm init\`)
+# ynm: sync distributed memory notes alongside code pushes (installed by \`ynm init\`)
 [ -n "$YNM_SYNC_IN_PROGRESS" ] && exit 0
 command -v ynm >/dev/null 2>&1 && ynm sync --quiet || true
 exit 0

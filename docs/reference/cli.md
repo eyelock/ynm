@@ -42,7 +42,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`session`](#ynm-session) | Start a session (prints the context block) or end one (expires working memory) |
 | [`status`](#ynm-status) | Mounts, shard counts and index freshness. |
 | [`supersede`](#ynm-supersede) | Record a new version of an existing memory |
-| [`sync`](#ynm-sync) | Fetch, merge and push shared memory (never personal unless --mount personal) |
+| [`sync`](#ynm-sync) | Fetch, merge and push distributed memory (never personal unless --mount personal) |
 | [`validate`](#ynm-validate) | Check ynm's setup for the agent clients in a directory and print every check: a ynh harness, or the clients a project uses |
 | [`wiki`](#ynm-wiki) | Build the markdown projection (index, log, memories, entities, topics) or ingest an edited page |
 
@@ -659,7 +659,7 @@ ynm supersede --memory-id 01J... --content "Updated text"
 
 ## ynm sync
 
-Fetch, merge and push shared memory (never personal unless --mount personal)
+Fetch, merge and push distributed memory (never personal unless --mount personal)
 
 ```text
 ynm sync [flags]

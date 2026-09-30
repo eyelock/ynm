@@ -146,10 +146,12 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     expect(JSON.parse((res.contents[0] as { text: string }).text).mounts).toHaveLength(2);
     const ctx = await client.readResource({ uri: "memory://context" });
     expect((ctx.contents[0] as { text: string }).text).toMatch(/^## Memory/);
-    const shared = data<Array<{ memoryId: string }>>(
+    const distributed = data<Array<{ memoryId: string }>>(
       await call("memory_recall", { level: ["distributed"] })
     );
-    const one = await client.readResource({ uri: `memory://project/${shared[0]?.memoryId ?? ""}` });
+    const one = await client.readResource({
+      uri: `memory://project/${distributed[0]?.memoryId ?? ""}`,
+    });
     expect(JSON.parse((one.contents[0] as { text: string }).text).mount).toBe("project");
     const prompt = await client.getPrompt({ name: "memory-when-to-remember", arguments: {} });
     const first = prompt.messages[0]?.content as { text?: string } | undefined;

@@ -115,14 +115,14 @@ refs/notes/ynm/<personal|distributed>/<namespace>/<type>/<yyyy-mm>
 
 | Part | Value |
 |---|---|
-| `personal` or `shared` | the record's `level`: `personal` for personal, `shared` for distributed |
+| `personal` or `distributed` | the record's `level` |
 | `<namespace>` | the namespace, each `/`-separated segment a ref path component |
 | `<type>` | the memory type |
 | `<yyyy-mm>` | the UTC month of the record's `recordedAt` |
 
 So a memory created in September and superseded in October has records in two shards; the fold
 spans them. Personal refs exist only in the personal store (`~/.ynm/store.git`); project and
-shared stores hold only `shared` refs.
+organisation stores hold only `distributed` refs.
 
 Each shard ref points at a notes commit whose tree holds one note blob, the shard's JSONL, at
 the anchor's path. Every append is a new commit whose parent is the previous one, so

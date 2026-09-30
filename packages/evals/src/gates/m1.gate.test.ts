@@ -55,7 +55,7 @@ function* sourceFiles(dir: string): Iterable<string> {
 
 describe("gate M1: the log", () => {
   it("ADR-001: store rejects a personal record appended to a distributed log", async () => {
-    const log = new MemoryLog("shared", "distributed");
+    const log = new MemoryLog("distributed", "distributed");
     await expect(log.append([makeRecord({ level: "personal" })])).rejects.toThrow(
       /refusing a personal record/
     );
@@ -249,7 +249,7 @@ describe("gate M1: the log", () => {
         "--level",
         "distributed",
         "--content",
-        "shared"
+        "distributed"
       ).status
     ).toBe(0);
     const projectRefs = await fx(repo, "for-each-ref", "--format=%(refname)", "refs/notes/");
@@ -263,7 +263,7 @@ describe("gate M1: the log", () => {
     ).toMatch(/ynm\/personal\/user\/gate/);
   });
 
-  it("ADR-007: promote creates a new shared record with a derives-from link and leaves the personal original untouched", async () => {
+  it("ADR-007: promote creates a new distributed record with a derives-from link and leaves the personal original untouched", async () => {
     const repo = await createRepo(1);
     const home = join(await createRepo(0), ".ynm");
     ynm(repo, home, "init", "--no-hooks");

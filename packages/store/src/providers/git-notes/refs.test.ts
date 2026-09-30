@@ -19,7 +19,7 @@ describe("git notes refs (ADR-003)", () => {
     expect(keyFromRef("refs/notes/ynm/distributed/x/semantic")).toBeNull();
     expect(keyFromRef("refs/notes/ynm/distributed/x/nope/2026-09")).toBeNull();
     expect(keyFromRef("refs/notes/ynm/distributed/x/semantic/2026-13")).toBeNull();
-    expect(keyFromRef("refs/notes/other/shared/x/semantic/2026-09")).toBeNull();
+    expect(keyFromRef("refs/notes/other/distributed/x/semantic/2026-09")).toBeNull();
   });
   it("builds prefixes and remote-tracking refs", () => {
     expect(refPrefixFor("distributed", "org")).toBe("refs/notes/ynm/distributed/org/");

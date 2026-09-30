@@ -8,7 +8,7 @@ if [ ! -f "$STORE/.ynm/config.json" ]; then
   ynm init --cwd "$STORE" --no-hooks >/dev/null
 fi
 if [ "${YNM_GIT_DAEMON:-0}" = "1" ]; then
-  # Lets local clones use the hosted store as their git remote (fetch and push of shared notes).
+  # Lets local clones use the hosted store as their git remote (fetch and push of distributed notes).
   git daemon --base-path="$(dirname "$STORE")" --export-all --enable=receive-pack \
     --reuseaddr --detach --port=9418 --pid-file=/tmp/git-daemon.pid "$(dirname "$STORE")"
 fi

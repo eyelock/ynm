@@ -1,6 +1,6 @@
 # Retrofit an existing repository
 
-Goal: give a repository that already has history, branches and a team a shared ynm memory,
+Goal: give a repository that already has history, branches and a team a distributed ynm memory,
 without disturbing any of it.
 
 ## Run init
@@ -46,7 +46,7 @@ alone, run `ynm init --no-clients`.
 
 If you work through a ynh harness, the repository needs nothing for the agent to have ynm: ynh
 assembles ynm's server, hooks and skill at every launch, and memory goes to your personal store.
-Run `ynm init --no-clients` here only to add shared, team memory, so that init does not also
+Run `ynm init --no-clients` here only to add distributed, team memory, so that init does not also
 write `.mcp.json`, an instruction file and hooks that duplicate the harness.
 
 ## What to commit

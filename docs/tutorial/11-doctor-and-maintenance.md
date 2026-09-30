@@ -6,7 +6,7 @@ index, try the SQLite provider, and take a backup you can restore from.
 ## Prerequisites
 
 `ynm` is on your PATH. Prepare the sandbox, a personal store, a bare remote, and a project
-clone with `origin` pointing at it, ynm initialised and one shared memory written:
+clone with `origin` pointing at it, ynm initialised and one distributed memory written:
 
 ```bash
 rm -rf /tmp/ynm-tutorial
@@ -37,7 +37,7 @@ ynm doctor
 
 Expected: every line starts with `ok`, and the command exits 0. The lines, in order: git is
 available, the config file, the `personal` mount and the `project` mount (each with a JSON blob
-of its repository, anchor, number of shards and `"badLines":0`), the project anchor, the shared
+of its repository, anchor, number of shards and `"badLines":0`), the project anchor, the distributed
 fetch refspec, that personal refs are never pushed, that no personal refs are in the
 project repo, and the pre-push hook. Then one `client` line for each agent client detected on
 your machine. A client with ynm set up says `server, guidance and hooks in place` (or

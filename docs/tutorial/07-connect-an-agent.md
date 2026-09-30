@@ -191,7 +191,7 @@ Expected: three events, each running a `ynm hook` subcommand:
 If the file already had hooks or other settings, ynm adds its three entries beside them and
 never adds one twice, and it keeps the file's indentation and trailing newline. `ynm client
 status` counts hooks found in any of `.claude/settings.local.json`, `.claude/settings.json` or
-`~/.claude/settings.json`, so a team that put them in the shared file on purpose still shows
+`~/.claude/settings.json`, so a team that put them in the team's settings file on purpose still shows
 `hooks yes`.
 
 ## What the hooks do
@@ -489,7 +489,7 @@ own harness with the same hooks.
 
 Once a harness carries ynm, the repositories you work on need nothing for the agent to have it:
 ynh assembles the server, the hooks and the skill at every launch, and memory goes to your
-personal store. Run `ynm init --no-clients` in a repository only to add shared, team memory; the
+personal store. Run `ynm init --no-clients` in a repository only to add distributed, team memory; the
 flag keeps init from also writing `.mcp.json`, an instruction file and hooks that duplicate the harness.
 
 Back to the project for the rest of the tutorial:

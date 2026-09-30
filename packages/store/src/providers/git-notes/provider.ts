@@ -20,7 +20,7 @@ import { parseJsonl, serializeJsonl } from "../../parse.js";
 import { objectPresent } from "./anchor.js";
 import { assertSha, git, gitCommonDir, gitOrNull, identityEnv } from "./git.js";
 import { keyFromRef, NOTES_PREFIX, refFor, refPrefixFor } from "./refs.js";
-import { syncShared } from "./sync.js";
+import { syncDistributed } from "./sync.js";
 
 export interface GitNotesLogOptions {
   /** Repository path (work tree or bare). */
@@ -259,7 +259,7 @@ export class GitNotesLog implements RecordLog {
     return withLock(
       lock,
       () =>
-        syncShared({
+        syncDistributed({
           ...options,
           repo: this.repo,
           level: this.level,

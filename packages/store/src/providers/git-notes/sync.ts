@@ -35,7 +35,7 @@ async function isAncestor(repo: string, a: string, b: string): Promise<boolean> 
  * Fetch into a remote-tracking namespace (never forced into the working refs), fast-forward or
  * `notes merge -s cat_sort_uniq`, push, retry on rejection (ADR-003, ADR-007).
  */
-export async function syncShared(p: SyncParams): Promise<SyncResult> {
+export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
   const dir = levelDir(p.level);
   const local = `${NOTES_PREFIX}/${dir}/`;
   const tracking = `${REMOTE_PREFIX}/${p.remote}/${dir}/`;

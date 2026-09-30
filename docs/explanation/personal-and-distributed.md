@@ -12,7 +12,7 @@ your corrections, what you learned about a codebase you are only visiting: all p
 default everything is.
 
 **Distributed memory** lives in the project: in the repository's own notes refs under
-`refs/notes/ynm/distributed/`, or in a dedicated shared repository mounted alongside. It is what the
+`refs/notes/ynm/distributed/`, or in a dedicated repository for distributed memory mounted alongside. It is what the
 team should know: decisions and why, the procedure that works, the dashboard everyone needs.
 
 The important part is that these are two different places, not one place with a visibility
@@ -67,7 +67,7 @@ left exactly as it was: promotion is a copy, not a move, so nothing about your o
 changes and the link records where the team's copy came from.
 
 There is no demotion. Once a fact has been shared it has been fetched by other clones; the
-honest way to withdraw it is to supersede or forget it in the shared store, which every clone
+honest way to withdraw it is to supersede or forget it in the distributed store, which every clone
 will see on its next sync.
 
 ## Recall spans both

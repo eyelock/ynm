@@ -29,7 +29,7 @@ function data<T>(r: { structuredContent?: unknown; isError?: boolean; content: u
 /**
  * The hosted topology end to end (ADR-009): the Docker image serves a bare repo over HTTP with a
  * bearer, two agents without git share it, the dream worker runs on its timer, and a local clone
- * uses the container as its git remote to sync shared notes both ways.
+ * uses the container as its git remote to sync distributed notes both ways.
  */
 describe.skipIf(!available)("hosted service in Docker (ADR-009)", () => {
   let container = "";
@@ -140,7 +140,7 @@ describe.skipIf(!available)("hosted service in Docker (ADR-009)", () => {
     );
     expect(Object.keys(dreamed.passes)).toContain("expire");
 
-    // a local clone: the container is its git remote; shared notes sync both ways
+    // a local clone: the container is its git remote; distributed notes sync both ways
     const work = mkdtempSync(join(tmpdir(), "ynm-docker-clone-"));
     const home = join(mkdtempSync(join(tmpdir(), "ynm-docker-home-")), ".ynm");
     const env = { ...process.env, YNM_HOME: home, YNM_USER: "clone", YNM_NO_CLAUDE_CLI: "1" };

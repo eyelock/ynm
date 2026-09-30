@@ -107,7 +107,7 @@ describe("openYnm end to end on git notes", () => {
     const { ynm, mounts } = await openYnm({ cwd: repo, env });
     expect(mounts.map((m) => m.id)).toEqual(["personal", "project"]);
     await ynm.remember({ type: "semantic", content: "personal fact" });
-    await ynm.remember({ type: "semantic", level: "distributed", content: "shared fact" });
+    await ynm.remember({ type: "semantic", level: "distributed", content: "distributed fact" });
     const projectRefs = await fx(repo, "for-each-ref", "--format=%(refname)", "refs/notes/");
     expect(projectRefs).toMatch(/refs\/notes\/ynm\/distributed\/common\/semantic/);
     expect(projectRefs).not.toMatch(/personal/);
@@ -133,8 +133,8 @@ describe("openYnm end to end on git notes", () => {
     const env = { YNM_HOME: join(home, ".ynm") };
     const ctx = await openYnm({ cwd: repo, env });
     const checks = (await doctor(ctx)).checks.map((c) => c.name);
-    expect(checks).not.toContain("shared push refspec");
-    await ctx.ynm.remember({ type: "semantic", level: "distributed", content: "shared fact" });
+    expect(checks).not.toContain("distributed push refspec");
+    await ctx.ynm.remember({ type: "semantic", level: "distributed", content: "distributed fact" });
     await ctx.ynm.sync();
     await fx(repo, "commit", "--allow-empty", "-m", "x");
     await fx(repo, "push", "origin", "HEAD:refs/heads/topic");

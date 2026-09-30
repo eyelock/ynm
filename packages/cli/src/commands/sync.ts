@@ -3,7 +3,7 @@ import { YnmCommand } from "../lib/base.js";
 
 export default class Sync extends YnmCommand {
   static override description =
-    "Fetch, merge and push shared memory (never personal unless --mount personal)";
+    "Fetch, merge and push distributed memory (never personal unless --mount personal)";
   static override examples = [
     "<%= config.bin %> <%= command.id %>",
     "<%= config.bin %> <%= command.id %> --dry-run",

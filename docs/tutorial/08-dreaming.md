@@ -8,7 +8,7 @@ team.
 ## Prerequisites
 
 `ynm` is on your PATH. Prepare the sandbox, a personal store, and a repository with ynm
-initialised in it (promotion needs a shared mount to promote into):
+initialised in it (promotion needs a distributed mount to promote into):
 
 ```bash
 rm -rf /tmp/ynm-tutorial
@@ -121,7 +121,7 @@ memories. The contradiction is still waiting for a decision.
 
 ## Promote to the team
 
-Personal memory never reaches the shared store on its own. `promote` is the deliberate step: it
+Personal memory never reaches the distributed store on its own. `promote` is the deliberate step: it
 copies a personal memory into the project mount as a new memory, linked back to the original.
 The Thursday rule is the one worth sharing:
 

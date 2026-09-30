@@ -2,17 +2,17 @@
 
 **Your named memory.** Persistent memory for coding agents, stored as git notes in the
 repositories you already have, served over MCP and a CLI with identical commands. Personal
-memory stays on your machine; shared memory travels with `git push`. Sibling of
+memory stays on your machine; distributed memory travels with `git push`. Sibling of
 [ynh](https://github.com/eyelock/ynh): ynh manages how an agent is guided, ynm what it remembers.
 
 ## Quickstart
 
 ```bash
 brew install eyelock/tap/ynm      # one executable, needs only git
-cd your-repo && ynm init          # shared memory for this repo, and the agent clients it already uses
+cd your-repo && ynm init          # distributed memory for this repo, and the agent clients it already uses
 ```
 
-`ynm init` creates the shared memory mount (personal memory lives in `~/.ynm`) and configures the
+`ynm init` creates the distributed memory mount (personal memory lives in `~/.ynm`) and configures the
 agent clients this repository already uses: Claude Code, OpenCode or Pi. Each gets the MCP server,
 the memory guidance, and, where the client has them, hooks that load memory when a session starts
 and steer "remember this" into ynm rather than the client's own note files. A client found only on

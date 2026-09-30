@@ -1,6 +1,6 @@
 # Project Memory
 
-Turn a git repository into a shared memory store, write memory the whole team will see, keep
+Turn a git repository into a distributed memory store, write memory the whole team will see, keep
 it in namespaces, and watch the redaction gate refuse a secret.
 
 ## Prerequisites
@@ -84,7 +84,7 @@ config: <project path>/.ynm/config.json
   project    distributed  git-notes  0 shard(s)  index fresh (0)  <project path>
 ```
 
-## Write shared memory
+## Write distributed memory
 
 Memory is personal unless you say otherwise. `--level distributed` routes it to the project
 mount, in the `common` namespace by default:
@@ -153,7 +153,7 @@ machine. Try it if you like, then forget it: secrets do not belong in memory at 
 
 ## Where it went
 
-Shared memory is git notes in this repository, under `refs/notes/ynm/distributed/`:
+Distributed memory is git notes in this repository, under `refs/notes/ynm/distributed/`:
 
 ```bash
 git for-each-ref --format='%(refname)' refs/notes
