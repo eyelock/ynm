@@ -212,7 +212,8 @@ The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_C
 | `YNM_BENCH_ANSWER` | `1` answers a bounded sample in the public benchmarks |
 | `YNM_BENCH_ANSWER_LIMIT` | Cases answered per dataset with `YNM_BENCH_ANSWER=1`. Default 20 |
 | `YNM_BENCH_DIR` | Where public benchmark datasets are cached. Default `~/.ynm/bench` |
-| `YNM_BASELINE_VERSION` | Baseline file version under `packages/evals/baselines`. Default `0.1.0` |
+| `YNM_BASELINE_VERSION` | Baseline file version under `packages/evals/baselines`. Default: the CLI package version |
+| `YNM_DEV_BUILD` | Set by the `make install` launcher to the checkout path; `ynm --version` then reports `<version>-dev.<sha>` |
 | `YNM_WRITE_BASELINE` | `1` rewrites the baseline file |
 | `YNM_WRITE_GOLDEN` | `1` rewrites golden files |
 | `YNM_GATE` | Set by `pnpm gate` to the gate being run |
