@@ -27,6 +27,7 @@ export default class Client extends YnmCommand {
   static override examples = [
     "<%= config.bin %> <%= command.id %> install claude-code",
     "<%= config.bin %> <%= command.id %> install claude-code --scope user",
+    "<%= config.bin %> <%= command.id %> install claude-code --no-hooks",
     "<%= config.bin %> <%= command.id %> install copilot-cli --http https://memory.example.com/mcp --token $TOKEN",
     "<%= config.bin %> <%= command.id %> install opencode",
     "<%= config.bin %> <%= command.id %> install pi --scope user",
@@ -51,6 +52,11 @@ export default class Client extends YnmCommand {
     http: Flags.string({ description: "Use a hosted server at this URL instead of stdio" }),
     token: Flags.string({ description: "Bearer token for --http" }),
     yes: Flags.boolean({ description: "Run command changes without asking", default: false }),
+    hooks: Flags.boolean({
+      description: "Install the client's agent hooks (--no-hooks skips them)",
+      default: true,
+      allowNo: true,
+    }),
   };
 
   async run(): Promise<void> {
@@ -77,6 +83,7 @@ export default class Client extends YnmCommand {
       home: process.env.HOME ?? home,
       scope: flags.scope as "project" | "user",
       transport,
+      hooks: flags.hooks,
     });
     if (args.action === "plan") {
       this.emit(

@@ -7,6 +7,8 @@ export interface InstallTarget {
   home: string;
   scope: "user" | "project";
   transport: Transport;
+  /** Install the client's agent hooks where it has them (ADR-016); default true. */
+  hooks?: boolean;
 }
 
 export type Change =
@@ -21,8 +23,13 @@ export interface Detection {
 
 export interface ClientStatus {
   client: string;
+  /** The ynm server is registered with the client. */
   configured: boolean;
   detail: string;
+  /** The memory guidance reaches the agent (instruction block or skill); absent when unknown. */
+  guidance?: boolean;
+  /** ynm's agent hooks are installed; absent when the client has no hooks ynm installs. */
+  hooks?: boolean;
 }
 
 /**

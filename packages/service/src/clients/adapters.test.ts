@@ -9,6 +9,8 @@ import {
   AGENTS_MD_MARKER,
   applyChanges,
   CLIENT_ADAPTERS,
+  claudeCode,
+  claudeHooksPresent,
   copilotCli,
   opencode,
   pi,
@@ -224,6 +226,52 @@ exec ${process.execPath} ${join(repoRoot, "packages", "cli", "bin", "run.js")} "
       delete process.env.YNM_BIN;
     }
   }, 60_000);
+});
+
+describe("claude-code hooks (ADR-016)", () => {
+  it("merges the three hooks into .claude/settings.json, keeping other hooks and keys, once", async () => {
+    const { cwd, home } = temp();
+    const settings = join(cwd, ".claude", "settings.json");
+    mkdirSync(join(cwd, ".claude"), { recursive: true });
+    writeFileSync(
+      settings,
+      JSON.stringify({
+        permissions: { allow: ["Bash(make test)"] },
+        hooks: {
+          Stop: [{ hooks: [{ type: "command", command: "./lint.sh" }] }],
+          PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "./guard.sh" }] }],
+        },
+      })
+    );
+    const plan = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
+    expect(plan.map((c) => (c.kind === "command" ? c.kind : c.path))).toEqual([
+      join(cwd, ".mcp.json"),
+      join(cwd, "CLAUDE.md"),
+      settings,
+    ]);
+    await applyChanges(plan);
+    expectGolden("claude-settings.project.json", readFileSync(settings, "utf8"));
+    expect(claudeHooksPresent(settings)).toEqual({
+      SessionStart: true,
+      UserPromptSubmit: true,
+      Stop: true,
+    });
+    const again = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
+    expect(again.map((c) => (c.kind === "command" ? c.kind : c.path))).toEqual([
+      join(cwd, ".mcp.json"),
+    ]);
+  });
+
+  it("--no-hooks leaves the settings alone and status reports the gap", async () => {
+    const { cwd, home } = temp();
+    await applyChanges(
+      await claudeCode.plan({ cwd, home, scope: "project", transport: stdio, hooks: false })
+    );
+    expect(existsSync(join(cwd, ".claude", "settings.json"))).toBe(false);
+    const s = await claudeCode.status({ cwd, home });
+    expect(s).toMatchObject({ configured: true, guidance: true, hooks: false });
+    expect(s.detail).toMatch(/hooks missing/);
+  });
 });
 
 describe("registry (ADR-013)", () => {

@@ -95,6 +95,7 @@ ynm client <action> [name] [flags]
 | `--http <value>` | string |  |  | Use a hosted server at this URL instead of stdio |
 | `--token <value>` | string |  |  | Bearer token for --http |
 | `--yes` | boolean |  | `false` | Run command changes without asking |
+| `--[no-]hooks` | boolean |  | `true` | Install the client's agent hooks (--no-hooks skips them) |
 
 Common flags: `--json`, `--cwd`.
 
@@ -103,6 +104,7 @@ Examples:
 ```bash
 ynm client install claude-code
 ynm client install claude-code --scope user
+ynm client install claude-code --no-hooks
 ynm client install copilot-cli --http https://memory.example.com/mcp --token $TOKEN
 ynm client install opencode
 ynm client install pi --scope user

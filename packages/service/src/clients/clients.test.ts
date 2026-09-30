@@ -23,7 +23,7 @@ describe("client adapters (ADR-013)", () => {
     );
     writeFileSync(join(cwd, "CLAUDE.md"), "# Project\n\nExisting notes.\n");
     const plan = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
-    expect(plan.map((c) => c.kind)).toEqual(["merge-json", "write"]);
+    expect(plan.map((c) => c.kind)).toEqual(["merge-json", "write", "merge-json"]);
     await applyChanges(plan);
     const cfg = JSON.parse(readFileSync(join(cwd, ".mcp.json"), "utf8")) as {
       mcpServers: Record<string, unknown>;
@@ -35,20 +35,31 @@ describe("client adapters (ADR-013)", () => {
     expect(md.split(CLAUDE_MD_MARKER)).toHaveLength(3);
     const again = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
     expect(again.map((c) => c.kind)).toEqual(["merge-json"]);
-    expect((await claudeCode.status({ cwd, home })).configured).toBe(true);
+    const status = await claudeCode.status({ cwd, home });
+    expect(status).toMatchObject({ configured: true, guidance: true, hooks: true });
   });
 
-  it("claude-code user scope is a command, never a hand edit of the user's config", async () => {
-    const plan = await claudeCode.plan({ cwd: "/x", home: "/y", scope: "user", transport: stdio });
+  it("claude-code user scope registers the server by command and merges hooks into ~/.claude/settings.json", async () => {
+    const home = mkdtempSync(join(tmpdir(), "ynm-cc-home-"));
+    const plan = await claudeCode.plan({ cwd: "/x", home, scope: "user", transport: stdio });
     expect(plan).toEqual([
       expect.objectContaining({
         kind: "command",
         argv: expect.arrayContaining(["claude", "mcp", "add", "--scope", "user", "ynm"]),
       }),
+      expect.objectContaining({ kind: "merge-json", path: join(home, ".claude", "settings.json") }),
     ]);
     const ran: string[][] = [];
     await applyChanges(plan, { runCommand: async (argv) => void ran.push(argv) });
     expect(ran).toHaveLength(1);
+    const noHooks = await claudeCode.plan({
+      cwd: "/x",
+      home: mkdtempSync(join(tmpdir(), "ynm-cc-home-")),
+      scope: "user",
+      transport: stdio,
+      hooks: false,
+    });
+    expect(noHooks.map((c) => c.kind)).toEqual(["command"]);
   });
 
   it("ynh plugin generation matches the checked-in manifest and skill", () => {
