@@ -3,6 +3,7 @@ import { Args, Flags } from "@oclif/core";
 import {
   applyChanges,
   CLIENT_ADAPTERS,
+  changeIsNoop,
   changeTarget,
   clientAdapter,
   clientReports,
@@ -76,13 +77,16 @@ export default class Client extends YnmCommand {
     const transport = flags.http
       ? { kind: "http" as const, url: flags.http, bearer: flags.token }
       : { kind: "stdio" as const, command: "ynm", args: ["serve"] };
-    const plan = await adapter.plan({
-      cwd,
-      home: process.env.HOME ?? home,
-      scope: flags.scope as "project" | "user",
-      transport,
-      hooks: flags.hooks,
-    });
+    // A change that would leave its file as it is (already installed) is not shown or applied.
+    const plan = (
+      await adapter.plan({
+        cwd,
+        home: process.env.HOME ?? home,
+        scope: flags.scope as "project" | "user",
+        transport,
+        hooks: flags.hooks,
+      })
+    ).filter((c) => !changeIsNoop(c));
     if (args.action === "plan") {
       this.emit(
         flags.json,

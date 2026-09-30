@@ -135,7 +135,7 @@ describe("client adapters (ADR-013)", () => {
       hooks: true,
     });
     const ynd = spawnSync("ynd", ["validate", cwd], { encoding: "utf8" });
-    if (!ynd.error) expect(`${ynd.stdout}${ynd.stderr}`).toMatch(/valid/);
+    if (!ynd.error) expect(`${ynd.stdout}${ynd.stderr}`).toMatch(/: valid$/m);
   });
 
   it("ynh --no-hooks merges only the server and skill", async () => {

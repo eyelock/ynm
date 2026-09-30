@@ -4,6 +4,8 @@ import { guidance } from "@ynm/model";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
 import { detectBySignals } from "./types.js";
 
+export const YNH_SCHEMA = "https://eyelock.github.io/ynh/schema/plugin.schema.json";
+
 export interface YnhPluginOptions {
   version: string;
   transport: InstallTarget["transport"];
@@ -29,7 +31,7 @@ function ynhServer(t: InstallTarget["transport"]): Record<string, unknown> {
 /** The harness manifest ynh reads; also the checked-in `.ynh-plugin/plugin.json` (ADR-013). */
 export function ynhPlugin(opts: YnhPluginOptions): Record<string, unknown> {
   return {
-    $schema: "https://eyelock.github.io/ynh/schema/plugin.schema.json",
+    $schema: YNH_SCHEMA,
     name: "ynm",
     version: opts.version,
     description: "Your named memory: agent memory in git notes over MCP",
@@ -141,11 +143,14 @@ function harnessPlan(t: InstallTarget): Change[] {
       hookCount = added.length;
     }
   }
+  // `ynd validate` requires the schema reference; a hand-made manifest often lacks it.
+  const withSchema = next.$schema ? next : { $schema: YNH_SCHEMA, ...next };
+  if (!next.$schema) done.push("$schema");
   if (done.length)
     changes.push({
       kind: "write",
       path: file,
-      content: `${JSON.stringify(next, null, 2)}\n`,
+      content: `${JSON.stringify(withSchema, null, 2)}\n`,
       reason: `harness manifest: ${done.join("; ")}`,
       label: `harness manifest${hookCount ? `, ${hookCount} hook${hookCount === 1 ? "" : "s"}` : ""}`,
     });

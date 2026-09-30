@@ -135,7 +135,7 @@ export async function applyChanges(changes: Change[], opts: ApplyOptions = {}): 
 }
 
 /** True when applying `c` would leave the file exactly as it is. */
-function isNoop(c: Change): boolean {
+export function changeIsNoop(c: Change): boolean {
   if (c.kind === "write") return existsSync(c.path) && readFileSync(c.path, "utf8") === c.content;
   if (c.kind !== "merge-json" || !existsSync(c.path)) return false;
   try {
@@ -186,10 +186,10 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
       hooks: true,
     });
     const local = plan.filter(
-      (c) => (c.kind === "write" || c.kind === "merge-json") && inside(c.path) && !isNoop(c)
+      (c) => (c.kind === "write" || c.kind === "merge-json") && inside(c.path) && !changeIsNoop(c)
     );
     const outside = plan.some(
-      (c) => (c.kind === "write" || c.kind === "merge-json") && !inside(c.path) && !isNoop(c)
+      (c) => (c.kind === "write" || c.kind === "merge-json") && !inside(c.path) && !changeIsNoop(c)
     );
     const run: string[] = [];
     if (outside) run.push(`ynm client install ${a.name}`);
