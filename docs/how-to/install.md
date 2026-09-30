@@ -165,7 +165,7 @@ For each client the project uses, it writes, inside the repository only:
 
 | Client | MCP server | Guidance | Hooks |
 |---|---|---|---|
-| Claude Code | `.mcp.json` | block in `CLAUDE.md` | `SessionStart`, `UserPromptSubmit`, `Stop` in `.claude/settings.local.json` (your personal project settings, not the team's `.claude/settings.json`), each running `ynm hook` |
+| Claude Code | `.mcp.json` | block in the instruction file Claude reads (see below) | `SessionStart`, `UserPromptSubmit`, `Stop` in `.claude/settings.local.json` (your personal project settings, not the team's `.claude/settings.json`), each running `ynm hook` |
 | Copilot CLI | `~/.copilot/mcp-config.json`: printed as a `run:` line, not written | block in `AGENTS.md` | none (Copilot CLI hooks do not fire in untrusted folders) |
 | OpenCode | `opencode.json` | block in `AGENTS.md` | none |
 | Pi | `.pi/extensions/ynm.ts` (Pi has no MCP; the extension runs the CLI) | `.pi/skills/ynm-memory/SKILL.md` | none |
@@ -175,7 +175,22 @@ For each client the project uses, it writes, inside the repository only:
 The hooks are what make an agent use ynm rather than its own memory: the session-start hook puts
 the memory context block in front of the agent, and the prompt hook, when the user asks it to
 remember something, tells it to use `memory_remember`. They are subcommands of the `ynm` binary,
-so there is no script to install. Claude Code's hooks go in `.claude/settings.local.json` because
+so there is no script to install.
+
+Claude Code's guidance block goes into the instruction file Claude Code actually reads, by its own
+lookup, and ynm appends to a file that exists rather than creating a sibling:
+
+| The project has | Claude Code reads | ynm puts the block in |
+|---|---|---|
+| `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` in the project directory | those files, not `AGENTS.md` | the one that exists (for example `.claude/CLAUDE.md`), never a new sibling |
+| a `CLAUDE.md` that imports `@AGENTS.md` | `CLAUDE.md` and the `AGENTS.md` it pulls in | that `AGENTS.md`, so every client gets it |
+| only `AGENTS.md` (or `.claude/AGENTS.md`) | `AGENTS.md` | that file |
+| none of these | nothing | a new `AGENTS.md`, which every client reads |
+
+If such a file exists only in a parent directory, Claude reads that and ignores `AGENTS.md`, so ynm
+creates a `CLAUDE.md` in the project directory rather than an `AGENTS.md` Claude would not read.
+`~/.claude/CLAUDE.md` always loads whatever the project has, so a block already in it counts
+as present and ynm adds nothing; `ynm client status` uses the same lookup. Claude Code's hooks go in `.claude/settings.local.json` because
 a hook that runs `ynm` would fail for every teammate who lacks it; with `--scope user` they go in
 `~/.claude/settings.json`.
 
@@ -187,7 +202,7 @@ launch, so they follow you into every repository. Add ynm to the harness once, w
 `ynm client install ynh` in the harness directory (`ynm init` refuses to install into a harness;
 a harness is not a project). Without `ynm init` in a repository, the agent's memory goes to your
 personal store. Run `ynm init --no-clients` in a repository only to add shared, team memory: the
-flag keeps init from also writing `.mcp.json`, `CLAUDE.md` and hooks that would duplicate what
+flag keeps init from also writing `.mcp.json`, an instruction file and hooks that would duplicate what
 the harness already provides.
 
 `ynm init --no-clients` skips the step; `ynm init --client claude-code` configures only the

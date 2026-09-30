@@ -35,7 +35,8 @@ are printed. `ynm init` runs the project-scope plan of every detected client thr
 `configureClients`: for each client the project uses, it applies only the changes inside the work tree, skips those that would
 leave a file as it is, and turns the rest (commands, files under the home directory) into `run:`
 lines. Reuse the helpers: `stdioServerEntry` for the common MCP shape, `delimitedBlockChange`
-with `agentsMdBlock()` for guidance in an `AGENTS.md`, `claudeMdBlock()` for a `CLAUDE.md`, and
+with `agentsMdBlock()` for guidance in an `AGENTS.md`, `claudeMdBlock()` with `claudeInstructions()` (`claude-instructions.ts`, Claude Code's own
+instruction-file lookup) to find the file Claude reads, and
 `claudeHooksChange` for Claude Code's hook settings. Guidance text is single-sourced in
 `@ynm/model`, so every client tells the agent the same thing, and a delimited block is rewritten
 in place on reinstall.

@@ -73,6 +73,18 @@ keeps it current, the way it does any other skill. ynm's own generated harness d
 three hooks, so `ynh install github.com/eyelock/ynm` carries them. ynh translates the canonical
 names per vendor (`SessionStart`, `UserPromptSubmit`, `Stop` on Claude Code and Codex).
 
+Claude Code's guidance block goes into the instruction file Claude Code actually reads, by its
+own lookup (`claude-instructions.ts`). At launch Claude loads `CLAUDE.md`, `.claude/CLAUDE.md`
+and `CLAUDE.local.md` from the working directory and every directory above it; only when none
+exist does it load `AGENTS.md` and `.claude/AGENTS.md`. A `CLAUDE.md` that imports `@AGENTS.md`
+pulls that file in either way, and `~/.claude/CLAUDE.md` always loads. ynm appends its delimited
+block to an existing file in the project directory, preferring the `AGENTS.md` a `CLAUDE.md`
+imports (every client then gets it), else the `CLAUDE.md` family file that is there, else an
+existing `AGENTS.md`, else, when `CLAUDE.md` files exist only above the project, a new `CLAUDE.md` there; it never creates a sibling beside a file Claude already reads. Only when
+the project has no instruction file does it create `AGENTS.md`, which every client reads. A block
+already present in any file Claude loads, the user's included, counts, and status uses the same
+lookup.
+
 JSON merges preserve the target file's style: its indentation, its `\uXXXX` escapes (a manifest
 full of `\u2014` stays that way) and its trailing newline, so a merge changes only the lines it
 adds.

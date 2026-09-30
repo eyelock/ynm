@@ -30,14 +30,16 @@ have not run `ynm init` see nothing and are not affected.
 Then it configures the agent clients the repository already uses, and this part does write work
 tree files. A client counts as used when the repository has its project footprint (`.mcp.json` or
 `.claude/` for Claude Code, `opencode.json` or `opencode.jsonc` for OpenCode, `.pi/` for Pi).
-For Claude Code init writes `.mcp.json`, a delimited block in `CLAUDE.md` and hooks in
+For Claude Code init writes `.mcp.json`, a delimited block in the instruction file Claude Code
+reads (an existing `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md`, or the `AGENTS.md` it
+imports; only when the project has none, a new `AGENTS.md`) and hooks in
 `.claude/settings.local.json`; for OpenCode `opencode.json`; `AGENTS.md` for the clients that
 read it; the Pi extension under `.pi/`. A client found only on your machine gets no files, just
 one `also` line suggesting `ynm client install <name>`; a repository that has never used an agent
 client therefore gets no client files at all. Init never installs into a ynh harness. When the
 repository already tracks one of these files, ynm merges into it: other servers, hooks and
-settings are kept, the file's indentation and trailing newline are preserved, and in `CLAUDE.md`
-and `AGENTS.md` it only ever rewrites the text between its `<!-- ynm:guidance -->` markers. Each
+settings are kept, the file's indentation and trailing newline are preserved, and in the instruction
+files it only ever rewrites the text between its `<!-- ynm:guidance -->` markers. Each
 client the project uses gets one `client` line in the report. See
 [Install ynm](install.md#set-up-your-agent-clients) for what each gets. To keep init to memory
 alone, run `ynm init --no-clients`.
@@ -45,7 +47,7 @@ alone, run `ynm init --no-clients`.
 If you work through a ynh harness, the repository needs nothing for the agent to have ynm: ynh
 assembles ynm's server, hooks and skill at every launch, and memory goes to your personal store.
 Run `ynm init --no-clients` here only to add shared, team memory, so that init does not also
-write `.mcp.json`, `CLAUDE.md` and hooks that duplicate the harness.
+write `.mcp.json`, an instruction file and hooks that duplicate the harness.
 
 ## What to commit
 

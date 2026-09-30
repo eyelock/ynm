@@ -69,7 +69,7 @@ initialised <project path>
   hooks     <project path>/.git/hooks/pre-push
   note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
   note      remote "origin" not found; refspecs not configured (re-run init after adding it)
-  client    claude-code: .mcp.json, CLAUDE.md, 3 hooks
+  client    claude-code: .mcp.json, AGENTS.md, 3 hooks
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
@@ -123,10 +123,14 @@ Expected:
 }
 ```
 
-The guidance block tells the agent how to use memory:
+The guidance block tells the agent how to use memory. ynm puts it in the instruction file
+Claude Code reads in this project. This project has none (no `CLAUDE.md`, `.claude/CLAUDE.md` or
+`CLAUDE.local.md`, here or above), so ynm creates `AGENTS.md`, which Claude Code falls back to
+and every other client reads too. [Install ynm](../how-to/install.md#set-up-your-agent-clients)
+lists the other cases:
 
 ```bash
-cat CLAUDE.md
+cat AGENTS.md
 ```
 
 Expected: a Markdown block between two `<!-- ynm:guidance -->` marker lines, headed
@@ -278,10 +282,11 @@ your home directory, so here we only look at the plan:
 ynm client plan copilot-cli
 ```
 
-Expected: two changes, a `merge-json` of `<home>/.copilot/mcp-config.json` (Copilot CLI's
-user-level file, the only one it reads) and a `write` of `<project path>/AGENTS.md`, the
-guidance block. `ynm client install copilot-cli` would apply them, and it changes your real
-home directory, which is why the tutorial stops at the plan. The file gets the same `ynm serve`
+Expected: one change, a `merge-json` of `<home>/.copilot/mcp-config.json` (Copilot CLI's
+user-level file, the only one it reads). The guidance block Copilot CLI reads from `AGENTS.md`
+is already there from the Claude Code install, so there is no `write` of it; in a project
+without one the plan would add it. `ynm client install copilot-cli` would apply the change, and
+it changes your real home directory, which is why the tutorial stops at the plan. The file gets the same `ynm serve`
 command under `mcpServers`, plus `"type": "local"` and `"tools": ["*"]`. Copilot CLI gets no
 hooks: its hooks do not fire in folders the CLI has not marked as trusted.
 
@@ -292,8 +297,8 @@ ynm client install opencode
 cat opencode.json
 ```
 
-Expected: `merged <project path>/opencode.json` and `wrote <project path>/AGENTS.md`. The file
-registers the same server in OpenCode's own shape:
+Expected: `merged <project path>/opencode.json` and nothing for `AGENTS.md`, which already holds
+the block. The file registers the same server in OpenCode's own shape:
 
 ```text
 {
@@ -327,7 +332,7 @@ Expected: `wrote` lines for the extension and the skill, then the two files:
 
 `ynm.ts` is generated; its first line says so and names `pnpm gen:clients`. Every `memory_*`
 tool in it shells out to `ynm <command> --json`, so `ynm` must be on the PATH Pi runs with. The
-skill carries the same guidance text as the `CLAUDE.md` block.
+skill carries the same guidance text as the `AGENTS.md` block.
 
 ## Install into a ynh harness
 
@@ -429,7 +434,7 @@ own harness with the same hooks.
 Once a harness carries ynm, the repositories you work on need nothing for the agent to have it:
 ynh assembles the server, the hooks and the skill at every launch, and memory goes to your
 personal store. Run `ynm init --no-clients` in a repository only to add shared, team memory; the
-flag keeps init from also writing `.mcp.json`, `CLAUDE.md` and hooks that duplicate the harness.
+flag keeps init from also writing `.mcp.json`, an instruction file and hooks that duplicate the harness.
 
 Back to the project for the rest of the tutorial:
 
