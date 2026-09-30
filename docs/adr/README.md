@@ -30,3 +30,4 @@ line per addendum that was folded in), and the FR/NFR ids from ADR-000 it satisf
 | [012](012-model-seams-judge-and-writer.md) | Judge (decision models, Jev) and Writer (generative, structured output) seams |
 | [013](013-client-integrations.md) | Client integration adapters: Claude Code, Copilot CLI, OpenCode, Pi, ynh |
 | [014](014-evals-and-benchmarks.md) | Evals and benchmarks tracked at all times |
+| [015](015-distribution.md) | Distribution: standalone binaries, a slim bundle and the image |
