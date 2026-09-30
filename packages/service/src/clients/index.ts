@@ -10,6 +10,7 @@ import { ynh } from "./ynh.js";
 
 export * from "./agents-md.js";
 export * from "./claude-code.js";
+export * from "./claude-instructions.js";
 export * from "./copilot-cli.js";
 export * from "./json-style.js";
 export * from "./opencode.js";

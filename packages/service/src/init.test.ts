@@ -166,7 +166,7 @@ describe("openYnm end to end on git notes", () => {
       {
         client: "claude-code",
         detected: ".mcp.json",
-        applied: [".mcp.json", "CLAUDE.md", "3 hooks"],
+        applied: [".mcp.json", "AGENTS.md", "3 hooks"],
         run: [],
       },
     ]);
