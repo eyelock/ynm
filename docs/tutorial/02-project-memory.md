@@ -32,8 +32,9 @@ Expected: an `initialised` line with the project path, then five indented lines.
 the repository's root commit (`root-commit`), the config file is `.ynm/config.json`, a
 `pre-push` hook was installed, one note says the local wiki and index directories were excluded
 in `.git/info/exclude`, and another says remote `origin` was not found so refspecs were not configured.
-Then one `client` line for each agent client detected on your machine, possibly with a `run:`
-line after it, and none if none is detected. Ends with a `next:` hint.
+Then, only if this repository already uses an agent client, one `client` line for it. Here none
+does, so there is no `client` line; if agent clients are installed on your machine, one `also`
+line names them. Ends with a `next:` hint.
 
 ```text
 initialised <project path>
@@ -42,16 +43,17 @@ initialised <project path>
   hooks     <project path>/.git/hooks/pre-push
   note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
   note      remote "origin" not found; refspecs not configured (re-run init after adding it)
-  client    claude-code: .mcp.json, CLAUDE.md, 3 hooks
+  also      <client names> on this machine but not used here; add one with `ynm client install <name>`
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
-The `client` line above is what a machine with Claude Code sees. `ynm init` configures every
-agent client it detects (its executable on PATH, its settings in your home directory, or its
-files in the project): the MCP server, the memory guidance, and the hooks that put memory in
-front of the agent. It writes only inside the repository; a step that would touch your home
-directory is printed as a `run:` line instead. Tutorial 7 covers the clients;
-`ynm init --no-clients` skips them.
+`ynm init` configures only the agent clients this repository already uses, meaning it has a
+project file for them such as `.mcp.json` or `.claude/` for Claude Code: the MCP server, the memory
+guidance, and the hooks that put memory in front of the agent. A client found only on your machine
+(its executable on PATH, or settings in your home directory) gets no files, which is what the `also`
+line says; you add it deliberately with `ynm client install <name>`. Init writes only inside the
+repository; a step that would touch your home directory is printed as a `run:` line instead.
+Tutorial 7 covers the clients; `ynm init --no-clients` skips the step.
 
 For memory itself, `ynm init` changes no branch, commit or tracked file. It wrote
 `.ynm/config.json`, which records the anchor (commit it so teammates share the same anchor). The
@@ -63,9 +65,8 @@ cat .ynm/config.json
 git status --short
 ```
 
-Expected: a JSON object with a single `anchor` key holding the same sha, then `?? .ynm/`, and
-one `??` line for each client file init wrote, if any (for Claude Code: `?? .claude/`,
-`?? .mcp.json` and `?? CLAUDE.md`).
+Expected: a JSON object with a single `anchor` key holding the same sha, then `?? .ynm/` and
+nothing else, because init wrote no client files here.
 
 ## Two mounts
 
@@ -173,8 +174,9 @@ ynm doctor
 
 Expected: every line `ok`, including `no personal refs in project repo: ok (ADR-007)`, the
 pre-push hook, and `remote "origin" not configured; sync unavailable`. Tutorial 6 adds the
-remote. The `client` lines at the end, one per agent client `ynm init` found, say
-`server, guidance and hooks in place` for each client it configured.
+remote. The `client` lines at the end, one per agent client on your machine (there may be none),
+say `ynm not registered` and name the `ynm client install` command, because init configured none
+of them in this project.
 
 ## The hook
 

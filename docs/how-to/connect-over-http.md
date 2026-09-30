@@ -29,20 +29,21 @@ Leave `--token` off if the server is open (only sensible on localhost).
 | ynh, elsewhere | nothing extra: the install command is the same whatever you pass | ynm's own harness ships a `hosted` profile that points at `http://localhost:3000/mcp`; select it in ynh, and edit its URL for a remote server |
 | pi | not applicable | Pi has no MCP; its extension shells out to the local `ynm` CLI |
 
-The guidance block (`CLAUDE.md` or `AGENTS.md`) is written the same way as for stdio.
+The guidance block (in the instruction file the client reads, `AGENTS.md` when there is none) is written the same way as for stdio.
 
 ## Hooks with a hosted server
 
 Claude Code (and a ynh harness) also get the agent hooks, as they do for stdio: Claude Code's in
-`.claude/settings.json` (or `~/.claude/settings.json` with `--scope user`), the harness's in its
+`.claude/settings.local.json` (or `~/.claude/settings.json` with `--scope user`), the harness's in its
 manifest. The hooks run the local `ynm hook` command, so they need `ynm` on the machine and they
 read the local store, not the hosted one. The prompt hook, which steers "remember this" into
 `memory_remember`, works the same either way; the session-start hook shows only local memory,
 and with no local memory it adds a single line pointing at `memory_recall`. If the machine has
 no `ynm` at all, install with `--no-hooks`.
 
-`ynm init` does not take `--http`: it registers the local stdio server. For a hosted server, use
-`ynm client install` as above, and `ynm init --no-clients` for the repository itself.
+`ynm init` does not take `--http`: it registers the local stdio server, and only for clients the
+project already uses. For a hosted server, use `ynm client install` as above, and
+`ynm init --no-clients` for the repository itself.
 
 ## Keep the token out of git
 

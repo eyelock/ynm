@@ -12,9 +12,9 @@ brew install eyelock/tap/ynm
 cd your-repo && ynm init
 ```
 
-`ynm init` creates the repository's shared memory mount and configures every agent client it
-finds; [Set up your agent clients](#set-up-your-agent-clients) says how it finds them and what
-each one gets. The rest of this page covers the other ways to install.
+`ynm init` creates the repository's shared memory mount and configures the agent clients the
+repository already uses; [Set up your agent clients](#set-up-your-agent-clients) says how it
+tells them apart and what each one gets. The rest of this page covers the other ways to install.
 
 | Mechanism | What you get | Size | Needs Node? | Needs git? | Best for |
 |---|---|---|---|---|---|
@@ -141,26 +141,35 @@ backups are in [Operate a hosted store](operate-a-hosted-store.md); connecting c
 
 ## Set up your agent clients
 
-`ynm init` in a repository configures every agent client it detects. A client is detected when
-any one of three signals fires, so you can predict what init will touch:
+`ynm init` in a repository configures the agent clients that repository already uses. It looks
+for three signals, and only one of them makes init write files:
+
+- A **project footprint** (the last column) means the repository uses the client. Init writes that
+  client's files.
+- An **executable on PATH** or a **user-level footprint** only means the client is on this
+  machine. Init writes nothing for it and prints one `also` line naming such clients and
+  suggesting `ynm client install <name>`. Add one deliberately with that command.
 
 | Client | Executable on PATH | User-level footprint | Project footprint |
 |---|---|---|---|
 | Claude Code (`claude-code`) | `claude` | `~/.claude/` or `~/.claude.json` | `.mcp.json` or `.claude/` |
 | GitHub Copilot CLI (`copilot-cli`) | `copilot` | `~/.copilot/` | none |
-| OpenCode (`opencode`) | `opencode` | `~/.config/opencode/` | `opencode.json` |
+| OpenCode (`opencode`) | `opencode` | `~/.config/opencode/` | `opencode.json` or `opencode.jsonc` |
 | Pi (`pi`) | `pi` | `~/.pi/agent/` | `.pi/` |
-| ynh (`ynh`) | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` |
+| ynh (`ynh`) | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` (never acted on by `ynm init`) |
 
-For each one it writes, inside the repository only:
+Copilot CLI has no project footprint, so init only ever suggests it. `ynm init --client <name>`
+forces a client whatever the signals say.
+
+For each client the project uses, it writes, inside the repository only:
 
 | Client | MCP server | Guidance | Hooks |
 |---|---|---|---|
-| Claude Code | `.mcp.json` | block in `CLAUDE.md` | `SessionStart`, `UserPromptSubmit`, `Stop` in `.claude/settings.json`, each running `ynm hook` |
+| Claude Code | `.mcp.json` | block in the instruction file Claude reads (see below) | `SessionStart`, `UserPromptSubmit`, `Stop` in `.claude/settings.local.json` (your personal project settings, not the team's `.claude/settings.json`), each running `ynm hook` |
 | Copilot CLI | `~/.copilot/mcp-config.json`: printed as a `run:` line, not written | block in `AGENTS.md` | none (Copilot CLI hooks do not fire in untrusted folders) |
 | OpenCode | `opencode.json` | block in `AGENTS.md` | none |
 | Pi | `.pi/extensions/ynm.ts` (Pi has no MCP; the extension runs the CLI) | `.pi/skills/ynm-memory/SKILL.md` | none |
-| ynh, in a harness | `mcp_servers.ynm` in `.ynh-plugin/plugin.json` | `skills/ynm-memory/SKILL.md` | `on_session_start`, `before_prompt`, `on_stop` in the manifest |
+| ynh, in a harness: via `ynm client install ynh`, not init | `mcp_servers.ynm` in `.ynh-plugin/plugin.json` | a skill include (`github.com/eyelock/ynm`, `skills/ynm-memory`) in the manifest; nothing is copied into the harness | `on_session_start`, `before_prompt`, `on_stop` in the manifest |
 | ynh, elsewhere | printed as `run: ynh install github.com/eyelock/ynm` | in that harness | in that harness |
 
 The hooks are what make an agent use ynm rather than its own memory: the session-start hook puts
@@ -168,10 +177,46 @@ the memory context block in front of the agent, and the prompt hook, when the us
 remember something, tells it to use `memory_remember`. They are subcommands of the `ynm` binary,
 so there is no script to install.
 
+Claude Code's guidance block goes into the instruction file Claude Code actually reads, by its own
+lookup, and ynm appends to a file that exists rather than creating a sibling:
+
+| The project has | Claude Code reads | ynm puts the block in |
+|---|---|---|
+| `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` in the project directory | those files, not `AGENTS.md` | the one that exists (for example `.claude/CLAUDE.md`), never a new sibling |
+| a `CLAUDE.md` that imports `@AGENTS.md` | `CLAUDE.md` and the `AGENTS.md` it pulls in | that `AGENTS.md`, so every client gets it |
+| only `AGENTS.md` (or `.claude/AGENTS.md`) | `AGENTS.md` | that file |
+| none of these | nothing | a new `AGENTS.md`, which every client reads |
+
+If such a file exists only in a parent directory, Claude reads that and ignores `AGENTS.md`, so ynm
+creates a `CLAUDE.md` in the project directory rather than an `AGENTS.md` Claude would not read.
+`~/.claude/CLAUDE.md` always loads whatever the project has, so a block already in it counts
+as present and ynm adds nothing; `ynm client status` uses the same lookup. Claude Code's hooks go in `.claude/settings.local.json` because
+a hook that runs `ynm` would fail for every teammate who lacks it; with `--scope user` they go in
+`~/.claude/settings.json`.
+
+### Using a ynh harness
+
+If you run your agents through a ynh harness, the repository needs nothing for the agent to have
+ynm. The harness declares ynm's server, hooks and memory skill, and ynh assembles them at every
+launch, so they follow you into every repository. Add ynm to the harness once, with
+`ynm client install` in the harness directory (the name can be left out there; `ynm client
+install ynh` is the same; `ynm init` refuses to install into a harness;
+a harness is not a project). Without `ynm init` in a repository, the agent's memory goes to your
+personal store. Run `ynm init --no-clients` in a repository only to add shared, team memory: the
+flag keeps init from also writing `.mcp.json`, an instruction file and hooks that would duplicate what
+the harness already provides.
+
 `ynm init --no-clients` skips the step; `ynm init --client claude-code` configures only the
-clients you name, detected or not. `ynm client install <client>` is the manual form, with
-`--scope user` for a user-wide install and `--no-hooks` to leave the hooks out. `ynm client
-status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks are
+clients you name, whether the project uses them or not. `ynm client install` is the manual form,
+with `--scope user` for a user-wide install and `--no-hooks` to leave the hooks out. The client
+name is optional: in a ynh harness directory it means ynh, and anywhere else every client the
+project uses (a project footprint; with none, the command exits 2 with `no agent client is
+configured in <dir>; name one`). Name a client to install one the project does not use yet. When
+everything is already in place it prints `already in place, nothing changed:` followed by a line
+for each piece it found (server, guidance, hooks) and where. `ynm validate [dir]`
+checks a ynh harness, or the clients a project uses, and prints every check (server, guidance,
+hooks, and `ynm` on the PATH) with `ok` or `FAIL`, exiting 1 when something is missing.
+`ynm client status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks are
 in place. [Tutorial 7](../tutorial/07-connect-an-agent.md) walks through all of it.
 
 ## Next
