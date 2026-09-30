@@ -1,0 +1,144 @@
+# ADR-016: Agent guidance delivery: hooks and one-command client setup
+
+Status: accepted (2026-09-30)
+Satisfies: FR-20, FR-20a, FR-21, NFR-14
+
+## Context
+
+ynm's guidance, when to remember, when to recall, supersede rather than duplicate, is authored
+once in `packages/model/src/guidance/` (ADR-013). Having it written down is not the same as the
+agent acting on it. A user declared ynm's MCP server in a ynh harness, launched Claude Code and
+asked it to remember their preferred name; the agent wrote the fact into Claude Code's own
+memory directory. The server was connected, no guidance was loaded, and nothing reached the
+model at the moment it decided where to put the fact. `ynm client install claude-code` then
+wrote `.mcp.json` and a `CLAUDE.md` block and nothing else, and a new user had to run
+`ynm init` and then one `ynm client install` per client. Two lessons: guidance must arrive at
+the moment the client's built-in memory would otherwise win, and setup must be one command.
+
+Guidance can reach an agent through four channels:
+
+| Channel | What ynm ships | When the model sees it | Who controls it |
+|---|---|---|---|
+| MCP | server `instructions`, three prompts, tool descriptions | when the client chooses to load them; many never surface prompts or instructions | the client |
+| Instruction files | a delimited block in `CLAUDE.md` or `AGENTS.md` | at session start, among everything else in the file | the client, and the user's edits |
+| Skills | `ynm-memory` skill (ynh, Pi, OpenCode) | when the model decides the skill is relevant | the model |
+| Hooks | `ynm hook session-start`, `prompt`, `stop` | on the event, every time, as `additionalContext` | the harness, deterministically |
+
+The first three are advisory and compete with the client's own memory feature on equal or
+worse terms. Only a hook runs when the event happens whatever the model thinks: at session start
+it puts the memory context block in front of the agent, and when the user says "remember" it
+adds one sentence naming `memory_remember`, at exactly the turn the client would otherwise
+reach for its note file.
+
+## Decision
+
+**Hooks are subcommands of the binary.** `ynm hook <event>` reads the client's hook JSON on
+stdin and prints the client's reply JSON on stdout. Nothing is installed but a config line that
+runs `ynm hook ...`; there is no script to copy, version or keep executable, and the hooks
+upgrade with the binary.
+
+- `session-start` starts an ynm session keyed by the client's `session_id` (normalised the way
+  `memory_session start` does) and returns the context block, default budget, as
+  `hookSpecificOutput.additionalContext`, prefixed by one line: use `memory_recall` for more, use
+  `memory_remember` to keep facts, not note files.
+- `prompt` returns a one-sentence nudge toward `memory_remember` (and `memory_supersede`) when
+  the prompt shows a remember intent: one of `remember`, `don't forget`, `from now on`,
+  `always`, `never`, `call me`, `my preference`, `note that` at the start of a clause or after
+  "please". The phrase list is one exported constant with a unit test of true and false
+  positives. A false positive costs the model one sentence; a miss costs the memory.
+- `stop` expires the session's due working memory with the expire pass alone, never the
+  model-backed engine. Claude Code fires Stop at the end of every turn, so it is idempotent, and
+  a per-session stamp under `$YNM_HOME/hooks/` limits the pass to once every five minutes.
+- The contract is Claude Code's (Codex shares it): stdin carries `session_id`, `cwd`,
+  `hook_event_name`, and per event `prompt` or `source`; stdout is
+  `{"hookSpecificOutput": {"hookEventName", "additionalContext"}}` or `{}`. A hook never blocks
+  and never fails the session: empty or non-JSON input, an unknown event or any error prints
+  `{}`, exits 0, and writes the error to stderr. stdout carries nothing but the one JSON line.
+- The launcher answers `ynm hook` before loading oclif, and the store-free parts (event names,
+  parsing, the intent test) live in a module with no imports (`@ynm/service/hook-intent`), so
+  the prompt hook and a throttled stop start in about the time Node itself takes.
+
+**Clients get the hooks where they fire.** `ynm client install claude-code` merges
+`SessionStart`, `UserPromptSubmit` and `Stop` entries into `.claude/settings.json` (project) or
+`~/.claude/settings.json` (user), keeping other hooks and keys and never adding an entry whose
+command is already there; `--no-hooks` skips them. In a ynh harness (the directory holds
+`.ynh-plugin/plugin.json`) `ynm client install ynh` merges the server, the `ynm-memory` skill and
+the canonical hooks `on_session_start`, `before_prompt` and `on_stop` into the harness, and
+ynm's own generated harness declares the same three, so `ynh install github.com/eyelock/ynm`
+carries them. ynh translates the canonical names per vendor (`SessionStart`,
+`UserPromptSubmit`, `Stop` on Claude Code and Codex).
+
+**`ynm init` is the one command.** After the repository setup of ADR-009, `ynm init` detects
+each client and applies its project-scope install: server entry, guidance and hooks, or the
+harness merge for ynh. A client is detected when any one of three signals fires:
+
+| Client | Executable on PATH | User-level footprint | Project footprint |
+|---|---|---|---|
+| claude-code | `claude` | `~/.claude/`, `~/.claude.json` | `.mcp.json`, `.claude/` |
+| copilot-cli | `copilot` | `~/.copilot/` | none (`AGENTS.md` is shared) |
+| opencode | `opencode` | `~/.config/opencode/` | `opencode.json` |
+| pi | `pi` | `~/.pi/agent/` | `.pi/` |
+| ynh | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` |
+
+PATH is scanned for the file, never by running it, and `detect` takes the environment so tests
+drive it. Init writes only inside the work tree: a change to a file under the home directory
+(Copilot CLI's only config file) or a command (`ynh install` outside a harness) becomes a `run:`
+line in the report. It prints one `client` line per detected client and nothing for the rest;
+a second run reports `unchanged`. `--no-clients` skips the step and `--client <name>` names the
+clients to configure, detected or not. A bare repository gets no client files. `ynm client
+install` stays as the manual, per-client form with `--scope user` and `--http`.
+
+**Status sees the gap.** Each adapter's status reports whether the server is registered, whether
+the guidance is present and whether ynm's hooks are installed (absent for a client ynm installs
+none in). `ynm client status` prints the three per client, and `ynm doctor` adds one line per
+detected client, a `warn` naming `ynm client install <client>` when the server is registered
+but guidance or hooks are missing.
+
+## Not done
+
+- **Copilot CLI hooks.** Copilot CLI's hooks do not fire in folders the CLI has not marked
+  trusted, and no flag grants that trust per invocation (ynh's vendor notes record the same and
+  emit no Copilot hook config). ynm installs none rather than something that looks wired and is
+  inert.
+- **OpenCode and Pi hooks.** Their lifecycle events belong to plugins and extensions rather than
+  command hooks. Pi's generated extension could subscribe to session events later; neither gets
+  hooks today, and status reports `hooks n/a`.
+- **`ynh run` with Claude Code.** ynh passes the assembled plugin with `--plugin-dir`, which
+  activates skills and commands but not hooks or MCP servers until the plugin is installed with
+  `/plugin install` (a Claude Code limitation ynh documents). The harness declarations are
+  correct and work with Codex and Cursor, and in a plain Claude session through
+  `.claude/settings.json`, which is what `ynm init` writes for claude-code.
+- **Hosted servers.** The hooks run the local binary against the local store. With `--http` the
+  prompt nudge works unchanged, but session start shows only local memory.
+- **Tracked files.** ADR-009's promise that init changes no tracked file holds for memory. The
+  client step can edit a tracked `CLAUDE.md`, `AGENTS.md` or `.claude/settings.json` by merge or
+  delimited block; `--no-clients` keeps init to memory alone.
+
+## Alternatives considered
+
+- Hook scripts shipped as files and copied into each project. Rejected: another artefact to
+  install, version and keep executable per client, and one more thing to go stale when the
+  binary upgrades.
+- Guidance through MCP alone (server instructions, prompts). Rejected as the only channel: it is
+  kept, but clients surface it inconsistently and never at the moment of a remember request.
+- Install every client's user-level config from init. Rejected: init runs in a repository and
+  should change that repository; user-wide changes stay explicit (`ynm client install --scope
+  user`).
+
+## Consequences
+
+- `make test` covers the hook contract end to end (the built CLI with stdin fixtures), the
+  intent list's true and false positives, the settings and manifest merges (golden file for
+  Claude Code's settings), detection from each signal, and init's client step, including a
+  second run that changes nothing.
+- The tutorials show init's `client` lines, which depend on the machine; tutorial 7 pins its
+  output with `--client claude-code` and pipes a fake SessionStart into `ynm hook`.
+- A hook on the client's clock costs about 50 ms of Node start-up for the prompt hook and a
+  throttled stop, and about 140 ms for a stop that runs the expire pass or a session start, on a
+  checkout build. The release bundle parses the whole program first, so its hooks cost more
+  until Node's compile cache is used.
+
+## History
+
+- 2026-09-30: hooks as `ynm hook` subcommands, installed by the claude-code and ynh adapters;
+  `ynm init` configures detected clients; status and doctor report guidance and hooks.

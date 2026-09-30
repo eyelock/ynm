@@ -84,4 +84,6 @@ None.
 - 2026-09-29 (M3): `memory_session` start/end semantics and session id normalisation.
 - 2026-09-29 (M3): resources reduced to status, context and the memory template; prompts are the
   three guidance documents shared with CLAUDE.md and the ynh skill.
+- 2026-09-30: `hook` added to the CLI, a client-facing command with no tool (agent hooks read
+  and write the client's JSON); see [ADR-016](016-agent-guidance-delivery.md).
 - 2026-09-29: correction: the third guidance prompt is registered as `memory-when-to-promote` (not `memory-when-to-promote-to-procedural`), and four resources are registered: `memory://status`, `memory://context`, the memory template and the wiki template.

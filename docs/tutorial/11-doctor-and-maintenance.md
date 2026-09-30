@@ -26,7 +26,8 @@ ynm remember --type semantic --level distributed --content "Backups are taken wi
 ```
 
 Expected: `personal store created at /tmp/ynm-tutorial/home/store.git`, the `initialised` report with
-its `refspecs`, `hooks` and `.git/info/exclude` note lines, and `remembered <26-character id> in project`.
+its `refspecs`, `hooks` and `.git/info/exclude` note lines and a `client` line for each agent
+client detected on your machine (tutorial 2), and `remembered <26-character id> in project`.
 
 ## A healthy doctor
 
@@ -38,7 +39,11 @@ Expected: every line starts with `ok`, and the command exits 0. The lines, in or
 available, the config file, the `personal` mount and the `project` mount (each with a JSON blob
 of its repository, anchor, number of shards and `"badLines":0`), the project anchor, the shared
 fetch refspec, that personal refs are never pushed, that no personal refs are in the
-project repo, and the pre-push hook.
+project repo, and the pre-push hook. Then one `client` line for each agent client detected on
+your machine. A client `ynm init` configured says `server, guidance and hooks in place` (or
+`server and guidance in place`, for a client ynm installs no hooks in); one it left you a `run:`
+line for says `ynm not registered` and names the command. A client with ynm registered but its
+guidance or hooks missing would be a `warn` line naming `ynm client install <client>`.
 
 ```text
 ok    shared fetch refspec: +refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
@@ -74,8 +79,9 @@ ynm init
 ynm doctor
 ```
 
-Expected: an `initialised` report with the config marked `(unchanged)` and the `refspecs` and
-`hooks` lines it restored, then a doctor run that is all `ok` again.
+Expected: an `initialised` report with the config marked `(unchanged)`, the `refspecs` and
+`hooks` lines it restored and each `client` line reading `unchanged`, then a doctor run that is
+all `ok` again.
 
 ## The index
 

@@ -23,7 +23,10 @@ ynm init --cwd /tmp/ynm-tutorial/store.git
 
 Expected: `created bare memory repo /tmp/ynm-tutorial/store.git (anchor <12-hex sha>)`, then an
 `initialised <path>` report whose anchor is the same commit. A bare repo has no code to anchor
-to, so `init --bare` creates a root commit for the purpose.
+to, so `init --bare` creates a root commit for the purpose. It has no work tree for an agent to
+open either, so the report has no `client` lines: `ynm init` configures agent clients only in a
+checkout. Clients reach this store over HTTP instead, as below and in
+[Connect a client over HTTP](../how-to/connect-over-http.md).
 
 ## Start the server
 

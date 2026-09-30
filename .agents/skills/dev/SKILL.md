@@ -13,6 +13,10 @@ description: Develop a feature in ynm: where code lives, how tools and CLI comma
   conformance suite.
 - A change ships with: unit tests in its package, a tutorial step with an Expected block when it is
   user-visible (`docs/tutorial`), a how-to or reference update, and a new ADR if it changes a decision.
+- Client integrations are adapters in `packages/service/src/clients/`; `ynm init` runs every
+  detected adapter's project-scope plan, so a new adapter or a new file it writes shows up in
+  init's report and in the tutorials. Agent hooks (`ynm hook`) live in
+  `packages/service/src/hooks/`; a hook must print only JSON and always exit 0.
 - Do not put milestone ids in code or tests. Keep secrets out of config; they load from `~/.ynm/env`
   or the repo `.env`.
 - Verify with `make verify`, then `make test-tutorials`.

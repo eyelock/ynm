@@ -102,3 +102,6 @@ rules or commands for ynh. Re-installing replaces the block rather than appendin
 - 2026-09-29 (M5): Pi became a generated single-file extension shelling out to the CLI, not the
   `@ynm/pi` package defaulted on 2026-09-28.
 - 2026-09-29 (M5): the default stdio transport every adapter registers is `ynm serve`.
+- 2026-09-30: agent hooks, harness installs for ynh, detection from three signals and
+  `ynm init` configuring every detected client moved to
+  [ADR-016](016-agent-guidance-delivery.md).

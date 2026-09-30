@@ -11,7 +11,7 @@ From inside the repository:
 ynm init
 ```
 
-`ynm init` changes no branch, tag, commit or tracked file. It does five things:
+For memory, `ynm init` changes no branch, tag, commit or tracked file. It does five things:
 
 - writes `.ynm/config.json`, which records the anchor (the repository's root commit) and is the
   one file worth committing, so teammates share the anchor and any mounts or redaction settings;
@@ -27,9 +27,23 @@ ynm init
 Memory itself appears only when someone writes it, as refs under `refs/notes/ynm/`. Teammates who
 have not run `ynm init` see nothing and are not affected.
 
+Then it configures the agent clients it detects on your machine, and this part does write work
+tree files: for Claude Code `.mcp.json`, a delimited block in `CLAUDE.md` and hooks in
+`.claude/settings.json`; for OpenCode `opencode.json`; `AGENTS.md` for the clients that read it;
+the Pi extension under `.pi/`; and, in a ynh harness, its manifest and skill. When the
+repository already tracks one of these files, ynm merges into it: other servers, hooks and
+settings are kept, and in `CLAUDE.md` and `AGENTS.md` it only ever rewrites the text between its
+`<!-- ynm:guidance -->` markers. Each client gets one `client` line in the report. See
+[Install ynm](install.md#set-up-your-agent-clients) for how clients are detected and what each
+gets. To keep init to memory alone, run `ynm init --no-clients`.
+
 ## What to commit
 
-Commit `.ynm/config.json`. Nothing else changed in the work tree: the derived directories are
+Commit `.ynm/config.json`. The client files are your team's choice: committing `.mcp.json`,
+`.claude/settings.json` and the guidance blocks gives every teammate the same setup when they
+open the repository, and `ynm init` in their clone reports them `unchanged`. Keep a client file
+out of git if it carries a token (see [Connect a client over HTTP](connect-over-http.md)).
+Nothing else changed in the work tree: the derived directories are
 excluded through `.git/info/exclude`, which git keeps per clone and never commits. If you would
 rather have the rule in the repository's own `.gitignore` so it applies to every clone, add:
 
@@ -67,4 +81,6 @@ its `retries` field. If retries stay high for a busy store, move that store to t
 
 Remove the hook (`.git/hooks/pre-push`), the `remote.origin.fetch`
 line that mentions `refs/notes/ynm`, and `.ynm/`. Memory written so far stays in
-`refs/notes/ynm/`; delete those refs only if you mean to discard it.
+`refs/notes/ynm/`; delete those refs only if you mean to discard it. For the clients, remove the
+`ynm` entry from each client's server config, the `ynm hook` entries from
+`.claude/settings.json`, and the text between the `<!-- ynm:guidance -->` markers.
