@@ -87,7 +87,7 @@ ynm client <action> [name] [flags]
 | Argument | Required | Values | Description |
 |---|---|---|---|
 | `action` | yes | `install`, `status`, `plan` | install, plan or status |
-| `name` | no | `claude-code`, `copilot-cli`, `opencode`, `pi`, `ynh` | Client name |
+| `name` | no | `claude-code`, `copilot-cli`, `opencode`, `pi`, `ynh` | Client name; omitted: ynh in a harness directory, else every client this project uses |
 
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|

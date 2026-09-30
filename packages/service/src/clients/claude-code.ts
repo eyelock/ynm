@@ -178,6 +178,22 @@ export const claudeCode: ClientAdapter = {
     const hooked = Object.keys(CLAUDE_HOOKS).every((event) =>
       hookFiles.some((f) => claudeHooksPresent(f)[event as keyof typeof CLAUDE_HOOKS])
     );
+    const guidanceFile = claudeInstructions(cwd, home).loaded.find((f) =>
+      readFileSync(f, "utf8").includes(CLAUDE_MD_MARKER)
+    );
+    const hookFile = hookFiles.find((f) => Object.values(claudeHooksPresent(f)).some(Boolean));
+    const checkedWith = (server: string) => [
+      `server    ${server}`,
+      `guidance  ${guidanceFile ?? "missing (no file Claude Code loads here has the block)"}`,
+      `hooks     ${
+        hookFile
+          ? `${Object.entries(CLAUDE_HOOKS)
+              .filter(([e]) => claudeHooksPresent(hookFile)[e as keyof typeof CLAUDE_HOOKS])
+              .map(([e, c]) => `${e} runs \`${c}\``)
+              .join("; ")} (${hookFile})`
+          : "missing"
+      }`,
+    ];
     const file = join(cwd, ".mcp.json");
     const cfg = readJson(file) as { mcpServers?: Record<string, unknown> };
     if (cfg.mcpServers?.ynm)
@@ -187,6 +203,7 @@ export const claudeCode: ClientAdapter = {
         detail: `project scope: ${file}`,
         guidance: guided,
         hooks: hooked,
+        checked: checkedWith(`mcpServers.ynm in ${file}`),
       };
     const userFile = join(home, ".claude.json");
     if (existsSync(userFile) && /"ynm"\s*:/.test(readFileSync(userFile, "utf8")))
@@ -196,6 +213,7 @@ export const claudeCode: ClientAdapter = {
         detail: `user scope: ${userFile}`,
         guidance: guided,
         hooks: hooked,
+        checked: checkedWith(`ynm registered at user scope in ${userFile}`),
       };
     return {
       client: "claude-code",

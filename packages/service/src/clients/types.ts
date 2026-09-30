@@ -93,6 +93,8 @@ export interface ClientStatus {
   guidance?: boolean;
   /** ynm's agent hooks are installed; absent when the client has no hooks ynm installs. */
   hooks?: boolean;
+  /** What was checked and where each piece was found, one human line each. */
+  checked?: string[];
 }
 
 /**

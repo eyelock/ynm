@@ -228,14 +228,25 @@ export const ynh: ClientAdapter = {
       const server = !!(m as Manifest).mcp_servers?.ynm;
       const guided = includePresent(m as Manifest) || existsSync(harnessSkillPath(cwd));
       const hooked = Object.entries(YNH_HOOKS).every(([e, c]) => hookPresent(m as Manifest, e, c));
+      const file = harnessManifestPath(cwd);
+      const srv = (m as Manifest).mcp_servers?.ynm;
+      const hookNames = Object.entries(YNH_HOOKS).filter(([e, c]) =>
+        hookPresent(m as Manifest, e, c)
+      );
       return {
         client: "ynh",
         configured: server,
         detail: server
-          ? `harness ${harnessManifestPath(cwd)}`
+          ? `harness ${file}`
           : "harness here; ynm not declared; run `ynm client install ynh`",
         guidance: guided,
         hooks: hooked,
+        checked: [
+          `manifest  ${file}`,
+          `server    ${srv ? `mcp_servers.ynm runs \`${[srv.command, ...((srv.args as string[] | undefined) ?? [])].filter(Boolean).join(" ") || srv.url}\`` : "missing"}`,
+          `guidance  ${includePresent(m as Manifest) ? `includes ${SKILL_INCLUDE.git} ${SKILL_INCLUDE.pick.join(", ")}` : existsSync(harnessSkillPath(cwd)) ? harnessSkillPath(cwd) : "missing"}`,
+          `hooks     ${hookNames.length ? hookNames.map(([e, c]) => `${e} runs \`${c}\``).join("; ") : "missing"}`,
+        ],
       };
     }
     const dir = join(home, ".ynh");
