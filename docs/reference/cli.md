@@ -297,6 +297,8 @@ ynm init [flags]
 | `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
 | `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
+| `--[no-]clients` | boolean |  | `true` | Configure every agent client detected here (server, guidance, hooks); --no-clients skips it |
+| `--client <value>` | `claude-code` \| `copilot-cli` \| `opencode` \| `pi` \| `ynh`, repeatable |  |  | Configure this client whether detected or not (repeatable); only these |
 
 Common flags: `--json`, `--cwd`.
 
@@ -304,6 +306,8 @@ Examples:
 
 ```bash
 ynm init
+ynm init --no-clients
+ynm init --client claude-code --client ynh
 ynm init --personal
 ynm init --bare /srv/memory.git
 ```

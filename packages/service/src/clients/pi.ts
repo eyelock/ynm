@@ -5,6 +5,7 @@ import { z } from "zod";
 import { TOOL_SPECS, type ToolSpec } from "../tools.js";
 import { AGENTS_MD_MARKER, agentsMdBlock, delimitedBlockChange } from "./agents-md.js";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
+import { detectBySignals } from "./types.js";
 
 type Json = {
   type?: string | string[];
@@ -216,13 +217,8 @@ export function piDirs(t: Pick<InstallTarget, "cwd" | "home" | "scope">): {
  */
 export const pi: ClientAdapter = {
   name: "pi",
-  async detect({ cwd, home }): Promise<Detection> {
-    const user = existsSync(join(home, ".pi", "agent"));
-    const project = existsSync(join(cwd, ".pi"));
-    return {
-      installed: user || project,
-      detail: user ? "~/.pi/agent present" : project ? "project .pi present" : "no Pi config found",
-    };
+  async detect(t): Promise<Detection> {
+    return detectBySignals({ bin: "pi", user: [join(".pi", "agent")], project: [".pi"] }, t);
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     const dirs = piDirs(t);
@@ -234,10 +230,17 @@ export const pi: ClientAdapter = {
         path: dirs.extension,
         content: ext,
         reason: "Pi extension exposing memory_* tools over the ynm CLI",
+        label: "extension",
       });
     const skill = piSkill();
     if (!existsSync(dirs.skill) || readFileSync(dirs.skill, "utf8") !== skill)
-      changes.push({ kind: "write", path: dirs.skill, content: skill, reason: "ynm-memory skill" });
+      changes.push({
+        kind: "write",
+        path: dirs.skill,
+        content: skill,
+        reason: "ynm-memory skill",
+        label: "skill",
+      });
     if (t.scope === "project") {
       const c = delimitedBlockChange(
         join(t.cwd, "AGENTS.md"),

@@ -10,6 +10,7 @@ import {
   REMOTE_PREFIX,
   selectAnchor,
 } from "@ynm/store";
+import { type ClientSetup, configureClients } from "./clients/index.js";
 import { loadConfig, ynmHome } from "./config.js";
 import { ensurePersonalStore } from "./personal-store.js";
 import { detectWorktree } from "./worktree.js";
@@ -22,6 +23,11 @@ export interface InitProjectOptions {
   anchor?: string;
   /** Environment used to find the config layers; default process.env. */
   env?: NodeJS.ProcessEnv;
+  /**
+   * Configure agent clients in the work tree (ADR-016): every detected one, or `only` those.
+   * Omitted, init leaves clients alone (the CLI passes it unless `--no-clients`).
+   */
+  clients?: { home: string; env?: NodeJS.ProcessEnv; only?: string[] };
 }
 
 export interface InitReport {
@@ -33,6 +39,8 @@ export interface InitReport {
   refspecs: string[];
   hooksInstalled: string[];
   notes: string[];
+  /** One entry per client configured (or found already configured); empty when none detected. */
+  clients: ClientSetup[];
 }
 
 export const SHARED_FETCH = (remote: string): string =>
@@ -140,6 +148,16 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
       notes.push(`pre-push hook exists and was left alone: ${prePush}`);
     }
   }
+  // A bare repository has no work tree for a client to open, so it gets no client files.
+  const clients =
+    opts.clients && !wt.isBare
+      ? await configureClients({
+          cwd: wt.currentPath,
+          home: opts.clients.home,
+          env: opts.clients.env,
+          only: opts.clients.only,
+        })
+      : [];
   return {
     repo,
     anchor: anchor.sha,
@@ -149,6 +167,7 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
     refspecs,
     hooksInstalled,
     notes,
+    clients,
   };
 }
 

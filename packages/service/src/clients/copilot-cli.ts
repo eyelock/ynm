@@ -14,6 +14,7 @@ import type {
   InstallTarget,
   Transport,
 } from "./types.js";
+import { detectBySignals } from "./types.js";
 
 /** Copilot CLI's server entry: `local` (stdio) or `http`, tools allow-listed with "*". */
 export function copilotServerEntry(t: Transport): Record<string, unknown> {
@@ -36,12 +37,9 @@ export const COPILOT_CONFIG = (home: string): string => join(home, ".copilot", "
  */
 export const copilotCli: ClientAdapter = {
   name: "copilot-cli",
-  async detect({ home }): Promise<Detection> {
-    const present = existsSync(join(home, ".copilot"));
-    return {
-      installed: present,
-      detail: present ? "~/.copilot present" : "no Copilot CLI config found",
-    };
+  // No project footprint of its own: AGENTS.md is shared by several clients.
+  async detect(t): Promise<Detection> {
+    return detectBySignals({ bin: "copilot", user: [".copilot"], project: [] }, t);
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     const changes: Change[] = [

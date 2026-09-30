@@ -14,6 +14,7 @@ import type {
   InstallTarget,
   Transport,
 } from "./types.js";
+import { detectBySignals } from "./types.js";
 
 /** OpenCode's `mcp` entry: `local` takes the whole command as an array; `remote` takes url and headers. */
 export function opencodeServerEntry(t: Transport): Record<string, unknown> {
@@ -40,18 +41,15 @@ export function opencodeConfigPath(t: Pick<InstallTarget, "cwd" | "home" | "scop
  */
 export const opencode: ClientAdapter = {
   name: "opencode",
-  async detect({ cwd, home }): Promise<Detection> {
-    const project =
-      existsSync(join(cwd, "opencode.json")) || existsSync(join(cwd, "opencode.jsonc"));
-    const user = existsSync(join(home, ".config", "opencode"));
-    return {
-      installed: project || user,
-      detail: project
-        ? "project opencode.json present"
-        : user
-          ? "user config present"
-          : "no OpenCode config found",
-    };
+  async detect(t): Promise<Detection> {
+    return detectBySignals(
+      {
+        bin: "opencode",
+        user: [join(".config", "opencode")],
+        project: ["opencode.json", "opencode.jsonc"],
+      },
+      t
+    );
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     const file = opencodeConfigPath(t);

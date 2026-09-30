@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { claudeCode } from "./claude-code.js";
 import { copilotCli } from "./copilot-cli.js";
 import { opencode } from "./opencode.js";
 import { pi } from "./pi.js";
-import type { Change, ClientAdapter, ClientStatus, InstallTarget } from "./types.js";
+import type { Change, ClientAdapter, ClientStatus, DetectTarget } from "./types.js";
 import { ynh } from "./ynh.js";
 
 export * from "./agents-md.js";
@@ -67,9 +67,7 @@ export interface ClientReport extends ClientStatus {
 }
 
 /** Status of every client plus whether it was detected, graded for `client status` and doctor. */
-export async function clientReports(
-  target: Pick<InstallTarget, "cwd" | "home">
-): Promise<ClientReport[]> {
+export async function clientReports(target: DetectTarget): Promise<ClientReport[]> {
   const out: ClientReport[] = [];
   for (const a of CLIENT_ADAPTERS) {
     const d = await a.detect(target);
@@ -134,4 +132,81 @@ export async function applyChanges(changes: Change[], opts: ApplyOptions = {}): 
     }
   }
   return done;
+}
+
+/** True when applying `c` would leave the file exactly as it is. */
+function isNoop(c: Change): boolean {
+  if (c.kind === "write") return existsSync(c.path) && readFileSync(c.path, "utf8") === c.content;
+  if (c.kind !== "merge-json" || !existsSync(c.path)) return false;
+  try {
+    const existing = JSON.parse(readFileSync(c.path, "utf8")) as Record<string, unknown>;
+    return JSON.stringify(deepMerge(existing, c.patch)) === JSON.stringify(existing);
+  } catch {
+    return false;
+  }
+}
+
+export interface ClientSetup {
+  client: string;
+  /** Which detection signals fired, or "requested" for a client named with --client. */
+  detected: string;
+  /** Short names of what was written: `.mcp.json`, `CLAUDE.md`, `3 hooks`. Empty: unchanged. */
+  applied: string[];
+  /** Steps left for the user: commands, or installs that touch files outside the project. */
+  run: string[];
+}
+
+export interface ConfigureClientsOptions extends DetectTarget {
+  /** Configure exactly these clients, detected or not; default every detected client. */
+  only?: string[];
+}
+
+/**
+ * `ynm init`'s client step (ADR-016): for each detected client (or each named one), plans the
+ * project-scope install with stdio, guidance and hooks, and applies the changes that land inside
+ * the project. Changes outside it (a user-level config file) and commands are returned as `run`
+ * lines, never applied: init touches only the repository. Re-running reports nothing applied.
+ */
+export async function configureClients(opts: ConfigureClientsOptions): Promise<ClientSetup[]> {
+  const adapters = opts.only?.length ? opts.only.map(clientAdapter) : CLIENT_ADAPTERS;
+  const root = resolve(opts.cwd);
+  const inside = (p: string) => {
+    const r = relative(root, resolve(p));
+    return r !== "" && !r.startsWith("..") && !isAbsolute(r);
+  };
+  const out: ClientSetup[] = [];
+  for (const a of adapters) {
+    const d = await a.detect(opts);
+    if (!opts.only?.length && !d.installed) continue;
+    const plan = await a.plan({
+      cwd: opts.cwd,
+      home: opts.home,
+      scope: "project",
+      transport: { kind: "stdio", command: "ynm", args: ["serve"] },
+      hooks: true,
+    });
+    const local = plan.filter(
+      (c) => (c.kind === "write" || c.kind === "merge-json") && inside(c.path) && !isNoop(c)
+    );
+    const outside = plan.some(
+      (c) => (c.kind === "write" || c.kind === "merge-json") && !inside(c.path) && !isNoop(c)
+    );
+    const run: string[] = [];
+    if (outside) run.push(`ynm client install ${a.name}`);
+    const configured = (await a.status(opts)).configured;
+    for (const c of plan) {
+      if (c.kind === "command" && !configured) run.push(c.argv.join(" "));
+      if (c.kind === "note" && local.length) run.push(c.text);
+    }
+    await applyChanges(local);
+    out.push({
+      client: a.name,
+      detected: opts.only?.length ? (d.installed ? d.detail : "requested") : d.detail,
+      applied: local.map((c) =>
+        c.kind === "write" || c.kind === "merge-json" ? (c.label ?? relative(root, c.path)) : ""
+      ),
+      run,
+    });
+  }
+  return out;
 }

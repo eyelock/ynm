@@ -1,3 +1,6 @@
+import { accessSync, constants, existsSync, statSync } from "node:fs";
+import { delimiter, join } from "node:path";
+
 export type Transport =
   | { kind: "stdio"; command: string; args: string[] }
   | { kind: "http"; url: string; bearer?: string };
@@ -12,8 +15,15 @@ export interface InstallTarget {
 }
 
 export type Change =
-  | { kind: "write"; path: string; content: string; reason: string }
-  | { kind: "merge-json"; path: string; patch: Record<string, unknown>; reason: string }
+  /** `label` names the change in `ynm init`'s one-line summary; default the relative path. */
+  | { kind: "write"; path: string; content: string; reason: string; label?: string }
+  | {
+      kind: "merge-json";
+      path: string;
+      patch: Record<string, unknown>;
+      reason: string;
+      label?: string;
+    }
   | { kind: "command"; argv: string[]; reason: string }
   /** Nothing to do on disk: a next step the user should take, shown in the plan and report. */
   | { kind: "note"; text: string; reason: string };
@@ -21,6 +31,57 @@ export type Change =
 export interface Detection {
   installed: boolean;
   detail: string;
+  /** Which of the three signals fired (ADR-016); any one is enough. */
+  signals?: { path: boolean; user: boolean; project: boolean };
+}
+
+/** Where detection looks: the project, the user's home, and PATH from `env` (default process.env). */
+export type DetectTarget = Pick<InstallTarget, "cwd" | "home"> & { env?: NodeJS.ProcessEnv };
+
+/** True when an executable file named `bin` is in a PATH directory; scans, never spawns. */
+export function onPath(bin: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  for (const dir of (env.PATH ?? "").split(delimiter)) {
+    if (!dir) continue;
+    try {
+      const p = join(dir, bin);
+      if (statSync(p).isFile()) {
+        accessSync(p, constants.X_OK);
+        return true;
+      }
+    } catch {
+      // not here
+    }
+  }
+  return false;
+}
+
+export interface ClientSignals {
+  /** The client's executable. */
+  bin: string;
+  /** User-level footprint, relative to home. */
+  user: string[];
+  /** Project-level footprint, relative to the project. */
+  project: string[];
+}
+
+/**
+ * Detects a client from three signals (ADR-016): its executable on PATH, its user-level
+ * footprint, its project-level footprint. The detail names every signal that fired.
+ */
+export function detectBySignals(s: ClientSignals, t: DetectTarget): Detection {
+  const path = onPath(s.bin, t.env);
+  const user = s.user.find((p) => existsSync(join(t.home, p)));
+  const project = s.project.find((p) => existsSync(join(t.cwd, p)));
+  const fired = [
+    ...(path ? [`${s.bin} on PATH`] : []),
+    ...(user ? [`~/${user}`] : []),
+    ...(project ? [project] : []),
+  ];
+  return {
+    installed: fired.length > 0,
+    detail: fired.length ? fired.join(", ") : "not detected",
+    signals: { path, user: !!user, project: !!project },
+  };
 }
 
 export interface ClientStatus {
@@ -40,7 +101,7 @@ export interface ClientStatus {
  */
 export interface ClientAdapter {
   readonly name: string;
-  detect(target: Pick<InstallTarget, "cwd" | "home">): Promise<Detection>;
+  detect(target: DetectTarget): Promise<Detection>;
   plan(target: InstallTarget): Promise<Change[]>;
   status(target: Pick<InstallTarget, "cwd" | "home">): Promise<ClientStatus>;
 }

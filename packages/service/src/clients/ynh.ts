@@ -2,6 +2,7 @@ import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { guidance } from "@ynm/model";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
+import { detectBySignals } from "./types.js";
 
 export interface YnhPluginOptions {
   version: string;
@@ -125,6 +126,7 @@ function harnessPlan(t: InstallTarget): Change[] {
     next.mcp_servers = { ...(m.mcp_servers ?? {}), ynm: { ...want, ...env } };
     done.push(`mcp_servers.ynm${fixed}`);
   }
+  let hookCount = 0;
   if (t.hooks !== false) {
     const added: string[] = [];
     for (const [event, command] of Object.entries(YNH_HOOKS)) {
@@ -134,7 +136,10 @@ function harnessPlan(t: InstallTarget): Change[] {
       next.hooks = hooks;
       added.push(event);
     }
-    if (added.length) done.push(`hooks ${added.join(", ")}`);
+    if (added.length) {
+      done.push(`hooks ${added.join(", ")}`);
+      hookCount = added.length;
+    }
   }
   if (done.length)
     changes.push({
@@ -142,11 +147,18 @@ function harnessPlan(t: InstallTarget): Change[] {
       path: file,
       content: `${JSON.stringify(next, null, 2)}\n`,
       reason: `harness manifest: ${done.join("; ")}`,
+      label: `harness manifest${hookCount ? `, ${hookCount} hook${hookCount === 1 ? "" : "s"}` : ""}`,
     });
   const skill = harnessSkillPath(t.cwd);
   const body = ynhSkill();
   if (!existsSync(skill) || readFileSync(skill, "utf8") !== body)
-    changes.push({ kind: "write", path: skill, content: body, reason: "ynm-memory skill" });
+    changes.push({
+      kind: "write",
+      path: skill,
+      content: body,
+      reason: "ynm-memory skill",
+      label: "skill",
+    });
   if (changes.length)
     changes.push({
       kind: "note",
@@ -163,11 +175,11 @@ function harnessPlan(t: InstallTarget): Change[] {
  */
 export const ynh: ClientAdapter = {
   name: "ynh",
-  async detect({ cwd, home }): Promise<Detection> {
-    if (existsSync(harnessManifestPath(cwd)))
-      return { installed: true, detail: "harness .ynh-plugin/plugin.json in this directory" };
-    const present = existsSync(join(home, ".ynh"));
-    return { installed: present, detail: present ? "~/.ynh present" : "ynh not found" };
+  async detect(t): Promise<Detection> {
+    return detectBySignals(
+      { bin: "ynh", user: [".ynh"], project: [join(".ynh-plugin", "plugin.json")] },
+      t
+    );
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     if (existsSync(harnessManifestPath(t.cwd))) return harnessPlan(t);

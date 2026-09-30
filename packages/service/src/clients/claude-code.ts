@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { guidance } from "@ynm/model";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
-import { stdioServerEntry } from "./types.js";
+import { detectBySignals, stdioServerEntry } from "./types.js";
 
 export const CLAUDE_MD_MARKER = "<!-- ynm:guidance -->";
 
@@ -68,7 +68,14 @@ export function claudeHooksChange(file: string, reason: string): Change | null {
     patch[event] = [...groups, { hooks: [{ type: "command", command }] }];
   }
   if (!Object.keys(patch).length) return null;
-  return { kind: "merge-json", path: file, patch: { hooks: patch }, reason };
+  const n = Object.keys(patch).length;
+  return {
+    kind: "merge-json",
+    path: file,
+    patch: { hooks: patch },
+    reason,
+    label: `${n} hook${n === 1 ? "" : "s"}`,
+  };
 }
 
 export function claudeSettingsPath(t: Pick<InstallTarget, "cwd" | "home" | "scope">): string {
@@ -85,17 +92,11 @@ export function claudeSettingsPath(t: Pick<InstallTarget, "cwd" | "home" | "scop
  */
 export const claudeCode: ClientAdapter = {
   name: "claude-code",
-  async detect({ cwd, home }): Promise<Detection> {
-    const project = existsSync(join(cwd, ".mcp.json"));
-    const user = existsSync(join(home, ".claude.json")) || existsSync(join(home, ".claude"));
-    return {
-      installed: project || user,
-      detail: project
-        ? "project .mcp.json present"
-        : user
-          ? "user config present"
-          : "no Claude Code config found",
-    };
+  async detect(t): Promise<Detection> {
+    return detectBySignals(
+      { bin: "claude", user: [".claude", ".claude.json"], project: [".mcp.json", ".claude"] },
+      t
+    );
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     const changes: Change[] = [];

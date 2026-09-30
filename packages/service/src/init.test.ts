@@ -156,6 +156,85 @@ describe("openYnm end to end on git notes", () => {
     expect(report.checks.filter((c) => !c.ok)).toEqual([]);
   });
 
+  it("configures the clients it detects, only inside the work tree, idempotently", async () => {
+    const home = await createRepo(0);
+    const repo = await createRepo(1);
+    writeFileSync(join(repo, ".mcp.json"), JSON.stringify({ mcpServers: {} }));
+    const clients = { home, env: { PATH: "" } };
+    const first = await initProject({ cwd: repo, hooks: false, clients });
+    expect(first.clients).toEqual([
+      {
+        client: "claude-code",
+        detected: ".mcp.json",
+        applied: [".mcp.json", "CLAUDE.md", "3 hooks"],
+        run: [],
+      },
+    ]);
+    expect(existsSync(join(repo, ".claude", "settings.json"))).toBe(true);
+    const again = await initProject({ cwd: repo, hooks: false, clients });
+    expect(again.clients).toEqual([
+      { client: "claude-code", detected: ".mcp.json", applied: [], run: [] },
+    ]);
+    const none = await initProject({ cwd: await createRepo(1), hooks: false, clients });
+    expect(none.clients).toEqual([]);
+    const bare = (await initBare(join(await createRepo(0), "m.git"))).repo;
+    writeFileSync(join(bare, ".mcp.json"), "{}");
+    expect((await initProject({ cwd: bare, hooks: false, clients })).clients).toEqual([]);
+  });
+
+  it("detects from PATH, home and project, and never applies changes outside the work tree", async () => {
+    const home = await createRepo(0);
+    const bin = await createRepo(0);
+    writeFileSync(join(bin, "copilot"), "#!/bin/sh\n", { mode: 0o755 });
+    mkdirSync(join(home, ".pi", "agent"), { recursive: true });
+    const repo = await createRepo(1);
+    const r = await initProject({ cwd: repo, hooks: false, clients: { home, env: { PATH: bin } } });
+    expect(r.clients.map((c) => [c.client, c.detected])).toEqual([
+      ["copilot-cli", "copilot on PATH"],
+      ["pi", "~/.pi/agent"],
+    ]);
+    const copilot = r.clients.find((c) => c.client === "copilot-cli");
+    expect(copilot).toMatchObject({
+      applied: ["AGENTS.md"],
+      run: ["ynm client install copilot-cli"],
+    });
+    expect(existsSync(join(home, ".copilot"))).toBe(false);
+    expect(r.clients.find((c) => c.client === "pi")?.applied).toEqual(["extension", "skill"]);
+  });
+
+  it("merges ynm into a ynh harness, and --client forces an undetected client", async () => {
+    const home = await createRepo(0);
+    const repo = await createRepo(1);
+    mkdirSync(join(repo, ".ynh-plugin"));
+    writeFileSync(
+      join(repo, ".ynh-plugin", "plugin.json"),
+      JSON.stringify({ name: "h", version: "0.1.0" })
+    );
+    const clients = { home, env: { PATH: "" } };
+    const r = await initProject({ cwd: repo, hooks: false, clients });
+    expect(r.clients).toEqual([
+      {
+        client: "ynh",
+        detected: ".ynh-plugin/plugin.json",
+        applied: ["harness manifest, 3 hooks", "skill"],
+        run: ["ynd validate ."],
+      },
+    ]);
+    const forced = await initProject({
+      cwd: repo,
+      hooks: false,
+      clients: { ...clients, only: ["opencode"] },
+    });
+    expect(forced.clients).toEqual([
+      {
+        client: "opencode",
+        detected: "requested",
+        applied: ["opencode.json", "AGENTS.md"],
+        run: [],
+      },
+    ]);
+  });
+
   it("doctor warns about a client with the server but no guidance or hooks", async () => {
     const home = await createRepo(0);
     const repo = await createRepo(1);
