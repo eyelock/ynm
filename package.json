@@ -22,7 +22,7 @@
     "gen:clients": "node scripts/gen-clients.mjs",
     "docs:gen": "node scripts/gen-docs.mjs",
     "docs:links": "node scripts/gen-docs.mjs --check-links",
-    "release:pack": "node scripts/release/pack.mjs",
+    "release:slim": "node scripts/release/build-slim.mjs",
     "bench:public": "pnpm --filter @ynm/evals bench:public"
   },
   "devDependencies": {

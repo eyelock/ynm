@@ -88,10 +88,16 @@ rmSync(join(stage, "node"));
 
 // 3. Inject. macOS: drop the official signature first, sign ad hoc after.
 if (os === "darwin") run("codesign", ["--remove-signature", bin]);
+const fuse = "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2";
 await inject(bin, "NODE_SEA_BLOB", readFileSync(blob), {
-  sentinelFuse: "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2",
+  sentinelFuse: fuse,
   ...(os === "darwin" ? { machoSegmentName: "NODE_SEA" } : {}),
 });
+// A binary of another architecture cannot be run here; the flipped fuse shows the blob went in.
+if (!readFileSync(bin).includes(`${fuse}:1`)) {
+  console.error(`${bin}: the SEA fuse is not set after injection`);
+  process.exit(1);
+}
 if (os === "darwin") run("codesign", ["--sign", "-", bin]);
 
 // 4. Archive, flat like goreleaser's.

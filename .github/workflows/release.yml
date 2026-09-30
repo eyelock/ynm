@@ -1,8 +1,9 @@
 name: release
 
-# Tag v<version> (after `pnpm changeset version` has bumped the packages) to publish:
-# a GitHub release with the self-contained CLI tarball, the Homebrew formula in
-# github.com/eyelock/homebrew-tap, and the hosted image on ghcr.io.
+# Tag v<version> (after `pnpm changeset version` has bumped the packages) to publish a GitHub
+# release with four standalone binaries (Node single-executable, git is the only dependency),
+# the slim tarball (the bundle for your own Node), manifest.json and checksums.txt; the two
+# Homebrew formulae in github.com/eyelock/homebrew-tap; and the hosted image on ghcr.io.
 on:
   push:
     tags:
@@ -32,12 +33,58 @@ jobs:
         env:
           YNM_CI_RELEASE: "1"
 
-  release:
+  # One runner per OS builds both of its architectures: the SEA blob is platform independent,
+  # and postject injects it into the official Node binary for each target. Mach-O needs macOS
+  # for codesign; ELF injection works across architectures. Only the runner's native binary can
+  # run, so only that one is smoke-tested here (darwin/arm64 on macos-14, linux/amd64 on
+  # ubuntu-24.04); darwin/amd64 and linux/arm64 are built, and build-standalone.mjs checks
+  # that the blob was injected (the SEA fuse is flipped), but they are not run before release.
+  build:
     needs: verify
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: macos-14
+            os: darwin
+            native: arm64
+          - runner: ubuntu-24.04
+            os: linux
+            native: amd64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The blob must be made by the Node it is injected into: .nvmrc pins it exactly.
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Build ${{ matrix.os }} binaries
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for ARCH in arm64 amd64; do
+            TARBALL="$(node scripts/release/fetch-node.mjs --os ${{ matrix.os }} --arch "$ARCH")"
+            node scripts/release/build-standalone.mjs --os ${{ matrix.os }} --arch "$ARCH" \
+              --node-tarball "$TARBALL" --version "$VERSION"
+          done
+      - name: Smoke the native binary
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/release/smoke.mjs "$VERSION" "dist-release/ynm_${VERSION}_${{ matrix.os }}_${{ matrix.native }}/ynm"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: standalone-${{ matrix.os }}
+          path: dist-release/ynm_*_${{ matrix.os }}_*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: build
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
-      sha256: ${{ steps.meta.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -48,21 +95,31 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - id: meta
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Build the slim tarball
+        run: node scripts/release/build-slim.mjs "${{ steps.meta.outputs.version }}"
+      - name: Smoke the slim tarball
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          node scripts/release/pack.mjs "$VERSION"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "sha256=$(cut -d' ' -f1 dist-release/ynm-$VERSION.tar.gz.sha256)" >> "$GITHUB_OUTPUT"
-      - name: Smoke the tarball
-        run: |
-          tar -xzf dist-release/ynm-${{ steps.meta.outputs.version }}.tar.gz -C /tmp
-          /tmp/ynm-${{ steps.meta.outputs.version }}/ynm --version
-          /tmp/ynm-${{ steps.meta.outputs.version }}/ynm serve --help
+          mkdir -p "$RUNNER_TEMP/slim"
+          tar -xzf "dist-release/ynm_${{ steps.meta.outputs.version }}_slim.tar.gz" -C "$RUNNER_TEMP/slim"
+          node scripts/release/smoke.mjs "${{ steps.meta.outputs.version }}" "$RUNNER_TEMP/slim/bin/ynm"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: standalone-*
+          path: dist-release
+          merge-multiple: true
+      - name: Write manifest.json and checksums.txt
+        run: node scripts/release/manifest.mjs "${{ steps.meta.outputs.version }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manifest
+          path: dist-release/manifest.json
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist-release/ynm-${{ steps.meta.outputs.version }}.tar.gz
-            dist-release/ynm-${{ steps.meta.outputs.version }}.tar.gz.sha256
+            dist-release/ynm_${{ steps.meta.outputs.version }}_*.tar.gz
+            dist-release/manifest.json
+            dist-release/checksums.txt
           generate_release_notes: true
 
   homebrew:
@@ -70,18 +127,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: manifest
+          path: dist-release
       - uses: actions/checkout@v4
         with:
           repository: eyelock/homebrew-tap
           token: ${{ secrets.RELEASE_TOKEN }}
           path: tap
-      - name: Update Formula/ynm.rb
+      - name: Update Formula/ynm.rb and Formula/ynm-slim.rb
         run: |
-          node scripts/release/formula.mjs "${{ needs.release.outputs.version }}" "${{ needs.release.outputs.sha256 }}" > tap/Formula/ynm.rb
+          node scripts/release/formula.mjs dist-release/manifest.json ynm > tap/Formula/ynm.rb
+          node scripts/release/formula.mjs dist-release/manifest.json ynm-slim > tap/Formula/ynm-slim.rb
           cd tap
           git config user.name "ynm-release[bot]"
           git config user.email "ynm-release@users.noreply.github.com"
-          git add Formula/ynm.rb
+          git add Formula/ynm.rb Formula/ynm-slim.rb
           git commit -m "Brew formula update for ynm version v${{ needs.release.outputs.version }}"
           git push
 
