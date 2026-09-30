@@ -97,25 +97,36 @@ export class Lifecycle {
       };
     }
     const report: ConsolidateReport = { dryRun: input.dryRun, passes: {} };
-    if (input.passes.includes("expire")) {
-      const changed: string[] = [];
-      let candidates = 0;
-      const now = this.now().getTime();
-      for (const m of await this.ynm.list({
-        type: "working",
-        namespace: input.namespace,
-        includeTombstoned: false,
-      })) {
-        const ttl = m.current.ttl;
-        if (!ttl) continue;
-        candidates += 1;
-        if (Date.parse(m.updatedAt) + durationMs(ttl) <= now) {
-          if (!input.dryRun) await this.ynm.forget({ memoryId: m.memoryId, reason: "expired" });
-          changed.push(m.memoryId);
-        }
-      }
-      report.passes.expire = { candidates, changed };
-    }
+    if (input.passes.includes("expire"))
+      report.passes.expire = await this.expireWorking(input.namespace, input.dryRun);
     return report;
+  }
+
+  /**
+   * Expires a session's due working memory with the expire pass alone, never the model-backed
+   * engine: cheap and idempotent, so a client hook may call it every turn.
+   */
+  async expireSession(sessionId: string): Promise<{ sessionId: string; expired: string[] }> {
+    const { changed } = await this.expireWorking(sessionNamespace(sessionId), false);
+    return { sessionId, expired: changed };
+  }
+
+  private async expireWorking(
+    namespace: string | undefined,
+    dryRun: boolean
+  ): Promise<{ candidates: number; changed: string[] }> {
+    const changed: string[] = [];
+    let candidates = 0;
+    const now = this.now().getTime();
+    for (const m of await this.ynm.list({ type: "working", namespace, includeTombstoned: false })) {
+      const ttl = m.current.ttl;
+      if (!ttl) continue;
+      candidates += 1;
+      if (Date.parse(m.updatedAt) + durationMs(ttl) <= now) {
+        if (!dryRun) await this.ynm.forget({ memoryId: m.memoryId, reason: "expired" });
+        changed.push(m.memoryId);
+      }
+    }
+    return { candidates, changed };
   }
 }

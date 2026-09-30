@@ -10,6 +10,7 @@ import Doctor from "./doctor.js";
 import Dream from "./dream.js";
 import Export from "./export.js";
 import Forget from "./forget.js";
+import Hook from "./hook.js";
 import Import from "./import.js";
 import Init from "./init.js";
 import List from "./list.js";
@@ -35,6 +36,7 @@ export const COMMANDS = {
   dream: Dream,
   export: Export,
   forget: Forget,
+  hook: Hook,
   import: Import,
   init: Init,
   list: List,

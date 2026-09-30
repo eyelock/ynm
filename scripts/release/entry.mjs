@@ -6,6 +6,7 @@
 import { dirname } from "node:path";
 import { Config, execute, Plugin } from "@oclif/core";
 import { COMMANDS } from "../../packages/cli/dist/commands/index.js";
+import { runHookFast } from "../../packages/cli/dist/lib/hook.js";
 import { embedGuidance } from "../../packages/model/dist/guidance/index.js";
 import sessionStart from "../../packages/model/src/guidance/session-start.md";
 import whenToPromote from "../../packages/model/src/guidance/when-to-promote.md";
@@ -21,6 +22,8 @@ embedGuidance({
 const pjson = YNM_PJSON;
 
 async function main() {
+  // Client hooks fire every turn: `ynm hook <event>` skips oclif's startup (ADR-016).
+  if (process.argv[2] === "hook" && (await runHookFast(process.argv.slice(2)))) return;
   const root = dirname(process.execPath);
   const plugin = new Plugin({ isRoot: true, pjson, root, ignoreManifest: true });
   // oclif's explicit strategy imports `oclif.commands.target` from disk on first use and caches
