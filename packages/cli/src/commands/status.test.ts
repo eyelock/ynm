@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { toolSpec } from "@ynm/service";
@@ -22,7 +22,13 @@ describe("ynm status", () => {
       mounts: Array<{ id: string }>;
     };
     expect(parsed.name).toBe("ynm");
-    expect(parsed.version).toBe("0.1.0");
+    expect(parsed.version).toBe(
+      (
+        JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "package.json"), "utf8")) as {
+          version: string;
+        }
+      ).version
+    );
     expect((parsed as { index: unknown[] }).index).toHaveLength(1);
     expect(parsed.mounts.map((m) => m.id)).toEqual(["personal"]);
   });

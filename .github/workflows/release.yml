@@ -115,12 +115,15 @@ jobs:
         with:
           name: manifest
           path: dist-release/manifest.json
+      - name: Release notes from the changeset CHANGELOG
+        run: node scripts/release/notes.mjs "${{ steps.meta.outputs.version }}"
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             dist-release/ynm_${{ steps.meta.outputs.version }}_*.tar.gz
             dist-release/manifest.json
             dist-release/checksums.txt
+          body_path: dist-release/RELEASE_NOTES.md
           generate_release_notes: true
 
   homebrew:

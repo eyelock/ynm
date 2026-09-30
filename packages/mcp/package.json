@@ -1,6 +1,6 @@
 {
   "name": "@ynm/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "MCP server: tools, resources, prompts, stdio and Streamable HTTP transports (ADR-008, ADR-009).",
   "license": "MIT",
@@ -16,10 +16,10 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/version.mjs && tsc",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/version.mjs && tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {

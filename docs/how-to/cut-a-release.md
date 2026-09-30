@@ -62,6 +62,7 @@ With the Node version in `.nvmrc` active:
 make release-slim          # dist-release/ynm_<v>_slim.tar.gz, smoke-tested through node
 make release-standalone    # this machine's ynm_<v>_<os>_<arch>.tar.gz, smoke-tested
 make release-manifest      # dist-release/manifest.json with every asset's sha256
+make release-notes         # dist-release/RELEASE_NOTES.md from the changeset CHANGELOG
 ```
 
 Each target wraps a script under `scripts/release/` (`build-slim.mjs`, `fetch-node.mjs`,

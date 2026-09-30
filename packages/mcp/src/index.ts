@@ -9,12 +9,14 @@ import { parseEvery, startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { startHttp } from "./transport/http.js";
 import { startStdio } from "./transport/stdio.js";
+import { MCP_VERSION } from "./version.js";
 
 export * from "./auth.js";
 export * from "./scheduler.js";
 export { createYnmServer, serviceCache } from "./server.js";
 export { type HttpHandle, type HttpOptions, startHttp } from "./transport/http.js";
 export { startStdio } from "./transport/stdio.js";
+export { MCP_VERSION } from "./version.js";
 
 export const MCP_TOOLS = [
   "memory_remember",
@@ -75,12 +77,12 @@ export function parseArgs(argv: readonly string[], env: NodeJS.ProcessEnv = proc
 export async function main(argv: readonly string[]): Promise<void> {
   const args = parseArgs(argv);
   if (args.version) {
-    process.stdout.write("ynm-mcp 0.1.0\n");
+    process.stdout.write(`ynm-mcp ${MCP_VERSION}\n`);
     return;
   }
   const opts = { cwd: args.cwd, noPersonal: args.noPersonal };
   const getYnm = serviceCache(opts);
-  const factory = () => createYnmServer(opts, getYnm);
+  const factory = () => createYnmServer({ ...opts, version: MCP_VERSION }, getYnm);
   if (args.mode === "http") {
     const auth = args.token ? { mode: "bearer" as const, tokens: [args.token] } : authFromEnv();
     const scheduler = startScheduler(getYnm, {

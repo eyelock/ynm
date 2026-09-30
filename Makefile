@@ -2,7 +2,7 @@
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
 .PHONY: help install build rebuild verify check fix lint format typecheck test coverage \
         test-hosted test-tutorials eval-tutorials bench bench-large bench-public gate \
-        gen golden docs docs-gen docs-links release-slim release-standalone release-manifest changeset version cli clean ci build-pkg test-pkg
+        gen golden docs docs-gen docs-links release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
 M ?= M6
 
@@ -12,7 +12,7 @@ help:
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
-	@echo "Release:  release-slim release-standalone release-manifest changeset version"
+	@echo "Release:  release-slim release-standalone release-manifest release-notes changeset version"
 	@echo "Other:    cli clean ci (what CI runs)"
 
 ## Setup
@@ -121,6 +121,9 @@ release-standalone: build
 
 release-manifest:
 	node scripts/release/manifest.mjs $(VERSION)
+
+release-notes:
+	node scripts/release/notes.mjs $(VERSION)
 
 changeset:
 	pnpm changeset

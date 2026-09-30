@@ -74,7 +74,7 @@ describe("gate M6: v0.1 release", () => {
     const b = readBaseline() as Record<string, unknown>;
     const missing = FROZEN_KEYS.filter((k) => !(k in b));
     expect(missing, `baseline ${version} is missing keys`).toEqual([]);
-    expect(process.env.YNM_BASELINE_VERSION ?? "0.1.0").toBe(version);
+    expect(process.env.YNM_BASELINE_VERSION ?? version).toBe(version);
   });
 
   it("ADRs consolidated: addenda folded, status accepted", () => {
