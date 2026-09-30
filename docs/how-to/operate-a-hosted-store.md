@@ -65,7 +65,7 @@ block shows the last run's pass summary and any error.
 
 ## Local clones and the hosted store
 
-Developers add the hosted repo as a remote (`ynm init` writes the shared fetch refspec and a
+Developers add the hosted repo as a remote (`ynm init` writes the distributed fetch refspec and a
 pre-push hook), then `ynm sync` fetches, merges (`cat_sort_uniq`) and pushes shared notes. Pushes
 land on the same refs the server writes under its lock; a rejected push retries after a fresh
 fetch. Personal memory never leaves the developer's own `~/.ynm/store.git`.

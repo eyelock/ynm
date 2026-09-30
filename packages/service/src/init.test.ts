@@ -33,7 +33,9 @@ describe("ynm init (ADR-009 retrofit)", () => {
     expect(report.anchorSource).toBe("root-commit");
     expect(JSON.parse(readFileSync(report.configFile, "utf8"))).toEqual({ anchor: report.anchor });
     const fetch = await fx(repo, "config", "--get-all", "remote.origin.fetch");
-    expect(fetch).toContain("+refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*");
+    expect(fetch).toContain(
+      "+refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*"
+    );
     expect(fetch).not.toMatch(/personal/);
     const push = await fx(repo, "config", "--get-all", "remote.origin.push").catch(() => "");
     expect(push).toBe("");
@@ -107,7 +109,7 @@ describe("openYnm end to end on git notes", () => {
     await ynm.remember({ type: "semantic", content: "personal fact" });
     await ynm.remember({ type: "semantic", level: "distributed", content: "shared fact" });
     const projectRefs = await fx(repo, "for-each-ref", "--format=%(refname)", "refs/notes/");
-    expect(projectRefs).toMatch(/refs\/notes\/ynm\/shared\/common\/semantic/);
+    expect(projectRefs).toMatch(/refs\/notes\/ynm\/distributed\/common\/semantic/);
     expect(projectRefs).not.toMatch(/personal/);
     const personalRefs = await fx(
       join(home, ".ynm", "store.git"),
@@ -137,7 +139,7 @@ describe("openYnm end to end on git notes", () => {
     await fx(repo, "commit", "--allow-empty", "-m", "x");
     await fx(repo, "push", "origin", "HEAD:refs/heads/topic");
     const remoteRefs = await fx(origin, "for-each-ref", "--format=%(refname)", "refs/notes/");
-    expect(remoteRefs).toMatch(/refs\/notes\/ynm\/shared\/common\/semantic/);
+    expect(remoteRefs).toMatch(/refs\/notes\/ynm\/distributed\/common\/semantic/);
   });
 
   it("doctor is clean after init and warns before", async () => {

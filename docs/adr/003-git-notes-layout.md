@@ -24,11 +24,11 @@ Facts about git notes that drive this decision (verified against git 2.54 and it
 
 ```
 refs/notes/ynm/personal/<namespace>/<type>/<yyyy-mm>
-refs/notes/ynm/shared/<namespace>/<type>/<yyyy-mm>
+refs/notes/ynm/distributed/<namespace>/<type>/<yyyy-mm>
 ```
 
 Namespace segments are real ref path components
-(`refs/notes/ynm/shared/org/eyelock/project/ynm/semantic/2026-09`). Type and bucket have fixed
+(`refs/notes/ynm/distributed/org/eyelock/project/ynm/semantic/2026-09`). Type and bucket have fixed
 forms, so parsing a ref back is unambiguous and hyphenated namespaces cannot collide. Segments
 must therefore be valid ref components: ADR-001's namespace rule forbids a leading dot, `..` and a
 `.lock` suffix. `personal/*` refs exist only in the user's own store (`~/.ynm/store.git`), never
@@ -156,3 +156,5 @@ None.
   carrying orphans, were fixed by the property suite.
 - 2026-09-29 (M1): the write path was measured at seven git spawns per append; batching is the
   bulk-load lever.
+- 2026-09-30: the ref directory for distributed memory renamed from `shared` to `distributed`,
+  matching the level's name (ADR-001); no migration, as nothing existed beyond a tutorial store.

@@ -35,7 +35,7 @@ export const DEFAULT_REDACTION = [
 
 export const YnmConfigSchema = z
   .object({
-    anchor: ShaSchema.optional().describe("Anchor commit for this repository's shared notes"),
+    anchor: ShaSchema.optional().describe("Anchor commit for this repository's distributed notes"),
     remote: z.string().default("origin").describe("Remote used by sync"),
     provider: z
       .enum(["git-notes", "fs", "sqlite", "memory"])

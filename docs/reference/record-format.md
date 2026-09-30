@@ -112,7 +112,7 @@ The folded memory carries `createdAt` (first record), `updatedAt` (latest record
 Each record is appended to one shard, chosen from the record itself:
 
 ```text
-refs/notes/ynm/<personal|shared>/<namespace>/<type>/<yyyy-mm>
+refs/notes/ynm/<personal|distributed>/<namespace>/<type>/<yyyy-mm>
 ```
 
 | Part | Value |
@@ -131,7 +131,7 @@ the anchor's path. Every append is a new commit whose parent is the previous one
 `git log <ref>` is the write history of the shard. Commit messages have the form
 `ynm: <n> record(s) <level>/<namespace>/<type>/<yyyy-mm>`.
 
-Sync fetches remote shards into `refs/notes/ynm-remote/<remote>/shared/...` and merges them with
+Sync fetches remote shards into `refs/notes/ynm-remote/<remote>/distributed/...` and merges them with
 `git notes merge -s cat_sort_uniq`. It never fetches into `refs/notes/ynm/*` directly.
 
 ## The anchor

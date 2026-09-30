@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { gitOrNull, NOTES_PREFIX } from "@ynm/store";
 import { clientReports, type InstallTarget } from "./clients/index.js";
 import type { LoadedConfig } from "./config.js";
-import { SHARED_FETCH } from "./init.js";
+import { DISTRIBUTED_FETCH } from "./init.js";
 import type { Mount } from "./mounts.js";
 import { projectInitialised } from "./mounts.js";
 import type { WorktreeInfo } from "./worktree.js";
@@ -96,9 +96,11 @@ export async function doctor(opts: {
         const fetches =
           (await gitOrNull(["config", "--get-all", `remote.${remote}.fetch`], { cwd: repo })) ?? "";
         add(
-          "shared fetch refspec",
-          fetches.includes(SHARED_FETCH(remote)),
-          fetches.includes(SHARED_FETCH(remote)) ? SHARED_FETCH(remote) : "missing; run `ynm init`"
+          "distributed fetch refspec",
+          fetches.includes(DISTRIBUTED_FETCH(remote)),
+          fetches.includes(DISTRIBUTED_FETCH(remote))
+            ? DISTRIBUTED_FETCH(remote)
+            : "missing; run `ynm init`"
         );
         const pushes =
           (await gitOrNull(["config", "--get-all", `remote.${remote}.push`], { cwd: repo })) ?? "";

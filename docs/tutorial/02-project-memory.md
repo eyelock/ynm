@@ -153,7 +153,7 @@ machine. Try it if you like, then forget it: secrets do not belong in memory at 
 
 ## Where it went
 
-Shared memory is git notes in this repository, under `refs/notes/ynm/shared/`:
+Shared memory is git notes in this repository, under `refs/notes/ynm/distributed/`:
 
 ```bash
 git for-each-ref --format='%(refname)' refs/notes
@@ -162,8 +162,8 @@ git for-each-ref --format='%(refname)' refs/notes
 Expected: one ref per namespace, type and month.
 
 ```text
-refs/notes/ynm/shared/common/procedural/<yyyy-mm>
-refs/notes/ynm/shared/org/eyelock/project/demo/semantic/<yyyy-mm>
+refs/notes/ynm/distributed/common/procedural/<yyyy-mm>
+refs/notes/ynm/distributed/org/eyelock/project/demo/semantic/<yyyy-mm>
 ```
 
 No personal ref appears here, and `ynm doctor` checks that it never does:

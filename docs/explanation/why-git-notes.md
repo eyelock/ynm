@@ -29,7 +29,7 @@ it on request, and never gets in the way of the code.
 ## How ynm uses them
 
 **One ref per shard.** Each combination of level, namespace, type and month gets its own ref,
-such as `refs/notes/ynm/shared/common/semantic/2026-09`. A shard holds one note: every record for
+such as `refs/notes/ynm/distributed/common/semantic/2026-09`. A shard holds one note: every record for
 that bucket, one JSON object per line. Months keep any one blob small and let old shards go
 quiet.
 

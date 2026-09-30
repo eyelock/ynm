@@ -14,7 +14,7 @@ your corrections, what you learned about a codebase you are only visiting: all p
 default everything is.
 
 **Distributed memory** lives in the project: in the repository's own notes refs under
-`refs/notes/ynm/shared/`, or in a dedicated shared repository mounted alongside. It is what the
+`refs/notes/ynm/distributed/`, or in a dedicated shared repository mounted alongside. It is what the
 team should know: decisions and why, the procedure that works, the dashboard everyone needs.
 
 The important part is that these are two different places, not one place with a visibility
@@ -54,7 +54,7 @@ the shapes you know; the judge catches the ones you did not list.
 
 ## Sync respects the boundary
 
-`ynm init` adds a fetch refspec for `refs/notes/ynm/shared/*` only, and a pre-push hook that
+`ynm init` adds a fetch refspec for `refs/notes/ynm/distributed/*` only, and a pre-push hook that
 syncs them (the hook is the only thing that pushes notes). `ynm sync` fetches, merges and pushes distributed shards. It does not touch the
 personal store unless you name the personal mount and give an explicit remote, which is how you
 back your personal memory up to a private repository of your own.

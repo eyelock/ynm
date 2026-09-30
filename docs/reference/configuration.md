@@ -37,7 +37,7 @@ After merging, three keys get runtime defaults when still unset:
 <!-- gen:config-keys -->
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `anchor` | string |  | Anchor commit for this repository's shared notes |
+| `anchor` | string |  | Anchor commit for this repository's distributed notes |
 | `remote` | string | `origin` | Remote used by sync |
 | `provider` | `git-notes` \| `fs` \| `sqlite` \| `memory` | `git-notes` | Default provider |
 | `personalStore` | string |  | Path of the personal bare repo; default ~/.ynm/store.git |

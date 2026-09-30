@@ -34,7 +34,7 @@ job.
 
 - Six memory **types**: working, episodic, semantic, procedural, reflective, reference.
 - Two **levels**: personal (your own store, `~/.ynm/store.git`) and distributed (the project's
-  `refs/notes/ynm/shared/*`, synced with its remote). A redaction gate sits in front of every
+  `refs/notes/ynm/distributed/*`, synced with its remote). A redaction gate sits in front of every
   distributed write.
 - Unbounded **namespaces** (`common`, `user/<id>`, `org/<org>/project/<name>`, `session/<id>`).
 - Recall is indexed (SQLite FTS) and ranked by relevance, recency per type, importance and pins.

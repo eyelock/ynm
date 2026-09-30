@@ -169,7 +169,7 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     );
     expect(r.mount).toBe("project");
     expect(await fx(bare, "for-each-ref", "--format=%(refname)", "refs/notes/")).toMatch(
-      /ynm\/shared/
+      /ynm\/distributed/
     );
     await close();
   });

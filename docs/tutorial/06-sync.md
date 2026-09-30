@@ -54,7 +54,7 @@ naming clients found on your machine (tutorial 2) may appear, and varies.
 initialised <project path>
   anchor    <40-hex sha> (root-commit)
   config    <project path>/.ynm/config.json
-  refspecs  +refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
+  refspecs  +refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*
   hooks     <project path>/.git/hooks/pre-push
   note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
   also      <client names> on this machine but not used here; add one with `ynm client install <name>`
@@ -75,7 +75,7 @@ remote's shared memory into a separate namespace, so it can be merged rather tha
 
 ```text
 +refs/heads/*:refs/remotes/origin/*
-+refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
++refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*
 ```
 
 The second command prints only `no push refspec`: there are no push lines. Only `shared` is ever mapped; the
@@ -164,7 +164,7 @@ and the shared memory:
 
 ```text
 refs/heads/main
-refs/notes/ynm/shared/common/semantic/<yyyy-mm>
+refs/notes/ynm/distributed/common/semantic/<yyyy-mm>
 ```
 
 No `personal` ref exists on the remote. Sync never touches the personal store unless you
@@ -195,7 +195,7 @@ cd /tmp/ynm-tutorial/alice
 ynm doctor
 ```
 
-Expected: every line starts with `ok`. Among them are `shared fetch refspec`, `personal refs never pushed: no personal refspecs in remote config (ADR-007)`,
+Expected: every line starts with `ok`. Among them are `distributed fetch refspec`, `personal refs never pushed: no personal refspecs in remote config (ADR-007)`,
 `no personal refs in project repo: ok (ADR-007)` and `pre-push hook`. The two mount lines
 report `"remote":"origin"`. Any `client` lines at the end are agent clients found on your
 machine, each saying `ynm not registered`: `ynm init` configured none in Alice's clone.

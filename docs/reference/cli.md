@@ -295,7 +295,7 @@ ynm init [flags]
 |---|---|---|---|---|
 | `--personal` | boolean |  | `false` | Create the personal store only |
 | `--bare <value>` | string |  |  | Create or adopt a dedicated bare memory repo at this path |
-| `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
+| `--remote <value>` | string |  | `origin` | Remote for the distributed fetch refspec |
 | `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
 | `--[no-]clients` | boolean |  | `true` | Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; --no-clients skips it |

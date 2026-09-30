@@ -15,7 +15,7 @@ For memory, `ynm init` changes no branch, tag, commit or tracked file. It does f
 
 - writes `.ynm/config.json`, which records the anchor (the repository's root commit) and is the
   one file worth committing, so teammates share the anchor and any mounts or redaction settings;
-- adds a fetch refspec for `refs/notes/ynm/shared/*` to `remote.origin` in
+- adds a fetch refspec for `refs/notes/ynm/distributed/*` to `remote.origin` in
   `.git/config` (pass `--remote <name>` to use another remote; without the remote it prints a
   note and you re-run `init` after adding it);
 - installs a `pre-push` hook that runs `ynm sync --quiet`, unless you pass `--no-hooks` or set
