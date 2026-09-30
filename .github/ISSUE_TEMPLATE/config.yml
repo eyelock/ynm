@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://eyelock.github.io/ynm/
+    about: Tutorials, how-to guides, explanation and reference
+  - name: Security report
+    url: https://github.com/eyelock/ynm/security/advisories/new
+    about: Report a vulnerability privately

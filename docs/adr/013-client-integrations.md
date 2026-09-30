@@ -15,7 +15,7 @@ The clients differ in more than config file paths:
 | GitHub Copilot CLI | `~/.copilot/mcp-config.json`; `copilot mcp add --transport http NAME URL` | `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/**` | https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli |
 | OpenCode | `opencode.json` `mcp` key: `{type: "local", command: [...], environment}` or `{type: "remote", url, headers, oauth}` | `AGENTS.md`, skills | https://opencode.ai/docs/mcp-servers/ |
 | Pi | **No native MCP by design.** Extensions are TypeScript modules with tools, commands and events; skills are CLI tools with READMEs | `AGENTS.md`, `SYSTEM.md` under `~/.pi/agent/` and the project | https://pi.dev; integration is an extension or a skill wrapping the ynm CLI |
-| ynh | `.ynh-plugin/plugin.json` declares MCP servers, hooks, profiles, focuses and **sensors**; ynh assembles per vendor (Claude, Codex, Copilot, …) | skills, agents, rules, commands inside the harness | `/Users/david/Storage/Workspace/eyelock/ynh`; one declaration reaches every vendor ynh supports |
+| ynh | `.ynh-plugin/plugin.json` declares MCP servers, hooks, profiles, focuses and **sensors**; ynh assembles per vendor (Claude, Codex, Copilot, …) | skills, agents, rules, commands inside the harness | https://github.com/eyelock/ynh; one declaration reaches every vendor ynh supports |
 
 ## Decision
 

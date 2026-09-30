@@ -5,9 +5,9 @@ Satisfies: NFR-10, NFR-12
 
 ## Context
 
-Both old repos are unpublished. ACME (`/Users/david/Storage/Workspace/eyelock/acme`, last commit
+Both old repos are unpublished. ACME (a private repository, last commit
 2026-01-14, SDK 1.x) has a good idea and a weak git-notes implementation. mcp-toolkit
-(`/Users/david/Storage/Workspace/eyelock/mcp-toolkit`) has a current-spec transport layer on its
+(private) has a current-spec transport layer on its
 unmerged `spec-update` branch (SDK v2, protocol 2026-07-28). Neither depends on the other.
 
 ## Decision

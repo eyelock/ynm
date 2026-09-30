@@ -1,0 +1,10 @@
+# Default owners for everything in the repository
+* @eyelock
+
+# Design record: a change of decision needs a new ADR, not an edit
+/docs/adr/ @eyelock
+
+# Build, release and CI
+/Makefile @eyelock
+/.github/workflows/ @eyelock
+/scripts/release/ @eyelock
