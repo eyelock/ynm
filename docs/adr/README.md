@@ -32,3 +32,4 @@ line per addendum that was folded in), and the FR/NFR ids from ADR-000 it satisf
 | [014](014-evals-and-benchmarks.md) | Evals and benchmarks tracked at all times |
 | [015](015-distribution.md) | Distribution: standalone binaries, a slim bundle and the image |
 | [016](016-agent-guidance-delivery.md) | Agent guidance delivery: `ynm hook` subcommands, and `ynm init` configures every detected client |
+| [017](017-auth-identity-audit.md) | Authentication, identity and audit for the HTTP server: an `AuthProvider` seam (local token, OIDC with provider presets, introspection), never open by default, per-user provenance and an audit log (proposed) |
