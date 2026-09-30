@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { YNM_VERSION } from "./version.js";
+import { RELEASE_VERSION } from "./version.js";
 
 export interface Timing {
   name: string;
@@ -12,7 +12,10 @@ export interface Timing {
 }
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "baselines");
-export const BASELINE_FILE = join(dir, `${process.env.YNM_BASELINE_VERSION ?? YNM_VERSION}.json`);
+export const BASELINE_FILE = join(
+  dir,
+  `${process.env.YNM_BASELINE_VERSION ?? RELEASE_VERSION}.json`
+);
 
 export function percentile(values: number[], p: number): number {
   const sorted = [...values].sort((a, b) => a - b);

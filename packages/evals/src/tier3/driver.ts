@@ -3,7 +3,7 @@ import type { Judge, Writer } from "@ynm/models";
 import { DEFAULT_REDACTION, IndexManager, type RecallHit, Ynm } from "@ynm/service";
 import { MemoryLog } from "@ynm/store";
 import { z } from "zod";
-import { YNM_VERSION } from "../version.js";
+import { RELEASE_VERSION } from "../version.js";
 import type { BenchCase, BenchDataset, BenchQuestion } from "./datasets.js";
 
 export interface AnswerOptions {
@@ -231,7 +231,7 @@ export async function runBenchmark(
     datasetSha256: dataset.sha256,
     datasetLicense: dataset.license,
     ranAt: new Date().toISOString(),
-    ynmVersion: process.env.YNM_BASELINE_VERSION ?? YNM_VERSION,
+    ynmVersion: process.env.YNM_BASELINE_VERSION ?? RELEASE_VERSION,
     setup: {
       ingest: "turn-episodic",
       index: "sqlite-fts",
