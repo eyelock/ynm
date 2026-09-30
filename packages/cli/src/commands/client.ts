@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { Args, Flags } from "@oclif/core";
 import {
   applyChanges,
@@ -10,8 +9,8 @@ import {
   clientAdapter,
   clientReports,
   formatClientReport,
-  harnessManifestPath,
   loadConfig,
+  projectClients,
   ynmHome,
 } from "@ynm/service";
 import { YnmCommand } from "../lib/base.js";
@@ -140,13 +139,7 @@ export default class Client extends YnmCommand {
    * already uses (its own config files), the same rule `ynm init` follows.
    */
   private async inferClients(cwd: string, home: string): Promise<string[]> {
-    if (existsSync(harnessManifestPath(cwd))) return ["ynh"];
-    const used: string[] = [];
-    for (const a of CLIENT_ADAPTERS) {
-      if (a.name === "ynh") continue;
-      const d = await a.detect({ cwd, home });
-      if (d.installed && d.signals?.project) used.push(a.name);
-    }
+    const used = await projectClients(cwd, home);
     if (!used.length)
       this.error(
         `no agent client is configured in ${cwd}; name one: ynm client install <${CLIENT_ADAPTERS.map((c) => c.name).join("|")}>`,

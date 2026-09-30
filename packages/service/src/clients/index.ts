@@ -6,7 +6,8 @@ import { stringifyLike } from "./json-style.js";
 import { opencode } from "./opencode.js";
 import { pi } from "./pi.js";
 import type { Change, ClientAdapter, ClientStatus, DetectTarget } from "./types.js";
-import { ynh } from "./ynh.js";
+import { onPath } from "./types.js";
+import { harnessManifestPath, ynh } from "./ynh.js";
 
 export * from "./agents-md.js";
 export * from "./claude-code.js";
@@ -232,4 +233,55 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
     });
   }
   return out;
+}
+
+/**
+ * The clients a directory is set up for when none is named: ynh in a ynh harness directory,
+ * otherwise every client the project already uses (its own config files). Empty when neither.
+ */
+export async function projectClients(cwd: string, home: string): Promise<string[]> {
+  if (existsSync(harnessManifestPath(cwd))) return ["ynh"];
+  const used: string[] = [];
+  for (const a of CLIENT_ADAPTERS) {
+    if (a.name === "ynh") continue;
+    const d = await a.detect({ cwd, home });
+    if (d.installed && d.signals?.project) used.push(a.name);
+  }
+  return used;
+}
+
+export interface ValidationLine {
+  ok: boolean;
+  what: string;
+  detail: string;
+}
+
+/** Checks one client's ynm setup in `cwd`: every piece, where it was found, ok or missing. */
+export async function validateClient(
+  name: string,
+  cwd: string,
+  home: string,
+  env: NodeJS.ProcessEnv = process.env
+): Promise<{ client: string; ok: boolean; lines: ValidationLine[] }> {
+  const s = await clientAdapter(name).status({ cwd, home });
+  const flag: Record<string, boolean | undefined> = {
+    server: s.configured,
+    guidance: s.guidance,
+    hooks: s.hooks,
+  };
+  const lines: ValidationLine[] = (s.checked ?? [`server    ${s.detail}`]).map((l) => {
+    const m = /^(\S+)\s+(.*)$/.exec(l);
+    const what = m?.[1] ?? l;
+    const detail = m?.[2] ?? "";
+    const ok = (flag[what] ?? true) !== false && !/^missing/.test(detail);
+    return { ok, what, detail };
+  });
+  // The server and the hooks run `ynm`; the client can only start them if it is on PATH.
+  const bin = onPath("ynm", env);
+  lines.push({
+    ok: bin,
+    what: "ynm",
+    detail: bin ? "on PATH" : "not on PATH; the server and hooks cannot start",
+  });
+  return { client: s.client, ok: lines.every((l) => l.ok), lines };
 }

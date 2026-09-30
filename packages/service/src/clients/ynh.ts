@@ -193,8 +193,8 @@ function harnessPlan(t: InstallTarget): Change[] {
   if (changes.length)
     changes.push({
       kind: "note",
-      text: "ynd validate .",
-      reason: "check the harness manifest against ynh's schema",
+      text: "ynm validate",
+      reason: "check every piece ynm set up in the harness",
     });
   return changes;
 }
