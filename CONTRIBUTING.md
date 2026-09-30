@@ -5,16 +5,17 @@
 Requires Node 22.13 or later (for `node:sqlite`) and pnpm via `corepack enable`.
 
 ```bash
-make install
+make deps
 make build                       # turbo, every package
 make check                       # biome lint and format
 make typecheck
 make test                        # tier 1 evals and unit tests; no keys, no Docker
 ```
 
-`make rebuild` does all of the above from clean. To run the CLI from the checkout without
-installing: `node packages/cli/bin/run.js`, or put a wrapper on your PATH as the
-[tutorial install](docs/tutorial/README.md#install) shows.
+`make rebuild` does all of the above from clean. `make install` gives you a locally addressable
+build to test with, ynh-style: it writes `~/.ynm/bin/ynm`, a launcher that runs this checkout, and
+prints the PATH line if that directory is not on your PATH. `ynm --version` then reports
+`<version>-dev.<sha>`, and a rebuild is picked up without reinstalling. `make uninstall` removes it.
 
 ## Layout
 

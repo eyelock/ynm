@@ -1,30 +1,37 @@
 # ynm developer front door. Every command a developer or CI runs is a target here, so the
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
-.PHONY: help install build rebuild verify check fix lint format typecheck test coverage \
+.PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage \
         test-hosted test-tutorials eval-tutorials bench bench-large bench-public gate \
         gen golden docs docs-gen docs-links release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
 M ?= M6
 
 help:
-	@echo "Setup:    install (deps) build rebuild (clean install build verify) build-pkg P=<pkg> test-pkg P=<pkg>"
+	@echo "Setup:    deps build install (~/.ynm/bin/ynm runs this checkout) uninstall rebuild build-pkg P= test-pkg P="
 	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage"
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
 	@echo "Release:  release-slim release-standalone release-manifest release-notes changeset version"
-	@echo "Other:    cli clean ci (what CI runs)"
+	@echo "Other:    cli clean ci (what CI runs: deps build verify gate)"
 
 ## Setup
-install:
+deps:
 	pnpm install --frozen-lockfile
+
+# A locally addressable ynm for testing (ynh-style): ~/.ynm/bin/ynm runs this checkout
+install: build
+	node scripts/install-local.mjs
+
+uninstall:
+	node scripts/install-local.mjs --remove
 
 build:
 	pnpm build
 
 rebuild:
 	pnpm clean || true
-	pnpm install
+	pnpm install --no-frozen-lockfile
 	$(MAKE) build verify
 
 # One package: `make build-pkg P=store`, `make test-pkg P=service`
@@ -139,4 +146,4 @@ clean:
 	pnpm clean
 
 # Exactly what CI runs, in order
-ci: install build verify gate
+ci: deps build verify gate

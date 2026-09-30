@@ -104,10 +104,8 @@ Requires Node 22.13 or later and pnpm.
 ```bash
 git clone https://github.com/eyelock/ynm.git
 cd ynm
-make install build
-mkdir -p ~/.ynm/bin
-printf '#!/bin/sh\nexec node %s/packages/cli/bin/run.js "$@"\n' "$PWD" > ~/.ynm/bin/ynm
-chmod +x ~/.ynm/bin/ynm
+make deps
+make install          # writes ~/.ynm/bin/ynm, a launcher for this checkout
 export PATH="$HOME/.ynm/bin:$PATH"
 ynm --version
 ```

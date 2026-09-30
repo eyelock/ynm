@@ -6,7 +6,7 @@ description: Build, lint, typecheck and run the ynm test suite from a clean chec
 # build
 
 ```bash
-make install
+make deps
 make build          # all packages via turbo; dist/ is gitignored
 make check          # biome; `make fix` rewrites
 make typecheck

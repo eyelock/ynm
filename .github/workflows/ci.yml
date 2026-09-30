@@ -18,7 +18,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: make install
+      - run: make deps
       - run: make build
       - run: make verify
       - name: Milestone gate

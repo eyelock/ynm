@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { gitOrNull, NOTES_PREFIX } from "@ynm/store";
 import type { LoadedConfig } from "./config.js";
 import { SHARED_FETCH } from "./init.js";
@@ -35,6 +35,16 @@ export async function doctor(opts: {
 
   const gitVersion = (await gitOrNull(["--version"], { cwd: process.cwd() }))?.trim();
   add("git available", !!gitVersion, gitVersion ?? "git not found on PATH");
+  const localBin = join(opts.loaded.home, "bin");
+  if (existsSync(join(localBin, "ynm"))) {
+    const onPath = (process.env.PATH ?? "").split(":").some((p) => resolve(p) === localBin);
+    add(
+      "local install on PATH",
+      onPath,
+      onPath ? localBin : `${localBin} holds a ynm launcher but is not on PATH`,
+      onPath ? "info" : "warn"
+    );
+  }
   add(
     "config files",
     true,
