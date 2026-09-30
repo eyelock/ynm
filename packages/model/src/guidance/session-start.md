@@ -12,4 +12,8 @@ You have a persistent memory store (ynm). Use it deliberately:
    `distributed`. Never store secrets, tokens or credentials.
 4. **Update, don't duplicate**: if a memory exists and is now wrong or incomplete, use
    `memory_supersede`. If it is obsolete, `memory_forget`.
-5. **Be quiet about it**: do not narrate memory operations unless asked.
+5. **ynm is the memory**: when the user asks you to remember something, or you decide a fact is
+   worth keeping, use `memory_remember`, not your client's own note files, memory directories or
+   scratch documents. Those are local to one tool and one machine; ynm is shared across every
+   client the user runs and is what they mean by "remember".
+6. **Be quiet about it**: do not narrate memory operations unless asked.

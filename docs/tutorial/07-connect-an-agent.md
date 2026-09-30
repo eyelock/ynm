@@ -94,7 +94,7 @@ cat CLAUDE.md
 ```
 
 Expected: a Markdown block between two `<!-- ynm:guidance -->` marker lines, headed
-`# Using memory in this session`, with five numbered rules: start with `memory_context` or
+`# Using memory in this session`, with six numbered rules: start with `memory_context` or
 `memory_recall`, remember durable facts, keep `personal` unless the fact is safe for the team,
 supersede rather than duplicate, and stay quiet about it. ynm only ever rewrites the text between
 the markers, so anything else you keep in the file is safe, and installing again is harmless.
