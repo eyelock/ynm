@@ -6,6 +6,11 @@ a design decision. Skills for common jobs are under `.agents/skills/`.
 
 Rules that are easy to get wrong:
 
+- Never commit to `main` or `develop`. Branch from `develop` as `feat/…`, `fix/…` or `docs/…`
+  and open a pull request into `develop` (CONTRIBUTING.md, "Branches and pull requests").
+  Only `release/*` and `hotfix/*` go into `main`. Run the pre-push checklist there before any
+  push, and wait for green CI before merging.
+
 - Never read or print `.env` or any `*_API_KEY` variable. Load secrets into a shell with
   `set -a && . ./.env && set +a` if a command needs them.
 - Model-backed evals cost money. They are opt-in (`YNM_EVAL_CALIBRATED=1`, `YNM_EVAL_CLAUDE_CLI=1`)

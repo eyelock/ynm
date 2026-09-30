@@ -17,6 +17,44 @@ build to test with, ynh-style: it writes `~/.ynm/bin/ynm`, a launcher that runs 
 prints the PATH line if that directory is not on your PATH. `ynm --version` then reports
 `<version>-dev.<sha>`, and a rebuild is picked up without reinstalling. `make uninstall` removes it.
 
+## Branches and pull requests
+
+ynm uses Gitflow, the same model as [ynh](https://github.com/eyelock/ynh). Nothing is committed
+to `main` or `develop` directly: every change goes through a branch and a pull request.
+
+| Work | Branch from | Pull request into |
+|---|---|---|
+| Feature, fix, docs, CI | `develop` | `develop` |
+| Release | `develop`, as `release/vX.Y.Z` | `main`, then back-merged into `develop` |
+| Hotfix | the release tag, as `hotfix/<what>` | `main`, then back-merged into `develop` |
+
+Branch names use a slash: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…`,
+`hotfix/…`. `develop` is the default branch. Feature pull requests are squash-merged; release and
+hotfix pull requests into `main` use a true merge, so the back-merge into `develop` is clean.
+`main` accepts pull requests only from `develop`, `release/*` or `hotfix/*` (the "Verify PR
+source branch" check enforces it), and release tags are cut from `main`.
+
+```bash
+git switch develop && git pull
+git switch -c feat/my-change
+# ...work, commit...
+git fetch origin develop && git merge origin/develop
+git push -u origin feat/my-change
+gh pr create --base develop
+```
+
+### Before anything leaves your machine
+
+Before `git push` or opening a pull request:
+
+1. `make verify` passes (check, typecheck, every package's tests).
+2. `make test-tutorials` passes; if the change touches a tutorial or anything a tutorial runs,
+   `make eval-tutorials` for those tutorials too (opt-in, spends tokens).
+3. Generated files are current: `make gen` after tool or client changes, `make docs-gen` after
+   CLI or schema text changes (the drift test fails otherwise).
+4. A user-visible change ships with its docs in the same pull request.
+5. After pushing, CI is green before merging: `gh pr checks <number> --watch`.
+
 ## Layout
 
 | Package | Holds |
