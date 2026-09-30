@@ -13,8 +13,12 @@ Adapters live in `packages/service/src/clients/`, one file per client. Each expo
 - `detect({ cwd, home, env })`: is the client present, from three signals: its executable on
   `PATH` (from `env`), its user-level footprint under `home`, and its project footprint under
   `cwd`. Call `detectBySignals` with the three; it scans PATH without running anything and names
-  the signals that fired in `detail`. `ynm init` configures every client whose `detect` says
-  installed, so choose footprints that mean this client and no other.
+  the signals that fired in `detail`. The project signal decides what `ynm init` writes: a client
+  whose project footprint is present is configured, while one detected only by the PATH or home
+  signal gets no files and a suggestion (`ynm client install <name>`) in init's `also` line.
+  Choose project footprints that mean this client and no other. A client with no project footprint
+  is never configured by init; it is only suggested. An adapter that must never be touched by
+  init, as ynh's harness is not, is skipped by name in `configureClients`.
 - `plan(target)`: returns the `Change`s to make and touches nothing. A change is a `write` of a
   whole file, a `merge-json` patch into a JSON file, a `command` to run, or a `note` (a next step
   to show). `target` carries the working directory, the home directory, the scope (`project` or
@@ -28,7 +32,7 @@ Adapters live in `packages/service/src/clients/`, one file per client. Each expo
 
 `applyChanges` in `index.ts` performs the plan; commands run only with `--yes`, otherwise they
 are printed. `ynm init` runs the project-scope plan of every detected client through
-`configureClients`: it applies only the changes inside the work tree, skips those that would
+`configureClients`: for each client the project uses, it applies only the changes inside the work tree, skips those that would
 leave a file as it is, and turns the rest (commands, files under the home directory) into `run:`
 lines. Reuse the helpers: `stdioServerEntry` for the common MCP shape, `delimitedBlockChange`
 with `agentsMdBlock()` for guidance in an `AGENTS.md`, `claudeMdBlock()` for a `CLAUDE.md`, and

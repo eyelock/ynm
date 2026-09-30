@@ -9,14 +9,15 @@ memory stays on your machine; shared memory travels with `git push`. Sibling of
 
 ```bash
 brew install eyelock/tap/ynm      # one executable, needs only git
-cd your-repo && ynm init          # shared memory for this repo, and every agent client it finds
+cd your-repo && ynm init          # shared memory for this repo, and the agent clients it already uses
 ```
 
-`ynm init` creates the shared memory mount (personal memory lives in `~/.ynm`) and configures each
-agent client it detects on the machine: Claude Code, Copilot CLI, OpenCode, Pi and ynh harnesses.
-Each gets the MCP server, the memory guidance, and, where the client has them, hooks that load
-memory when a session starts and steer "remember this" into ynm rather than the client's own note
-files. `ynm client install <client>` does the same for one client by hand.
+`ynm init` creates the shared memory mount (personal memory lives in `~/.ynm`) and configures the
+agent clients this repository already uses: Claude Code, OpenCode or Pi. Each gets the MCP server,
+the memory guidance, and, where the client has them, hooks that load memory when a session starts
+and steer "remember this" into ynm rather than the client's own note files. A client found only on
+your machine, such as Copilot CLI, gets a one-line suggestion, and a ynh harness gets ynm with
+`ynm client install ynh`. `ynm client install <client>` does the same for one client by hand.
 
 Other ways to install (a direct download, the slim build on your own Node, from source, the
 Docker image) are in [Install ynm](docs/how-to/install.md).

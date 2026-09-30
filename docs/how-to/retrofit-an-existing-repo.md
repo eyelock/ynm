@@ -27,22 +27,36 @@ For memory, `ynm init` changes no branch, tag, commit or tracked file. It does f
 Memory itself appears only when someone writes it, as refs under `refs/notes/ynm/`. Teammates who
 have not run `ynm init` see nothing and are not affected.
 
-Then it configures the agent clients it detects on your machine, and this part does write work
-tree files: for Claude Code `.mcp.json`, a delimited block in `CLAUDE.md` and hooks in
-`.claude/settings.json`; for OpenCode `opencode.json`; `AGENTS.md` for the clients that read it;
-the Pi extension under `.pi/`; and, in a ynh harness, its manifest and skill. When the
+Then it configures the agent clients the repository already uses, and this part does write work
+tree files. A client counts as used when the repository has its project footprint (`.mcp.json` or
+`.claude/` for Claude Code, `opencode.json` or `opencode.jsonc` for OpenCode, `.pi/` for Pi).
+For Claude Code init writes `.mcp.json`, a delimited block in `CLAUDE.md` and hooks in
+`.claude/settings.local.json`; for OpenCode `opencode.json`; `AGENTS.md` for the clients that
+read it; the Pi extension under `.pi/`. A client found only on your machine gets no files, just
+one `also` line suggesting `ynm client install <name>`; a repository that has never used an agent
+client therefore gets no client files at all. Init never installs into a ynh harness. When the
 repository already tracks one of these files, ynm merges into it: other servers, hooks and
-settings are kept, and in `CLAUDE.md` and `AGENTS.md` it only ever rewrites the text between its
-`<!-- ynm:guidance -->` markers. Each client gets one `client` line in the report. See
-[Install ynm](install.md#set-up-your-agent-clients) for how clients are detected and what each
-gets. To keep init to memory alone, run `ynm init --no-clients`.
+settings are kept, the file's indentation and trailing newline are preserved, and in `CLAUDE.md`
+and `AGENTS.md` it only ever rewrites the text between its `<!-- ynm:guidance -->` markers. Each
+client the project uses gets one `client` line in the report. See
+[Install ynm](install.md#set-up-your-agent-clients) for what each gets. To keep init to memory
+alone, run `ynm init --no-clients`.
+
+If you work through a ynh harness, the repository needs nothing for the agent to have ynm: ynh
+assembles ynm's server, hooks and skill at every launch, and memory goes to your personal store.
+Run `ynm init --no-clients` here only to add shared, team memory, so that init does not also
+write `.mcp.json`, `CLAUDE.md` and hooks that duplicate the harness.
 
 ## What to commit
 
-Commit `.ynm/config.json`. The client files are your team's choice: committing `.mcp.json`,
-`.claude/settings.json` and the guidance blocks gives every teammate the same setup when they
-open the repository, and `ynm init` in their clone reports them `unchanged`. Keep a client file
-out of git if it carries a token (see [Connect a client over HTTP](connect-over-http.md)).
+Commit `.ynm/config.json`. The client files are your team's choice: committing `.mcp.json` and
+the guidance blocks gives every teammate the same setup when they open the repository, and
+`ynm init` in their clone reports them `unchanged`. The Claude Code hooks are the exception:
+init puts them in `.claude/settings.local.json`, Claude Code's personal project settings, and
+leaves the team's `.claude/settings.json` untouched, because a hook that runs `ynm` fails for a
+teammate who has not installed it. Teammates who want the hooks run `ynm init` (or
+`ynm client install claude-code`) in their own clone. Keep a client file out of git if it
+carries a token (see [Connect a client over HTTP](connect-over-http.md)).
 Nothing else changed in the work tree: the derived directories are
 excluded through `.git/info/exclude`, which git keeps per clone and never commits. If you would
 rather have the rule in the repository's own `.gitignore` so it applies to every clone, add:
@@ -83,4 +97,4 @@ Remove the hook (`.git/hooks/pre-push`), the `remote.origin.fetch`
 line that mentions `refs/notes/ynm`, and `.ynm/`. Memory written so far stays in
 `refs/notes/ynm/`; delete those refs only if you mean to discard it. For the clients, remove the
 `ynm` entry from each client's server config, the `ynm hook` entries from
-`.claude/settings.json`, and the text between the `<!-- ynm:guidance -->` markers.
+`.claude/settings.local.json`, and the text between the `<!-- ynm:guidance -->` markers.
