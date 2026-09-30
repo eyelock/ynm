@@ -145,7 +145,7 @@ export async function doctor(opts: {
           ? `detected (${r.detection}); ynm not registered; run \`ynm client install ${r.client}\``
           : r.level === "warn"
             ? (r.advice as string)
-            : `server, guidance${r.hooks ? " and hooks" : ""} in place (${r.detail})`;
+            : `${r.hooks ? "server, guidance and hooks" : "server and guidance"} in place (${r.detail})`;
       add(`client ${r.client}`, r.level !== "warn", detail, r.level === "warn" ? "warn" : "info");
     }
   }

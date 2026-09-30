@@ -162,9 +162,10 @@ export const claudeCode: ClientAdapter = {
     return changes;
   },
   async status({ cwd, home }): Promise<ClientStatus> {
-    const claudeMd = join(cwd, "CLAUDE.md");
-    const guided =
-      existsSync(claudeMd) && readFileSync(claudeMd, "utf8").includes(CLAUDE_MD_MARKER);
+    // The project's CLAUDE.md, or the user's own, which Claude Code loads in every project.
+    const guided = [join(cwd, "CLAUDE.md"), join(home, ".claude", "CLAUDE.md")].some(
+      (f) => existsSync(f) && readFileSync(f, "utf8").includes(CLAUDE_MD_MARKER)
+    );
     const hookFiles = [
       claudeSettingsPath({ cwd, home, scope: "project" }),
       claudeSettingsPath({ cwd, home, scope: "user" }),

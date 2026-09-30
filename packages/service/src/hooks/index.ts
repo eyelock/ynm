@@ -10,7 +10,8 @@ export async function sessionStartHook(ynm: Ynm, input: HookInput): Promise<Hook
   const s = await new Lifecycle(ynm).start({
     sessionId: input.session_id ? normalizeSessionId(input.session_id) : undefined,
   });
-  const body = s.context.markdown.trim();
+  // An empty store still gets the one line: it is what points the agent at ynm.
+  const body = s.context.included.length ? s.context.markdown.trim() : "";
   return hookContext(
     "session-start",
     body ? `${SESSION_START_PREFIX}\n\n${body}` : SESSION_START_PREFIX
