@@ -297,8 +297,9 @@ ynm client install opencode
 cat opencode.json
 ```
 
-Expected: `merged <project path>/opencode.json` and nothing for `AGENTS.md`, which already holds
-the block. The file registers the same server in OpenCode's own shape:
+Expected: one line, `merged <project path>/opencode.json: register the ynm MCP server with
+OpenCode (project scope)`, and nothing for `AGENTS.md`, which already holds the block. Each
+install line names the file and says what went into it. The file registers the same server in OpenCode's own shape:
 
 ```text
 {
@@ -323,7 +324,8 @@ ynm client install pi
 find .pi -type f | sort
 ```
 
-Expected: `wrote` lines for the extension and the skill, then the two files:
+Expected: two `wrote` lines, each ending in what the file is for (`Pi extension exposing
+memory_* tools over the ynm CLI`, `ynm-memory skill`), then the two files:
 
 ```text
 .pi/extensions/ynm.ts
@@ -363,10 +365,11 @@ Now do what it says:
 ynm client install ynh
 ```
 
-Expected: the manifest written, then the check to run:
+Expected: the manifest written, with a summary of what was merged into it, then the check to
+run:
 
 ```text
-wrote /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
+wrote /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json: harness manifest: mcp_servers.ynm; include of the ynm-memory skill; hooks on_session_start, before_prompt, on_stop; $schema
 next: ynd validate .
 ```
 
