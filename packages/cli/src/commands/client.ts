@@ -1,13 +1,16 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { Args, Flags } from "@oclif/core";
 import {
   applyChanges,
+  type Change,
   CLIENT_ADAPTERS,
   changeIsNoop,
   changeTarget,
   clientAdapter,
   clientReports,
   formatClientReport,
+  harnessManifestPath,
   loadConfig,
   ynmHome,
 } from "@ynm/service";
@@ -43,7 +46,11 @@ export default class Client extends YnmCommand {
       options: ["install", "status", "plan"],
       description: "install, plan or status",
     }),
-    name: Args.string({ description: "Client name", options: CLIENT_ADAPTERS.map((c) => c.name) }),
+    name: Args.string({
+      description:
+        "Client name; omitted: ynh in a harness directory, else every client this project uses",
+      options: CLIENT_ADAPTERS.map((c) => c.name),
+    }),
   };
   static override flags = {
     ...YnmCommand.baseFlags,
@@ -72,32 +79,79 @@ export default class Client extends YnmCommand {
       this.emit(flags.json, reports, () => reports.map(formatClientReport).join("\n"));
       return;
     }
-    if (!args.name) this.error("client name required", { exit: 2 });
-    const adapter = clientAdapter(args.name);
+    const userHome = process.env.HOME ?? home;
+    const names = args.name ? [args.name] : await this.inferClients(cwd, userHome);
     const transport = flags.http
       ? { kind: "http" as const, url: flags.http, bearer: flags.token }
       : { kind: "stdio" as const, command: "ynm", args: ["serve"] };
-    // A change that would leave its file as it is (already installed) is not shown or applied.
-    const plan = (
-      await adapter.plan({
-        cwd,
-        home: process.env.HOME ?? home,
-        scope: flags.scope as "project" | "user",
-        transport,
-        hooks: flags.hooks,
-      })
-    ).filter((c) => !changeIsNoop(c));
+    const results: Array<{ client: string; plan: Change[]; done: string[]; inPlace: string[] }> =
+      [];
+    for (const name of names) {
+      const adapter = clientAdapter(name);
+      // A change that would leave its file as it is (already installed) is not shown or applied.
+      const plan = (
+        await adapter.plan({
+          cwd,
+          home: userHome,
+          scope: flags.scope as "project" | "user",
+          transport,
+          hooks: flags.hooks,
+        })
+      ).filter((c) => !changeIsNoop(c));
+      const done =
+        args.action === "plan"
+          ? []
+          : await applyChanges(plan, { runCommand: flags.yes ? run : undefined });
+      // Nothing to change: say what was checked and where it was found, not just "nothing to do".
+      const status = plan.length ? undefined : await adapter.status({ cwd, home: userHome });
+      const inPlace = status
+        ? [
+            `already in place, nothing changed:`,
+            ...(status.checked ?? [status.detail]).map((l) => `  ${l}`),
+          ]
+        : [];
+      results.push({ client: adapter.name, plan, done, inPlace });
+    }
+    const heading = (client: string) => (names.length > 1 || !args.name ? [`${client}:`] : []);
     if (args.action === "plan") {
-      this.emit(
-        flags.json,
-        plan,
-        () =>
-          plan.map((c) => `${c.kind.padEnd(10)} ${changeTarget(c)}  (${c.reason})`).join("\n") ||
-          "nothing to do"
+      this.emit(flags.json, names.length === 1 ? results[0]?.plan : results, () =>
+        results
+          .flatMap((r) => [
+            ...heading(r.client),
+            ...(r.plan.map((c) => `${c.kind.padEnd(10)} ${changeTarget(c)}  (${c.reason})`) || []),
+            ...(r.plan.length ? [] : r.inPlace),
+          ])
+          .join("\n")
       );
       return;
     }
-    const done = await applyChanges(plan, { runCommand: flags.yes ? run : undefined });
-    this.emit(flags.json, { client: adapter.name, done }, () => done.join("\n") || "nothing to do");
+    this.emit(
+      flags.json,
+      names.length === 1 ? { client: results[0]?.client, done: results[0]?.done } : results,
+      () =>
+        results
+          .flatMap((r) => [...heading(r.client), ...(r.done.length ? r.done : r.inPlace)])
+          .join("\n")
+    );
+  }
+
+  /**
+   * No client named: a ynh harness directory means ynh; otherwise every client this project
+   * already uses (its own config files), the same rule `ynm init` follows.
+   */
+  private async inferClients(cwd: string, home: string): Promise<string[]> {
+    if (existsSync(harnessManifestPath(cwd))) return ["ynh"];
+    const used: string[] = [];
+    for (const a of CLIENT_ADAPTERS) {
+      if (a.name === "ynh") continue;
+      const d = await a.detect({ cwd, home });
+      if (d.installed && d.signals?.project) used.push(a.name);
+    }
+    if (!used.length)
+      this.error(
+        `no agent client is configured in ${cwd}; name one: ynm client install <${CLIENT_ADAPTERS.map((c) => c.name).join("|")}>`,
+        { exit: 2 }
+      );
+    return used;
   }
 }
