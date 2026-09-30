@@ -40,3 +40,27 @@ describe("input validation exit codes", () => {
     expect(rows.find((m) => m.current.content === "tagged twice")?.tags).toEqual(["a", "b"]);
   });
 });
+
+describe("ynm validate", () => {
+  it("prints each check for a harness and exits 1 when a piece is missing", async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "ynm-validate-"));
+    mkdirSync(join(dir, ".ynh-plugin"));
+    writeFileSync(
+      join(dir, ".ynh-plugin", "plugin.json"),
+      JSON.stringify({ name: "h", version: "0.1.0" })
+    );
+    const before = ynm(dir, "validate", dir);
+    expect(before.status).toBe(1);
+    expect(before.stdout).toMatch(/FAIL\s+server\s+missing/);
+    expect(ynm(dir, "client", "install").status).toBe(0);
+    const after = ynm(dir, "validate", dir);
+    expect(after.stdout).toMatch(/ok\s+server\s+mcp_servers\.ynm runs `ynm serve`/);
+    expect(after.stdout).toMatch(
+      /ok\s+guidance\s+includes https:\/\/github\.com\/eyelock\/ynm skills\/ynm-memory/
+    );
+    expect(after.stdout).toMatch(/ok\s+hooks\s+on_session_start runs `ynm hook session-start`/);
+  });
+});

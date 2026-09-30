@@ -43,6 +43,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`status`](#ynm-status) | Mounts, shard counts and index freshness. |
 | [`supersede`](#ynm-supersede) | Record a new version of an existing memory |
 | [`sync`](#ynm-sync) | Fetch, merge and push shared memory (never personal unless --mount personal) |
+| [`validate`](#ynm-validate) | Check ynm's setup for the agent clients in a directory and print every check: a ynh harness, or the clients a project uses |
 | [`wiki`](#ynm-wiki) | Build the markdown projection (index, log, memories, entities, topics) or ingest an edited page |
 
 ## ynm annotate
@@ -683,6 +684,27 @@ Examples:
 ynm sync
 ynm sync --dry-run
 ynm sync --mount personal --remote backup
+```
+
+## ynm validate
+
+Check ynm's setup for the agent clients in a directory and print every check: a ynh harness, or the clients a project uses
+
+```text
+ynm validate [dir] [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `dir` | no |  | Directory to check (default: the current directory) |
+
+Common flags: `--json`, `--cwd`.
+
+Examples:
+
+```bash
+ynm validate
+ynm validate ~/my-harness
 ```
 
 ## ynm wiki

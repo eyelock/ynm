@@ -112,7 +112,7 @@ describe("client adapters (ADR-013)", () => {
     const plan = await ynh.plan({ cwd, home, scope: "project", transport: stdio });
     expect(plan.map((c) => c.kind)).toEqual(["write", "note"]);
     expect(plan[0]?.reason).toMatch(/replaced the string-form command "ynm serve"/);
-    expect(plan[1]).toMatchObject({ kind: "note", text: "ynd validate ." });
+    expect(plan[1]).toMatchObject({ kind: "note", text: "ynm validate" });
     await applyChanges(plan);
     const m = JSON.parse(readFileSync(join(cwd, ".ynh-plugin", "plugin.json"), "utf8")) as {
       mcp_servers: Record<string, unknown>;
