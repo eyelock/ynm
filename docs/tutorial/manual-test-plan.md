@@ -34,15 +34,16 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 2.1 | [Prerequisites](02-project-memory.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
 | 2.2 | [Initialise the repository](02-project-memory.md#initialise-the-repository) | `ynm init` |  |
 | 2.3 | [Initialise the repository (2)](02-project-memory.md#initialise-the-repository) | `cat .ynm/config.json` |  |
-| 2.4 | [Two mounts](02-project-memory.md#two-mounts) | `ynm status` |  |
-| 2.5 | [Write distributed memory](02-project-memory.md#write-distributed-memory) | `ynm remember --type procedural --level distributed --content "Run pnp...` |  |
-| 2.6 | [Namespaces](02-project-memory.md#namespaces) | `ynm remember --type semantic --level distributed --namespace org/eyel...` |  |
-| 2.7 | [Namespaces (2)](02-project-memory.md#namespaces) | `ynm recall --text "deploys" --namespace org/eyelock` |  |
-| 2.8 | [The redaction gate](02-project-memory.md#the-redaction-gate) | `ynm remember --type semantic --level distributed --content "Deploy to...` |  |
-| 2.9 | [Where it went](02-project-memory.md#where-it-went) | `git for-each-ref --format='%(refname)' refs/notes` |  |
-| 2.10 | [Where it went (2)](02-project-memory.md#where-it-went) | `ynm doctor` |  |
-| 2.11 | [The hook](02-project-memory.md#the-hook) | `cat .git/hooks/pre-push` |  |
-| 2.12 | [Cleanup](02-project-memory.md#cleanup) | `cd /tmp` |  |
+| 2.4 | [What to commit](02-project-memory.md#what-to-commit) | `git add .ynm` |  |
+| 2.5 | [Two mounts](02-project-memory.md#two-mounts) | `ynm status` |  |
+| 2.6 | [Write distributed memory](02-project-memory.md#write-distributed-memory) | `ynm remember --type procedural --level distributed --content "Run pnp...` |  |
+| 2.7 | [Namespaces](02-project-memory.md#namespaces) | `ynm remember --type semantic --level distributed --namespace org/eyel...` |  |
+| 2.8 | [Namespaces (2)](02-project-memory.md#namespaces) | `ynm recall --text "deploys" --namespace org/eyelock` |  |
+| 2.9 | [The redaction gate](02-project-memory.md#the-redaction-gate) | `ynm remember --type semantic --level distributed --content "Deploy to...` |  |
+| 2.10 | [Where it went](02-project-memory.md#where-it-went) | `git for-each-ref --format='%(refname)' refs/notes` |  |
+| 2.11 | [Where it went (2)](02-project-memory.md#where-it-went) | `ynm doctor` |  |
+| 2.12 | [The hook](02-project-memory.md#the-hook) | `cat .git/hooks/pre-push` |  |
+| 2.13 | [Cleanup](02-project-memory.md#cleanup) | `cd /tmp` |  |
 
 ## [Recall and Context](03-recall-and-context.md)
 

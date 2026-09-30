@@ -58,9 +58,10 @@ a client configured, `--client` forces one, and the output is the same everywher
 ynm init --client claude-code
 ```
 
-Expected: the `initialised` report from tutorial 2, including the note that remote `origin` was
-not found, then one `client` line saying what was written for Claude Code: its server entry,
-the guidance block and three hooks.
+Expected: the `initialised` report from tutorial 2, including the note that there is no remote
+`origin` yet, then one `client` line saying what was written for Claude Code: its server entry,
+the guidance block and three hooks. The `commit` line now lists the client files the team
+shares, and a `local` line names the hooks file, which is yours alone and excluded from git.
 
 ```text
 initialised <project path>
@@ -68,8 +69,12 @@ initialised <project path>
   config    <project path>/.ynm/config.json
   hooks     <project path>/.git/hooks/pre-push
   note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
-  note      remote "origin" not found; refspecs not configured (re-run init after adding it)
+  note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
   client    claude-code: .mcp.json, AGENTS.md, 3 hooks
+  commit    .ynm/config.json .mcp.json AGENTS.md
+            the team shares these; commit them so every clone gets the same setup
+  local     .claude/settings.local.json (yours only; excluded from git)
+  memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
@@ -81,15 +86,20 @@ ynm init
 ```
 
 Expected: the same report, now with the config marked `(unchanged)`, `client    claude-code:
-unchanged`, and, for clients found only on your machine, one `also` line:
+unchanged`, and, for clients found only on your machine, one `also` line. The `commit` and
+`local` lines repeat until you commit, so a second run still tells you what is left:
 
 ```text
 initialised <project path>
   anchor    <40-hex sha> (root-commit)
   config    <project path>/.ynm/config.json (unchanged)
-  note      remote "origin" not found; refspecs not configured (re-run init after adding it)
+  note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
   client    claude-code: unchanged
   also      copilot-cli, pi on this machine but not used here; add one with `ynm client install <name>`
+  commit    .ynm/config.json .mcp.json AGENTS.md
+            the team shares these; commit them so every clone gets the same setup
+  local     .claude/settings.local.json (yours only; excluded from git)
+  memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 

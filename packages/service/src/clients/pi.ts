@@ -251,6 +251,7 @@ export const pi: ClientAdapter = {
           configured: true,
           detail: dirs.extension,
           guidance: guided,
+          files: [dirs.extension, ...(guided ? [dirs.skill] : [])],
         };
       }
     }

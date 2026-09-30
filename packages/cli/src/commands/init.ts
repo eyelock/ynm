@@ -109,6 +109,16 @@ export default class Init extends YnmCommand {
                 )} on this machine but not used here; add one with \`ynm client install <name>\``,
             ]
           : []),
+        ...(report.commit.length
+          ? [
+              `  commit    ${report.commit.join(" ")}`,
+              "            the team shares these; commit them so every clone gets the same setup",
+            ]
+          : []),
+        ...(report.local.length
+          ? [`  local     ${report.local.join(" ")} (yours only; excluded from git)`]
+          : []),
+        "  memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it",
         'next: `ynm remember --type semantic --content "..."` and `ynm doctor`',
       ].join("\n")
     );

@@ -95,6 +95,8 @@ export interface ClientStatus {
   hooks?: boolean;
   /** What was checked and where each piece was found, one human line each. */
   checked?: string[];
+  /** Files ynm's setup for this client was found in, any scope; init keeps those in the project. */
+  files?: string[];
 }
 
 /**

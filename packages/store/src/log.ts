@@ -62,6 +62,8 @@ export interface SyncResult {
   retries: number;
   /** Set when the sync could not run at all (no such remote); a report, not a failure. */
   skipped?: string;
+  /** The fetch refspec sync added to the remote's config because it was missing. */
+  refspecAdded?: string;
 }
 
 /**

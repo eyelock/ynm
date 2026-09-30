@@ -24,7 +24,13 @@ export {
   identityEnv,
 } from "./providers/git-notes/git.js";
 export { GitNotesLog, type GitNotesLogOptions } from "./providers/git-notes/provider.js";
-export { keyFromRef, NOTES_PREFIX, REMOTE_PREFIX, refFor } from "./providers/git-notes/refs.js";
+export {
+  distributedFetchRefspec,
+  keyFromRef,
+  NOTES_PREFIX,
+  REMOTE_PREFIX,
+  refFor,
+} from "./providers/git-notes/refs.js";
 export { MemoryLog } from "./providers/memory.js";
 export { SqliteLog } from "./providers/sqlite.js";
 export const STORE_PROVIDERS = ["git-notes", "fs", "sqlite", "memory"] as const;
