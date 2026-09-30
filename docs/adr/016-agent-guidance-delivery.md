@@ -59,33 +59,58 @@ upgrade with the binary.
   the prompt hook and a throttled stop start in about the time Node itself takes.
 
 **Clients get the hooks where they fire.** `ynm client install claude-code` merges
-`SessionStart`, `UserPromptSubmit` and `Stop` entries into `.claude/settings.json` (project) or
-`~/.claude/settings.json` (user), keeping other hooks and keys and never adding an entry whose
-command is already there; `--no-hooks` skips them. In a ynh harness (the directory holds
-`.ynh-plugin/plugin.json`) `ynm client install ynh` merges the server, the `ynm-memory` skill and
-the canonical hooks `on_session_start`, `before_prompt` and `on_stop` into the harness, and
-ynm's own generated harness declares the same three, so `ynh install github.com/eyelock/ynm`
-carries them. ynh translates the canonical names per vendor (`SessionStart`,
-`UserPromptSubmit`, `Stop` on Claude Code and Codex).
+`SessionStart`, `UserPromptSubmit` and `Stop` entries into `.claude/settings.local.json`
+(project) or `~/.claude/settings.json` (user), keeping other hooks and keys and never adding an
+entry whose command is already there; `--no-hooks` skips them. The project file is Claude Code's
+personal project settings, never the team's tracked `.claude/settings.json`: a hook that runs
+`ynm` fails for every teammate who does not have it installed. Status counts hooks found in any
+of the three files, so a team that put them in the shared file on purpose still reads `hooks
+yes`. In a ynh harness (the directory holds `.ynh-plugin/plugin.json`) `ynm client install ynh`
+merges the server, the canonical hooks `on_session_start`, `before_prompt` and `on_stop`, and an
+include of the skill, `{ "git": "https://github.com/eyelock/ynm", "pick": ["skills/ynm-memory"] }`,
+into the manifest. Nothing is copied into the harness's `skills/`: ynh resolves the include and
+keeps it current, the way it does any other skill. ynm's own generated harness declares the same
+three hooks, so `ynh install github.com/eyelock/ynm` carries them. ynh translates the canonical
+names per vendor (`SessionStart`, `UserPromptSubmit`, `Stop` on Claude Code and Codex).
 
-**`ynm init` is the one command.** After the repository setup of ADR-009, `ynm init` detects
-each client and applies its project-scope install: server entry, guidance and hooks, or the
-harness merge for ynh. A client is detected when any one of three signals fires:
+JSON merges preserve the target file's style: its indentation, its `\uXXXX` escapes (a manifest
+full of `\u2014` stays that way) and its trailing newline, so a merge changes only the lines it
+adds.
+
+**`ynm init` is the one command.** After the repository setup of ADR-009, `ynm init` applies the
+project-scope install (server entry, guidance and hooks) of each client the project already
+uses. A client is found by three signals, but only one of them makes init write files:
 
 | Client | Executable on PATH | User-level footprint | Project footprint |
 |---|---|---|---|
 | claude-code | `claude` | `~/.claude/`, `~/.claude.json` | `.mcp.json`, `.claude/` |
 | copilot-cli | `copilot` | `~/.copilot/` | none (`AGENTS.md` is shared) |
-| opencode | `opencode` | `~/.config/opencode/` | `opencode.json` |
+| opencode | `opencode` | `~/.config/opencode/` | `opencode.json`, `opencode.jsonc` |
 | pi | `pi` | `~/.pi/agent/` | `.pi/` |
 | ynh | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` |
 
-PATH is scanned for the file, never by running it, and `detect` takes the environment so tests
-drive it. Init writes only inside the work tree: a change to a file under the home directory
-(Copilot CLI's only config file) or a command (`ynh install` outside a harness) becomes a `run:`
-line in the report. It prints one `client` line per detected client and nothing for the rest;
-a second run reports `unchanged`. `--no-clients` skips the step and `--client <name>` names the
-clients to configure, detected or not. A bare repository gets no client files. `ynm client
+A project footprint means the repository uses the client, and init configures it. The other two
+signals only say the client is on this machine; init writes nothing for such a client and
+prints one `also` line naming all of them and suggesting `ynm client install <name>`, so init never adds a client's configuration to a
+repository that does not use it. Copilot CLI, which has no project footprint, is therefore only
+ever suggested. PATH is scanned for the file, never by running it, and `detect` takes the
+environment so tests drive it.
+
+Init never installs into a ynh harness. A harness is not a project: it has no memory of its own,
+and a repository that holds a harness manifest (ynh's own) may be a harness product rather than
+a harness to install into. In a directory that is a harness and not a git repository init fails
+with `<path> is a ynh harness, not a project`, a note that memory is initialised in the
+repositories you work on, and the command to run, `ynm client install ynh`. A git repository that holds a
+manifest is initialised as a project and the manifest is left untouched. The harness route is
+always explicit, `ynm client install ynh`; once a harness carries ynm, the repositories used
+through it need nothing for the agent to have ynm, and `ynm init --no-clients` there adds only
+shared memory without writing files that duplicate the harness.
+
+Init writes only inside the work tree: a change to a file under the home directory (Copilot
+CLI's only config file) or a command becomes a `run:` line in the report. It prints one `client`
+line per client the project uses, at most one `also` line, and nothing for the rest; a second
+run reports `unchanged`. `--no-clients` skips the step and `--client <name>` names the clients
+to configure, used by the project or not. A bare repository gets no client files. `ynm client
 install` stays as the manual, per-client form with `--scope user` and `--http`.
 
 **Status sees the gap.** Each adapter's status reports whether the server is registered, whether
@@ -107,12 +132,13 @@ but guidance or hooks are missing.
   activates skills and commands but not hooks or MCP servers until the plugin is installed with
   `/plugin install` (a Claude Code limitation ynh documents). The harness declarations are
   correct and work with Codex and Cursor, and in a plain Claude session through
-  `.claude/settings.json`, which is what `ynm init` writes for claude-code.
+  `.claude/settings.local.json`, which is what `ynm init` writes for claude-code.
 - **Hosted servers.** The hooks run the local binary against the local store. With `--http` the
   prompt nudge works unchanged, but session start shows only local memory.
 - **Tracked files.** ADR-009's promise that init changes no tracked file holds for memory. The
-  client step can edit a tracked `CLAUDE.md`, `AGENTS.md` or `.claude/settings.json` by merge or
-  delimited block; `--no-clients` keeps init to memory alone.
+  client step can edit a tracked `CLAUDE.md`, `AGENTS.md`, `.mcp.json` or `opencode.json` by merge
+  or delimited block, keeping the file's style; the hooks go to the untracked
+  `.claude/settings.local.json`. `--no-clients` keeps init to memory alone.
 
 ## Alternatives considered
 
@@ -131,7 +157,7 @@ but guidance or hooks are missing.
   intent list's true and false positives, the settings and manifest merges (golden file for
   Claude Code's settings), detection from each signal, and init's client step, including a
   second run that changes nothing.
-- The tutorials show init's `client` lines, which depend on the machine; tutorial 7 pins its
+- The tutorials show init's `also` line, which depends on the machine; tutorial 7 pins its
   output with `--client claude-code` and pipes a fake SessionStart into `ynm hook`.
 - A hook on the client's clock costs about 50 ms of Node start-up for the prompt hook and a
   throttled stop, and about 140 ms for a stop that runs the expire pass or a session start, on a
@@ -142,3 +168,6 @@ but guidance or hooks are missing.
 
 - 2026-09-30: hooks as `ynm hook` subcommands, installed by the claude-code and ynh adapters;
   `ynm init` configures detected clients; status and doctor report guidance and hooks.
+- 2026-09-30: before release, init narrowed to clients a project uses; harness install made
+  explicit and by include; project hooks moved to settings.local.json (first real use, in the ynh
+  repository)
