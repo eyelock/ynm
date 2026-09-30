@@ -22,6 +22,23 @@
       ]
     }
   },
+  "hooks": {
+    "on_session_start": [
+      {
+        "command": "ynm hook session-start"
+      }
+    ],
+    "before_prompt": [
+      {
+        "command": "ynm hook prompt"
+      }
+    ],
+    "on_stop": [
+      {
+        "command": "ynm hook stop"
+      }
+    ]
+  },
   "profiles": {
     "hosted": {
       "mcp_servers": {

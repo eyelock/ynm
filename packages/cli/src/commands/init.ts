@@ -1,5 +1,13 @@
+import { homedir } from "node:os";
 import { Flags } from "@oclif/core";
-import { initBare, initPersonal, initProject, loadConfig, ynmHome } from "@ynm/service";
+import {
+  CLIENT_ADAPTERS,
+  initBare,
+  initPersonal,
+  initProject,
+  loadConfig,
+  ynmHome,
+} from "@ynm/service";
 import { YnmCommand } from "../lib/base.js";
 
 export default class Init extends YnmCommand {
@@ -7,6 +15,8 @@ export default class Init extends YnmCommand {
     "Set up memory for this repository, your personal store, or a dedicated bare repo";
   static override examples = [
     "<%= config.bin %> <%= command.id %>",
+    "<%= config.bin %> <%= command.id %> --no-clients",
+    "<%= config.bin %> <%= command.id %> --client claude-code --client ynh",
     "<%= config.bin %> <%= command.id %> --personal",
     "<%= config.bin %> <%= command.id %> --bare /srv/memory.git",
   ];
@@ -23,6 +33,17 @@ export default class Init extends YnmCommand {
       allowNo: true,
     }),
     anchor: Flags.string({ description: "Anchor commit sha (needed on shallow clones)" }),
+    clients: Flags.boolean({
+      description:
+        "Configure every agent client detected here (server, guidance, hooks); --no-clients skips it",
+      default: true,
+      allowNo: true,
+    }),
+    client: Flags.string({
+      description: "Configure this client whether detected or not (repeatable); only these",
+      options: CLIENT_ADAPTERS.map((c) => c.name),
+      multiple: true,
+    }),
   };
 
   async run(): Promise<void> {
@@ -52,6 +73,9 @@ export default class Init extends YnmCommand {
       remote: flags.remote,
       hooks: flags.hooks,
       anchor: flags.anchor,
+      clients: flags.clients
+        ? { home: process.env.HOME ?? homedir(), only: flags.client }
+        : undefined,
     });
     this.emit(flags.json, report, () =>
       [
@@ -65,6 +89,10 @@ export default class Init extends YnmCommand {
           ? [`  hooks     ${report.hooksInstalled.join(", ")}`]
           : []),
         ...report.notes.map((n) => `  note      ${n}`),
+        ...report.clients.flatMap((c) => [
+          `  client    ${c.client}: ${c.applied.length ? c.applied.join(", ") : "unchanged"}`,
+          ...c.run.map((r) => `  run:      ${r}`),
+        ]),
         'next: `ynm remember --type semantic --content "..."` and `ynm doctor`',
       ].join("\n")
     );

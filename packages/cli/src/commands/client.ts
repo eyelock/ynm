@@ -3,8 +3,11 @@ import { Args, Flags } from "@oclif/core";
 import {
   applyChanges,
   CLIENT_ADAPTERS,
-  type ClientStatus,
+  changeIsNoop,
+  changeTarget,
   clientAdapter,
+  clientReports,
+  formatClientReport,
   loadConfig,
   ynmHome,
 } from "@ynm/service";
@@ -27,6 +30,7 @@ export default class Client extends YnmCommand {
   static override examples = [
     "<%= config.bin %> <%= command.id %> install claude-code",
     "<%= config.bin %> <%= command.id %> install claude-code --scope user",
+    "<%= config.bin %> <%= command.id %> install claude-code --no-hooks",
     "<%= config.bin %> <%= command.id %> install copilot-cli --http https://memory.example.com/mcp --token $TOKEN",
     "<%= config.bin %> <%= command.id %> install opencode",
     "<%= config.bin %> <%= command.id %> install pi --scope user",
@@ -51,6 +55,11 @@ export default class Client extends YnmCommand {
     http: Flags.string({ description: "Use a hosted server at this URL instead of stdio" }),
     token: Flags.string({ description: "Bearer token for --http" }),
     yes: Flags.boolean({ description: "Run command changes without asking", default: false }),
+    hooks: Flags.boolean({
+      description: "Install the client's agent hooks (--no-hooks skips them)",
+      default: true,
+      allowNo: true,
+    }),
   };
 
   async run(): Promise<void> {
@@ -59,12 +68,8 @@ export default class Client extends YnmCommand {
     const home = ynmHome();
     void loadConfig({ home });
     if (args.action === "status") {
-      const statuses: ClientStatus[] = [];
-      for (const a of CLIENT_ADAPTERS)
-        statuses.push(await a.status({ cwd, home: process.env.HOME ?? home }));
-      this.emit(flags.json, statuses, () =>
-        statuses.map((s) => `${s.configured ? "ok  " : "--  "} ${s.client}: ${s.detail}`).join("\n")
-      );
+      const reports = await clientReports({ cwd, home: process.env.HOME ?? home });
+      this.emit(flags.json, reports, () => reports.map(formatClientReport).join("\n"));
       return;
     }
     if (!args.name) this.error("client name required", { exit: 2 });
@@ -72,23 +77,23 @@ export default class Client extends YnmCommand {
     const transport = flags.http
       ? { kind: "http" as const, url: flags.http, bearer: flags.token }
       : { kind: "stdio" as const, command: "ynm", args: ["serve"] };
-    const plan = await adapter.plan({
-      cwd,
-      home: process.env.HOME ?? home,
-      scope: flags.scope as "project" | "user",
-      transport,
-    });
+    // A change that would leave its file as it is (already installed) is not shown or applied.
+    const plan = (
+      await adapter.plan({
+        cwd,
+        home: process.env.HOME ?? home,
+        scope: flags.scope as "project" | "user",
+        transport,
+        hooks: flags.hooks,
+      })
+    ).filter((c) => !changeIsNoop(c));
     if (args.action === "plan") {
       this.emit(
         flags.json,
         plan,
         () =>
-          plan
-            .map(
-              (c) =>
-                `${c.kind.padEnd(10)} ${c.kind === "command" ? c.argv.join(" ") : c.path}  (${c.reason})`
-            )
-            .join("\n") || "nothing to do"
+          plan.map((c) => `${c.kind.padEnd(10)} ${changeTarget(c)}  (${c.reason})`).join("\n") ||
+          "nothing to do"
       );
       return;
     }

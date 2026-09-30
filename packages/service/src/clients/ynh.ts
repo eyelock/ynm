@@ -2,32 +2,46 @@ import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { guidance } from "@ynm/model";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
+import { detectBySignals } from "./types.js";
+
+export const YNH_SCHEMA = "https://eyelock.github.io/ynh/schema/plugin.schema.json";
 
 export interface YnhPluginOptions {
   version: string;
   transport: InstallTarget["transport"];
 }
 
+/**
+ * ynh's canonical hook events and the `ynm hook` command each runs (ADR-016). ynh translates
+ * them per vendor: on Claude Code and Codex, `on_session_start` is SessionStart,
+ * `before_prompt` is UserPromptSubmit and `on_stop` is Stop.
+ */
+export const YNH_HOOKS = {
+  on_session_start: "ynm hook session-start",
+  before_prompt: "ynm hook prompt",
+  on_stop: "ynm hook stop",
+} as const;
+
+function ynhServer(t: InstallTarget["transport"]): Record<string, unknown> {
+  return t.kind === "stdio"
+    ? { command: t.command, args: t.args }
+    : { url: t.url, ...(t.bearer ? { headers: { Authorization: `Bearer ${t.bearer}` } } : {}) };
+}
+
 /** The harness manifest ynh reads; also the checked-in `.ynh-plugin/plugin.json` (ADR-013). */
 export function ynhPlugin(opts: YnhPluginOptions): Record<string, unknown> {
-  const server =
-    opts.transport.kind === "stdio"
-      ? { command: opts.transport.command, args: opts.transport.args }
-      : {
-          url: opts.transport.url,
-          ...(opts.transport.bearer
-            ? { headers: { Authorization: `Bearer ${opts.transport.bearer}` } }
-            : {}),
-        };
   return {
-    $schema: "https://eyelock.github.io/ynh/schema/plugin.schema.json",
+    $schema: YNH_SCHEMA,
     name: "ynm",
     version: opts.version,
     description: "Your named memory: agent memory in git notes over MCP",
     author: { name: "eyelock", url: "https://github.com/eyelock" },
     keywords: ["memory", "mcp", "git-notes", "agents"],
     default_vendor: "claude",
-    mcp_servers: { ynm: server },
+    mcp_servers: { ynm: ynhServer(opts.transport) },
+    hooks: Object.fromEntries(
+      Object.entries(YNH_HOOKS).map(([event, command]) => [event, [{ command }]])
+    ),
     profiles: {
       hosted: { mcp_servers: { ynm: { url: "http://localhost:3000/mcp" } } },
     },
@@ -58,39 +72,167 @@ export function ynhSkill(): string {
 
 export const YNH_SOURCE = "github.com/eyelock/ynm";
 
+export const harnessManifestPath = (cwd: string): string => join(cwd, ".ynh-plugin", "plugin.json");
+export const harnessSkillPath = (cwd: string): string =>
+  join(cwd, "skills", "ynm-memory", "SKILL.md");
+
+type Manifest = Record<string, unknown> & {
+  mcp_servers?: Record<string, Record<string, unknown>>;
+  hooks?: Record<string, Array<{ command?: string; matcher?: string }>>;
+};
+
+function readManifest(cwd: string): Manifest | null {
+  try {
+    const v = JSON.parse(readFileSync(harnessManifestPath(cwd), "utf8")) as unknown;
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Manifest) : null;
+  } catch {
+    return null;
+  }
+}
+
+function hookPresent(m: Manifest, event: string, command: string): boolean {
+  const entries = m.hooks?.[event];
+  return Array.isArray(entries) && entries.some((h) => h?.command?.trim() === command);
+}
+
 /**
- * ynh: the plugin is a checked-in artefact at the ynm repo root, so installation is
- * `ynh install github.com/eyelock/ynm`; this adapter only verifies and offers the command.
+ * Merges ynm into the harness in `t.cwd`: the MCP server, the hooks and the skill. Returns the
+ * changes (none when everything is already there) plus a note to run `ynd validate .`.
+ */
+function harnessPlan(t: InstallTarget): Change[] {
+  const file = harnessManifestPath(t.cwd);
+  const m = readManifest(t.cwd);
+  if (!m)
+    return [
+      {
+        kind: "note",
+        text: `${file} is not a JSON object; fix it, then rerun \`ynm client install ynh\``,
+        reason: "harness manifest unreadable",
+      },
+    ];
+  const changes: Change[] = [];
+  const done: string[] = [];
+  const next: Manifest = structuredClone(m);
+  const want = ynhServer(t.transport);
+  const cur = m.mcp_servers?.ynm;
+  const same =
+    cur &&
+    Object.keys(want).every((k) => JSON.stringify(cur[k]) === JSON.stringify(want[k])) &&
+    !(t.transport.kind === "stdio" ? "url" in cur : "command" in cur);
+  if (!same) {
+    const fixed =
+      typeof cur?.command === "string" && /\s/.test(cur.command.trim())
+        ? ` (replaced the string-form command "${cur.command}" with command and args)`
+        : "";
+    const env = cur?.env ? { env: cur.env } : {};
+    next.mcp_servers = { ...(m.mcp_servers ?? {}), ynm: { ...want, ...env } };
+    done.push(`mcp_servers.ynm${fixed}`);
+  }
+  let hookCount = 0;
+  if (t.hooks !== false) {
+    const added: string[] = [];
+    for (const [event, command] of Object.entries(YNH_HOOKS)) {
+      if (hookPresent(m, event, command)) continue;
+      const hooks = { ...(next.hooks ?? {}) };
+      hooks[event] = [...(Array.isArray(hooks[event]) ? hooks[event] : []), { command }];
+      next.hooks = hooks;
+      added.push(event);
+    }
+    if (added.length) {
+      done.push(`hooks ${added.join(", ")}`);
+      hookCount = added.length;
+    }
+  }
+  // `ynd validate` requires the schema reference; a hand-made manifest often lacks it.
+  const withSchema = next.$schema ? next : { $schema: YNH_SCHEMA, ...next };
+  if (!next.$schema) done.push("$schema");
+  if (done.length)
+    changes.push({
+      kind: "write",
+      path: file,
+      content: `${JSON.stringify(withSchema, null, 2)}\n`,
+      reason: `harness manifest: ${done.join("; ")}`,
+      label: `harness manifest${hookCount ? `, ${hookCount} hook${hookCount === 1 ? "" : "s"}` : ""}`,
+    });
+  const skill = harnessSkillPath(t.cwd);
+  const body = ynhSkill();
+  if (!existsSync(skill) || readFileSync(skill, "utf8") !== body)
+    changes.push({
+      kind: "write",
+      path: skill,
+      content: body,
+      reason: "ynm-memory skill",
+      label: "skill",
+    });
+  if (changes.length)
+    changes.push({
+      kind: "note",
+      text: "ynd validate .",
+      reason: "check the harness manifest against ynh's schema",
+    });
+  return changes;
+}
+
+/**
+ * ynh: in a harness (the cwd holds `.ynh-plugin/plugin.json`) the adapter merges ynm's server,
+ * hooks and skill into it. Elsewhere it offers `ynh install github.com/eyelock/ynm`, which
+ * installs ynm's own checked-in harness.
  */
 export const ynh: ClientAdapter = {
   name: "ynh",
-  async detect({ home }): Promise<Detection> {
-    const present = existsSync(join(home, ".ynh"));
-    return { installed: present, detail: present ? "~/.ynh present" : "ynh not found" };
+  async detect(t): Promise<Detection> {
+    return detectBySignals(
+      { bin: "ynh", user: [".ynh"], project: [join(".ynh-plugin", "plugin.json")] },
+      t
+    );
   },
-  async plan(): Promise<Change[]> {
+  async plan(t: InstallTarget): Promise<Change[]> {
+    if (existsSync(harnessManifestPath(t.cwd))) return harnessPlan(t);
     return [
       {
         kind: "command",
         argv: ["ynh", "install", YNH_SOURCE],
-        reason: "install the ynm harness plugin (MCP server, skill, focuses, sensor)",
+        reason: "install the ynm harness plugin (MCP server, hooks, skill, focuses, sensor)",
       },
     ];
   },
-  async status({ home }): Promise<ClientStatus> {
+  async status({ cwd, home }): Promise<ClientStatus> {
+    if (existsSync(harnessManifestPath(cwd))) {
+      const m = readManifest(cwd) ?? {};
+      const server = !!(m as Manifest).mcp_servers?.ynm;
+      const guided = existsSync(harnessSkillPath(cwd));
+      const hooked = Object.entries(YNH_HOOKS).every(([e, c]) => hookPresent(m as Manifest, e, c));
+      return {
+        client: "ynh",
+        configured: server,
+        detail: server
+          ? `harness ${harnessManifestPath(cwd)}`
+          : "harness here; ynm not declared; run `ynm client install ynh`",
+        guidance: guided,
+        hooks: hooked,
+      };
+    }
     const dir = join(home, ".ynh");
     if (!existsSync(dir)) return { client: "ynh", configured: false, detail: "ynh not installed" };
-    const found = findFile(dir, "plugin.json", 4).some((f) => {
+    const found = findFile(dir, "plugin.json", 4).find((f) => {
       try {
         return (JSON.parse(readFileSync(f, "utf8")) as { name?: string }).name === "ynm";
       } catch {
         return false;
       }
     });
+    if (!found)
+      return { client: "ynh", configured: false, detail: `run \`ynh install ${YNH_SOURCE}\`` };
+    const harness = join(found, "..", "..");
+    const m = readManifest(harness) ?? {};
+    const guided = existsSync(harnessSkillPath(harness));
+    const hooked = Object.entries(YNH_HOOKS).every(([e, c]) => hookPresent(m as Manifest, e, c));
     return {
       client: "ynh",
-      configured: found,
-      detail: found ? "ynm harness installed" : `run \`ynh install ${YNH_SOURCE}\``,
+      configured: true,
+      detail: `ynm harness installed${hooked ? "" : `; hooks missing (an older release: run \`ynh update ynm\`)`}`,
+      guidance: guided,
+      hooks: hooked,
     };
   },
 };

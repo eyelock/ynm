@@ -1,7 +1,8 @@
 # Connect an Agent
 
-Wire ynm into the agent clients it supports, see exactly which files each one gets, then talk to
-the MCP server yourself with a short script, the way an agent does.
+Let `ynm init` wire ynm into your agent clients, see exactly which files each one gets, watch
+the hooks that put memory in front of the agent at the right moment, then talk to the MCP server
+yourself with a short script, the way an agent does.
 
 ## Prerequisites
 
@@ -21,58 +22,60 @@ ynm init --personal
 git init -q -b main project
 cd project
 git -c user.name=tutorial -c user.email=tutorial@example.com commit -q --allow-empty -m "first commit"
-ynm init
 ```
 
-Expected: `personal store created at /tmp/ynm-tutorial/home/store.git`, then the `initialised`
-report from tutorial 2, including the note that remote `origin` was not found.
+Expected: `personal store created at /tmp/ynm-tutorial/home/store.git` and nothing else.
 
-## What is installed
+## One command: `ynm init`
 
-`ynm client status` checks every supported client without changing anything:
+`ynm init` sets up the repository (tutorial 2) and then configures every agent client it
+detects. A client counts as detected when any one of three signals fires:
+
+| Client | Executable on PATH | User-level footprint | Project footprint |
+|---|---|---|---|
+| `claude-code` | `claude` | `~/.claude/` or `~/.claude.json` | `.mcp.json` or `.claude/` |
+| `copilot-cli` | `copilot` | `~/.copilot/` | none |
+| `opencode` | `opencode` | `~/.config/opencode/` | `opencode.json` |
+| `pi` | `pi` | `~/.pi/agent/` | `.pi/` |
+| `ynh` | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` |
+
+Which clients that finds depends on your machine, so here `--client` names one and the output
+is the same everywhere:
 
 ```bash
-ynm client status
+ynm init --client claude-code
 ```
 
-Expected: five lines, one per client. In the empty sandbox `claude-code`, `opencode` and `pi`
-are marked `--` for "not configured":
+Expected: the `initialised` report from tutorial 2, including the note that remote `origin` was
+not found, then one `client` line saying what was written for Claude Code: its server entry,
+the guidance block and three hooks.
 
 ```text
---   claude-code: ynm not registered; run `ynm client install claude-code`
---   opencode: ynm not registered; run `ynm client install opencode`
---   pi: extension not installed; run `ynm client install pi`
+initialised <project path>
+  anchor    <40-hex sha> (root-commit)
+  config    <project path>/.ynm/config.json
+  hooks     <project path>/.git/hooks/pre-push
+  note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
+  note      remote "origin" not found; refspecs not configured (re-run init after adding it)
+  client    claude-code: .mcp.json, CLAUDE.md, 3 hooks
+next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
-The `copilot-cli` line reflects your real home directory, so it depends on whether you already
-use ynm with Copilot CLI. The `ynh` line reads `ynh not installed` unless you have the `ynh`
-binary on your PATH.
+Without `--client`, you get one `client` line per detected client and none for the rest.
+`--no-clients` skips the step. Init only writes inside the work tree: a client whose install
+needs a file in your home directory (Copilot CLI) or a command (ynh outside a harness) gets a
+`run:` line to do yourself instead.
 
-## Claude Code: plan, then install
+## What Claude Code got
 
-`plan` prints what an install would change and touches nothing:
+The server entry, which Claude Code uses to start `ynm serve` over stdio whenever it opens the
+project:
 
 ```bash
-ynm client plan claude-code
-```
-
-Expected: two changes. The MCP server is merged into the project's `.mcp.json`, and a
-guidance block is written to `CLAUDE.md`.
-
-```text
-merge-json <project path>/.mcp.json  (register the ynm MCP server for this project)
-write      <project path>/CLAUDE.md  (memory guidance for the agent (delimited block))
-```
-
-Apply it:
-
-```bash
-ynm client install claude-code
 cat .mcp.json
 ```
 
-Expected: `merged <project path>/.mcp.json` and `wrote <project path>/CLAUDE.md`, then the
-server entry. Claude Code starts `ynm serve` over stdio whenever it opens the project:
+Expected:
 
 ```text
 {
@@ -87,7 +90,7 @@ server entry. Claude Code starts `ynm serve` over stdio whenever it opens the pr
 }
 ```
 
-The `CLAUDE.md` block tells the agent how to use memory:
+The guidance block tells the agent how to use memory:
 
 ```bash
 cat CLAUDE.md
@@ -96,8 +99,136 @@ cat CLAUDE.md
 Expected: a Markdown block between two `<!-- ynm:guidance -->` marker lines, headed
 `# Using memory in this session`, with six numbered rules: start with `memory_context` or
 `memory_recall`, remember durable facts, keep `personal` unless the fact is safe for the team,
-supersede rather than duplicate, and stay quiet about it. ynm only ever rewrites the text between
-the markers, so anything else you keep in the file is safe, and installing again is harmless.
+supersede rather than duplicate, use ynm rather than the client's own note files, and stay quiet
+about it. ynm only ever rewrites the text between the markers, so anything else you keep in the
+file is safe, and installing again is harmless.
+
+The hooks, in the project's Claude Code settings:
+
+```bash
+cat .claude/settings.json
+```
+
+Expected: three events, each running a `ynm hook` subcommand:
+
+```text
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ynm hook session-start"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ynm hook prompt"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ynm hook stop"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+If the file already had hooks or other settings, ynm adds its three entries beside them and
+never adds one twice.
+
+## What the hooks do
+
+Claude Code runs each hook with a JSON object on stdin and reads JSON from stdout. You can play
+Claude Code's part. Remember something first, then send the hook what Claude Code sends when a
+session starts:
+
+```bash
+ynm remember --type semantic --content "The user likes to be called Dee."
+echo '{"session_id":"tutorial-session","cwd":"'"$PWD"'","hook_event_name":"SessionStart","source":"startup"}' | ynm hook session-start
+```
+
+Expected: `remembered <id> in personal`, then one line of JSON. Its `additionalContext` is the
+context block from tutorial 3, prefixed by one line telling the agent to use ynm; Claude Code
+adds it to the agent's context before the first prompt:
+
+```text
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"ynm memory for this session (use memory_recall for more; use memory_remember to keep facts, not note files):\n\n## Memory\n- (semantic) The user likes to be called Dee."}}
+```
+
+The prompt hook watches for the moment the user asks the agent to remember something, which is
+when a client's built-in memory would otherwise take over:
+
+```bash
+echo '{"session_id":"tutorial-session","hook_event_name":"UserPromptSubmit","prompt":"Remember that I prefer tabs."}' | ynm hook prompt
+echo '{"session_id":"tutorial-session","hook_event_name":"UserPromptSubmit","prompt":"Make parse() always return a list."}' | ynm hook prompt
+```
+
+Expected: for the first prompt, a nudge toward `memory_remember`; for the second, where
+"always" is part of an instruction about code, nothing but `{}`:
+
+```text
+{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"The user is asking you to remember something. Store it with memory_remember (ynm), not in a note file or memory directory. Prefer memory_supersede if a memory on this already exists."}}
+{}
+```
+
+The stop hook runs at the end of every turn. It expires the session's due working memory
+(tutorial 5) and answers `{}`:
+
+```bash
+echo '{"session_id":"tutorial-session","hook_event_name":"Stop"}' | ynm hook stop
+```
+
+Expected: `{}`. A hook never fails the session: empty or broken input, or any error, still
+prints `{}` and exits 0, with the error on stderr.
+
+## Status and the manual form
+
+`ynm client status` checks every supported client without changing anything:
+
+```bash
+ynm client status
+```
+
+Expected: five lines, one per client. Claude Code is `ok` with everything in place:
+
+```text
+ok   claude-code: server yes, guidance yes, hooks yes; project scope: <project path>/.mcp.json
+```
+
+The other four lines depend on your machine: `--   <client>: not detected`, or, for a client
+detected by one of the signals above, `detected (...)` naming the signals and the command that
+would install it.
+
+`ynm client install <name>` is the manual form of what init did, one client at a time, with a
+`plan` to preview it. For Claude Code there is nothing left to do, and `ynm init` again reports
+it unchanged:
+
+```bash
+ynm client plan claude-code
+ynm init --client claude-code
+```
+
+Expected: `nothing to do`, then the `initialised` report with the config marked `(unchanged)`
+and `client    claude-code: unchanged`.
+
+`ynm client install claude-code --scope user` registers the server for every project with
+`claude mcp add` and merges the hooks into `~/.claude/settings.json`; `--no-hooks` leaves the
+hooks out.
 
 ## The other clients
 
@@ -112,7 +243,8 @@ Expected: two changes, a `merge-json` of `<home>/.copilot/mcp-config.json` (Copi
 user-level file, the only one it reads) and a `write` of `<project path>/AGENTS.md`, the
 guidance block. `ynm client install copilot-cli` would apply them, and it changes your real
 home directory, which is why the tutorial stops at the plan. The file gets the same `ynm serve`
-command under `mcpServers`, plus `"type": "local"` and `"tools": ["*"]`.
+command under `mcpServers`, plus `"type": "local"` and `"tools": ["*"]`. Copilot CLI gets no
+hooks: its hooks do not fire in folders the CLI has not marked as trusted.
 
 OpenCode reads `opencode.json` in the project and shares `AGENTS.md` for the guidance:
 
@@ -158,27 +290,87 @@ Expected: `wrote` lines for the extension and the skill, then the two files:
 tool in it shells out to `ynm <command> --json`, so `ynm` must be on the PATH Pi runs with. The
 skill carries the same guidance text as the `CLAUDE.md` block.
 
-`ynh`, the harness manager, installs ynm as a plugin, using a command rather than files. Without
-`--yes` ynm prints the command and does not run it:
+## Install into a ynh harness
+
+ynh, the harness manager, assembles one declaration for every vendor it supports. In a
+directory that holds a harness, ynm merges itself into the harness manifest. Make a minimal
+harness, a manifest with just a name and a version, and install into it:
 
 ```bash
+mkdir -p /tmp/ynm-tutorial/harness/.ynh-plugin
+cd /tmp/ynm-tutorial/harness
+echo '{"name": "my-harness", "version": "0.1.0"}' > .ynh-plugin/plugin.json
 ynm client install ynh
 ```
 
-Expected:
+Expected: the manifest and the skill written, then the check to run:
 
 ```text
-run: ynh install github.com/eyelock/ynm
+wrote /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
+wrote /tmp/ynm-tutorial/harness/skills/ynm-memory/SKILL.md
+next: ynd validate .
 ```
 
-Now the status shows what is configured:
+The merged manifest:
 
 ```bash
+cat .ynh-plugin/plugin.json
+find skills -type f
+```
+
+Expected: the manifest gained the schema reference, the server and three hooks under ynh's
+canonical event names, which ynh translates per vendor (for Claude Code: `SessionStart`,
+`UserPromptSubmit`, `Stop`); then the one skill file:
+
+```text
+{
+  "$schema": "https://eyelock.github.io/ynh/schema/plugin.schema.json",
+  "name": "my-harness",
+  "version": "0.1.0",
+  "mcp_servers": {
+    "ynm": {
+      "command": "ynm",
+      "args": [
+        "serve"
+      ]
+    }
+  },
+  "hooks": {
+    "on_session_start": [
+      {
+        "command": "ynm hook session-start"
+      }
+    ],
+    "before_prompt": [
+      {
+        "command": "ynm hook prompt"
+      }
+    ],
+    "on_stop": [
+      {
+        "command": "ynm hook stop"
+      }
+    ]
+  }
+}
+skills/ynm-memory/SKILL.md
+```
+
+With ynh's developer tool installed, `ynd validate .` reports `.: valid`. A harness kept in its
+own git repository gets the same merge from `ynm init` run there, along with a shared memory
+mount for the harness repository. Outside a harness, `ynm client install ynh` prints
+`run: ynh install github.com/eyelock/ynm`, which installs ynm's own harness with the same hooks.
+
+Back to the project for the rest of the tutorial:
+
+```bash
+cd /tmp/ynm-tutorial/project
 ynm client status
 ```
 
-Expected: `ok` for `claude-code`, `opencode` and `pi`, each followed by the path
-of what was written; the `copilot-cli` and `ynh` lines are as before.
+Expected: `ok` for `claude-code`, `opencode` and `pi`, each followed by the path of what was
+written; `hooks n/a` for OpenCode and Pi, which get no hooks; the `copilot-cli` and `ynh` lines
+as before.
 
 ## Serve
 

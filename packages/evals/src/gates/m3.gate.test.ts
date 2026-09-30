@@ -49,7 +49,7 @@ describe("gate M3: MCP local (MVP)", () => {
     expect(r.out).toMatch(/ynh plugin generation matches the checked-in manifest/);
     const ynd = spawnSync("ynd", ["validate", repoRoot], { encoding: "utf8" });
     if (ynd.error) console.warn("ynd not installed; manifest validation skipped on this machine");
-    else expect(`${ynd.stdout}${ynd.stderr}`, ynd.stdout + ynd.stderr).toMatch(/valid/);
+    else expect(`${ynd.stdout}${ynd.stderr}`, ynd.stdout + ynd.stderr).toMatch(/: valid$/m);
   }, 300_000);
 
   it("FR-14: guidance efficacy live eval baseline recorded (agent remembers and recalls at the right moments)", () => {

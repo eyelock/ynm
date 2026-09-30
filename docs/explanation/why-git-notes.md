@@ -50,7 +50,8 @@ is the list of writes, and any earlier state can be recovered from git's object 
 - **No new infrastructure.** The repository you already have is the store. Its remote is the
   sync server. Its hosting, backups and permissions are the memory's.
 - **Nothing in the working tree.** No files to review, no merge conflicts in pull requests,
-  no noise in `git status`. `ynm init` changes no branch, tag, commit or tracked file.
+  no noise in `git status`. For memory, `ynm init` changes no branch, tag, commit or tracked
+  file; the files it can add are agent client configuration, and `--no-clients` skips those.
 - **Conflict-free sync.** Any number of clones can write offline and sync later; the merge is
   mechanical.
 - **Opt-in visibility.** Teammates who never run `ynm init` never fetch the refs and never see

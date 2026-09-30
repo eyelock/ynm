@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { gitOrNull, NOTES_PREFIX } from "@ynm/store";
+import { clientReports, type InstallTarget } from "./clients/index.js";
 import type { LoadedConfig } from "./config.js";
 import { SHARED_FETCH } from "./init.js";
 import type { Mount } from "./mounts.js";
@@ -24,6 +25,8 @@ export async function doctor(opts: {
   loaded: LoadedConfig;
   worktree: WorktreeInfo;
   mounts: Mount[];
+  /** Where to look for agent clients; omitted, doctor skips the client checks. */
+  clients?: Pick<InstallTarget, "cwd" | "home">;
 }): Promise<DoctorReport> {
   const checks: Check[] = [];
   const add = (
@@ -132,6 +135,19 @@ export async function doctor(opts: {
       "not inside a git repository; only the personal store is mounted",
       "info"
     );
+  }
+
+  if (opts.clients) {
+    for (const r of await clientReports(opts.clients)) {
+      if (!r.detected && r.level === "off") continue;
+      const detail =
+        r.level === "off"
+          ? `detected (${r.detection}); ynm not registered; run \`ynm client install ${r.client}\``
+          : r.level === "warn"
+            ? (r.advice as string)
+            : `${r.hooks ? "server, guidance and hooks" : "server and guidance"} in place (${r.detail})`;
+      add(`client ${r.client}`, r.level !== "warn", detail, r.level === "warn" ? "warn" : "info");
+    }
   }
 
   return { ok: checks.every((c) => c.ok || c.level !== "error"), checks };

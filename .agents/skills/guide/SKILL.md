@@ -13,7 +13,13 @@ ynm <command> --help      # flags, generated from the tool schema
 ynm status                # mounts, shards, index freshness
 ynm doctor                # refspecs, hooks, anchor, shards, clients
 ynm serve --help          # the MCP server (stdio or --http)
+ynm client status         # per agent client: server, guidance, hooks
 ```
+
+`ynm hook <session-start|prompt|stop>` is what an agent client's hooks run: it reads the
+client's hook JSON on stdin and prints JSON on stdout. To see what a hook gives the agent, pipe
+it a sample, e.g. `echo '{"prompt":"remember I use tabs"}' | ynm hook prompt`. `ynm init`
+installs the hooks for every client it detects (ADR-016).
 
 For "why", read `docs/adr/README.md` and the ADR it points to; for "how", `docs/how-to/`; for what
 each memory type is for, `docs/explanation/memory-types.md`. Say plainly which source an answer

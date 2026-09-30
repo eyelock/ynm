@@ -31,3 +31,4 @@ line per addendum that was folded in), and the FR/NFR ids from ADR-000 it satisf
 | [013](013-client-integrations.md) | Client integration adapters: Claude Code, Copilot CLI, OpenCode, Pi, ynh |
 | [014](014-evals-and-benchmarks.md) | Evals and benchmarks tracked at all times |
 | [015](015-distribution.md) | Distribution: standalone binaries, a slim bundle and the image |
+| [016](016-agent-guidance-delivery.md) | Agent guidance delivery: `ynm hook` subcommands, and `ynm init` configures every detected client |

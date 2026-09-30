@@ -125,3 +125,6 @@ Cases handled:
 - 2026-09-29 (M6): release workflow publishes the tarball, the Homebrew formula and the image.
 - 2026-09-30: packaging (standalone binaries, the slim bundle, two formulae) moved to
   [ADR-015](015-distribution.md); the image is unchanged.
+- 2026-09-30: `ynm init` also configures every detected agent client, which can edit client
+  files in the work tree; `--no-clients` restores the memory-only retrofit. See
+  [ADR-016](016-agent-guidance-delivery.md).

@@ -5,14 +5,16 @@ repositories you already have, served over MCP and a CLI with identical commands
 
 ```bash
 brew install eyelock/tap/ynm
-cd your-repo
-ynm init                          # shared memory for this repo, personal memory in ~/.ynm
-ynm client install claude-code    # or copilot-cli, opencode, pi, ynh
+cd your-repo && ynm init          # shared memory for this repo, and every agent client it finds
 ```
 
-From then on the agent has `memory_recall` and `memory_remember`, and you have the same thing
-as `ynm recall` and `ynm remember`. Personal memory never leaves your machine; shared memory
-travels with `git push`.
+`ynm init` sets up the repository's shared memory (personal memory lives in `~/.ynm`) and
+configures each agent client it detects: Claude Code, Copilot CLI, OpenCode, Pi and ynh
+harnesses get the MCP server and the memory guidance, and Claude Code and ynh get hooks that
+load memory at session start and steer "remember this" into ynm. From then on the agent has
+`memory_recall` and `memory_remember`, and you have the same thing as `ynm recall` and
+`ynm remember`. Personal memory never leaves your machine; shared memory travels with
+`git push`.
 
 ## What is here
 

@@ -24,3 +24,8 @@ export function delimitedBlockChange(
   if (content === existing) return null;
   return { kind: "write", path: file, content, reason };
 }
+
+/** True when `file` holds ynm's delimited guidance block. */
+export function hasGuidanceBlock(file: string, marker: string = AGENTS_MD_MARKER): boolean {
+  return existsSync(file) && readFileSync(file, "utf8").includes(marker);
+}

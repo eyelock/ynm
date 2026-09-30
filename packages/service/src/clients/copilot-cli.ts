@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AGENTS_MD_MARKER, agentsMdBlock, delimitedBlockChange } from "./agents-md.js";
+import {
+  AGENTS_MD_MARKER,
+  agentsMdBlock,
+  delimitedBlockChange,
+  hasGuidanceBlock,
+} from "./agents-md.js";
 import type {
   Change,
   ClientAdapter,
@@ -9,6 +14,7 @@ import type {
   InstallTarget,
   Transport,
 } from "./types.js";
+import { detectBySignals } from "./types.js";
 
 /** Copilot CLI's server entry: `local` (stdio) or `http`, tools allow-listed with "*". */
 export function copilotServerEntry(t: Transport): Record<string, unknown> {
@@ -31,12 +37,9 @@ export const COPILOT_CONFIG = (home: string): string => join(home, ".copilot", "
  */
 export const copilotCli: ClientAdapter = {
   name: "copilot-cli",
-  async detect({ home }): Promise<Detection> {
-    const present = existsSync(join(home, ".copilot"));
-    return {
-      installed: present,
-      detail: present ? "~/.copilot present" : "no Copilot CLI config found",
-    };
+  // No project footprint of its own: AGENTS.md is shared by several clients.
+  async detect(t): Promise<Detection> {
+    return detectBySignals({ bin: "copilot", user: [".copilot"], project: [] }, t);
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     const changes: Change[] = [
@@ -59,18 +62,27 @@ export const copilotCli: ClientAdapter = {
     }
     return changes;
   },
-  async status({ home }): Promise<ClientStatus> {
+  // Copilot CLI hooks never fire in folders the CLI has not marked trusted, so ynm installs none.
+  async status({ cwd, home }): Promise<ClientStatus> {
     const file = COPILOT_CONFIG(home);
+    const guided = hasGuidanceBlock(join(cwd, "AGENTS.md"));
     if (existsSync(file)) {
       const cfg = JSON.parse(readFileSync(file, "utf8")) as {
         mcpServers?: Record<string, unknown>;
       };
-      if (cfg.mcpServers?.ynm) return { client: "copilot-cli", configured: true, detail: file };
+      if (cfg.mcpServers?.ynm)
+        return {
+          client: "copilot-cli",
+          configured: true,
+          detail: file,
+          guidance: guided,
+        };
     }
     return {
       client: "copilot-cli",
       configured: false,
       detail: "ynm not registered; run `ynm client install copilot-cli`",
+      guidance: guided,
     };
   },
 };

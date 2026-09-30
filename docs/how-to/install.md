@@ -3,6 +3,19 @@
 Every release ships ynm five ways. They are the same program: the same commands, the same MCP
 server (`ynm serve`), the same stores. Pick one by what the machine already has.
 
+## Quickstart
+
+Two commands: install, then set up a repository.
+
+```bash
+brew install eyelock/tap/ynm
+cd your-repo && ynm init
+```
+
+`ynm init` creates the repository's shared memory mount and configures every agent client it
+finds; [Set up your agent clients](#set-up-your-agent-clients) says how it finds them and what
+each one gets. The rest of this page covers the other ways to install.
+
 | Mechanism | What you get | Size | Needs Node? | Needs git? | Best for |
 |---|---|---|---|---|---|
 | [Homebrew, standalone](#homebrew-standalone-recommended) | `ynm`, a single executable with Node inside | about 40 MB download, 126 MB installed | No | Yes | Most people on macOS or Linux |
@@ -125,6 +138,41 @@ docker run -d --name ynm -p 3000:3000 -v ynm-data:/data \
 Tags are `latest` and each version, for `linux/amd64` and `linux/arm64`. Configuration, auth and
 backups are in [Operate a hosted store](operate-a-hosted-store.md); connecting clients to it is in
 [Connect a client over HTTP](connect-over-http.md).
+
+## Set up your agent clients
+
+`ynm init` in a repository configures every agent client it detects. A client is detected when
+any one of three signals fires, so you can predict what init will touch:
+
+| Client | Executable on PATH | User-level footprint | Project footprint |
+|---|---|---|---|
+| Claude Code (`claude-code`) | `claude` | `~/.claude/` or `~/.claude.json` | `.mcp.json` or `.claude/` |
+| GitHub Copilot CLI (`copilot-cli`) | `copilot` | `~/.copilot/` | none |
+| OpenCode (`opencode`) | `opencode` | `~/.config/opencode/` | `opencode.json` |
+| Pi (`pi`) | `pi` | `~/.pi/agent/` | `.pi/` |
+| ynh (`ynh`) | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` |
+
+For each one it writes, inside the repository only:
+
+| Client | MCP server | Guidance | Hooks |
+|---|---|---|---|
+| Claude Code | `.mcp.json` | block in `CLAUDE.md` | `SessionStart`, `UserPromptSubmit`, `Stop` in `.claude/settings.json`, each running `ynm hook` |
+| Copilot CLI | `~/.copilot/mcp-config.json`: printed as a `run:` line, not written | block in `AGENTS.md` | none (Copilot CLI hooks do not fire in untrusted folders) |
+| OpenCode | `opencode.json` | block in `AGENTS.md` | none |
+| Pi | `.pi/extensions/ynm.ts` (Pi has no MCP; the extension runs the CLI) | `.pi/skills/ynm-memory/SKILL.md` | none |
+| ynh, in a harness | `mcp_servers.ynm` in `.ynh-plugin/plugin.json` | `skills/ynm-memory/SKILL.md` | `on_session_start`, `before_prompt`, `on_stop` in the manifest |
+| ynh, elsewhere | printed as `run: ynh install github.com/eyelock/ynm` | in that harness | in that harness |
+
+The hooks are what make an agent use ynm rather than its own memory: the session-start hook puts
+the memory context block in front of the agent, and the prompt hook, when the user asks it to
+remember something, tells it to use `memory_remember`. They are subcommands of the `ynm` binary,
+so there is no script to install.
+
+`ynm init --no-clients` skips the step; `ynm init --client claude-code` configures only the
+clients you name, detected or not. `ynm client install <client>` is the manual form, with
+`--scope user` for a user-wide install and `--no-hooks` to leave the hooks out. `ynm client
+status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks are
+in place. [Tutorial 7](../tutorial/07-connect-an-agent.md) walks through all of it.
 
 ## Next
 

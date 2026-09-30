@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./hook-intent": {
+      "types": "./dist/hooks/intent.d.ts",
+      "import": "./dist/hooks/intent.js"
     }
   },
   "files": [

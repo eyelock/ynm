@@ -5,6 +5,7 @@ export * from "./clients/index.js";
 export * from "./config.js";
 export * from "./doctor.js";
 export * from "./dream/index.js";
+export * from "./hooks/index.js";
 export * from "./indexing.js";
 export * from "./init.js";
 export * from "./lifecycle.js";

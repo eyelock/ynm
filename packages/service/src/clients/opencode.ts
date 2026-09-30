@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AGENTS_MD_MARKER, agentsMdBlock, delimitedBlockChange } from "./agents-md.js";
+import {
+  AGENTS_MD_MARKER,
+  agentsMdBlock,
+  delimitedBlockChange,
+  hasGuidanceBlock,
+} from "./agents-md.js";
 import type {
   Change,
   ClientAdapter,
@@ -9,6 +14,7 @@ import type {
   InstallTarget,
   Transport,
 } from "./types.js";
+import { detectBySignals } from "./types.js";
 
 /** OpenCode's `mcp` entry: `local` takes the whole command as an array; `remote` takes url and headers. */
 export function opencodeServerEntry(t: Transport): Record<string, unknown> {
@@ -35,18 +41,15 @@ export function opencodeConfigPath(t: Pick<InstallTarget, "cwd" | "home" | "scop
  */
 export const opencode: ClientAdapter = {
   name: "opencode",
-  async detect({ cwd, home }): Promise<Detection> {
-    const project =
-      existsSync(join(cwd, "opencode.json")) || existsSync(join(cwd, "opencode.jsonc"));
-    const user = existsSync(join(home, ".config", "opencode"));
-    return {
-      installed: project || user,
-      detail: project
-        ? "project opencode.json present"
-        : user
-          ? "user config present"
-          : "no OpenCode config found",
-    };
+  async detect(t): Promise<Detection> {
+    return detectBySignals(
+      {
+        bin: "opencode",
+        user: [join(".config", "opencode")],
+        project: ["opencode.json", "opencode.jsonc"],
+      },
+      t
+    );
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     const file = opencodeConfigPath(t);
@@ -74,19 +77,30 @@ export const opencode: ClientAdapter = {
     if (c) changes.push(c);
     return changes;
   },
+  // OpenCode's extension points are plugins, not command hooks, so ynm installs none (ADR-016).
   async status({ cwd, home }): Promise<ClientStatus> {
+    const guided =
+      hasGuidanceBlock(join(cwd, "AGENTS.md")) ||
+      hasGuidanceBlock(join(home, ".config", "opencode", "AGENTS.md"));
     for (const file of [
       join(cwd, "opencode.json"),
       join(home, ".config", "opencode", "opencode.json"),
     ]) {
       if (!existsSync(file)) continue;
       const cfg = JSON.parse(readFileSync(file, "utf8")) as { mcp?: Record<string, unknown> };
-      if (cfg.mcp?.ynm) return { client: "opencode", configured: true, detail: file };
+      if (cfg.mcp?.ynm)
+        return {
+          client: "opencode",
+          configured: true,
+          detail: file,
+          guidance: guided,
+        };
     }
     return {
       client: "opencode",
       configured: false,
       detail: "ynm not registered; run `ynm client install opencode`",
+      guidance: guided,
     };
   },
 };

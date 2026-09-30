@@ -27,6 +27,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`dream`](#ynm-dream) | Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting. |
 | [`export`](#ynm-export) | Export raw records as JSONL (the log, including history) |
 | [`forget`](#ynm-forget) | Tombstone a memory (history is kept) |
+| [`hook`](#ynm-hook) | Answer an agent client's hook: read its hook JSON on stdin, print the reply JSON on stdout (session-start, prompt, stop) |
 | [`import`](#ynm-import) | Import JSONL records (from a file or stdin), routed by level |
 | [`init`](#ynm-init) | Set up memory for this repository, your personal store, or a dedicated bare repo |
 | [`list`](#ynm-list) | List memories (folded, newest first) across mounts |
@@ -94,6 +95,7 @@ ynm client <action> [name] [flags]
 | `--http <value>` | string |  |  | Use a hosted server at this URL instead of stdio |
 | `--token <value>` | string |  |  | Bearer token for --http |
 | `--yes` | boolean |  | `false` | Run command changes without asking |
+| `--[no-]hooks` | boolean |  | `true` | Install the client's agent hooks (--no-hooks skips them) |
 
 Common flags: `--json`, `--cwd`.
 
@@ -102,6 +104,7 @@ Examples:
 ```bash
 ynm client install claude-code
 ynm client install claude-code --scope user
+ynm client install claude-code --no-hooks
 ynm client install copilot-cli --http https://memory.example.com/mcp --token $TOKEN
 ynm client install opencode
 ynm client install pi --scope user
@@ -230,6 +233,30 @@ Examples:
 ynm forget --memory-id 01J... --reason "no longer true"
 ```
 
+## ynm hook
+
+Answer an agent client's hook: read its hook JSON on stdin, print the reply JSON on stdout (session-start, prompt, stop)
+
+```text
+ynm hook [event] [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `event` | no |  | Hook event: session-start, prompt, stop |
+
+| Flag | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `--cwd <value>` | string |  |  | Run as if from this directory |
+
+Examples:
+
+```bash
+echo '{"session_id":"abc","cwd":"."}' | ynm hook session-start
+echo '{"prompt":"remember I prefer tabs"}' | ynm hook prompt
+ynm hook stop < /dev/null
+```
+
 ## ynm import
 
 Import JSONL records (from a file or stdin), routed by level
@@ -270,6 +297,8 @@ ynm init [flags]
 | `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
 | `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
+| `--[no-]clients` | boolean |  | `true` | Configure every agent client detected here (server, guidance, hooks); --no-clients skips it |
+| `--client <value>` | `claude-code` \| `copilot-cli` \| `opencode` \| `pi` \| `ynh`, repeatable |  |  | Configure this client whether detected or not (repeatable); only these |
 
 Common flags: `--json`, `--cwd`.
 
@@ -277,6 +306,8 @@ Examples:
 
 ```bash
 ynm init
+ynm init --no-clients
+ynm init --client claude-code --client ynh
 ynm init --personal
 ynm init --bare /srv/memory.git
 ```

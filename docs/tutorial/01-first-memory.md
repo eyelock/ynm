@@ -198,8 +198,9 @@ ynm doctor
 ```
 
 Expected: every line starts with `ok`; the mount line reports two shards and `"badLines":0`,
-and the last line says you are not inside a git repository, so only the personal store is
-mounted.
+and a line says you are not inside a git repository, so only the personal store is mounted.
+After it comes one `client` line for each agent client detected on your machine, if any, saying
+whether ynm is set up there; tutorial 7 covers them.
 
 ## Cleanup
 

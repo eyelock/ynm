@@ -345,7 +345,7 @@ async function mcpReference() {
     "## Prompts",
     "",
     "Each prompt takes no arguments and returns one user message holding a guidance document. The",
-    "same documents are written into client instructions by `ynm client install`.",
+    "same documents are written into client instructions by `ynm init` and `ynm client install`.",
     "",
     table(
       ["Prompt", "Description"],
