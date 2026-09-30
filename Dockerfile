@@ -1,6 +1,6 @@
 # ynm hosted service (ADR-009): Streamable HTTP MCP server in front of a bare git repo (or sqlite),
 # single writer, dream worker on a timer. `docker compose -f infra/docker/docker-compose.yml up`.
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 RUN apk add --no-cache git && corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc turbo.json ./
@@ -11,7 +11,7 @@ COPY .ynh-plugin ./.ynh-plugin
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
-FROM node:24-alpine
+FROM node:26-alpine
 RUN apk add --no-cache git git-daemon tini && \
     git config --system user.name ynm && git config --system user.email ynm@localhost && \
     git config --system safe.directory '*'
