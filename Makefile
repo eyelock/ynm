@@ -2,7 +2,7 @@
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
 .PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage coverage-diff \
         test-hosted test-tutorials eval-tutorials eval-hosted-remember bench bench-large bench-public gate \
-        gen golden docs docs-gen docs-links lambda lambda-local lambda-event minio minio-env minio-down release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
+        keycloak keycloak-check keycloak-token keycloak-down gen golden docs docs-gen docs-links lambda lambda-local lambda-event minio minio-env minio-down release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
 M ?= M6
 
@@ -11,6 +11,7 @@ help:
 	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage coverage-diff"
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials eval-hosted-remember (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
+	@echo "Auth:     keycloak (local sign-in provider on :8180) keycloak-check keycloak-token U=alice keycloak-down"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
 	@echo "Release:  lambda (dist/lambda.zip) release-slim release-standalone release-manifest release-notes changeset version"
 	@echo "Local:    lambda-local (serve dist/lambda.zip on :3000) lambda-event E=dream minio minio-env minio-down"
@@ -96,6 +97,26 @@ bench-public:
 # Milestone gate, e.g. `make gate M=M1`
 gate:
 	pnpm gate $(M)
+
+## Auth (local identity provider; infra/keycloak/README.md)
+KEYCLOAK = docker compose -f infra/keycloak/docker-compose.yml
+U ?= alice
+S ?= memory:read memory:write
+
+keycloak:
+	$(KEYCLOAK) up -d
+	node infra/keycloak/keycloak.mjs wait
+	@echo "admin console http://localhost:8180/admin (admin/admin); users alice/alice and bob/bob"
+
+keycloak-check:
+	node infra/keycloak/keycloak.mjs check
+
+# An access token for a user: `make keycloak-token U=bob S=memory:read`
+keycloak-token:
+	@node infra/keycloak/keycloak.mjs token $(U) "$(S)"
+
+keycloak-down:
+	$(KEYCLOAK) down -v
 
 ## Docs and generated artefacts
 docs:

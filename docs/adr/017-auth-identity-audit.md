@@ -12,7 +12,7 @@ Three gaps showed up once the hosted service was used in anger:
 - **It can run open.** With no auth configured the server accepts every request. Bound to
   `localhost` that exposes a user's memory to every local process; bound to `0.0.0.0`, which the
   Docker image does by default, it exposes it to the network.
-- **A shared token has no identity.** Everyone who holds the token is the same caller, so a shared
+- **A shared token has no identity.** Everyone who holds the token is the same caller, so a distributed
   store cannot say who wrote a memory, who read what, or refuse one user without refusing all.
   Every memory a hosted server writes carries the server's own `actor`, not the person's.
 - **Clients cannot sign users in.** MCP's authorization for HTTP transports is OAuth 2.1: the MCP
@@ -100,9 +100,9 @@ map onto `oidc` and `introspection` and `local-token` for one release, with a de
 - **Authorship.** Each request's `Principal` becomes the provenance of what it writes: `actor`
   is `user:<issuer-host>/<subject>` with email and client ID recorded beside it. `ynm list`,
   recall results, review queues and the wiki show the person, not the server.
-- **Where a person's memory goes on a shared store.** A hosted store is distributed (ADR-007):
+- **Where a person's memory goes on a distributed store.** A hosted store is distributed (ADR-007):
   it is the team's. The personal level stays on each person's own machine and is never served
-  over HTTP. Writes that do not name a namespace default to `user/<subject>` within the shared
+  over HTTP. Writes that do not name a namespace default to `user/<subject>` within the distributed
   store, so a person's working notes are attributable and filterable without being private.
 - **Authorisation.** Scopes gate tools: `memory:read` for recall, context, status and the
   read-only resources; `memory:write` for everything that appends. A missing scope is a `403
@@ -134,9 +134,13 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
 
 ### Proof
 
+- A local Keycloak (`infra/keycloak`, `make keycloak`) is the reference identity provider for
+  development and tests: a ready-made realm with two users, the memory scopes, the MCP URL as
+  audience, a PKCE client, an introspection client and anonymous client registration.
+  `make keycloak-check` proves the realm offers each of those before any ynm code relies on it.
 - A conformance suite for `AuthProvider` (valid token, expired, wrong audience, wrong issuer,
-  missing scope, metadata document, challenge header) run against `local-token`, `oidc` with a
-  Keycloak container, and `introspection` with a stub.
+  missing scope, metadata document, challenge header) run against `local-token`, `oidc` with
+  that Keycloak, and `introspection` with a stub.
 - Each preset tested against a recorded discovery document and example tokens for that provider,
   so presets are verified without accounts at every provider.
 - An end-to-end test: Keycloak in Docker, two users, an MCP client that follows the 401 challenge

@@ -9,6 +9,7 @@ What ynm needs in order to run as a hosted service, and the GitHub repository se
 | [`minio/`](minio/README.md) | A local S3 (MinIO in Docker) for developing and trying the `s3` provider: `make minio`, `make minio-env`, `make minio-down`. |
 | [`terraform-state/`](terraform-state/README.md) | Terraform for the S3 bucket that holds the Terraform state for everything under `infra/`, and the IAM user that runs it. Applied once to bootstrap, then only to change the bucket or the user. |
 | [`github/`](github/README.md) | Terraform for the `eyelock/ynm` repository: settings, branch protection, labels, Actions permissions, variables and secrets, Pages. |
+| [`keycloak/`](keycloak/README.md) | A local identity provider for developing and testing sign-in to the HTTP server: Keycloak with a ready-made `ynm` realm, two users and the memory scopes. `make keycloak` starts it. |
 
 Operating a hosted store (auth, key rotation, backups, scaling):
 [`docs/how-to/operate-a-hosted-store.md`](../docs/how-to/operate-a-hosted-store.md).
