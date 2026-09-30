@@ -30,8 +30,8 @@ tmp/
 .claude/*.local.*
 
 # benchmark datasets are downloaded on demand into ~/.ynm/bench, never committed
-locomo*.json
-longmemeval*.json
+/locomo*.json
+/longmemeval*.json
 *.bench.json
 
 # release and eval scratch
