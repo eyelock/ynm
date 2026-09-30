@@ -8,13 +8,16 @@ memory stays on your machine; shared memory travels with `git push`. Sibling of
 ## Quickstart
 
 ```bash
-brew install eyelock/tap/ynm
+brew install eyelock/tap/ynm      # one executable, needs only git
 cd your-repo
 ynm init                          # shared memory for this repo; personal memory in ~/.ynm
 ynm client install claude-code    # or copilot-cli, opencode, pi, ynh
 ynm remember --type procedural --level distributed --content "Run pnpm check before pushing"
 ynm recall --text "before pushing"
 ```
+
+Other ways to install (a direct download, the slim build on your own Node, from source, the
+Docker image) are in [Install ynm](docs/how-to/install.md).
 
 The agent now has `memory_recall`, `memory_remember` and eight more tools; every one is also a
 CLI command. `ynm serve` is the MCP server (stdio), `ynm serve --http` the hosted service.

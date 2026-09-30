@@ -1,6 +1,6 @@
 * **Start**
   * [Overview](/README.md)
-  * [Install](/tutorial/README.md#install)
+  * [Install](/how-to/install.md)
 
 * **Tutorials**
   * [Tutorial overview](/tutorial/README.md)
@@ -21,6 +21,7 @@
 
 * **How-to guides**
   * [How-to overview](/how-to/README.md)
+  * [Install ynm](/how-to/install.md)
   * [Retrofit an existing repo](/how-to/retrofit-an-existing-repo.md)
   * [Share an org store](/how-to/share-an-org-store.md)
   * [Choose the SQLite provider](/how-to/choose-the-sqlite-provider.md)

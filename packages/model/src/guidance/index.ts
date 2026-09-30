@@ -10,9 +10,20 @@ export const GUIDANCE = {
 } as const;
 export type GuidanceName = keyof typeof GUIDANCE;
 
-const here = dirname(fileURLToPath(import.meta.url));
+let embedded: Partial<Record<GuidanceName, string>> = {};
+
+/**
+ * The release bundle has no guidance files beside it: it imports the markdown as text and
+ * registers it here before anything asks for it. The checkout reads the files from disk.
+ */
+export function embedGuidance(texts: Partial<Record<GuidanceName, string>>): void {
+  embedded = { ...texts };
+}
 
 export function guidance(name: GuidanceName): string {
+  const text = embedded[name];
+  if (text !== undefined) return text;
+  const here = dirname(fileURLToPath(import.meta.url));
   return readFileSync(join(here, GUIDANCE[name]), "utf8");
 }
 

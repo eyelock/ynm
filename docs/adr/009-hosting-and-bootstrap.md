@@ -123,3 +123,5 @@ Cases handled:
 - 2026-09-29 (M5): auth verifiers, in-process scheduler, `ynm serve`, Docker image and compose
   demo, operations doc, Gitea test.
 - 2026-09-29 (M6): release workflow publishes the tarball, the Homebrew formula and the image.
+- 2026-09-30: packaging (standalone binaries, the slim bundle, two formulae) moved to
+  [ADR-015](015-distribution.md); the image is unchanged.

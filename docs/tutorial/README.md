@@ -50,9 +50,13 @@ Tutorials without a link are planned; the table is the order they will arrive in
 #### **Homebrew (recommended)**
 
 ```bash
-brew install eyelock/tap/ynm
+brew install eyelock/tap/ynm        # standalone: one executable, needs only git
+# or: brew install eyelock/tap/ynm-slim   (the same program on Homebrew's node)
 ynm --version
 ```
+
+Direct downloads, the slim tarball on your own Node and the Docker image are in
+[Install ynm](../how-to/install.md).
 
 #### **From source**
 

@@ -1,0 +1,38 @@
+#!/bin/sh
+# ynm (slim): runs the bundled ynm.mjs on your own Node, 22.13 or later (for node:sqlite).
+# Finds ynm.mjs beside the directory holding this script (../ynm.mjs, the tarball layout) or in
+# ../libexec (the Homebrew layout), following symlinks to this script. YNM_NODE picks the node.
+set -e
+
+node="${YNM_NODE:-node}"
+
+self=$0
+while [ -h "$self" ]; do
+  link=$(readlink "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname "$self")/$link ;;
+  esac
+done
+dir=$(cd "$(dirname "$self")/.." && pwd)
+if [ -f "$dir/libexec/ynm.mjs" ]; then
+  mjs=$dir/libexec/ynm.mjs
+else
+  mjs=$dir/ynm.mjs
+fi
+
+found=$("$node" --version 2>/dev/null) || found=none
+v=${found#v}
+major=${v%%.*}
+rest=${v#*.}
+minor=${rest%%.*}
+case $major$minor in
+  *[!0-9]* | "") ok=no ;;
+  *) if [ "$major" -gt 22 ] || { [ "$major" -eq 22 ] && [ "$minor" -ge 13 ]; }; then ok=yes; else ok=no; fi ;;
+esac
+if [ "$ok" != yes ]; then
+  echo "ynm needs Node 22.13 or later (found $found); install it or use the standalone binary" >&2
+  exit 1
+fi
+
+exec "$node" "$mjs" "$@"

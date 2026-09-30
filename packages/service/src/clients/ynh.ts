@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { guidance } from "@ynm/model";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
@@ -98,9 +98,9 @@ export const ynh: ClientAdapter = {
 function findFile(dir: string, name: string, depth: number): string[] {
   if (depth < 0) return [];
   const out: string[] = [];
-  let entries: import("node:fs").Dirent[] = [];
+  let entries: Dirent[] = [];
   try {
-    entries = require("node:fs").readdirSync(dir, { withFileTypes: true });
+    entries = readdirSync(dir, { withFileTypes: true });
   } catch {
     return out;
   }
