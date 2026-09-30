@@ -9,9 +9,12 @@ import {
   AGENTS_MD_MARKER,
   applyChanges,
   CLIENT_ADAPTERS,
+  type ClientReport,
   claudeCode,
   claudeHooksPresent,
+  clientReports,
   copilotCli,
+  formatClientReport,
   opencode,
   pi,
   piExtensionSource,
@@ -270,7 +273,17 @@ describe("claude-code hooks (ADR-016)", () => {
     expect(existsSync(join(cwd, ".claude", "settings.json"))).toBe(false);
     const s = await claudeCode.status({ cwd, home });
     expect(s).toMatchObject({ configured: true, guidance: true, hooks: false });
-    expect(s.detail).toMatch(/hooks missing/);
+    const report = (await clientReports({ cwd, home })).find((r) => r.client === "claude-code");
+    expect(report).toMatchObject({
+      level: "warn",
+      advice: "hooks missing; run `ynm client install claude-code`",
+    });
+    expect(formatClientReport(report as ClientReport)).toMatch(
+      /^warn claude-code: server yes, guidance yes, hooks no; hooks missing/
+    );
+    await applyChanges(await claudeCode.plan({ cwd, home, scope: "project", transport: stdio }));
+    const fixed = (await clientReports({ cwd, home })).find((r) => r.client === "claude-code");
+    expect(fixed?.level).toBe("ok");
   });
 });
 

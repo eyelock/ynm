@@ -3,9 +3,10 @@ import { Args, Flags } from "@oclif/core";
 import {
   applyChanges,
   CLIENT_ADAPTERS,
-  type ClientStatus,
   changeTarget,
   clientAdapter,
+  clientReports,
+  formatClientReport,
   loadConfig,
   ynmHome,
 } from "@ynm/service";
@@ -66,12 +67,8 @@ export default class Client extends YnmCommand {
     const home = ynmHome();
     void loadConfig({ home });
     if (args.action === "status") {
-      const statuses: ClientStatus[] = [];
-      for (const a of CLIENT_ADAPTERS)
-        statuses.push(await a.status({ cwd, home: process.env.HOME ?? home }));
-      this.emit(flags.json, statuses, () =>
-        statuses.map((s) => `${s.configured ? "ok  " : "--  "} ${s.client}: ${s.detail}`).join("\n")
-      );
+      const reports = await clientReports({ cwd, home: process.env.HOME ?? home });
+      this.emit(flags.json, reports, () => reports.map(formatClientReport).join("\n"));
       return;
     }
     if (!args.name) this.error("client name required", { exit: 2 });

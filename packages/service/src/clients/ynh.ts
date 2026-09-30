@@ -188,7 +188,9 @@ export const ynh: ClientAdapter = {
       return {
         client: "ynh",
         configured: server,
-        detail: `harness ${harnessManifestPath(cwd)}: server ${server ? "declared" : "missing"}; skill ${guided ? "present" : "missing"}; hooks ${hooked ? "declared" : "missing"}`,
+        detail: server
+          ? `harness ${harnessManifestPath(cwd)}`
+          : "harness here; ynm not declared; run `ynm client install ynh`",
         guidance: guided,
         hooks: hooked,
       };

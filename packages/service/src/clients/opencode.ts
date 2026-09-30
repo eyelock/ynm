@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AGENTS_MD_MARKER, agentsMdBlock, delimitedBlockChange } from "./agents-md.js";
+import {
+  AGENTS_MD_MARKER,
+  agentsMdBlock,
+  delimitedBlockChange,
+  hasGuidanceBlock,
+} from "./agents-md.js";
 import type {
   Change,
   ClientAdapter,
@@ -74,19 +79,30 @@ export const opencode: ClientAdapter = {
     if (c) changes.push(c);
     return changes;
   },
+  // OpenCode's extension points are plugins, not command hooks, so ynm installs none (ADR-016).
   async status({ cwd, home }): Promise<ClientStatus> {
+    const guided =
+      hasGuidanceBlock(join(cwd, "AGENTS.md")) ||
+      hasGuidanceBlock(join(home, ".config", "opencode", "AGENTS.md"));
     for (const file of [
       join(cwd, "opencode.json"),
       join(home, ".config", "opencode", "opencode.json"),
     ]) {
       if (!existsSync(file)) continue;
       const cfg = JSON.parse(readFileSync(file, "utf8")) as { mcp?: Record<string, unknown> };
-      if (cfg.mcp?.ynm) return { client: "opencode", configured: true, detail: file };
+      if (cfg.mcp?.ynm)
+        return {
+          client: "opencode",
+          configured: true,
+          detail: file,
+          guidance: guided,
+        };
     }
     return {
       client: "opencode",
       configured: false,
       detail: "ynm not registered; run `ynm client install opencode`",
+      guidance: guided,
     };
   },
 };

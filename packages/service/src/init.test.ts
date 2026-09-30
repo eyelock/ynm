@@ -155,4 +155,24 @@ describe("openYnm end to end on git notes", () => {
     expect(report.ok).toBe(true);
     expect(report.checks.filter((c) => !c.ok)).toEqual([]);
   });
+
+  it("doctor warns about a client with the server but no guidance or hooks", async () => {
+    const home = await createRepo(0);
+    const repo = await createRepo(1);
+    await initProject({ cwd: repo, hooks: false });
+    writeFileSync(
+      join(repo, ".mcp.json"),
+      JSON.stringify({ mcpServers: { ynm: { command: "ynm", args: ["serve"] } } })
+    );
+    const ctx = await openYnm({ cwd: repo, env: { YNM_HOME: join(home, ".ynm") } });
+    const report = await doctor({ ...ctx, clients: { cwd: repo, home } });
+    expect(report.checks.find((c) => c.name === "client claude-code")).toEqual({
+      name: "client claude-code",
+      ok: false,
+      level: "warn",
+      detail: "guidance and hooks missing; run `ynm client install claude-code`",
+    });
+    expect(report.ok).toBe(true);
+    expect(report.checks.find((c) => c.name === "client opencode")).toBeUndefined();
+  });
 });

@@ -171,15 +171,13 @@ export const claudeCode: ClientAdapter = {
     const hooked = Object.keys(CLAUDE_HOOKS).every((event) =>
       hookFiles.some((f) => claudeHooksPresent(f)[event as keyof typeof CLAUDE_HOOKS])
     );
-    const extras = (where: string) =>
-      `${where}; guidance ${guided ? "in CLAUDE.md" : "missing"}; hooks ${hooked ? "installed" : "missing"}`;
     const file = join(cwd, ".mcp.json");
     const cfg = readJson(file) as { mcpServers?: Record<string, unknown> };
     if (cfg.mcpServers?.ynm)
       return {
         client: "claude-code",
         configured: true,
-        detail: extras(`project scope: ${file}`),
+        detail: `project scope: ${file}`,
         guidance: guided,
         hooks: hooked,
       };
@@ -188,7 +186,7 @@ export const claudeCode: ClientAdapter = {
       return {
         client: "claude-code",
         configured: true,
-        detail: extras(`user scope: ${userFile}`),
+        detail: `user scope: ${userFile}`,
         guidance: guided,
         hooks: hooked,
       };

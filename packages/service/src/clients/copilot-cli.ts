@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AGENTS_MD_MARKER, agentsMdBlock, delimitedBlockChange } from "./agents-md.js";
+import {
+  AGENTS_MD_MARKER,
+  agentsMdBlock,
+  delimitedBlockChange,
+  hasGuidanceBlock,
+} from "./agents-md.js";
 import type {
   Change,
   ClientAdapter,
@@ -59,18 +64,27 @@ export const copilotCli: ClientAdapter = {
     }
     return changes;
   },
-  async status({ home }): Promise<ClientStatus> {
+  // Copilot CLI hooks never fire in folders the CLI has not marked trusted, so ynm installs none.
+  async status({ cwd, home }): Promise<ClientStatus> {
     const file = COPILOT_CONFIG(home);
+    const guided = hasGuidanceBlock(join(cwd, "AGENTS.md"));
     if (existsSync(file)) {
       const cfg = JSON.parse(readFileSync(file, "utf8")) as {
         mcpServers?: Record<string, unknown>;
       };
-      if (cfg.mcpServers?.ynm) return { client: "copilot-cli", configured: true, detail: file };
+      if (cfg.mcpServers?.ynm)
+        return {
+          client: "copilot-cli",
+          configured: true,
+          detail: file,
+          guidance: guided,
+        };
     }
     return {
       client: "copilot-cli",
       configured: false,
       detail: "ynm not registered; run `ynm client install copilot-cli`",
+      guidance: guided,
     };
   },
 };

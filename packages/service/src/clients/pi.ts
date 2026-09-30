@@ -249,11 +249,22 @@ export const pi: ClientAdapter = {
     }
     return changes;
   },
+  // Pi's lifecycle events belong to extensions; ynm's extension carries no hooks yet (ADR-016).
   async status({ cwd, home }): Promise<ClientStatus> {
     for (const scope of ["user", "project"] as const) {
-      const f = piDirs({ cwd, home, scope }).extension;
-      if (existsSync(f) && readFileSync(f, "utf8").startsWith(PI_EXTENSION_HEADER))
-        return { client: "pi", configured: true, detail: f };
+      const dirs = piDirs({ cwd, home, scope });
+      if (
+        existsSync(dirs.extension) &&
+        readFileSync(dirs.extension, "utf8").startsWith(PI_EXTENSION_HEADER)
+      ) {
+        const guided = existsSync(dirs.skill);
+        return {
+          client: "pi",
+          configured: true,
+          detail: dirs.extension,
+          guidance: guided,
+        };
+      }
     }
     return {
       client: "pi",

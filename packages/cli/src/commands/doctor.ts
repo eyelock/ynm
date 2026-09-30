@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { doctor } from "@ynm/service";
 import { YnmCommand } from "../lib/base.js";
 
@@ -9,7 +10,10 @@ export default class Doctor extends YnmCommand {
   async run(): Promise<void> {
     const { flags } = await this.parse(Doctor);
     const ctx = await this.open(flags);
-    const report = await doctor(ctx);
+    const report = await doctor({
+      ...ctx,
+      clients: { cwd: flags.cwd ?? process.cwd(), home: process.env.HOME ?? homedir() },
+    });
     this.emit(flags.json, report, () =>
       report.checks
         .map(

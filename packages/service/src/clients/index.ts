@@ -4,7 +4,7 @@ import { claudeCode } from "./claude-code.js";
 import { copilotCli } from "./copilot-cli.js";
 import { opencode } from "./opencode.js";
 import { pi } from "./pi.js";
-import type { Change, ClientAdapter } from "./types.js";
+import type { Change, ClientAdapter, ClientStatus, InstallTarget } from "./types.js";
 import { ynh } from "./ynh.js";
 
 export * from "./agents-md.js";
@@ -51,6 +51,52 @@ function deepMerge(
         : v;
   }
   return out;
+}
+
+export interface ClientReport extends ClientStatus {
+  detected: boolean;
+  /** Which detection signals fired, or why none did. */
+  detection: string;
+  /**
+   * ok: server, guidance and hooks all in place; warn: the server is registered but guidance or
+   * hooks are missing; off: ynm is not registered with this client.
+   */
+  level: "ok" | "warn" | "off";
+  /** What to run to close a gap. */
+  advice?: string;
+}
+
+/** Status of every client plus whether it was detected, graded for `client status` and doctor. */
+export async function clientReports(
+  target: Pick<InstallTarget, "cwd" | "home">
+): Promise<ClientReport[]> {
+  const out: ClientReport[] = [];
+  for (const a of CLIENT_ADAPTERS) {
+    const d = await a.detect(target);
+    const s = await a.status(target);
+    const gap = s.configured && (s.guidance === false || s.hooks === false);
+    out.push({
+      ...s,
+      detected: d.installed,
+      detection: d.detail,
+      level: !s.configured ? "off" : gap ? "warn" : "ok",
+      ...(gap
+        ? {
+            advice: `${[s.guidance === false ? "guidance" : "", s.hooks === false ? "hooks" : ""].filter(Boolean).join(" and ")} missing; run \`ynm client install ${a.name}\``,
+          }
+        : {}),
+    });
+  }
+  return out;
+}
+
+/** One line per client: server, guidance and hooks at a glance. */
+export function formatClientReport(r: ClientReport): string {
+  if (r.level === "off")
+    return `--   ${r.client}: ${r.detected ? `detected (${r.detection}); ${r.detail}` : "not detected"}`;
+  const yn = (v: boolean | undefined) => (v === undefined ? "n/a" : v ? "yes" : "no");
+  const tag = r.level === "ok" ? "ok  " : "warn";
+  return `${tag} ${r.client}: server yes, guidance ${yn(r.guidance)}, hooks ${yn(r.hooks)}; ${r.advice ?? r.detail}`;
 }
 
 /** What a change touches, for plans and reports: the path, the command line or the note. */
