@@ -17,7 +17,7 @@ by changing into it.
 
 ## Run the tests
 
-`pnpm test` runs every package's tests through turbo, the fast deterministic tier of the evals
+`make test` runs every package's tests through turbo, the fast deterministic tier of the evals
 included: fold semantics, merge and concurrency, retrieval quality on a synthetic corpus, parity
 between the CLI and the MCP tools, the end-to-end demo, and the tutorial smoke tests. It needs no
 network and no key.
@@ -29,7 +29,7 @@ its environment; otherwise this tutorial would run itself.
 
 ```bash
 cd "$YNM_REPO"
-env -u YNM_REPO pnpm test
+env -u YNM_REPO make test
 ```
 
 Expected: a turbo run that ends with `Tasks: <n> successful, <n> total`, taking about a minute
@@ -58,7 +58,7 @@ green with zero todos.
 
 ```bash
 cd "$YNM_REPO"
-pnpm gate M0
+make gate M=M0
 ```
 
 Expected: five passing checks and nothing pending, ending with `Tests  5 passed (5)`:
@@ -76,17 +76,17 @@ todos prints them as pending, so a red or yellow gate reads as a list of what is
 
 ## Measure latency
 
-`pnpm bench` runs the latency suite: how long `remember`, a cold load and fold of the whole log,
+`make bench` runs the latency suite: how long `remember`, a cold load and fold of the whole log,
 `sync` against a local bare remote, `reindex`, `recall` and `context` take on stores of 1,000 and
 10,000 memories. It builds those stores on disk, so it takes a little under half a minute; it is
-not part of `pnpm test` for that reason. Set `YNM_BENCH_LARGE=1` to add the 100,000-memory sizes,
+not part of `make test` for that reason. Set `YNM_BENCH_LARGE=1` to add the 100,000-memory sizes,
 which take much longer.
 
 <!-- tutorial: skip unless YNM_REPO -->
 
 ```bash
 cd "$YNM_REPO"
-pnpm bench
+make bench
 ```
 
 Expected: one line per measurement, in the form
@@ -159,7 +159,7 @@ The datasets are downloaded by you, not shipped, and cached in `~/.ynm/bench` (o
 
 ```bash
 cd "$YNM_REPO"
-YNM_BENCH_DIR=/tmp/ynm-no-bench pnpm bench:public
+YNM_BENCH_DIR=/tmp/ynm-no-bench make bench-public
 ```
 
 Expected: both benchmarks marked skipped, and `Tests  2 skipped (2)`.
@@ -175,7 +175,7 @@ mkdir -p "$HOME/.ynm/bench"
 curl -L -o "$HOME/.ynm/bench/locomo10.json" https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json
 curl -L -o "$HOME/.ynm/bench/longmemeval_s_cleaned.json" https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json
 cd "$YNM_REPO"
-pnpm bench:public
+make bench-public
 ```
 
 Expected: progress lines, then one summary line per benchmark of the form

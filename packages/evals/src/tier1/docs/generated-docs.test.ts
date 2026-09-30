@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 
 /**
- * The generated docs (scripts/gen-docs.mjs, `pnpm docs:gen`) are checked in. Regenerating them
+ * The generated docs (scripts/gen-docs.mjs, `make docs-gen`) are checked in. Regenerating them
  * into a temporary directory must reproduce the checked-in files exactly, the same guard
  * `pnpm gen:clients` has. Links in docs/ must resolve, and every YNM_* variable the code reads
  * must be documented in the configuration reference.
@@ -20,7 +20,7 @@ function files(dir: string): string[] {
 }
 
 describe("tier1 generated docs", () => {
-  it("regeneration reproduces the checked-in docs (run `pnpm docs:gen` after a change)", () => {
+  it("regeneration reproduces the checked-in docs (run `make docs-gen` after a change)", () => {
     const out = mkdtempSync(join(tmpdir(), "ynm-docs-"));
     const r = spawnSync("node", [script, "--out", out], { cwd: repoRoot, encoding: "utf8" });
     expect(r.status, r.stderr).toBe(0);
@@ -28,7 +28,7 @@ describe("tier1 generated docs", () => {
     expect(generated.length).toBeGreaterThan(0);
     for (const file of generated) {
       const rel = relative(out, file);
-      expect(readFileSync(file, "utf8"), `docs/${rel} is stale; run pnpm docs:gen`).toBe(
+      expect(readFileSync(file, "utf8"), `docs/${rel} is stale; run make docs-gen`).toBe(
         readFileSync(join(repoRoot, "docs", rel), "utf8")
       );
     }

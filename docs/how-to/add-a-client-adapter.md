@@ -36,14 +36,14 @@ client tells the agent the same thing, and a delimited block is rewritten in pla
 3. Test it in `adapters.test.ts` beside the others: apply a plan into temporary `cwd` and `home`
    directories, check `status` before and after, and compare each file written with a golden file.
    Goldens live in `packages/service/test/golden/clients/`; write them with
-   `YNM_WRITE_GOLDEN=1 pnpm --filter @ynm/service test` and review the diff. Include a case that
+   `make golden` and review the diff. Include a case that
    an existing config with other servers survives the merge.
 4. If the client needs generated, checked-in artefacts (as Pi's extension and ynh's plugin do),
-   generate them in `scripts/gen-clients.mjs` and run `pnpm gen:clients`. A test fails when the
+   generate them in `scripts/gen-clients.mjs` and run `make gen`. A test fails when the
    checked-in files drift from the generator.
 5. Add the client to the list in the `ynm client` command description and to the
    [connect an agent tutorial](../tutorial/07-connect-an-agent.md).
-6. Run `pnpm check`, `pnpm typecheck` and `pnpm test`.
+6. Run `make check`, `make typecheck` and `make test`.
 
 ## Conventions
 

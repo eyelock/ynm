@@ -12,7 +12,7 @@ same way a broken CLI does.
 From the repository, with the `claude` CLI installed (it spends tokens, so it is opt-in):
 
 ```bash
-YNM_EVAL_CLAUDE_CLI=1 pnpm --filter @ynm/evals exec vitest run src/tier2/tutorials --reporter=verbose
+make eval-tutorials
 ```
 
 Each tutorial records a `tutorial:<name>` baseline (steps matched over steps run). A step the
@@ -35,7 +35,7 @@ fails on the first non-zero exit. It checks nothing about output; it exists so a
 a broken command is caught before a model spends a token.
 
 ```bash
-pnpm --filter @ynm/evals exec vitest run src/tier1/tutorials
+make test-tutorials
 ```
 
 Both layers also set `YNM_HOME` and `YNM_USER` to the sandbox values in the process environment,

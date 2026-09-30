@@ -14,4 +14,4 @@ infra/docker/demo.sh          # store + git-less agent + syncing clone, then tea
 
 Auth is chosen from the environment: `YNM_JWKS_URL` (JWT), `YNM_OAUTH_INTROSPECTION_URL` (RFC 7662),
 `YNM_MCP_TOKEN` (static), else none. `docs/how-to/operate-a-hosted-store.md` covers rotation, backups
-and scaling. The hosted integration tests need a Docker daemon: `pnpm --filter @ynm/evals test:hosted`.
+and scaling. The hosted integration tests need a Docker daemon: `make test-hosted`.

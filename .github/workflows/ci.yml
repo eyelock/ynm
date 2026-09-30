@@ -15,10 +15,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm check
-      - run: pnpm typecheck
-      - run: pnpm test
+      - run: make install
+      - run: make build
+      - run: make verify
       - name: Milestone gate
-        run: pnpm gate ${{ vars.YNM_MILESTONE || 'M0' }}
+        run: make gate M=${{ vars.YNM_MILESTONE || 'M0' }}
