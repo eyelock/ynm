@@ -38,8 +38,10 @@ a broken command is caught before a model spends a token.
 make test-tutorials
 ```
 
-Both layers also set `YNM_HOME` and `YNM_USER` to the sandbox values in the process environment,
-so a step that loses its shell exports still lands in the sandbox and never in a real store.
+Both layers run each tutorial in a private copy of the sandbox: the literal `/tmp/ynm-tutorial`
+in the tutorial text is rewritten to a fresh temporary directory per run, and `YNM_HOME` and
+`YNM_USER` are pinned inside it in the process environment. Runs can overlap, and a step that
+loses its shell exports still lands in the sandbox and never in a real store.
 
 ## Writing a tutorial so both layers work
 

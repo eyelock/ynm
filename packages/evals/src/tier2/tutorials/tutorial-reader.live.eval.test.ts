@@ -1,11 +1,17 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { extractJson } from "@ynm/models";
 import { z } from "zod";
 import { recordMetric } from "../../baseline.js";
-import { sandboxBin, tutorialBlocks, tutorialFiles } from "../../tier1/tutorials/support.js";
+import {
+  privateSandbox,
+  sandboxEnv,
+  tutorialBlocks,
+  tutorialFiles,
+  withSandbox,
+} from "../../tier1/tutorials/support.js";
 
 /**
  * Layer 1 of the tutorial evals (docs/tutorial/RUNNING.md): a model reads each tutorial, runs
@@ -46,8 +52,12 @@ function prompt(file: string, skippable: string[]): string {
 describe.skipIf(!enabled)("tier2 tutorial reader (live)", () => {
   for (const name of tutorialFiles()) {
     it(name, () => {
-      const file = join(tutorials, name);
-      const blocks = tutorialBlocks(readFileSync(file, "utf8"));
+      // The model reads a copy whose sandbox path is private to this run.
+      const root = privateSandbox();
+      const text = withSandbox(readFileSync(join(tutorials, name), "utf8"), root);
+      const file = join(root, name);
+      writeFileSync(file, text);
+      const blocks = tutorialBlocks(text);
       const skippable = blocks
         .filter((b) => b.skipUnlessEnv && !process.env[b.skipUnlessEnv])
         .map((b) => `${b.heading} (needs ${b.skipUnlessEnv})`);
@@ -73,14 +83,7 @@ describe.skipIf(!enabled)("tier2 tutorial reader (live)", () => {
           encoding: "utf8",
           timeout: 900_000,
           maxBuffer: 64 * 1024 * 1024,
-          env: {
-            ...process.env,
-            PATH: `${sandboxBin()}:${process.env.PATH ?? ""}`,
-            YNM_NO_CLAUDE_CLI: "1",
-            YNM_HOME: "/tmp/ynm-tutorial/home",
-            YNM_USER: "tutorial",
-            CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
-          },
+          env: { ...sandboxEnv(root), CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
         }
       );
       expect(r.status, r.stderr.slice(-1000)).toBe(0);

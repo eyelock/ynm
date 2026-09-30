@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -52,4 +52,28 @@ export function sandboxBin(): string {
   writeFileSync(join(bin, "ynm"), `#!/bin/sh\nexec node ${cli} "$@"\n`);
   chmodSync(join(bin, "ynm"), 0o755);
   return bin;
+}
+
+/** The literal sandbox path every tutorial uses; humans keep it, runners swap it per run. */
+export const TUTORIAL_SANDBOX = "/tmp/ynm-tutorial";
+
+/** A private sandbox root for one run, so concurrent runs (CI, agents, a human) never collide. */
+export function privateSandbox(): string {
+  return realpathSync(mkdtempSync(join(tmpdir(), "ynm-tutorial-run-")));
+}
+
+/** Rewrites the literal sandbox path in tutorial text or code to a private root. */
+export function withSandbox(text: string, root: string): string {
+  return text.split(TUTORIAL_SANDBOX).join(root);
+}
+
+/** Environment for a tutorial run: PATH with `ynm`, and the home pinned inside the sandbox. */
+export function sandboxEnv(root: string): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    PATH: `${sandboxBin()}:${process.env.PATH ?? ""}`,
+    YNM_NO_CLAUDE_CLI: "1",
+    YNM_HOME: join(root, "home"),
+    YNM_USER: "tutorial",
+  };
 }

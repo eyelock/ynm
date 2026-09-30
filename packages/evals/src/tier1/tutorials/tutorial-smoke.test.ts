@@ -2,7 +2,14 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sandboxBin, tutorialBlocks, tutorialFiles, tutorials } from "./support.js";
+import {
+  privateSandbox,
+  sandboxEnv,
+  tutorialBlocks,
+  tutorialFiles,
+  tutorials,
+  withSandbox,
+} from "./support.js";
 
 /**
  * Layer 2 of the tutorial evals (docs/tutorial/RUNNING.md): every bash block of every tutorial
@@ -11,7 +18,8 @@ import { sandboxBin, tutorialBlocks, tutorialFiles, tutorials } from "./support.
 describe("tutorial smoke (every command block exits zero)", () => {
   for (const file of tutorialFiles()) {
     it(file, () => {
-      const blocks = tutorialBlocks(readFileSync(join(tutorials, file), "utf8"));
+      const root = privateSandbox();
+      const blocks = tutorialBlocks(withSandbox(readFileSync(join(tutorials, file), "utf8"), root));
       expect(blocks.length).toBeGreaterThan(0);
       const script = ["set -e"];
       for (const [i, b] of blocks.entries()) {
@@ -25,13 +33,7 @@ describe("tutorial smoke (every command block exits zero)", () => {
         cwd: tmpdir(),
         encoding: "utf8",
         timeout: 600_000,
-        env: {
-          ...process.env,
-          PATH: `${sandboxBin()}:${process.env.PATH ?? ""}`,
-          YNM_NO_CLAUDE_CLI: "1",
-          YNM_HOME: "/tmp/ynm-tutorial/home",
-          YNM_USER: "tutorial",
-        },
+        env: sandboxEnv(root),
       });
       const lastStep = (r.stdout.match(/### step \d+[^\n]*/g) ?? []).pop();
       expect(r.status, `${file} failed at ${lastStep ?? "start"}\n${r.stderr.slice(-2000)}`).toBe(
