@@ -298,8 +298,8 @@ ynm init [flags]
 | `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
 | `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
-| `--[no-]clients` | boolean |  | `true` | Configure every agent client detected here (server, guidance, hooks); --no-clients skips it |
-| `--client <value>` | `claude-code` \| `copilot-cli` \| `opencode` \| `pi` \| `ynh`, repeatable |  |  | Configure this client whether detected or not (repeatable); only these |
+| `--[no-]clients` | boolean |  | `true` | Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; --no-clients skips it |
+| `--client <value>` | `claude-code` \| `copilot-cli` \| `opencode` \| `pi` \| `ynh`, repeatable |  |  | Configure this client even if the repository does not use it yet (repeatable); only these |
 
 Common flags: `--json`, `--cwd`.
 

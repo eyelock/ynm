@@ -35,12 +35,13 @@ export default class Init extends YnmCommand {
     anchor: Flags.string({ description: "Anchor commit sha (needed on shallow clones)" }),
     clients: Flags.boolean({
       description:
-        "Configure every agent client detected here (server, guidance, hooks); --no-clients skips it",
+        "Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; --no-clients skips it",
       default: true,
       allowNo: true,
     }),
     client: Flags.string({
-      description: "Configure this client whether detected or not (repeatable); only these",
+      description:
+        "Configure this client even if the repository does not use it yet (repeatable); only these",
       options: CLIENT_ADAPTERS.map((c) => c.name),
       multiple: true,
     }),
