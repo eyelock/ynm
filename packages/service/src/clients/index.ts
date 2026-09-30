@@ -117,13 +117,13 @@ export async function applyChanges(changes: Change[], opts: ApplyOptions = {}): 
     if (c.kind === "write") {
       mkdirSync(dirname(c.path), { recursive: true });
       writeFileSync(c.path, c.content);
-      done.push(`wrote ${c.path}`);
+      done.push(`wrote ${c.path}: ${c.reason}`);
     } else if (c.kind === "merge-json") {
       const raw = existsSync(c.path) ? readFileSync(c.path, "utf8") : undefined;
       const existing = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
       mkdirSync(dirname(c.path), { recursive: true });
       writeFileSync(c.path, stringifyLike(raw, deepMerge(existing, c.patch)));
-      done.push(`merged ${c.path}`);
+      done.push(`merged ${c.path}: ${c.reason}`);
     } else if (c.kind === "note") {
       done.push(`next: ${c.text}`);
     } else if (opts.runCommand) {
