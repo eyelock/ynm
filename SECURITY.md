@@ -8,7 +8,7 @@ Only the latest release of ynm receives security fixes.
 
 Please do not open a public issue for a security problem. Use GitHub's private vulnerability
 reporting on this repository (Security tab, "Report a vulnerability"), or email
-security@eyelock.net if that is not available to you.
+support@eyelock.net if that is not available to you.
 
 Include what you found, how to reproduce it, and the version (`ynm --version`). You will get an
 acknowledgement within five working days and a fix or a mitigation plan within thirty days for

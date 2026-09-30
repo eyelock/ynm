@@ -7,6 +7,6 @@ In short: be respectful and constructive, assume good faith, and keep discussion
 Harassment, personal attacks and discrimination are not tolerated anywhere in this project's
 spaces (issues, pull requests, discussions, and any linked channel).
 
-Report a problem to conduct@eyelock.net. Reports are handled privately by the maintainers, and
+Report a problem to support@eyelock.net. Reports are handled privately by the maintainers, and
 the reporter's identity is not shared without consent. Consequences range from a private
 warning to a permanent ban, at the maintainers' judgement.
