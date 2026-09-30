@@ -199,16 +199,21 @@ a hook that runs `ynm` would fail for every teammate who lacks it; with `--scope
 If you run your agents through a ynh harness, the repository needs nothing for the agent to have
 ynm. The harness declares ynm's server, hooks and memory skill, and ynh assembles them at every
 launch, so they follow you into every repository. Add ynm to the harness once, with
-`ynm client install ynh` in the harness directory (`ynm init` refuses to install into a harness;
+`ynm client install` in the harness directory (the name can be left out there; `ynm client
+install ynh` is the same; `ynm init` refuses to install into a harness;
 a harness is not a project). Without `ynm init` in a repository, the agent's memory goes to your
 personal store. Run `ynm init --no-clients` in a repository only to add shared, team memory: the
 flag keeps init from also writing `.mcp.json`, an instruction file and hooks that would duplicate what
 the harness already provides.
 
 `ynm init --no-clients` skips the step; `ynm init --client claude-code` configures only the
-clients you name, whether the project uses them or not. `ynm client install <client>` is the manual form, with
-`--scope user` for a user-wide install and `--no-hooks` to leave the hooks out. `ynm client
-status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks are
+clients you name, whether the project uses them or not. `ynm client install` is the manual form,
+with `--scope user` for a user-wide install and `--no-hooks` to leave the hooks out. The client
+name is optional: in a ynh harness directory it means ynh, and anywhere else every client the
+project uses (a project footprint; with none, the command exits 2 with `no agent client is
+configured in <dir>; name one`). Name a client to install one the project does not use yet. When
+everything is already in place it prints `already in place, nothing changed:` followed by a line
+for each piece it found (server, guidance, hooks) and where. `ynm client status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks are
 in place. [Tutorial 7](../tutorial/07-connect-an-agent.md) walks through all of it.
 
 ## Next

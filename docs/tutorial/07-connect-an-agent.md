@@ -258,16 +258,27 @@ detected by one of the signals above, `detected (...)` naming the signals and th
 would install it.
 
 `ynm client install <name>` is the manual form of what init did, one client at a time, with a
-`plan` to preview it. For Claude Code there is nothing left to do, and `ynm init` again reports
-it unchanged:
+`plan` to preview it. The name is optional: in a ynh harness directory `ynm client install`
+means ynh, and anywhere else it means every client the project already uses. In a project that
+uses none, it exits 2 with `no agent client is configured in <dir>; name one` and the list of
+names. For Claude Code there is nothing left to do, and `ynm init` again reports it
+unchanged:
 
 ```bash
 ynm client plan claude-code
 ynm init --client claude-code
 ```
 
-Expected: `nothing to do`, then the `initialised` report with the config marked `(unchanged)`
-and `client    claude-code: unchanged`, plus an `also` line if other clients are on your machine.
+Expected: when nothing would change, the plan says what it found and where, then the
+`initialised` report with the config marked `(unchanged)` and `client    claude-code:
+unchanged`, plus an `also` line if other clients are on your machine:
+
+```text
+already in place, nothing changed:
+  server    mcpServers.ynm in <project path>/.mcp.json
+  guidance  <project path>/AGENTS.md
+  hooks     SessionStart runs `ynm hook session-start`; UserPromptSubmit runs `ynm hook prompt`; Stop runs `ynm hook stop` (<project path>/.claude/settings.local.json)
+```
 
 `ynm client install claude-code --scope user` registers the server for every project with
 `claude mcp add` and merges the hooks into `~/.claude/settings.json`; `--no-hooks` leaves the
@@ -340,7 +351,7 @@ skill carries the same guidance text as the `AGENTS.md` block.
 
 ynh, the harness manager, assembles one declaration for every vendor it supports. A harness is
 not a project: it has no memory of its own, so `ynm init` never installs into one. You add ynm
-to a harness explicitly, with `ynm client install ynh`. Make a minimal harness, a manifest with
+to a harness explicitly, with `ynm client install` run in the harness directory. Make a minimal harness, a manifest with
 just a name and a version, and first see what `ynm init` says there. It exits non-zero, so the
 step ends in `|| true`:
 
@@ -359,16 +370,18 @@ manifest untouched.)
 Error: <harness path> is a ynh harness, not a project: memory is initialised in the repositories you work on. To add ynm to this harness run `ynm client install ynh`
 ```
 
-Now do what it says:
+Now do what it says. In a harness directory the client name can be left out, because the
+directory can only mean ynh (`ynm client install ynh` does the same):
 
 ```bash
-ynm client install ynh
+ynm client install
 ```
 
-Expected: the manifest written, with a summary of what was merged into it, then the check to
-run:
+Expected: a `ynh:` heading, the manifest written with a summary of what was merged into it,
+then the check to run:
 
 ```text
+ynh:
 wrote /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json: harness manifest: mcp_servers.ynm; include of the ynm-memory skill; hooks on_session_start, before_prompt, on_stop; $schema
 next: ynd validate .
 ```
@@ -429,7 +442,24 @@ written into the harness's own `skills/`, and the manifest is the only file:
 ```
 
 With ynh's developer tool installed, `ynd validate .` reports `.: valid`. Installing again
-reports `nothing to do`. The merge keeps whatever indentation and trailing newline the manifest
+changes nothing and says where it found each piece:
+
+```bash
+ynm client install
+```
+
+Expected:
+
+```text
+ynh:
+already in place, nothing changed:
+  manifest  /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
+  server    mcp_servers.ynm runs `ynm serve`
+  guidance  includes https://github.com/eyelock/ynm skills/ynm-memory
+  hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
+```
+
+The merge keeps whatever indentation and trailing newline the manifest
 already had, so it does not rewrite the rest of the file. Outside a harness,
 `ynm client install ynh` prints `run: ynh install github.com/eyelock/ynm`, which installs ynm's
 own harness with the same hooks.

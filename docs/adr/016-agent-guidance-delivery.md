@@ -123,7 +123,11 @@ CLI's only config file) or a command becomes a `run:` line in the report. It pri
 line per client the project uses, at most one `also` line, and nothing for the rest; a second
 run reports `unchanged`. `--no-clients` skips the step and `--client <name>` names the clients
 to configure, used by the project or not. A bare repository gets no client files. `ynm client
-install` stays as the manual, per-client form with `--scope user` and `--http`.
+install` stays as the manual, per-client form with `--scope user` and `--http`. Its client name
+is optional: in a ynh harness directory it means ynh, otherwise every client the project uses
+(none: exit 2, naming the clients to choose from). When nothing changes it says
+`already in place, nothing changed:` and lists each piece it found and where, rather than
+reporting nothing.
 
 **Status sees the gap.** Each adapter's status reports whether the server is registered, whether
 the guidance is present and whether ynm's hooks are installed (absent for a client ynm installs
