@@ -104,7 +104,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/slim"
           tar -xzf "dist-release/ynm_${{ steps.meta.outputs.version }}_slim.tar.gz" -C "$RUNNER_TEMP/slim"
           node scripts/release/smoke.mjs "${{ steps.meta.outputs.version }}" "$RUNNER_TEMP/slim/bin/ynm"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: standalone-*
           path: dist-release
@@ -133,7 +133,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: manifest
           path: dist-release
