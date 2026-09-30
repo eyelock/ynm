@@ -383,7 +383,7 @@ then the check to run:
 ```text
 ynh:
 wrote /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json: harness manifest: mcp_servers.ynm; include of the ynm-memory skill; hooks on_session_start, before_prompt, on_stop; $schema
-next: ynd validate .
+next: ynm validate
 ```
 
 The merged manifest, and what else is in the harness:
@@ -441,7 +441,29 @@ written into the harness's own `skills/`, and the manifest is the only file:
 ./.ynh-plugin/plugin.json
 ```
 
-With ynh's developer tool installed, `ynd validate .` reports `.: valid`. Installing again
+Check the setup with `ynm validate`. It looks at the harness in the current directory (or a
+directory you name) and prints every check it made, not just the first failure:
+
+```bash
+ynm validate
+```
+
+Expected: `ynh: valid`, then one `ok` line per check: the manifest, the server, the skill
+include, the hooks, and `ynm` itself on the PATH:
+
+```text
+ynh: valid
+  ok    manifest  /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
+  ok    server    mcp_servers.ynm runs `ynm serve`
+  ok    guidance  includes https://github.com/eyelock/ynm skills/ynm-memory
+  ok    hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
+  ok    ynm       on PATH
+```
+
+If something were missing the heading would read `ynh: problems found`, the line would say
+`FAIL`, and the command would exit 1. In a project rather than a harness, `ynm validate` checks
+the clients the project uses the same way. It checks ynm's own setup; ynh's developer tool,
+`ynd validate`, separately checks the manifest against ynh's schema. Installing again
 changes nothing and says where it found each piece:
 
 ```bash

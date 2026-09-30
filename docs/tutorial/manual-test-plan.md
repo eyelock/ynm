@@ -141,12 +141,13 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 7.15 | [Install into a ynh harness](07-connect-an-agent.md#install-into-a-ynh-harness) | `mkdir -p /tmp/ynm-tutorial/harness/.ynh-plugin` |  |
 | 7.16 | [Install into a ynh harness (2)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm client install` |  |
 | 7.17 | [Install into a ynh harness (3)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cat .ynh-plugin/plugin.json` |  |
-| 7.18 | [Install into a ynh harness (4)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm client install` |  |
-| 7.19 | [Install into a ynh harness (5)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cd /tmp/ynm-tutorial/project` |  |
-| 7.20 | [Serve](07-connect-an-agent.md#serve) | `ynm serve --help` |  |
-| 7.21 | [Talk to it yourself](07-connect-an-agent.md#talk-to-it-yourself) | `ynm remember --type semantic --content "Deploys happen on Tuesdays." ...` |  |
-| 7.22 | [Talk to it yourself (2)](07-connect-an-agent.md#talk-to-it-yourself) | `mkdir -p /tmp/ynm-tutorial/work` |  |
-| 7.23 | [Cleanup](07-connect-an-agent.md#cleanup) | `cd /tmp` |  |
+| 7.18 | [Install into a ynh harness (4)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm validate` |  |
+| 7.19 | [Install into a ynh harness (5)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm client install` |  |
+| 7.20 | [Install into a ynh harness (6)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cd /tmp/ynm-tutorial/project` |  |
+| 7.21 | [Serve](07-connect-an-agent.md#serve) | `ynm serve --help` |  |
+| 7.22 | [Talk to it yourself](07-connect-an-agent.md#talk-to-it-yourself) | `ynm remember --type semantic --content "Deploys happen on Tuesdays." ...` |  |
+| 7.23 | [Talk to it yourself (2)](07-connect-an-agent.md#talk-to-it-yourself) | `mkdir -p /tmp/ynm-tutorial/work` |  |
+| 7.24 | [Cleanup](07-connect-an-agent.md#cleanup) | `cd /tmp` |  |
 
 ## [Dreaming](08-dreaming.md)
 

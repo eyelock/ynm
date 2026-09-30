@@ -213,7 +213,10 @@ name is optional: in a ynh harness directory it means ynh, and anywhere else eve
 project uses (a project footprint; with none, the command exits 2 with `no agent client is
 configured in <dir>; name one`). Name a client to install one the project does not use yet. When
 everything is already in place it prints `already in place, nothing changed:` followed by a line
-for each piece it found (server, guidance, hooks) and where. `ynm client status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks are
+for each piece it found (server, guidance, hooks) and where. `ynm validate [dir]`
+checks a ynh harness, or the clients a project uses, and prints every check (server, guidance,
+hooks, and `ynm` on the PATH) with `ok` or `FAIL`, exiting 1 when something is missing.
+`ynm client status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks are
 in place. [Tutorial 7](../tutorial/07-connect-an-agent.md) walks through all of it.
 
 ## Next
