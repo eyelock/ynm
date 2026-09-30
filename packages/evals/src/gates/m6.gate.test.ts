@@ -3,7 +3,8 @@
  * A milestone closes when this file is green with zero todos. The release workflow runs it too.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readBaseline } from "../baseline.js";
 import { readReport } from "../tier3/report.js";
@@ -88,30 +89,90 @@ describe("gate M6: v0.1 release", () => {
     }
   });
 
-  it("Release: the CLI tarball builds, runs, and renders a Homebrew formula", () => {
-    const pack = spawnSync("node", [join(repoRoot, "scripts", "release", "pack.mjs"), version], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    expect(pack.status, pack.stdout + pack.stderr).toBe(0);
-    const staged = join(repoRoot, "dist-release", `ynm-${version}`);
-    const v = spawnSync(join(staged, "ynm"), ["--version"], { encoding: "utf8" });
-    expect(v.stdout).toContain(`@ynm/cli/${version}`);
-    const serve = spawnSync(join(staged, "ynm"), ["serve", "--help"], { encoding: "utf8" });
-    expect(serve.status).toBe(0);
-    const sha = readFileSync(
-      join(repoRoot, "dist-release", `ynm-${version}.tar.gz.sha256`),
-      "utf8"
-    ).split(" ")[0] as string;
-    const formula = spawnSync(
-      "node",
-      [join(repoRoot, "scripts", "release", "formula.mjs"), version, sha],
-      { encoding: "utf8" }
+  it("Release: the slim tarball and the native standalone binary build, run, and render both formulae", () => {
+    const script = (name: string) => join(repoRoot, "scripts", "release", name);
+    const node = (name: string, ...args: string[]) =>
+      spawnSync("node", [script(name), ...args], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+      });
+    const out = join(repoRoot, "dist-release");
+    // Start clean, keeping downloaded Node tarballs (dist-release/node).
+    for (const f of existsSync(out) ? readdirSync(out) : [])
+      if (f !== "node") rmSync(join(out, f), { recursive: true, force: true });
+
+    // Slim: the ESM bundle and its launcher, run on this Node.
+    const slim = node("build-slim.mjs", version);
+    expect(slim.status, slim.stdout + slim.stderr).toBe(0);
+    const unpacked = mkdtempSync(join(tmpdir(), "ynm-slim-"));
+    const untar = spawnSync("tar", [
+      "-xzf",
+      join(out, `ynm_${version}_slim.tar.gz`),
+      "-C",
+      unpacked,
+    ]);
+    expect(untar.status).toBe(0);
+    const smokeSlim = node("smoke.mjs", version, join(unpacked, "bin", "ynm"));
+    expect(smokeSlim.status, smokeSlim.stdout + smokeSlim.stderr).toBe(0);
+
+    // Standalone: this platform's binary (the others are built on their own runners).
+    const os = process.platform as "darwin" | "linux";
+    const arch = process.arch === "x64" ? "amd64" : (process.arch as "arm64");
+    expect(["darwin", "linux"]).toContain(os);
+    const tarball = node("fetch-node.mjs", "--os", os, "--arch", arch);
+    expect(tarball.status, tarball.stderr).toBe(0);
+    const standalone = node(
+      "build-standalone.mjs",
+      "--os",
+      os,
+      "--arch",
+      arch,
+      "--node-tarball",
+      tarball.stdout.trim(),
+      "--version",
+      version
     );
-    expect(formula.status).toBe(0);
-    expect(formula.stdout).toContain(`class Ynm < Formula`);
-    expect(formula.stdout).toContain(`releases/download/v${version}/ynm-${version}.tar.gz`);
+    expect(standalone.status, standalone.stdout + standalone.stderr).toBe(0);
+    const smokeBin = node("smoke.mjs", version, join(out, `ynm_${version}_${os}_${arch}`, "ynm"));
+    expect(smokeBin.status, smokeBin.stdout + smokeBin.stderr).toBe(0);
+
+    // Manifest and formulae. The standalone formula needs all four targets; the ones not built
+    // here get placeholder entries so the rendering is still exercised.
+    const manifest = node("manifest.mjs", version);
+    expect(manifest.status, manifest.stderr).toBe(0);
+    const m = JSON.parse(readFileSync(join(out, "manifest.json"), "utf8")) as {
+      version: string;
+      assets: Array<{ file: string; kind: string; os: string; arch: string; sha256: string }>;
+    };
+    expect(m.assets.map((a) => a.file).sort()).toEqual(
+      [`ynm_${version}_${os}_${arch}.tar.gz`, `ynm_${version}_slim.tar.gz`].sort()
+    );
+    for (const o of ["darwin", "linux"])
+      for (const a of ["arm64", "amd64"])
+        if (!m.assets.some((x) => x.os === o && x.arch === a))
+          m.assets.push({
+            file: `ynm_${version}_${o}_${a}.tar.gz`,
+            kind: "standalone",
+            os: o,
+            arch: a,
+            sha256: "0".repeat(64),
+          });
+    const full = join(unpacked, "manifest.json");
+    writeFileSync(full, JSON.stringify(m));
+    const ynmRb = node("formula.mjs", full, "ynm");
+    expect(ynmRb.status, ynmRb.stderr).toBe(0);
+    expect(ynmRb.stdout).toContain("class Ynm < Formula");
+    expect(ynmRb.stdout).toContain(
+      `releases/download/v${version}/ynm_${version}_${os}_${arch}.tar.gz`
+    );
+    expect(ynmRb.stdout).not.toContain('depends_on "node"');
+    const slimRb = node("formula.mjs", full, "ynm-slim");
+    expect(slimRb.status, slimRb.stderr).toBe(0);
+    expect(slimRb.stdout).toContain("class YnmSlim < Formula");
+    expect(slimRb.stdout).toContain(`releases/download/v${version}/ynm_${version}_slim.tar.gz`);
+    expect(slimRb.stdout).toContain('depends_on "node"');
+    rmSync(unpacked, { recursive: true, force: true });
     expect(existsSync(join(repoRoot, ".github", "workflows", "release.yml"))).toBe(true);
-  }, 600_000);
+  }, 900_000);
 });
