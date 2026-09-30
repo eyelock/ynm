@@ -53,6 +53,11 @@ function deepMerge(
   return out;
 }
 
+/** What a change touches, for plans and reports: the path, the command line or the note. */
+export function changeTarget(c: Change): string {
+  return c.kind === "command" ? c.argv.join(" ") : c.kind === "note" ? c.text : c.path;
+}
+
 export interface ApplyOptions {
   /** Runs a command change; defaults to not running (returns the argv for the caller to show). */
   runCommand?: (argv: string[]) => Promise<void>;
@@ -73,6 +78,8 @@ export async function applyChanges(changes: Change[], opts: ApplyOptions = {}): 
       mkdirSync(dirname(c.path), { recursive: true });
       writeFileSync(c.path, `${JSON.stringify(deepMerge(existing, c.patch), null, 2)}\n`);
       done.push(`merged ${c.path}`);
+    } else if (c.kind === "note") {
+      done.push(`next: ${c.text}`);
     } else if (opts.runCommand) {
       await opts.runCommand(c.argv);
       done.push(`ran ${c.argv.join(" ")}`);

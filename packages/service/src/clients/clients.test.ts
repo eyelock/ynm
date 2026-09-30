@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -92,6 +93,66 @@ describe("client adapters (ADR-013)", () => {
       },
     ]);
     expect((await ynh.status({ cwd: "/x", home })).configured).toBe(true);
+  });
+
+  it("ynh in a harness merges the server, hooks and skill into it, idempotently", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
+    const home = mkdtempSync(join(tmpdir(), "ynm-ynh-home-"));
+    mkdirSync(join(cwd, ".ynh-plugin"));
+    writeFileSync(
+      join(cwd, ".ynh-plugin", "plugin.json"),
+      JSON.stringify({
+        name: "my-harness",
+        version: "0.1.0",
+        mcp_servers: { ynm: { command: "ynm serve" }, other: { command: "x" } },
+        hooks: { on_stop: [{ command: "./cleanup.sh" }] },
+      })
+    );
+    expect((await ynh.detect({ cwd, home })).installed).toBe(true);
+    const plan = await ynh.plan({ cwd, home, scope: "project", transport: stdio });
+    expect(plan.map((c) => c.kind)).toEqual(["write", "write", "note"]);
+    expect(plan[0]?.reason).toMatch(/replaced the string-form command "ynm serve"/);
+    expect(plan[2]).toMatchObject({ kind: "note", text: "ynd validate ." });
+    await applyChanges(plan);
+    const m = JSON.parse(readFileSync(join(cwd, ".ynh-plugin", "plugin.json"), "utf8")) as {
+      mcp_servers: Record<string, unknown>;
+      hooks: Record<string, Array<{ command: string }>>;
+    };
+    expect(m.mcp_servers).toEqual({
+      ynm: { command: "ynm", args: ["serve"] },
+      other: { command: "x" },
+    });
+    expect(m.hooks).toEqual({
+      on_stop: [{ command: "./cleanup.sh" }, { command: "ynm hook stop" }],
+      on_session_start: [{ command: "ynm hook session-start" }],
+      before_prompt: [{ command: "ynm hook prompt" }],
+    });
+    expect(readFileSync(join(cwd, "skills", "ynm-memory", "SKILL.md"), "utf8")).toBe(ynhSkill());
+    expect(await ynh.plan({ cwd, home, scope: "project", transport: stdio })).toEqual([]);
+    expect(await ynh.status({ cwd, home })).toMatchObject({
+      configured: true,
+      guidance: true,
+      hooks: true,
+    });
+    const ynd = spawnSync("ynd", ["validate", cwd], { encoding: "utf8" });
+    if (!ynd.error) expect(`${ynd.stdout}${ynd.stderr}`).toMatch(/valid/);
+  });
+
+  it("ynh --no-hooks merges only the server and skill", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
+    mkdirSync(join(cwd, ".ynh-plugin"));
+    writeFileSync(
+      join(cwd, ".ynh-plugin", "plugin.json"),
+      JSON.stringify({ name: "h", version: "0.1.0" })
+    );
+    await applyChanges(
+      await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio, hooks: false })
+    );
+    const m = JSON.parse(readFileSync(join(cwd, ".ynh-plugin", "plugin.json"), "utf8")) as {
+      hooks?: unknown;
+    };
+    expect(m.hooks).toBeUndefined();
+    expect((await ynh.status({ cwd, home: cwd })).hooks).toBe(false);
   });
 
   it("registry rejects unknown clients", () => {

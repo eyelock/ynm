@@ -14,7 +14,9 @@ export interface InstallTarget {
 export type Change =
   | { kind: "write"; path: string; content: string; reason: string }
   | { kind: "merge-json"; path: string; patch: Record<string, unknown>; reason: string }
-  | { kind: "command"; argv: string[]; reason: string };
+  | { kind: "command"; argv: string[]; reason: string }
+  /** Nothing to do on disk: a next step the user should take, shown in the plan and report. */
+  | { kind: "note"; text: string; reason: string };
 
 export interface Detection {
   installed: boolean;

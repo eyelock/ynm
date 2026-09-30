@@ -4,6 +4,7 @@ import {
   applyChanges,
   CLIENT_ADAPTERS,
   type ClientStatus,
+  changeTarget,
   clientAdapter,
   loadConfig,
   ynmHome,
@@ -90,12 +91,8 @@ export default class Client extends YnmCommand {
         flags.json,
         plan,
         () =>
-          plan
-            .map(
-              (c) =>
-                `${c.kind.padEnd(10)} ${c.kind === "command" ? c.argv.join(" ") : c.path}  (${c.reason})`
-            )
-            .join("\n") || "nothing to do"
+          plan.map((c) => `${c.kind.padEnd(10)} ${changeTarget(c)}  (${c.reason})`).join("\n") ||
+          "nothing to do"
       );
       return;
     }
