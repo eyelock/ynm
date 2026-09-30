@@ -2,7 +2,7 @@
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
 .PHONY: help install build rebuild verify check fix lint format typecheck test coverage \
         test-hosted test-tutorials eval-tutorials bench bench-large bench-public gate \
-        gen golden docs docs-gen docs-links release-pack changeset version cli clean ci build-pkg test-pkg
+        gen golden docs docs-gen docs-links release-slim release-standalone release-manifest changeset version cli clean ci build-pkg test-pkg
 
 M ?= M6
 
@@ -12,7 +12,7 @@ help:
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
-	@echo "Release:  release-pack changeset version"
+	@echo "Release:  release-slim release-standalone release-manifest changeset version"
 	@echo "Other:    cli clean ci (what CI runs)"
 
 ## Setup
@@ -104,8 +104,23 @@ gen: build
 	pnpm docs:links
 
 ## Release
-release-pack:
-	pnpm release:pack
+# Release artefacts (docs/how-to/cut-a-release.md): the slim tarball, then this machine's
+# standalone binary with the Node from .nvmrc, each smoke-tested; then the manifest.
+VERSION := $(shell node -p "require('./packages/cli/package.json').version")
+OS := $(shell node -p "process.platform")
+ARCH := $(shell node -p "process.arch === 'arm64' ? 'arm64' : 'amd64'")
+
+release-slim: build
+	node scripts/release/build-slim.mjs $(VERSION)
+	node scripts/release/smoke.mjs $(VERSION) node dist-release/ynm.mjs
+
+release-standalone: build
+	node scripts/release/build-standalone.mjs --os $(OS) --arch $(ARCH) --version $(VERSION) \
+	  --node-tarball "$$(node scripts/release/fetch-node.mjs --os $(OS) --arch $(ARCH))"
+	node scripts/release/smoke.mjs $(VERSION) dist-release/ynm_$(VERSION)_$(OS)_$(ARCH)/ynm
+
+release-manifest:
+	node scripts/release/manifest.mjs $(VERSION)
 
 changeset:
 	pnpm changeset

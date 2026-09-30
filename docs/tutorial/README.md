@@ -39,7 +39,7 @@ you should see. A model can read a tutorial, run it and check it, exactly as you
 |---|---|
 | [10. Hosted service](10-hosted.md) | `serve --http` with a token, health, the Docker demo, a clone syncing through it |
 | [11. Doctor and maintenance](11-doctor-and-maintenance.md) | Doctor, reindex, the sqlite provider, backup and restore |
-| [12. Evals and benchmarks](12-evals-and-benchmarks.md) | `pnpm bench`, milestone gates, `bench:public` |
+| [12. Evals and benchmarks](12-evals-and-benchmarks.md) | `make bench`, milestone gates, `bench:public` |
 
 Tutorials without a link are planned; the table is the order they will arrive in.
 
@@ -65,7 +65,7 @@ Requires Node 22.13 or later and pnpm.
 ```bash
 git clone https://github.com/eyelock/ynm.git
 cd ynm
-pnpm install && pnpm build
+make install build
 mkdir -p ~/.ynm/bin
 printf '#!/bin/sh\nexec node %s/packages/cli/bin/run.js "$@"\n' "$PWD" > ~/.ynm/bin/ynm
 chmod +x ~/.ynm/bin/ynm

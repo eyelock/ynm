@@ -216,7 +216,7 @@ describe("gate M1: the log", () => {
           pkg !== "service" &&
           /\b(GitNotesLog|FsLog|MemoryLog)\b/.test(text) &&
           !file.includes("gates") &&
-          !file.includes("tier1")
+          !/tier[123]/.test(file)
         )
           offenders.push(file);
         if (
@@ -254,7 +254,8 @@ describe("gate M1: the log", () => {
     ).toBe(0);
     const projectRefs = await fx(repo, "for-each-ref", "--format=%(refname)", "refs/notes/");
     expect(projectRefs).not.toMatch(/personal/);
-    const pushes = await fx(repo, "config", "--get-all", "remote.origin.push");
+    // init adds no push refspec at all (the hook pushes), so this key may be absent
+    const pushes = await fx(repo, "config", "--get-all", "remote.origin.push").catch(() => "");
     const fetches = await fx(repo, "config", "--get-all", "remote.origin.fetch");
     expect(`${pushes}\n${fetches}`).not.toMatch(/personal/);
     expect(

@@ -1,12 +1,12 @@
 # Releasing ynm
 
-1. Land changesets on `main` (`pnpm changeset` for each user-visible change). 0.1.0 is the
+1. Land changesets on `main` (`make changeset` for each user-visible change). 0.1.0 is the
    initial version the packages were born with, so it ships without a changeset.
-2. `pnpm release:version` bumps package versions and CHANGELOGs from the changesets; commit.
-3. Freeze the evals for the version: `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1 pnpm bench`
-   and the tier 1 quality suites, then `pnpm bench:public` for the tier 3 reports
+2. `make version` bumps package versions and CHANGELOGs from the changesets; commit.
+3. Freeze the evals for the version: `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1 make bench`
+   and the tier 1 quality suites, then `make bench-public` for the tier 3 reports
    (`packages/evals/reports/<v>/`). Commit both.
-4. `pnpm gate M6` must be green. Its release check builds the slim tarball and this machine's
+4. `make gate M=M6` must be green. Its release check builds the slim tarball and this machine's
    standalone binary and runs both (below).
 5. Tag `v<version>` and push the tag. The `release` workflow then:
    - `verify`: re-runs build, check, typecheck, tests and the M6 gate;
@@ -56,16 +56,16 @@ in [Install ynm](install.md); the reasoning is [ADR-015](../adr/015-distribution
 
 ## Build the artefacts locally
 
-After `pnpm build`, with the Node in `.nvmrc`:
+With the Node version in `.nvmrc` active:
 
 ```bash
-node scripts/release/build-slim.mjs 0.1.0
-TARBALL=$(node scripts/release/fetch-node.mjs --os darwin --arch arm64)
-node scripts/release/build-standalone.mjs --os darwin --arch arm64 --node-tarball "$TARBALL" --version 0.1.0
-node scripts/release/smoke.mjs 0.1.0 dist-release/ynm_0.1.0_darwin_arm64/ynm
-node scripts/release/smoke.mjs 0.1.0 node dist-release/ynm.mjs
-node scripts/release/manifest.mjs 0.1.0
+make release-slim          # dist-release/ynm_<v>_slim.tar.gz, smoke-tested through node
+make release-standalone    # this machine's ynm_<v>_<os>_<arch>.tar.gz, smoke-tested
+make release-manifest      # dist-release/manifest.json with every asset's sha256
 ```
+
+Each target wraps a script under `scripts/release/` (`build-slim.mjs`, `fetch-node.mjs`,
+`build-standalone.mjs`, `smoke.mjs`, `manifest.mjs`); the workflow calls the same scripts.
 
 `formula.mjs` needs all four standalone targets in the manifest (the gate fills the missing
 ones with placeholders to exercise it):
