@@ -73,7 +73,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           node scripts/release/smoke.mjs "$VERSION" "dist-release/ynm_${VERSION}_${{ matrix.os }}_${{ matrix.native }}/ynm"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: standalone-${{ matrix.os }}
           path: dist-release/ynm_*_${{ matrix.os }}_*.tar.gz
@@ -111,7 +111,7 @@ jobs:
           merge-multiple: true
       - name: Write manifest.json and checksums.txt
         run: node scripts/release/manifest.mjs "${{ steps.meta.outputs.version }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: manifest
           path: dist-release/manifest.json
