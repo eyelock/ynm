@@ -24,7 +24,9 @@ describe("tier1 e2e: MVP demo", () => {
       mcpServers: { ynm: { command: string; args: string[] } };
     };
     expect(mcpConfig.mcpServers.ynm).toEqual({ command: "ynm", args: ["serve"] });
-    expect(existsSync(join(repo, "CLAUDE.md"))).toBe(true);
+    // no instruction file existed, so the guidance lands in AGENTS.md, which Claude Code reads
+    expect(existsSync(join(repo, "AGENTS.md"))).toBe(true);
+    expect(existsSync(join(repo, "CLAUDE.md"))).toBe(false);
 
     const session = async () => {
       const client = new Client({ name: "demo", version: "0" });

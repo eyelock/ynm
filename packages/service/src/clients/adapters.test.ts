@@ -249,7 +249,7 @@ describe("claude-code hooks (ADR-016)", () => {
     const plan = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
     expect(plan.map((c) => (c.kind === "command" ? c.kind : c.path))).toEqual([
       join(cwd, ".mcp.json"),
-      join(cwd, "CLAUDE.md"),
+      join(cwd, "AGENTS.md"),
       settings,
     ]);
     await applyChanges(plan);

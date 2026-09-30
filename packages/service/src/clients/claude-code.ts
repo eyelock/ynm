@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { guidance } from "@ynm/model";
+import { delimitedBlockChange } from "./agents-md.js";
+import { claudeHasGuidance, claudeInstructions } from "./claude-instructions.js";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
 import { detectBySignals, stdioServerEntry } from "./types.js";
 
@@ -142,20 +144,18 @@ export const claudeCode: ClientAdapter = {
         patch: { mcpServers: { ynm: stdioServerEntry(t.transport) } },
         reason: "register the ynm MCP server for this project",
       });
-      const claudeMd = join(t.cwd, "CLAUDE.md");
-      const existing = existsSync(claudeMd) ? readFileSync(claudeMd, "utf8") : "";
-      const block = claudeMdBlock();
-      const stripped = existing.includes(CLAUDE_MD_MARKER)
-        ? existing.replace(new RegExp(`${CLAUDE_MD_MARKER}[\\s\\S]*?${CLAUDE_MD_MARKER}\\n?`), "")
-        : existing;
-      const content = `${stripped.trimEnd()}${stripped.trim() ? "\n\n" : ""}${block}`;
-      if (content !== existing)
-        changes.push({
-          kind: "write",
-          path: claudeMd,
-          content,
-          reason: "memory guidance for the agent (delimited block)",
-        });
+      // Guidance goes where Claude Code will read it (its own lookup rules), appended to a file
+      // that exists; a file is created only when Claude reads nothing in this project.
+      if (!claudeHasGuidance(t.cwd, t.home, CLAUDE_MD_MARKER)) {
+        const { target } = claudeInstructions(t.cwd, t.home);
+        const c = delimitedBlockChange(
+          target.path,
+          claudeMdBlock(),
+          CLAUDE_MD_MARKER,
+          "memory guidance for the agent (delimited block)"
+        );
+        if (c?.kind === "write") changes.push({ ...c, label: relative(t.cwd, target.path) });
+      }
     }
     if (t.hooks !== false) {
       const c = claudeHooksChange(
@@ -167,10 +167,8 @@ export const claudeCode: ClientAdapter = {
     return changes;
   },
   async status({ cwd, home }): Promise<ClientStatus> {
-    // The project's CLAUDE.md, or the user's own, which Claude Code loads in every project.
-    const guided = [join(cwd, "CLAUDE.md"), join(home, ".claude", "CLAUDE.md")].some(
-      (f) => existsSync(f) && readFileSync(f, "utf8").includes(CLAUDE_MD_MARKER)
-    );
+    // Any instruction file Claude Code loads here at launch, by its own lookup rules.
+    const guided = claudeHasGuidance(cwd, home, CLAUDE_MD_MARKER);
     // A team may also have put them in the shared settings on purpose; any of the three counts.
     const hookFiles = [
       claudeSettingsPath({ cwd, home, scope: "project" }),
