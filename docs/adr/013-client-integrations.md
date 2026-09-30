@@ -105,3 +105,6 @@ rules or commands for ynh. Re-installing replaces the block rather than appendin
 - 2026-09-30: agent hooks, harness installs for ynh, detection from three signals and
   `ynm init` configuring every detected client moved to
   [ADR-016](016-agent-guidance-delivery.md).
+- 2026-09-30: the generated ynh harness and Pi extension moved from the repository root
+  (`.ynh-plugin/`, `skills/`, `clients/pi/`) to `integrations/ynh/` and `integrations/pi/`, with one client-neutral `ynm-memory` skill at
+  `integrations/skills/`; `ynh install` takes `--path integrations/ynh`.

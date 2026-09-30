@@ -21,7 +21,9 @@ describe("gate M0: skeleton", () => {
   });
 
   it("ynh plugin manifest parses and declares the ynm MCP server", () => {
-    const manifest = JSON.parse(readFileSync(join(repo, ".ynh-plugin", "plugin.json"), "utf8")) as {
+    const manifest = JSON.parse(
+      readFileSync(join(repo, "integrations", "ynh", ".ynh-plugin", "plugin.json"), "utf8")
+    ) as {
       name: string;
       mcp_servers: Record<string, unknown>;
     };

@@ -5,9 +5,7 @@ RUN apk add --no-cache git && corepack enable && corepack prepare pnpm@9.15.4 --
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc turbo.json ./
 COPY packages ./packages
-COPY skills ./skills
-COPY clients ./clients
-COPY .ynh-plugin ./.ynh-plugin
+COPY integrations ./integrations
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 

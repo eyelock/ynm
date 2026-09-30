@@ -59,7 +59,7 @@ describe("ynm validate", () => {
     const after = ynm(dir, "validate", dir);
     expect(after.stdout).toMatch(/ok\s+server\s+mcp_servers\.ynm runs `ynm serve`/);
     expect(after.stdout).toMatch(
-      /ok\s+guidance\s+includes https:\/\/github\.com\/eyelock\/ynm skills\/ynm-memory/
+      /ok\s+guidance\s+includes https:\/\/github\.com\/eyelock\/ynm path integrations pick skills\/ynm-memory/
     );
     expect(after.stdout).toMatch(/ok\s+hooks\s+on_session_start runs `ynm hook session-start`/);
   });
