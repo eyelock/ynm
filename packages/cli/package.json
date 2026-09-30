@@ -48,7 +48,11 @@
   "oclif": {
     "bin": "ynm",
     "dirname": "ynm",
-    "commands": "./dist/commands",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/commands/index.js",
+      "identifier": "COMMANDS"
+    },
     "topicSeparator": " "
   }
 }

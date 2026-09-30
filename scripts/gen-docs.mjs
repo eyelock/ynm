@@ -141,14 +141,12 @@ function flagDescription(flag, description = "") {
 }
 
 async function cliReference() {
-  const dir = join(root, "packages", "cli", "dist", "commands");
+  const { COMMANDS } = await load("packages/cli/dist/commands/index.js");
   const { YnmCommand } = await load("packages/cli/dist/lib/base.js");
   const { TOOL_SPECS } = await load("packages/service/dist/tools.js");
   const { RecordFilterSchema } = await load("packages/model/dist/index.js");
   const base = YnmCommand.baseFlags;
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".js"))
-    .sort();
+  const ids = Object.keys(COMMANDS).sort();
   const out = [
     GENERATED_NOTE,
     "",
@@ -177,9 +175,8 @@ async function cliReference() {
     "",
   ];
   const indexRows = [];
-  for (const f of files) {
-    const id = f.replace(/\.js$/, "");
-    const C = (await load(`packages/cli/dist/commands/${f}`)).default;
+  for (const id of ids) {
+    const C = COMMANDS[id];
     const tool = TOOL_SPECS.find((t) => t.command === id);
     const schema = tool?.input ?? (id === "list" || id === "export" ? RecordFilterSchema : null);
     const props = schema ? (jsonSchema(schema).properties ?? {}) : {};
