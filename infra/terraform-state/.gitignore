@@ -5,3 +5,4 @@
 !*.tfvars.example
 crash.log
 backend_override.tf
+tfplan
