@@ -6,7 +6,7 @@ Recipes for a goal you already have. Each assumes you know the basics from the
 | Guide | Goal |
 |---|---|
 | [Install ynm](install.md) | Choose between Homebrew (standalone or slim), a direct download, the slim tarball on your own Node, a source checkout and the Docker image; then let `ynm init` set up your agent clients |
-| [Retrofit an existing repository](retrofit-an-existing-repo.md) | Give a repository with history and a team a shared memory without changing any tracked file, and decide what to do with the client files `ynm init` writes |
+| [Retrofit an existing repository](retrofit-an-existing-repo.md) | Give a repository with history and a team a distributed memory without changing any tracked file, and decide what to do with the client files `ynm init` writes |
 | [Share an org store](share-an-org-store.md) | Keep memory that spans many repositories in one dedicated bare repo, mounted everywhere |
 | [Choose the SQLite provider](choose-the-sqlite-provider.md) | Keep a store in a single SQLite file instead of git notes |
 | [Configure the judge and writer](configure-judge-and-writer.md) | Choose which model judges in `ynm dream` and on recall, and which one writes |

@@ -1,7 +1,7 @@
 import type { Level } from "@ynm/model";
 import type { SyncResult } from "../../log.js";
 import { git, gitOrNull } from "./git.js";
-import { levelDir, NOTES_PREFIX, REMOTE_PREFIX } from "./refs.js";
+import { distributedFetchRefspec, levelDir, NOTES_PREFIX, REMOTE_PREFIX } from "./refs.js";
 
 export interface SyncParams {
   repo: string;
@@ -35,7 +35,7 @@ async function isAncestor(repo: string, a: string, b: string): Promise<boolean> 
  * Fetch into a remote-tracking namespace (never forced into the working refs), fast-forward or
  * `notes merge -s cat_sort_uniq`, push, retry on rejection (ADR-003, ADR-007).
  */
-export async function syncShared(p: SyncParams): Promise<SyncResult> {
+export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
   const dir = levelDir(p.level);
   const local = `${NOTES_PREFIX}/${dir}/`;
   const tracking = `${REMOTE_PREFIX}/${p.remote}/${dir}/`;
@@ -48,7 +48,7 @@ export async function syncShared(p: SyncParams): Promise<SyncResult> {
   if (!remoteUrl) {
     result.skipped = `remote "${p.remote}" not configured; nothing to sync`;
     result.conflicts.push(
-      `remote "${p.remote}" is not configured; add it and run \`ynm init\` again`
+      `remote "${p.remote}" is not configured; add it with \`git remote add ${p.remote} <url>\` and sync again`
     );
     return result;
   }
@@ -63,6 +63,18 @@ export async function syncShared(p: SyncParams): Promise<SyncResult> {
       })
     )?.trim() === "true";
   const target = mirror ? remoteUrl : p.remote;
+
+  // A remote added after `ynm init` has no fetch line for memory yet; add it here so nobody has
+  // to re-run init. Sync itself fetches explicitly and does not depend on it.
+  if (p.level === "distributed" && !mirror && !p.dryRun) {
+    const fetchSpec = distributedFetchRefspec(p.remote);
+    const fetches =
+      (await gitOrNull(["config", "--get-all", `remote.${p.remote}.fetch`], { cwd: p.repo })) ?? "";
+    if (!fetches.split("\n").includes(fetchSpec)) {
+      await git(["config", "--add", `remote.${p.remote}.fetch`, fetchSpec], { cwd: p.repo });
+      result.refspecAdded = fetchSpec;
+    }
+  }
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     if (doPull) {
@@ -101,6 +113,8 @@ export async function syncShared(p: SyncParams): Promise<SyncResult> {
       }
     }
     if (!doPush || p.dryRun) return result;
+    // Nothing written at this level yet: git rejects a push pattern that matches no refs.
+    if ((await listRefs(p.repo, local)).size === 0) return result;
     try {
       await git(["push", "--quiet", target, `${local}*:${local}*`], { cwd: p.repo, env });
       result.pushed = [...(await listRefs(p.repo, local)).keys()];

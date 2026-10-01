@@ -167,7 +167,7 @@ One entry per synced mount:
     "fetched": 0,
     "merged": [],
     "pushed": [],
-    "conflicts": ["remote \"origin\" is not configured; add it and run `ynm init` again"],
+    "conflicts": ["remote \"origin\" is not configured; add it with `git remote add origin <url>` and sync again"],
     "skipped": "remote \"origin\" not configured; nothing to sync",
     "retries": 0
   }

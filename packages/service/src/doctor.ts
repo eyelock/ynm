@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { gitOrNull, NOTES_PREFIX } from "@ynm/store";
 import { clientReports, type InstallTarget } from "./clients/index.js";
 import type { LoadedConfig } from "./config.js";
-import { SHARED_FETCH } from "./init.js";
+import { DISTRIBUTED_FETCH } from "./init.js";
 import type { Mount } from "./mounts.js";
 import { projectInitialised } from "./mounts.js";
 import type { WorktreeInfo } from "./worktree.js";
@@ -78,7 +78,7 @@ export async function doctor(opts: {
       add(
         "project initialised",
         false,
-        "no .ynm/config.json; run `ynm init` to add a shared project mount",
+        "no .ynm/config.json; run `ynm init` to add a distributed project mount",
         "warn"
       );
     } else {
@@ -96,16 +96,18 @@ export async function doctor(opts: {
         const fetches =
           (await gitOrNull(["config", "--get-all", `remote.${remote}.fetch`], { cwd: repo })) ?? "";
         add(
-          "shared fetch refspec",
-          fetches.includes(SHARED_FETCH(remote)),
-          fetches.includes(SHARED_FETCH(remote)) ? SHARED_FETCH(remote) : "missing; run `ynm init`"
+          "distributed fetch refspec",
+          fetches.includes(DISTRIBUTED_FETCH(remote)),
+          fetches.includes(DISTRIBUTED_FETCH(remote))
+            ? DISTRIBUTED_FETCH(remote)
+            : "missing; `ynm sync` adds it"
         );
         const pushes =
           (await gitOrNull(["config", "--get-all", `remote.${remote}.push`], { cwd: repo })) ?? "";
         add(
           "personal refs never pushed",
           !/personal/.test(pushes) && !/personal/.test(fetches),
-          "no personal refspecs in remote config (ADR-007)"
+          "no personal refspecs in remote config"
         );
       } else {
         add("remote", true, `remote "${remote}" not configured; sync unavailable`, "warn");
@@ -117,7 +119,7 @@ export async function doctor(opts: {
       add(
         "no personal refs in project repo",
         personalRefs.trim() === "",
-        personalRefs.trim() === "" ? "ok (ADR-007)" : personalRefs.trim()
+        personalRefs.trim() === "" ? "ok" : personalRefs.trim()
       );
       const hooksDir = (
         (await gitOrNull(["rev-parse", "--path-format=absolute", "--git-path", "hooks"], {

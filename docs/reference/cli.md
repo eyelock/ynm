@@ -42,7 +42,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`session`](#ynm-session) | Start a session (prints the context block) or end one (expires working memory) |
 | [`status`](#ynm-status) | Mounts, shard counts and index freshness. |
 | [`supersede`](#ynm-supersede) | Record a new version of an existing memory |
-| [`sync`](#ynm-sync) | Fetch, merge and push shared memory (never personal unless --mount personal) |
+| [`sync`](#ynm-sync) | Fetch, merge and push distributed memory (never personal unless --mount personal) |
 | [`validate`](#ynm-validate) | Check ynm's setup for the agent clients in a directory and print every check: a ynh harness, or the clients a project uses |
 | [`wiki`](#ynm-wiki) | Build the markdown projection (index, log, memories, entities, topics) or ingest an edited page |
 
@@ -194,7 +194,7 @@ ynm export [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--level <value>` | `personal` \| `distributed` |  |  | Only records at this level |
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type (ADR-001) |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type |
 | `--namespace <value>` | string |  |  | Namespace prefix |
 | `--since <value>` | date-time |  |  | Updated at or after |
 | `--until <value>` | date-time |  |  | Updated at or before |
@@ -295,7 +295,7 @@ ynm init [flags]
 |---|---|---|---|---|
 | `--personal` | boolean |  | `false` | Create the personal store only |
 | `--bare <value>` | string |  |  | Create or adopt a dedicated bare memory repo at this path |
-| `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
+| `--remote <value>` | string |  | `origin` | Remote for the distributed fetch refspec |
 | `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
 | `--[no-]clients` | boolean |  | `true` | Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; --no-clients skips it |
@@ -324,7 +324,7 @@ ynm list [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--level <value>` | `personal` \| `distributed` |  |  | personal never leaves the user's store by default |
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type (ADR-001) |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type |
 | `--namespace <value>` | string |  |  | Namespace prefix |
 | `--since <value>` | date-time |  |  | Updated at or after |
 | `--until <value>` | date-time |  |  | Updated at or before |
@@ -485,7 +485,7 @@ ynm remember [flags]
 
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type (ADR-001) |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
 | `--level <value>` | `personal` \| `distributed` |  | `personal` | personal never leaves the user's store by default |
 | `--namespace <value>` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
@@ -659,7 +659,7 @@ ynm supersede --memory-id 01J... --content "Updated text"
 
 ## ynm sync
 
-Fetch, merge and push shared memory (never personal unless --mount personal)
+Fetch, merge and push distributed memory (never personal unless --mount personal)
 
 ```text
 ynm sync [flags]

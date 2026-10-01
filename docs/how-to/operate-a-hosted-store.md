@@ -1,6 +1,6 @@
 # Operating a hosted ynm store
 
-The hosted topology (ADR-009) is one process per store: the Streamable HTTP MCP server in front
+A hosted store is one process per store: the Streamable HTTP MCP server in front
 of a bare git repository (or a SQLite file), the single writer for that store, with the dream
 worker and sync on timers. Agents connect over HTTP with a bearer token; they never need git.
 Developers who do have git use the hosted repo as an ordinary remote.
@@ -55,7 +55,7 @@ the index is derived data. The commands, for both providers, are in
 
 One writer per store is the rule. Scale by store (one container per team or namespace root),
 not by replicas of one store. Reads are cheap: the index is SQLite FTS on local disk, p95 recall
-under 200 ms at 100k memories on the reference machine (ADR-014). If a store outgrows a single
+under 200 ms at 100k memories on the reference machine. If a store outgrows a single
 writer, split by namespace or move that store to the sqlite provider (`provider: sqlite` in the
 store's `config.json`) which drops the git write path entirely.
 
@@ -65,7 +65,7 @@ block shows the last run's pass summary and any error.
 
 ## Local clones and the hosted store
 
-Developers add the hosted repo as a remote (`ynm init` writes the shared fetch refspec and a
-pre-push hook), then `ynm sync` fetches, merges (`cat_sort_uniq`) and pushes shared notes. Pushes
+Developers add the hosted repo as a remote (`ynm init` writes the distributed fetch refspec and a
+pre-push hook), then `ynm sync` fetches, merges (`cat_sort_uniq`) and pushes distributed notes. Pushes
 land on the same refs the server writes under its lock; a rejected push retries after a fresh
 fetch. Personal memory never leaves the developer's own `~/.ynm/store.git`.

@@ -12,7 +12,7 @@ brew install eyelock/tap/ynm
 cd your-repo && ynm init
 ```
 
-`ynm init` creates the repository's shared memory mount and configures the agent clients the
+`ynm init` creates the repository's distributed memory mount and configures the agent clients the
 repository already uses; [Set up your agent clients](#set-up-your-agent-clients) says how it
 tells them apart and what each one gets. The rest of this page covers the other ways to install.
 
@@ -202,7 +202,7 @@ launch, so they follow you into every repository. Add ynm to the harness once, w
 `ynm client install` in the harness directory (the name can be left out there; `ynm client
 install ynh` is the same; `ynm init` refuses to install into a harness;
 a harness is not a project). Without `ynm init` in a repository, the agent's memory goes to your
-personal store. Run `ynm init --no-clients` in a repository only to add shared, team memory: the
+personal store. Run `ynm init --no-clients` in a repository only to add distributed, team memory: the
 flag keeps init from also writing `.mcp.json`, an instruction file and hooks that would duplicate what
 the harness already provides.
 

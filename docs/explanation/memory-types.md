@@ -7,7 +7,7 @@ it, when to write and read it, what ynm does with it on its own, and how you set
 
 The taxonomy is the one production agent-memory systems have converged on (working, episodic,
 semantic, procedural, from the CoALA paper) plus two that nearly every product adds: reflective
-and reference. [ADR-001](../adr/001-memory-model.md) records the decision.
+and reference.
 
 ## At a glance
 
@@ -117,7 +117,7 @@ one imperative paragraph, specific to this project. Read it before doing the thi
 team rule, and the guidance agents receive tells them so.
 
 **How you set it.** `--type procedural`. Promote a personal one to the team with
-`ynm promote <id>`, which copies it into the shared store and links back; the original stays
+`ynm promote <id>`, which copies it into the distributed store and links back; the original stays
 personal.
 
 ## Reflective
@@ -166,7 +166,7 @@ Type says what kind of thing a memory is. Two other fields say who can see it an
 grouped:
 
 - **Level** is `personal` (your store, never leaves your machine) or `distributed` (the
-  project's shared refs, synced with the remote). Personal is the default for everything; make a
+  project's distributed refs, synced with the remote). Personal is the default for everything; make a
   memory distributed only when it is a team fact and contains no secret. The redaction gate
   refuses distributed writes that look like keys or tokens.
 - **Namespace** groups memories: `user/<id>` for personal, `common` for distributed, anything

@@ -12,10 +12,10 @@ const USER = "ynm";
 const PASS = "ynm-pass-123";
 
 /**
- * NFR-6: a dedicated shared memory repo on a forge. Gitea in a container plays the forge; two
+ * NFR-6: a dedicated distributed memory repo on a forge. Gitea in a container plays the forge; two
  * clones init, write, sync (fetch, cat_sort_uniq merge, push) and see each other's memories.
  */
-describe.skipIf(!available)("shared store on a Gitea container (NFR-6)", () => {
+describe.skipIf(!available)("distributed store on a Gitea container (NFR-6)", () => {
   let container = "";
   let port = 0;
 
@@ -73,7 +73,7 @@ describe.skipIf(!available)("shared store on a Gitea container (NFR-6)", () => {
     if (container) spawnSync("docker", ["stop", "-t", "2", container]);
   });
 
-  it("two clones sync shared memory through the forge", async () => {
+  it("two clones sync distributed memory through the forge", async () => {
     const remote = `http://${USER}:${PASS}@127.0.0.1:${port}/${USER}/memory.git`;
     const env = (user: string) => ({
       ...process.env,

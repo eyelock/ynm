@@ -4,7 +4,6 @@ When an agent asks ynm for memory, the answer is a short ranked list, and the or
 than the length: the agent reads the top few and stops. This page explains how that order is
 decided: the index that finds candidates, the score that orders them, why age counts differently
 for each type, what pinning does, and the optional reranker at the end.
-[ADR-005](../adr/005-search-plugins.md) records the design.
 
 ## Why there is an index at all
 

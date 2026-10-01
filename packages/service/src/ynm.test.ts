@@ -93,9 +93,9 @@ describe("Ynm service", () => {
     const { memoryId } = await y.remember({ type: "procedural", content: "Always run the gate." });
     const p = await y.promote(memoryId);
     expect(p.mount).toBe("project");
-    const shared = (await y.list({ level: "distributed", includeTombstoned: false }))[0];
-    expect(shared?.namespace).toBe("common");
-    expect(shared?.links).toEqual([{ rel: "derives-from", to: memoryId }]);
+    const distributed = (await y.list({ level: "distributed", includeTombstoned: false }))[0];
+    expect(distributed?.namespace).toBe("common");
+    expect(distributed?.links).toEqual([{ rel: "derives-from", to: memoryId }]);
     expect((await y.list({ level: "personal", includeTombstoned: false }))[0]?.memoryId).toBe(
       memoryId
     );

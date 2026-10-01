@@ -3,7 +3,7 @@ import { YnmCommand } from "../lib/base.js";
 
 export default class Sync extends YnmCommand {
   static override description =
-    "Fetch, merge and push shared memory (never personal unless --mount personal)";
+    "Fetch, merge and push distributed memory (never personal unless --mount personal)";
   static override examples = [
     "<%= config.bin %> <%= command.id %>",
     "<%= config.bin %> <%= command.id %> --dry-run",
@@ -22,7 +22,10 @@ export default class Sync extends YnmCommand {
   async run(): Promise<void> {
     const { flags } = await this.parse(Sync);
     if (flags.mount === "personal" && !flags.remote)
-      this.error("syncing the personal store needs an explicit --remote (ADR-007)", { exit: 2 });
+      this.error(
+        "syncing the personal store needs an explicit --remote: personal memory never goes to a project's remote",
+        { exit: 2 }
+      );
     const { ynm } = await this.open(flags);
     const results = await ynm.sync({
       remote: flags.remote,
@@ -39,7 +42,7 @@ export default class Sync extends YnmCommand {
             .map(([id, r]) =>
               r.skipped
                 ? `${id}: ${r.skipped}`
-                : `${id}: fetched ${r.fetched}, merged ${r.merged.length}, pushed ${r.pushed.length}, retries ${r.retries}${r.conflicts.length ? `, conflicts: ${r.conflicts.join("; ")}` : ""}`
+                : `${id}: fetched ${r.fetched}, merged ${r.merged.length}, pushed ${r.pushed.length}, retries ${r.retries}${r.conflicts.length ? `, conflicts: ${r.conflicts.join("; ")}` : ""}${r.refspecAdded ? `\n  added fetch refspec ${r.refspecAdded}` : ""}`
             )
             .join("\n")
         : "nothing to sync (no replicating distributed mount)"

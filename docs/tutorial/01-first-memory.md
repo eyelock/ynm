@@ -72,7 +72,7 @@ remembered 01M3P8JQT7MGJS23ZSY442P3Z6 in personal
 remembered 01M3P8JR5AR59QXSBTDS96MEZX in personal
 ```
 
-Memories are personal by default. Nothing you remember reaches a shared store unless you say
+Memories are personal by default. Nothing you remember reaches a distributed store unless you say
 `--level distributed`.
 
 ## Recall
@@ -175,13 +175,13 @@ refs/notes/ynm/personal/user/tutorial/procedural/2026-09
 refs/notes/ynm/personal/user/tutorial/semantic/2026-09
 ```
 
-The month in the ref name is the month you ran this. The ref path reads level, namespace, type,
+The month in the ref name is the month you ran this, in UTC. The ref path reads level, namespace, type,
 month. A shard is a JSONL file, one record per line, attached as a git note to the store's root
 commit:
 
 ```bash
 ANCHOR=$(git -C /tmp/ynm-tutorial/home/store.git rev-list --max-parents=0 main)
-git -C /tmp/ynm-tutorial/home/store.git notes --ref "refs/notes/ynm/personal/user/tutorial/semantic/$(date +%Y-%m)" show "$ANCHOR"
+git -C /tmp/ynm-tutorial/home/store.git notes --ref "refs/notes/ynm/personal/user/tutorial/semantic/$(date -u +%Y-%m)" show "$ANCHOR"
 ```
 
 Expected: one line of JSON containing `"op":"create"`, `"type":"semantic"`,
@@ -209,4 +209,4 @@ rm -rf /tmp/ynm-tutorial
 unset YNM_HOME YNM_USER
 ```
 
-Next: tutorial 2, project memory, where `ynm init` inside a repository adds the shared mount.
+Next: tutorial 2, project memory, where `ynm init` inside a repository adds the distributed mount.

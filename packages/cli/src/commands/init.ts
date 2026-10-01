@@ -26,7 +26,10 @@ export default class Init extends YnmCommand {
     bare: Flags.string({
       description: "Create or adopt a dedicated bare memory repo at this path",
     }),
-    remote: Flags.string({ description: "Remote for the shared fetch refspec", default: "origin" }),
+    remote: Flags.string({
+      description: "Remote for the distributed fetch refspec",
+      default: "origin",
+    }),
     hooks: Flags.boolean({
       description:
         "Install the pre-push hook (default: the `hooks` config key, which defaults to true)",
@@ -106,6 +109,16 @@ export default class Init extends YnmCommand {
                 )} on this machine but not used here; add one with \`ynm client install <name>\``,
             ]
           : []),
+        ...(report.commit.length
+          ? [
+              `  commit    ${report.commit.join(" ")}`,
+              "            the team shares these; commit them so every clone gets the same setup",
+            ]
+          : []),
+        ...(report.local.length
+          ? [`  local     ${report.local.join(" ")} (yours only; excluded from git)`]
+          : []),
+        "  memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it",
         'next: `ynm remember --type semantic --content "..."` and `ynm doctor`',
       ].join("\n")
     );

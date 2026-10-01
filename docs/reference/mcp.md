@@ -39,7 +39,7 @@ CLI: `ynm remember`.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type (ADR-001) |
+| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
 | `level` | `personal` \| `distributed` |  | `personal` | personal never leaves the user's store by default |
 | `namespace` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `content` | string (max 65536) | yes |  | Markdown; the memory itself |
@@ -186,7 +186,7 @@ CLI: `ynm dream`.
 
 ### memory_sync
 
-Fetch, merge and push shared memory with the configured remote. Personal memory is never synced by this tool.
+Fetch, merge and push distributed memory with the configured remote. Personal memory is never synced by this tool.
 
 CLI: `ynm sync`.
 

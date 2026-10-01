@@ -27,7 +27,7 @@ Expected: `personal store created at /tmp/ynm-tutorial/home/store.git` and nothi
 DEPLOY=$(ynm remember --type semantic --content "We deploy on Tuesdays." --tags deploy --json | grep '"memoryId"' | cut -d'"' -f4)
 DB=$(ynm remember --type semantic --content "The staging database is Postgres 14." --json | grep '"memoryId"' | cut -d'"' -f4)
 WIKI=$(ynm remember --type reference --content "Old wiki page: https://example.com/old-wiki" --json | grep '"memoryId"' | cut -d'"' -f4)
-TOKEN=$(ynm remember --type semantic --content "Temporary API token is in the shared notes: hunter2" --json | grep '"memoryId"' | cut -d'"' -f4)
+TOKEN=$(ynm remember --type semantic --content "Temporary API token is in the team notes: hunter2" --json | grep '"memoryId"' | cut -d'"' -f4)
 echo "$DEPLOY $DB $WIKI $TOKEN"
 ```
 
@@ -77,7 +77,7 @@ Expected: `forgot <id> (record <26-character id>)`, then three memories, without
 
 ```text
 <id>  semantic   personal    user/tutorial            We deploy on Wednesdays, never on Fridays.
-<id>  semantic   personal    user/tutorial            Temporary API token is in the shared notes: hunter2
+<id>  semantic   personal    user/tutorial            Temporary API token is in the team notes: hunter2
 <id>  semantic   personal    user/tutorial            The staging database is Postgres 14.
 ```
 
@@ -125,7 +125,7 @@ earlier commits on the ref still hold the removed text. Count how many times it 
 shard's history:
 
 ```bash
-git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/personal/user/tutorial/semantic/$(date +%Y-%m) | grep -o hunter2 | wc -l
+git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/personal/user/tutorial/semantic/$(date -u +%Y-%m) | grep -o hunter2 | wc -l
 ```
 
 Expected: a number greater than zero. The secret is gone from the log and still in git history.
@@ -136,7 +136,7 @@ that way:
 ```bash
 SECRET=$(ynm remember --type semantic --content "Password for the demo box is swordfish." --json | grep '"memoryId"' | cut -d'"' -f4)
 ynm purge "$SECRET" --reason "second secret" --forget-history --yes
-git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/personal/user/tutorial/semantic/$(date +%Y-%m) | grep -o -E "hunter2|swordfish" | wc -l
+git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/personal/user/tutorial/semantic/$(date -u +%Y-%m) | grep -o -E "hunter2|swordfish" | wc -l
 ```
 
 Expected: `purged <id>: 1 record(s) removed from personal`, then `0` (macOS pads the count with spaces). Neither secret survives in any

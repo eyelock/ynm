@@ -119,7 +119,7 @@ Expected: the one memory, then two refs, the anchor branch and the shard the ser
 ```text
 <id>  semantic   distributed common                   The hosted store answers on port 3999.
 refs/heads/main
-refs/notes/ynm/shared/common/semantic/<yyyy-mm>
+refs/notes/ynm/distributed/common/semantic/<yyyy-mm>
 ```
 
 A developer clone of this repository would fetch that ref with `ynm sync`, exactly as in

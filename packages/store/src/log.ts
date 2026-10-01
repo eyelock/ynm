@@ -62,6 +62,8 @@ export interface SyncResult {
   retries: number;
   /** Set when the sync could not run at all (no such remote); a report, not a failure. */
   skipped?: string;
+  /** The fetch refspec sync added to the remote's config because it was missing. */
+  refspecAdded?: string;
 }
 
 /**
@@ -129,7 +131,7 @@ export function shardMatches(key: ShardKey, filter: ShardFilter | undefined): bo
 
 export class LevelMismatchError extends Error {
   constructor(logId: string, logLevel: Level, recordLevel: Level) {
-    super(`log "${logId}" is ${logLevel}; refusing a ${recordLevel} record (ADR-001, ADR-007)`);
+    super(`log "${logId}" is ${logLevel}; refusing a ${recordLevel} record`);
     this.name = "LevelMismatchError";
   }
 }
