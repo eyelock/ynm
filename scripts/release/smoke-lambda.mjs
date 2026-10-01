@@ -3,9 +3,12 @@
 // Unpacks the zip, imports index.mjs as the Lambda runtime would, and calls `handler` with a
 // scheduled health event, a Function URL GET /health, a request without a token (401), an MCP
 // initialize, and the session-start prompt (embedded guidance), against a throwaway sqlite store.
+// The bearer token is not in the environment: a fake Parameter Store serves it under
+// YNM_SSM_ENV_PATH, so the cold-start secret loading is exercised too.
 // Prints each step; exits 1 on the first failure.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -32,21 +35,51 @@ const event = (method, rawPath, headers = {}, body) => ({
   ...(body === undefined ? {} : { body: JSON.stringify(body), isBase64Encoded: false }),
 });
 
+// Just enough of SSM's JSON API for GetParametersByPath, with one page per parameter so the
+// entry's pagination runs.
+const ssmParams = [
+  { Name: "/ynm/smoke/env/YNM_MCP_TOKEN", Value: "smoke-token" },
+  { Name: "/ynm/smoke/env/ANTHROPIC_API_KEY", Value: "unset" },
+];
+const ssm = createServer(async (req, res) => {
+  let body = "";
+  for await (const c of req) body += c;
+  const { Path, NextToken } = JSON.parse(body || "{}");
+  const i = Number(NextToken ?? 0);
+  const page = ssmParams.filter((p) => p.Name.startsWith(Path)).slice(i, i + 1);
+  const more = i + 1 < ssmParams.length;
+  res.writeHead(200, { "content-type": "application/x-amz-json-1.1" });
+  res.end(JSON.stringify({ Parameters: page, ...(more ? { NextToken: String(i + 1) } : {}) }));
+});
+await new Promise((r) => ssm.listen(0, "127.0.0.1", r));
+
 try {
   const unzip = spawnSync("unzip", ["-q", zip, "-d", code], { stdio: "inherit" });
   if (!step("unzip", unzip.status === 0, zip)) process.exit(1);
 
+  // Whatever this shell has must not stand in for what Parameter Store should supply.
+  delete process.env.YNM_MCP_TOKEN;
+  delete process.env.ANTHROPIC_API_KEY;
   Object.assign(process.env, {
     YNM_PUBLIC_URL: "https://memory.example.com/mcp",
     YNM_HOME: join(scratch, "home"),
     YNM_USER: "smoke",
-    YNM_MCP_TOKEN: "smoke-token",
+    YNM_SSM_ENV_PATH: "/ynm/smoke/env/",
+    AWS_ENDPOINT_URL_SSM: `http://127.0.0.1:${ssm.address().port}`,
+    AWS_REGION: "us-east-1",
+    AWS_ACCESS_KEY_ID: "smoke",
+    AWS_SECRET_ACCESS_KEY: "smoke",
     YNM_MOUNTS: JSON.stringify([
       { id: "team", level: "distributed", provider: "sqlite", path: join(scratch, "store.sqlite") },
     ]),
   });
   const { handler } = await import(pathToFileURL(join(code, "index.mjs")).href);
   step("index.mjs exports handler", typeof handler === "function");
+  step(
+    "secrets from Parameter Store",
+    process.env.YNM_MCP_TOKEN === "smoke-token" && process.env.ANTHROPIC_API_KEY === undefined,
+    "YNM_MCP_TOKEN set, the unset placeholder skipped"
+  );
 
   const health = await handler({ ynm: "health" });
   step("scheduled health", health?.status === "ok", JSON.stringify(health));
@@ -101,6 +134,7 @@ try {
 } catch (err) {
   step("smoke", false, err instanceof Error ? err.stack : String(err));
 } finally {
+  ssm.close();
   rmSync(scratch, { recursive: true, force: true });
 }
 process.exit(failed ? 1 : 0);
