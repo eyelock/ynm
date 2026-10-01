@@ -174,6 +174,54 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     await close();
   });
 
+  it("reads wiki pages and refuses unknown memories, wrong mounts and missing pages", async () => {
+    const repo = await createRepo(1);
+    await initProject({ cwd: repo, hooks: false });
+    const { client, close } = await connected(repo);
+    const r = data<{ memoryId: string; mount: string }>(
+      await client.callTool({
+        name: "memory_remember",
+        arguments: { type: "semantic", level: "distributed", content: "Wiki pages project memory" },
+      })
+    );
+    expect(r.mount).toBe("project");
+
+    const index = await client.readResource({ uri: "memory://project/wiki/index.md" });
+    expect(index.contents[0]?.mimeType).toBe("text/markdown");
+    expect((index.contents[0] as { text: string }).text).toContain(r.memoryId);
+    const page = await client.readResource({
+      uri: `memory://project/wiki/memories/${r.memoryId}.md`,
+    });
+    expect((page.contents[0] as { text: string }).text).toMatch(/Wiki pages project memory/);
+
+    await expect(client.readResource({ uri: "memory://project/wiki/nope.md" })).rejects.toThrow(
+      /no wiki page nope\.md in mount project/
+    );
+    await expect(client.readResource({ uri: `memory://personal/${r.memoryId}` })).rejects.toThrow(
+      new RegExp(`no memory ${r.memoryId} in mount personal`)
+    );
+    await expect(client.readResource({ uri: "memory://project/01NOSUCHMEMORY" })).rejects.toThrow(
+      /no memory 01NOSUCHMEMORY/
+    );
+    await close();
+  });
+
+  it("turns a failure to open the service into a tool error, not a protocol error", async () => {
+    const server = createYnmServer({ cwd: "/nowhere", version: "9.9.9" }, async () => {
+      throw "store unavailable";
+    });
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverT);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientT);
+    expect(client.getServerVersion()?.version).toBe("9.9.9");
+    const r = await client.callTool({ name: "memory_status" });
+    expect(r.isError).toBe(true);
+    expect(r.content).toEqual([{ type: "text", text: "store unavailable" }]);
+    await client.close();
+    await server.close();
+  });
+
   it("parses CLI arguments", () => {
     expect(parseArgs(["--http", "--port", "4000", "--token", "t", "--cwd", "/x"])).toMatchObject({
       mode: "http",

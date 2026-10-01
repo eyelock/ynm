@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { REMEMBER_NUDGE, SESSION_START_PREFIX } from "@ynm/service";
-import { testYnmHome, ynm, ynmWithInput } from "../../test/helpers.js";
+import { testYnmHome, ynm, ynmWith, ynmWithInput } from "../../test/helpers.js";
 
 const hookJson = (o: Record<string, unknown>) => JSON.stringify(o);
 
@@ -95,5 +95,57 @@ describe("ynm hook", () => {
     const missing = ynmWithInput(cwd, "{}", "hook");
     expect(missing.status).toBe(0);
     expect(JSON.parse(missing.stdout)).toEqual({});
+  });
+
+  it("goes through oclif when the fast path declines, and still answers", () => {
+    const viaOclif = ynmWithInput(
+      cwd,
+      hookJson({ prompt: "Call me Dee." }),
+      "hook",
+      "--",
+      "prompt"
+    );
+    expect(viaOclif.status).toBe(0);
+    expect(JSON.parse(viaOclif.stdout)).toEqual({
+      hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: REMEMBER_NUDGE },
+    });
+    const rejected = ynmWithInput(cwd, "{}", "hook", "prompt", "--bogus");
+    expect(rejected.status).toBe(0);
+    expect(rejected.stdout.trim()).toBe("{}");
+    expect(rejected.stderr).toMatch(/^ynm hook: Nonexistent flag: --bogus/);
+  });
+
+  it("stop prunes day-old session stamps", () => {
+    const dir = join(testYnmHome, "hooks");
+    mkdirSync(dir, { recursive: true });
+    const old = join(dir, "stop-ancient");
+    writeFileSync(old, "");
+    const twoDaysAgo = new Date(Date.now() - 48 * 3600_000);
+    utimesSync(old, twoDaysAgo, twoDaysAgo);
+    expect(hook(cwd, "stop", hookJson({ session_id: "prune-test", cwd })).out).toEqual({});
+    expect(existsSync(old)).toBe(false);
+    expect(existsSync(join(dir, "stop-prune-test"))).toBe(true);
+  });
+
+  it("stop still answers when it cannot write a stamp", () => {
+    const home = mkdtempSync(join(tmpdir(), "ynm-hook-home-"));
+    writeFileSync(join(home, "hooks"), "not a directory");
+    const r = ynmWith(
+      cwd,
+      { input: hookJson({ session_id: "s", cwd }), env: { YNM_HOME: home } },
+      "hook",
+      "stop"
+    );
+    expect(r.status).toBe(0);
+    expect(JSON.parse(r.stdout)).toEqual({});
+  });
+
+  it("an error opening the store becomes {} with the message on stderr", () => {
+    const home = mkdtempSync(join(tmpdir(), "ynm-hook-home-"));
+    writeFileSync(join(home, "config.json"), "{bad");
+    const r = ynmWith(cwd, { input: "{}", env: { YNM_HOME: home } }, "hook", "session-start");
+    expect(r.status).toBe(0);
+    expect(JSON.parse(r.stdout)).toEqual({});
+    expect(r.stderr).toMatch(/^ynm hook: .*JSON/);
   });
 });

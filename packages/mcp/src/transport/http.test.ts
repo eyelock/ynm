@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { McpServer } from "@modelcontextprotocol/server";
 import { initProject } from "@ynm/service";
 import { createBare } from "@ynm/store/testing/git";
 import { StaticTokenVerifier } from "../auth.js";
@@ -180,6 +182,160 @@ describe("token verifiers on the transport (ADR-009)", () => {
       scheduler: { dreamRuns: number };
     };
     expect(h.scheduler.dreamRuns).toBe(3);
+    await handle.close();
+  });
+});
+
+/** A server with one tool and no store, for transport behaviour that never reaches memory. */
+function bare(): McpServer {
+  const server = new McpServer({ name: "bare", version: "0" }, { capabilities: { tools: {} } });
+  server.registerTool("ping", { description: "answers pong" }, async () => ({
+    content: [{ type: "text", text: "pong" }],
+  }));
+  return server;
+}
+
+/** fetch() forbids setting Host, so raw requests go through node:http. */
+function raw(
+  port: number,
+  opts: { method?: string; path?: string; headers?: Record<string, string | string[]> }
+): Promise<{ status: number; headers: Record<string, unknown>; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(
+      {
+        host: "localhost",
+        port,
+        method: opts.method ?? "GET",
+        path: opts.path ?? "/mcp",
+        headers: opts.headers,
+      },
+      (res) => {
+        let body = "";
+        res.on("data", (c) => {
+          body += c;
+        });
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body }));
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+describe("HTTP front door: CORS, host and origin checks", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("answers a preflight from an allowed origin with CORS headers and no auth", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      quiet: true,
+      authToken: "secret",
+      allowedOrigins: ["https://app.example"],
+    });
+    const pre = await fetch(handle.url, {
+      method: "OPTIONS",
+      headers: { Origin: "https://app.example" },
+    });
+    expect(pre.status).toBe(204);
+    expect(pre.headers.get("access-control-allow-origin")).toBe("https://app.example");
+    expect(pre.headers.get("vary")).toBe("Origin");
+    expect(pre.headers.get("access-control-allow-headers")).toMatch(/Authorization/);
+    const other = await fetch(handle.url, {
+      method: "OPTIONS",
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(other.status).toBe(204);
+    expect(other.headers.get("access-control-allow-origin")).toBeNull();
+    await handle.close();
+  });
+
+  it("rejects a foreign origin and a foreign Host header before auth or the handler", async () => {
+    const handle = await startHttp(bare, { port: 0, quiet: true, authToken: "secret" });
+    const origin = await fetch(handle.url, {
+      method: "POST",
+      headers: { Origin: "https://evil.example", Authorization: "Bearer secret" },
+      body: "{}",
+    });
+    expect(origin.status).toBe(403);
+    expect(origin.headers.get("content-type")).toBe("application/json");
+    const host = await raw(handle.port, {
+      method: "POST",
+      headers: { Host: "evil.example", Authorization: "Bearer secret" },
+    });
+    expect(host.status).toBe(403);
+    expect(host.body).toMatch(/host/i);
+    await handle.close();
+  });
+
+  it("a wildcard host list accepts any Host header", async () => {
+    const handle = await startHttp(bare, { port: 0, quiet: true, allowedHosts: ["*"] });
+    const r = await raw(handle.port, {
+      method: "GET",
+      path: "/health",
+      headers: { Host: "memory.internal" },
+    });
+    expect(r.status).toBe(200);
+    expect(JSON.parse(r.body)).toEqual({ status: "ok", name: "ynm" });
+    const mcp = await raw(handle.port, {
+      method: "DELETE",
+      headers: { Host: "memory.internal" },
+    });
+    // Past the host check, the MCP handler itself answers (stateless: no DELETE).
+    expect(mcp.status).toBe(405);
+    expect(JSON.parse(mcp.body).error.message).toMatch(/Method not allowed/);
+    await handle.close();
+  });
+
+  it("refuses a non-Bearer Authorization with a realm challenge", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      quiet: true,
+      authToken: "secret",
+      rejectLegacy: true,
+    });
+    const r = await fetch(handle.url, {
+      method: "POST",
+      headers: { Authorization: "Basic c2VjcmV0" },
+      body: "{}",
+    });
+    expect(r.status).toBe(401);
+    expect(r.headers.get("www-authenticate")).toBe('Bearer realm="ynm"');
+    expect(await r.json()).toEqual({ error: "Unauthorized" });
+    await handle.close();
+  });
+
+  it("passes repeated request headers through and serves a client with a static token", async () => {
+    const handle = await startHttp(bare, { port: 0, quiet: true, authToken: "secret" });
+    const r = await raw(handle.port, {
+      method: "POST",
+      headers: { "Set-Cookie": ["a=1", "b=2"] },
+    });
+    expect(r.status).toBe(401);
+    const client = await connect(handle.url, "secret");
+    const pong = await client.callTool({ name: "ping", arguments: {} });
+    expect((pong.content as Array<{ text: string }>)[0]?.text).toBe("pong");
+    await client.close();
+    await handle.close();
+  });
+
+  it("logs the listening address and serving errors to stderr unless quiet", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const handle = await startHttp(
+      () => {
+        throw new Error("factory broke");
+      },
+      { port: 0, host: "127.0.0.1" }
+    );
+    expect(err).toHaveBeenCalledWith(
+      `ynm-mcp listening on http://127.0.0.1:${handle.port}/mcp (health: http://127.0.0.1:${handle.port}/health)`
+    );
+    const client = new Client({ name: "http-test", version: "0" });
+    await expect(
+      client.connect(new StreamableHTTPClientTransport(new URL(handle.url)))
+    ).rejects.toThrow();
+    expect(err.mock.calls.some(([m]) => /^\[ynm-mcp\] .*factory broke/.test(String(m)))).toBe(true);
     await handle.close();
   });
 });

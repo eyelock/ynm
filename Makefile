@@ -1,6 +1,6 @@
 # ynm developer front door. Every command a developer or CI runs is a target here, so the
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
-.PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage \
+.PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage coverage-diff \
         test-hosted test-tutorials eval-tutorials bench bench-large bench-public gate \
         gen golden docs docs-gen docs-links release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
@@ -8,7 +8,7 @@ M ?= M6
 
 help:
 	@echo "Setup:    deps build install (~/.ynm/bin/ynm runs this checkout) uninstall rebuild build-pkg P= test-pkg P="
-	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage"
+	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage coverage-diff"
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
@@ -64,6 +64,10 @@ test:
 
 coverage:
 	pnpm test:coverage
+
+# Line coverage of what this branch changes, against BASE (default origin/develop); run coverage first.
+coverage-diff:
+	node scripts/coverage-diff.mjs --base $(or $(BASE),origin/develop) --min 80
 
 ## Evals (see docs/adr/014 and docs/tutorial/RUNNING.md)
 test-hosted:
