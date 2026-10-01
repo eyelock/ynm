@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRepo, rootCommit, tempDir } from "@ynm/store/testing/git";
 import { YnmConfigSchema } from "./config.js";
-import { openConfiguredMount, openMounts, projectInitialised } from "./mounts.js";
+import { loadStoreS3, openConfiguredMount, openMounts, projectInitialised } from "./mounts.js";
 import type { WorktreeInfo } from "./worktree.js";
 
 describe("openConfiguredMount", () => {
@@ -121,5 +121,48 @@ describe("openMounts", () => {
     expect(projectInitialised(worktreeAt(repo, false))).toBe(false);
     const personalOnly = await openMounts({ loaded, worktree: worktreeAt(repo) });
     expect(personalOnly.map((m) => m.id)).toEqual(["personal"]);
+  });
+});
+
+describe("s3 mounts", () => {
+  it("opens an s3 mount from bucket, prefix and region, loading the provider on demand", async () => {
+    const mount = await openConfiguredMount({
+      id: "hosted",
+      level: "distributed",
+      provider: "s3",
+      bucket: "ynm-store",
+      prefix: "clients/one",
+      region: "eu-west-2",
+    });
+    expect(mount.log.provider).toBe("s3");
+    expect(mount.location).toBe("s3://ynm-store/clients/one");
+    const bare = await openConfiguredMount({
+      id: "root",
+      level: "personal",
+      provider: "s3",
+      bucket: "b",
+    });
+    expect(bare.location).toBe("s3://b/");
+  });
+
+  it("refuses an s3 mount without a bucket and another mount without a path", async () => {
+    await expect(
+      openConfiguredMount({ id: "x", level: "personal", provider: "s3" })
+    ).rejects.toThrow(/mount x: the s3 provider needs a bucket/);
+    await expect(
+      openConfiguredMount({ id: "y", level: "personal", provider: "fs" })
+    ).rejects.toThrow(/mount y: the fs provider needs a path/);
+  });
+
+  it("says plainly when this build lacks the s3 provider", async () => {
+    const missing = Object.assign(new Error("Cannot find package '@ynm/store-s3'"), {
+      code: "ERR_MODULE_NOT_FOUND",
+    });
+    await expect(loadStoreS3("hosted", () => Promise.reject(missing))).rejects.toThrow(
+      /mount hosted: this build of ynm does not include the s3 provider/
+    );
+    await expect(loadStoreS3("hosted", () => Promise.reject(new Error("boom")))).rejects.toThrow(
+      "boom"
+    );
   });
 });

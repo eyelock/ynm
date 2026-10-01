@@ -32,6 +32,9 @@ const common = {
   loader: { ".md": "text" },
   // The entry sits outside the CLI package; resolve its bare imports as the CLI would.
   nodePaths: [join(root, "packages/cli/node_modules")],
+  // The s3 provider and the AWS SDK stay out of the bundles: the service imports @ynm/store-s3
+  // only when a mount asks for it, and here that import gets a stub that reports it missing.
+  alias: { "@ynm/store-s3": join(root, "scripts/release/no-store-s3.mjs") },
   logLevel: "warning",
 };
 
