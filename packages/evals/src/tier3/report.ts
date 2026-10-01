@@ -3,11 +3,17 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { BenchReport } from "./driver.js";
 
-const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "reports");
+/** Where real benchmark runs keep reports: packages/evals/reports. */
+export const REPORTS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "reports");
+
+/** Options shared by the report functions; `dir` defaults to {@link REPORTS_DIR}. */
+export interface ReportOptions {
+  dir?: string;
+}
 
 /** Reports are committed per release under packages/evals/reports/<version>/<dataset>.json (ADR-014). */
-export function reportPath(version: string, dataset: string): string {
-  return join(dir, version, `${dataset}.json`);
+export function reportPath(version: string, dataset: string, opts: ReportOptions = {}): string {
+  return join(opts.dir ?? REPORTS_DIR, version, `${dataset}.json`);
 }
 
 /**
@@ -15,8 +21,8 @@ export function reportPath(version: string, dataset: string): string {
  * latest run that answered. So a cheap retrieval-only refresh never drops paid answers, and a
  * small answering run never shrinks the retrieval sample.
  */
-export function writeReport(report: BenchReport): string {
-  const file = reportPath(report.ynmVersion, report.dataset);
+export function writeReport(report: BenchReport, opts: ReportOptions = {}): string {
+  const file = reportPath(report.ynmVersion, report.dataset, opts);
   mkdirSync(dirname(file), { recursive: true });
   const previous = existsSync(file)
     ? (JSON.parse(readFileSync(file, "utf8")) as BenchReport)
@@ -45,7 +51,11 @@ export function mergeReports(previous: BenchReport | undefined, report: BenchRep
   };
 }
 
-export function readReport(version: string, dataset: string): BenchReport | undefined {
-  const file = reportPath(version, dataset);
+export function readReport(
+  version: string,
+  dataset: string,
+  opts: ReportOptions = {}
+): BenchReport | undefined {
+  const file = reportPath(version, dataset, opts);
   return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as BenchReport) : undefined;
 }
