@@ -84,4 +84,6 @@ which.
   distributed, if it contains nothing secret.
 - Not sure: personal. Promotion is one command later; un-sharing is not possible.
 
-The guidance agents receive says the same thing, and it is why personal is the default.
+The guidance agents receive says the same thing, and it is why personal is the default. A hosted
+server has no personal store, so there an agent's writes are distributed, shared with everyone
+who uses the server, and its instructions say so.

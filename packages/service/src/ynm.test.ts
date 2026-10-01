@@ -38,6 +38,37 @@ describe("Ynm service", () => {
     expect(m?.current.provenance.actor).toBe("test");
   });
 
+  it("defaults to distributed when there is no personal mount (a hosted server)", async () => {
+    const y = new Ynm({
+      mounts: [
+        {
+          id: "project",
+          level: "distributed",
+          location: "mem",
+          log: new MemoryLog("project", "distributed"),
+        },
+      ],
+      actor: "test",
+      userId: "david",
+      redaction: DEFAULT_REDACTION,
+    });
+    expect(y.defaultLevel()).toBe("distributed");
+    const r = await y.remember({ type: "semantic", content: "Call the user DC." });
+    expect(r.mount).toBe("project");
+    const [m] = await y.list();
+    expect(m?.current.level).toBe("distributed");
+    expect(m?.namespace).toBe("common");
+    // An explicit personal level still fails: the default never overrides what was asked for.
+    await expect(y.remember({ type: "semantic", level: "personal", content: "x" })).rejects.toThrow(
+      /no personal mount available/
+    );
+  });
+
+  it("keeps personal as the default when a personal mount is open", () => {
+    expect(make().defaultLevel()).toBe("personal");
+    expect(make(false).defaultLevel()).toBe("personal");
+  });
+
   it("routes distributed records to the project mount", async () => {
     const y = make();
     const r = await y.remember({

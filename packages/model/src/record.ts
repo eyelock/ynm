@@ -186,7 +186,9 @@ export const DEFAULT_WORKING_TTL = "PT8H";
 const RememberFieldsSchema = z
   .object({
     type: MemoryTypeSchema,
-    level: LevelSchema.default("personal"),
+    level: LevelSchema.optional().describe(
+      "personal (private) or distributed (team-shared); omit for the store's default: personal when it has a personal mount, else distributed"
+    ),
     namespace: NamespaceSchema.default(COMMON_NAMESPACE),
     content: z.string().min(1).max(65_536).describe("Markdown; the memory itself"),
     summary: z
