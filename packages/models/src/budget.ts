@@ -32,10 +32,15 @@ export class SpendGuard {
       throw new BudgetExceededError(this.label, this.spent + estimate, this.maxInputTokens);
   }
 
-  /** Record actual usage after the call. */
+  /**
+   * Record actual usage after the call. A paid call always sends input, so a missing or
+   * non-positive input count means the provider did not report it (adapters fill gaps with 0);
+   * charge the pre-call estimate instead so the call still counts against the cap.
+   */
   charge(usage?: Usage, estimate = 0): void {
     this.calls += 1;
-    this.spent += usage?.inputTokens ?? estimate;
+    const reported = usage?.inputTokens ?? 0;
+    this.spent += reported > 0 ? reported : estimate;
     if (this.spent > this.maxInputTokens)
       throw new BudgetExceededError(this.label, this.spent, this.maxInputTokens);
   }
