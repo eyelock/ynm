@@ -11,10 +11,28 @@ resource "github_workflow_repository_permissions" "ynm" {
   can_approve_pull_request_reviews = false
 }
 
+# The gate CI runs. Moving to the next milestone is a release step, not a repository setting:
+# `gh variable set YNM_MILESTONE --body <id>`. Terraform owns that the variable exists and writes
+# the value only when it creates it, so no milestone id lives here.
+data "github_actions_variables" "ynm" {
+  name = github_repository.ynm.name
+}
+
 resource "github_actions_variable" "milestone" {
   repository    = github_repository.ynm.name
   variable_name = "YNM_MILESTONE"
-  value         = var.milestone
+  # The placeholder is never written: the precondition stops a create without a real value, and
+  # ignore_changes stops an update.
+  value = coalesce(var.milestone, "unset")
+
+  lifecycle {
+    ignore_changes = [value]
+
+    precondition {
+      condition     = var.milestone != null || contains(data.github_actions_variables.ynm.variables[*].name, "YNM_MILESTONE")
+      error_message = "YNM_MILESTONE does not exist yet: set TF_VAR_milestone to the gate CI should run."
+    }
+  }
 }
 
 # GitHub never returns a secret's value, so Terraform owns that the secret exists and writes

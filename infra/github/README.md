@@ -20,6 +20,8 @@ Not managed here:
   it (`terraform/eyelock_tap` in `eyelock/ynh`).
 - The value of `RELEASE_TOKEN`. GitHub never returns it, so Terraform writes it only when it
   creates the secret.
+- The value of `YNM_MILESTONE`, which moves with the milestones. Terraform writes it only when it
+  creates the variable.
 
 ## Use
 
@@ -41,8 +43,9 @@ terraform apply
 To change a setting, edit the `.tf` file, `plan`, then `apply`. A change made in the GitHub UI
 shows as drift in the next `plan`; either copy it into the configuration or `apply` to undo it.
 
-When the gate moves to a new milestone: `terraform apply -var milestone=<id>`, or change the
-default in `variables.tf`.
+When the gate moves to a new milestone, change the variable on GitHub:
+`gh variable set YNM_MILESTONE --body <id>`. Terraform writes it only when it creates it, so the
+change does not show as drift.
 
 To rotate `RELEASE_TOKEN`:
 
@@ -62,8 +65,8 @@ For a new owner or name, set `owner` and `repository`, then:
    `terraform apply -target=github_repository.ynm`.
 3. Push `main` and `develop` from a clone (`git push <new-remote> main develop --tags`). The
    default branch, protections and Pages need the branches to exist.
-4. Apply the rest, with the release token, since the secret is being created:
-   `TF_VAR_release_token=<token> terraform apply`.
+4. Apply the rest, with the release token and the gate, since the secret and the variable are
+   being created: `TF_VAR_release_token=<token> TF_VAR_milestone=<id> terraform apply`.
 
 The protections require the `verify` and `Verify PR source branch` checks, which report once the
 workflows have run on a pull request.

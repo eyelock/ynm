@@ -22,9 +22,12 @@ variable "visibility" {
 }
 
 variable "milestone" {
-  description = "Milestone the CI gate checks (the YNM_MILESTONE Actions variable)"
+  description = <<-EOT
+    The gate CI runs (the YNM_MILESTONE Actions variable). Needed only when the variable is
+    created; after that it changes with `gh variable set`, and an existing value is never read back.
+  EOT
   type        = string
-  default     = "M6"
+  default     = null
 }
 
 variable "release_token" {
