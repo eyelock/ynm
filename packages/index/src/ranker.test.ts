@@ -63,3 +63,69 @@ describe("ranker (ADR-005)", () => {
     expect(block.included).toEqual([p.memoryId, r1.memoryId]);
   });
 });
+
+describe("rank edge cases", () => {
+  const now = new Date("2026-09-29T00:00:00.000Z");
+  const flat = { relevance: 1, recency: 0, importance: 0, pinned: 0 };
+
+  it("keeps the best relevance when one list repeats a memory", () => {
+    const m = doc();
+    const ranked = rank(
+      [
+        [
+          { memoryId: m.memoryId, relevance: 0.3, source: "a" },
+          { memoryId: m.memoryId, relevance: 0.8, source: "a" },
+          { memoryId: m.memoryId, relevance: 0.5, source: "a" },
+        ],
+      ],
+      new Map([[m.memoryId, m]]),
+      { hasText: true, now, weights: flat }
+    );
+    expect(ranked).toEqual([{ memoryId: m.memoryId, score: 0.8, explain: undefined }]);
+  });
+
+  it("normalises fused relevance so the top fused hit scores 1", () => {
+    const a = doc();
+    const b = doc();
+    const byId = new Map([a, b].map((m) => [m.memoryId, m]));
+    const ranked = rank(
+      [
+        [
+          { memoryId: a.memoryId, relevance: 1, source: "x" },
+          { memoryId: b.memoryId, relevance: 1, source: "x" },
+        ],
+        [{ memoryId: b.memoryId, relevance: 1, source: "y" }],
+      ],
+      byId,
+      { hasText: true, now, weights: flat, explain: true }
+    );
+    expect(ranked.map((r) => r.memoryId)).toEqual([b.memoryId, a.memoryId]);
+    expect(ranked[0]?.explain?.relevance).toBe(1);
+    expect(ranked[1]?.explain?.relevance).toBeGreaterThan(0);
+    expect(ranked[1]?.explain?.relevance).toBeLessThan(1);
+  });
+
+  it("returns nothing for no lists and drops hits whose memory is unknown", () => {
+    const m = doc();
+    const byId = new Map([[m.memoryId, m]]);
+    expect(rank([], byId, { hasText: false, now })).toEqual([]);
+    expect(
+      rank([[{ memoryId: "missing", relevance: 1, source: "x" }]], byId, { hasText: true, now })
+    ).toEqual([]);
+  });
+
+  it("breaks score ties by memory id, descending", () => {
+    const a = doc({ memoryId: "01A", type: "procedural" });
+    const b = doc({ memoryId: "01B", type: "procedural" });
+    const byId = new Map([a, b].map((m) => [m.memoryId, m]));
+    const hits = [a, b].map((m) => ({ memoryId: m.memoryId, relevance: 1, source: "x" }));
+    expect(rank([hits], byId, { hasText: true, now }).map((r) => r.memoryId)).toEqual([
+      "01B",
+      "01A",
+    ]);
+  });
+
+  it("treats a future updatedAt as age zero", () => {
+    expect(recencyScore("working", "2027-01-01T00:00:00.000Z", now)).toBe(1);
+  });
+});

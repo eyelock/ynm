@@ -31,3 +31,22 @@ describe("purge (ADR-002)", () => {
     expect((await y.list()).length).toBe(1);
   });
 });
+
+describe("purge without an index", () => {
+  it("records that history was dropped in the marker reason", async () => {
+    const y = new Ynm({
+      mounts: [
+        { id: "personal", level: "personal", location: "mem", log: new MemoryLog("p", "personal") },
+      ],
+      actor: "t",
+      userId: "u",
+      redaction: DEFAULT_REDACTION,
+    });
+    const { memoryId } = await y.remember({ type: "semantic", content: "drop all of it" });
+    const r = await y.purge({ memoryId, reason: "erasure", forgetHistory: true });
+    expect(r).toEqual({ memoryId, removed: 1, mount: "personal" });
+    const [marker] = await y.records({ includeTombstoned: true });
+    expect(marker?.op).toBe("purge-marker");
+    expect(marker?.reason).toBe("erasure (history dropped)");
+  });
+});

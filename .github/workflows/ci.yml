@@ -25,3 +25,22 @@ jobs:
       - run: make verify
       - name: Milestone gate
         run: make gate M=${{ vars.YNM_MILESTONE || 'M0' }}
+
+  # Gates on the lines a pull request adds or modifies, not on overall totals.
+  coverage:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: make deps
+      - run: make build
+      - run: make coverage
+      - name: Coverage of changed lines
+        run: make coverage-diff BASE=origin/${{ github.base_ref }}

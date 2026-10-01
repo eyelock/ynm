@@ -1,5 +1,9 @@
-import { createRepo, rootCommit } from "@ynm/store/testing/git";
-import { openConfiguredMount } from "./mounts.js";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { createRepo, rootCommit, tempDir } from "@ynm/store/testing/git";
+import { YnmConfigSchema } from "./config.js";
+import { openConfiguredMount, openMounts, projectInitialised } from "./mounts.js";
+import type { WorktreeInfo } from "./worktree.js";
 
 describe("openConfiguredMount", () => {
   it("computes the anchor of a notes mount that configures none", async () => {
@@ -44,5 +48,78 @@ describe("openConfiguredMount", () => {
       anchor,
     });
     expect(mount.location).toBe(repo);
+  });
+});
+
+describe("openConfiguredMount providers", () => {
+  it("opens fs, memory and sqlite mounts by provider", async () => {
+    const dir = tempDir("ynm-mounts-");
+    const fs = await openConfiguredMount({ id: "a", level: "personal", provider: "fs", path: dir });
+    expect(fs.log.provider).toBe("fs");
+    const mem = await openConfiguredMount({
+      id: "b",
+      level: "distributed",
+      provider: "memory",
+      path: dir,
+    });
+    expect(mem.log.provider).toBe("memory");
+    expect(mem.level).toBe("distributed");
+    for (const path of [dir, join(dir, "custom.sqlite")]) {
+      const sq = await openConfiguredMount({
+        id: "c",
+        level: "personal",
+        provider: "sqlite",
+        path,
+      });
+      expect(sq.log.provider).toBe("sqlite");
+      expect((await sq.log.health()).ok).toBe(true);
+    }
+    expect(existsSync(join(dir, "store.sqlite"))).toBe(true);
+    expect(existsSync(join(dir, "custom.sqlite"))).toBe(true);
+  });
+});
+
+describe("openMounts", () => {
+  function worktreeAt(path: string, isGitRepo = true): WorktreeInfo {
+    return {
+      isGitRepo,
+      isWorktree: false,
+      isBare: false,
+      mainRepoPath: path,
+      currentPath: path,
+      gitCommonDir: join(path, ".git"),
+      gitDir: join(path, ".git"),
+    };
+  }
+
+  it("mounts personal and project stores under a non-git provider, then configured mounts", async () => {
+    const home = tempDir("ynm-home-");
+    const repo = tempDir("ynm-repo-");
+    mkdirSync(join(repo, ".ynm"));
+    writeFileSync(join(repo, ".ynm", "config.json"), "{}");
+    const extra = tempDir("ynm-extra-");
+    const config = YnmConfigSchema.parse({
+      provider: "fs",
+      mounts: [{ id: "org", level: "distributed", provider: "fs", path: extra }],
+    });
+    const mounts = await openMounts({
+      loaded: { config, files: [], home },
+      worktree: worktreeAt(repo),
+    });
+    expect(mounts.map((m) => [m.id, m.level, m.log.provider, m.location])).toEqual([
+      ["personal", "personal", "fs", join(home, "store-fs")],
+      ["project", "distributed", "fs", join(repo, ".ynm", "store-fs")],
+      ["org", "distributed", "fs", extra],
+    ]);
+  });
+
+  it("skips personal on request and project when the repo is not initialised", async () => {
+    const repo = tempDir("ynm-repo-");
+    const config = YnmConfigSchema.parse({ provider: "memory" });
+    const loaded = { config, files: [], home: tempDir("ynm-home-") };
+    expect(await openMounts({ loaded, worktree: worktreeAt(repo), noPersonal: true })).toEqual([]);
+    expect(projectInitialised(worktreeAt(repo, false))).toBe(false);
+    const personalOnly = await openMounts({ loaded, worktree: worktreeAt(repo) });
+    expect(personalOnly.map((m) => m.id)).toEqual(["personal"]);
   });
 });
