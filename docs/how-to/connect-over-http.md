@@ -31,6 +31,33 @@ Leave `--token` off if the server is open (only sensible on localhost).
 
 The guidance block (in the instruction file the client reads, `AGENTS.md` when there is none) is written the same way as for stdio.
 
+## What a URL-only client gets
+
+A client can also be pointed at the server with nothing but its own command, for example
+
+```bash
+claude mcp add --transport http ynm https://memory.example.com/mcp --header "Authorization: Bearer $YNM_TOKEN"
+```
+
+on a machine without `ynm`. MCP cannot install anything in the client, so that client gets only
+what the server sends:
+
+- **Server instructions.** Claude Code puts them in the system prompt. They say that ynm is the
+  user's memory, that a request to remember something or a stated preference or standing
+  instruction ("call me ...", "from now on ...", "always ...") goes to `memory_remember` and not
+  to the client's own memory or a notes file, and that `memory_recall` or `memory_context` comes
+  before answering about the user, the project or past decisions. They also name the levels the
+  server serves: a hosted server has only `distributed`. The text is in the
+  [MCP reference](../reference/mcp.md#server-instructions).
+- **Tool descriptions.** `memory_remember`'s says the same at the moment the model picks a tool.
+- **Defaults that fit the store.** A `memory_remember` call that names no `level` goes to the
+  distributed store when the server has no personal one, so a hosted server accepts it. Anything
+  stored there is shared with everyone who uses the server.
+
+This is advisory: the client's built-in memory competes on equal terms, and a model can still
+pick it. That is why `ynm client install` also adds hooks wherever the client supports them, as
+below: a hook runs on every prompt, whatever the model thinks.
+
 ## Hooks with a hosted server
 
 Claude Code (and a ynh harness) also get the agent hooks, as they do for stdio: Claude Code's in
