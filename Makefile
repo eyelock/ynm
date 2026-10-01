@@ -2,7 +2,7 @@
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
 .PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage coverage-diff \
         test-hosted test-tutorials eval-tutorials bench bench-large bench-public gate \
-        gen golden docs docs-gen docs-links lambda release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
+        gen golden docs docs-gen docs-links lambda lambda-local lambda-event minio minio-env minio-down release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
 M ?= M6
 
@@ -13,6 +13,7 @@ help:
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
 	@echo "Release:  lambda (dist/lambda.zip) release-slim release-standalone release-manifest release-notes changeset version"
+	@echo "Local:    lambda-local (serve dist/lambda.zip on :3000) lambda-event E=dream minio minio-env minio-down"
 	@echo "Other:    cli clean ci (what CI runs: deps build verify gate)"
 
 ## Setup
@@ -135,6 +136,28 @@ release-standalone: build
 lambda: build
 	node scripts/release/build-lambda.mjs --out dist/lambda.zip
 	node scripts/release/smoke-lambda.mjs dist/lambda.zip
+
+## Local (CONTRIBUTING.md, "Run the server locally")
+E ?= health
+
+# Serve the built Lambda package on http://localhost:3000/mcp, as a Function URL would
+lambda-local: lambda
+	node scripts/lambda-local.mjs dist/lambda.zip
+
+# Send the Lambda one scheduled event and print the result: `make lambda-event E=dream`
+lambda-event: lambda
+	LAMBDA_EVENT='{"ynm":"$(E)"}' node scripts/lambda-local.mjs dist/lambda.zip
+
+# A local S3 (MinIO in Docker) for the s3 provider; infra/minio/README.md
+minio: build
+	node infra/minio/minio.mjs up
+
+# Exports that mount it in this shell: eval "$$(make minio-env)"
+minio-env:
+	@node infra/minio/minio.mjs env
+
+minio-down:
+	node infra/minio/minio.mjs down
 
 release-manifest:
 	node scripts/release/manifest.mjs $(VERSION)
