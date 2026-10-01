@@ -65,6 +65,22 @@ describe("loadConfig (ADR-009)", () => {
     expect(loadEnvFile(mkdtempSync(join(tmpdir(), "ynm-noenv-")), env)).toEqual([]);
   });
 
+  it("takes mounts from YNM_MOUNTS, replacing those from files, and says what is wrong with it", () => {
+    const h = mkdtempSync(join(tmpdir(), "ynm-mounts-"));
+    writeFileSync(
+      join(h, "config.json"),
+      JSON.stringify({ mounts: [{ id: "file", level: "distributed", provider: "fs", path: "/a" }] })
+    );
+    const mounts = [{ id: "team", level: "distributed", provider: "sqlite", path: "/b.sqlite" }];
+    const { config } = loadConfig({ home: h }, { YNM_MOUNTS: JSON.stringify(mounts) });
+    expect(config.mounts).toEqual(mounts);
+    expect(() => loadConfig({ home: h }, { YNM_MOUNTS: "[{" })).toThrow(
+      /YNM_MOUNTS is not valid JSON/
+    );
+    expect(() => loadConfig({ home: h }, { YNM_MOUNTS: "{}" })).toThrow(/JSON array/);
+    expect(() => loadConfig({ home: h }, { YNM_MOUNTS: '[{"id":"x"}]' })).toThrow();
+  });
+
   it("carries dream defaults", () => {
     const { config } = loadConfig({ home: mkdtempSync(join(tmpdir(), "ynm-dream-")) }, {});
     expect(config.dream.thresholds.dedupe.act).toBe(0.85);

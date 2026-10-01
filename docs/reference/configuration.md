@@ -143,6 +143,7 @@ An uncalibrated judge (`heuristic`, `writer-emulated`) never reaches the act ban
 | `YNM_USER` | Overrides `userId` |
 | `YNM_ACTOR` | Overrides `actor` |
 | `YNM_INDEX` | Overrides `index` |
+| `YNM_MOUNTS` | Replaces `mounts` with this JSON array, for a server configured by environment alone (a container or a Lambda function) |
 
 ### Secrets and models
 
