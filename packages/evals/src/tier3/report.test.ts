@@ -1,10 +1,8 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import type { BenchReport } from "./driver.js";
-import { mergeReports, readReport, reportPath, writeReport } from "./report.js";
-
-const reportsDir = join(import.meta.dirname, "..", "..", "reports");
+import { mergeReports, REPORTS_DIR, readReport, reportPath, writeReport } from "./report.js";
 
 function report(over: Partial<BenchReport> & { cases?: number } = {}): BenchReport {
   const { cases = 10, ...rest } = over;
@@ -105,38 +103,36 @@ describe("tier3 report merging", () => {
 });
 
 describe("tier3 report files", () => {
-  let tmp: string;
-  // Reports live under the package's reports/ dir; a version that walks out of it keeps the
-  // committed reports untouched while exercising the real write path.
-  let version: string;
+  let dir: string;
   beforeEach(() => {
-    tmp = mkdtempSync(join(tmpdir(), "ynm-report-"));
-    version = relative(reportsDir, join(tmp, "v"));
+    dir = mkdtempSync(join(tmpdir(), "ynm-report-"));
   });
-  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-  it("places reports per version and dataset", () => {
-    expect(reportPath("1.2.3", "locomo")).toBe(join(reportsDir, "1.2.3", "locomo.json"));
-    expect(reportPath(version, "locomo")).toBe(join(tmp, "v", "locomo.json"));
+  it("places reports per version and dataset, under the package reports dir by default", () => {
+    expect(reportPath("1.2.3", "locomo")).toBe(join(REPORTS_DIR, "1.2.3", "locomo.json"));
+    expect(REPORTS_DIR.endsWith(join("evals", "reports"))).toBe(true);
+    expect(reportPath("1.2.3", "locomo", { dir })).toBe(join(dir, "1.2.3", "locomo.json"));
   });
 
   it("reads nothing before a report is written", () => {
-    expect(readReport(version, "locomo")).toBeUndefined();
+    expect(readReport("0.0.0-test", "locomo", { dir })).toBeUndefined();
   });
 
-  it("writes a report, then merges a later one into it", () => {
-    const first = report({ cases: 40, ynmVersion: version, answering: answering(0.6) });
-    const file = writeReport(first);
-    expect(file).toBe(join(tmp, "v", "locomo.json"));
+  it("writes a report, then merges a later one into it, only in the injected dir", () => {
+    const first = report({ cases: 40, answering: answering(0.6) });
+    const file = writeReport(first, { dir });
+    expect(file).toBe(join(dir, "0.0.0-test", "locomo.json"));
     expect(existsSync(file)).toBe(true);
     expect(readFileSync(file, "utf8").endsWith("}\n")).toBe(true);
-    expect(readReport(version, "locomo")).toEqual(first);
+    expect(readReport("0.0.0-test", "locomo", { dir })).toEqual(first);
+    expect(readReport("0.0.0-test", "locomo")).toBeUndefined();
 
-    writeReport(report({ cases: 2, ynmVersion: version, ranAt: "2026-10-03T00:00:00.000Z" }));
-    const merged = readReport(version, "locomo");
+    writeReport(report({ cases: 2, ranAt: "2026-10-03T00:00:00.000Z" }), { dir });
+    const merged = readReport("0.0.0-test", "locomo", { dir });
     expect(merged?.ranAt).toBe("2026-10-03T00:00:00.000Z");
     expect(merged?.setup.cases).toBe(40);
     expect(merged?.answering).toEqual(answering(0.6));
-    expect(readReport(version, "longmemeval-s")).toBeUndefined();
+    expect(readReport("0.0.0-test", "longmemeval-s", { dir })).toBeUndefined();
   });
 });

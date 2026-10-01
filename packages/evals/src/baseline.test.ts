@@ -1,10 +1,41 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
-import { percentile, REGRESSION_LIMIT, time } from "./baseline.js";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  BASELINE_DIR,
+  BASELINE_FILE,
+  baselineFile,
+  percentile,
+  REGRESSION_LIMIT,
+  readBaseline,
+  record,
+  recordMetric,
+  type Timing,
+  time,
+} from "./baseline.js";
 import { RELEASE_VERSION } from "./version.js";
 
-const baselinesDir = join(import.meta.dirname, "..", "baselines");
+const timing: Timing = { name: "recall", size: 10, p50Ms: 1, p95Ms: 2, samples: 5 };
+
+let dir: string;
+let logs: string[];
+
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), "ynm-baseline-"));
+  logs = [];
+  vi.spyOn(console, "info").mockImplementation((line: string) => void logs.push(line));
+  vi.stubEnv("YNM_WRITE_BASELINE", "");
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+const seed = (entries: Record<string, unknown>) =>
+  writeFileSync(baselineFile(dir), `${JSON.stringify(entries)}\n`);
 
 describe("baseline percentiles and timing", () => {
   it("picks the nearest-rank percentile without mutating the input", () => {
@@ -30,103 +61,145 @@ describe("baseline percentiles and timing", () => {
   });
 });
 
-describe("baseline file", () => {
-  let tmp: string;
-  let file: string;
-  let mod: typeof import("./baseline.js");
-
-  // The baseline file sits in the package's baselines/ dir, named by YNM_BASELINE_VERSION; a
-  // version that walks out of that dir points the module at a temp file, so committed baselines
-  // are never read or written here.
-  beforeEach(async () => {
-    tmp = mkdtempSync(join(tmpdir(), "ynm-baseline-"));
-    file = join(tmp, "test.json");
-    vi.stubEnv("YNM_BASELINE_VERSION", relative(baselinesDir, join(tmp, "test")));
-    vi.stubEnv("YNM_WRITE_BASELINE", "");
-    vi.spyOn(console, "info").mockImplementation(() => {});
-    vi.resetModules();
-    mod = await import("./baseline.js");
-  });
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-    vi.resetModules();
-    rmSync(tmp, { recursive: true, force: true });
+describe("baseline location", () => {
+  it("defaults to the package baselines directory, named after the release version", () => {
+    expect(BASELINE_FILE).toBe(baselineFile(BASELINE_DIR));
+    expect(BASELINE_DIR.endsWith(join("evals", "baselines"))).toBe(true);
+    expect(baselineFile(BASELINE_DIR)).toBe(join(BASELINE_DIR, `${RELEASE_VERSION}.json`));
   });
 
-  const timing = (p95Ms: number) => ({ name: "recall", size: 100, p50Ms: 1, p95Ms, samples: 5 });
-
-  it("resolves to the redirected file and reads nothing when it is absent", () => {
-    expect(mod.BASELINE_FILE).toBe(file);
-    expect(mod.readBaseline()).toEqual({});
+  it("reads nothing when the file is absent", () => {
+    expect(readBaseline({ dir })).toEqual({});
   });
 
-  it("names the default file after the release version", async () => {
-    vi.stubEnv("YNM_BASELINE_VERSION", undefined);
-    vi.resetModules();
-    const fresh = await import("./baseline.js");
-    expect(fresh.BASELINE_FILE).toBe(join(baselinesDir, `${RELEASE_VERSION}.json`));
+  it("reads and writes an injected directory", () => {
+    vi.stubEnv("YNM_WRITE_BASELINE", "1");
+    record(timing, { dir });
+    recordMetric({ name: "mrr", size: 10, value: 0.5 }, 0.02, { dir });
+    expect(readBaseline({ dir })).toEqual({
+      "recall@10": timing,
+      "mrr@10": { name: "mrr", size: 10, value: 0.5 },
+    });
   });
+});
 
-  it("compares a timing with the stored p95 without writing", () => {
-    writeFileSync(file, JSON.stringify({ "recall@100": timing(2) }));
-    const r = mod.record(timing(7));
-    expect(r.baseline).toEqual(timing(2));
+describe("record", () => {
+  const at = (p95Ms: number): Timing => ({ ...timing, p95Ms });
+
+  it("compares with the stored p95 without writing", () => {
+    seed({ "recall@10": at(2) });
+    const r = record(at(7), { dir });
+    expect(r.baseline).toEqual(at(2));
     expect(r.ratio).toBe(3.5);
-    expect(r.ratio).toBeGreaterThan(mod.REGRESSION_LIMIT);
-    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ "recall@100": timing(2) });
-    expect(console.info).toHaveBeenCalledWith(expect.stringContaining("baseline p95 2ms, x3.50"));
+    expect(r.ratio).toBeGreaterThan(REGRESSION_LIMIT);
+    expect(readBaseline({ dir })).toEqual({ "recall@10": at(2) });
   });
 
   it("guards the ratio against a zero baseline", () => {
-    writeFileSync(file, JSON.stringify({ "recall@100": timing(0) }));
-    expect(mod.record(timing(1)).ratio).toBe(100);
+    seed({ "recall@10": at(0) });
+    expect(record(at(1), { dir }).ratio).toBe(100);
   });
 
   it("reports no baseline and no ratio for an unseen timing", () => {
-    expect(mod.record(timing(3))).toEqual({ baseline: undefined, ratio: undefined });
-    expect(existsSync(file)).toBe(false);
-    expect(console.info).toHaveBeenCalledWith(expect.stringContaining("(no baseline)"));
+    expect(record(timing, { dir })).toEqual({ baseline: undefined, ratio: undefined });
+    expect(existsSync(baselineFile(dir))).toBe(false);
+    expect(logs.join("\n")).toContain("(no baseline)");
   });
 
-  it("writes timings with YNM_WRITE_BASELINE=1 and never reports a regression then", () => {
+  it("writes with YNM_WRITE_BASELINE=1, keeps other entries, ends with a newline", () => {
+    seed({ "other@1": at(9) });
     vi.stubEnv("YNM_WRITE_BASELINE", "1");
-    writeFileSync(file, JSON.stringify({ "other@1": timing(9) }));
-    const r = mod.record(timing(4));
+    expect(record(at(4), { dir }).ratio).toBeUndefined();
+    expect(readBaseline({ dir })).toEqual({ "other@1": at(9), "recall@10": at(4) });
+    expect(readFileSync(baselineFile(dir), "utf8").endsWith("}\n")).toBe(true);
+  });
+
+  it("logs no ratio while rewriting an existing baseline", () => {
+    seed({ "recall@10": { ...timing, p95Ms: 4 } });
+    vi.stubEnv("YNM_WRITE_BASELINE", "1");
+    const r = record(timing, { dir });
     expect(r.ratio).toBeUndefined();
-    const all = JSON.parse(readFileSync(file, "utf8"));
-    expect(all).toEqual({ "other@1": timing(9), "recall@100": timing(4) });
-    expect(readFileSync(file, "utf8").endsWith("}\n")).toBe(true);
-    // Replacing an existing entry still yields no ratio.
-    expect(mod.record(timing(40)).ratio).toBeUndefined();
-    expect(mod.readBaseline()["recall@100"]).toEqual(timing(40));
+    expect(logs.join("\n")).not.toContain("undefined");
+    expect(logs.join("\n")).toContain("baseline p95 4ms");
   });
 
-  it("flags a metric that drops by more than the tolerance", () => {
-    writeFileSync(file, JSON.stringify({ "mrr@50": { name: "mrr", size: 50, value: 0.8 } }));
-    const ok = mod.recordMetric({ name: "mrr", size: 50, value: 0.79 });
-    expect(ok).toEqual({ baseline: { name: "mrr", size: 50, value: 0.8 }, regressed: false });
-    expect(mod.recordMetric({ name: "mrr", size: 50, value: 0.7 }).regressed).toBe(true);
-    expect(mod.recordMetric({ name: "mrr", size: 50, value: 0.7 }, 0.2).regressed).toBe(false);
-    expect(mod.recordMetric({ name: "mrr", size: 50, value: 0.95 }).regressed).toBe(false);
-    expect(console.info).toHaveBeenCalledWith("metric mrr@50: 0.7900 (baseline 0.8000)");
+  it("logs the ratio when comparing", () => {
+    seed({ "recall@10": { ...timing, p95Ms: 1 } });
+    const r = record(timing, { dir });
+    expect(r.ratio).toBe(2);
+    expect(logs.join("\n")).toContain("(baseline p95 1ms, x2.00)");
   });
 
-  it("reports no baseline for an unseen metric", () => {
-    expect(mod.recordMetric({ name: "ndcg", size: 10, value: 0.5 })).toEqual({
+  it("rejects a metric entry stored under a timing key", () => {
+    const before = { "recall@10": { name: "recall", size: 10, value: 0.9 } };
+    seed(before);
+    expect(() => record(timing, { dir })).toThrow(/recall@10.*metric/);
+    vi.stubEnv("YNM_WRITE_BASELINE", "1");
+    expect(() => record(timing, { dir })).toThrow(/recall@10/);
+    expect(readBaseline({ dir })).toEqual(before);
+  });
+});
+
+describe("recordMetric", () => {
+  it("compares within tolerance and logs both values", () => {
+    seed({ "mrr@50": { name: "mrr", size: 50, value: 0.8 } });
+    expect(recordMetric({ name: "mrr", size: 50, value: 0.79 }, 0.02, { dir })).toEqual({
+      baseline: { name: "mrr", size: 50, value: 0.8 },
+      regressed: false,
+    });
+    expect(recordMetric({ name: "mrr", size: 50, value: 0.7 }, 0.2, { dir }).regressed).toBe(false);
+    expect(recordMetric({ name: "mrr", size: 50, value: 0.95 }, 0.02, { dir }).regressed).toBe(
+      false
+    );
+    expect(logs).toContain("metric mrr@50: 0.7900 (baseline 0.8000)");
+  });
+
+  it("reports no baseline for an unseen metric and writes nothing", () => {
+    expect(recordMetric({ name: "ndcg", size: 10, value: 0.5 }, 0.02, { dir })).toEqual({
       baseline: undefined,
       regressed: false,
     });
-    expect(console.info).toHaveBeenCalledWith("metric ndcg@10: 0.5000 (no baseline)");
-    expect(existsSync(file)).toBe(false);
+    expect(logs).toContain("metric ndcg@10: 0.5000 (no baseline)");
+    expect(existsSync(baselineFile(dir))).toBe(false);
   });
 
-  it("writes metrics with YNM_WRITE_BASELINE=1 and never flags a regression then", () => {
+  it("writes with YNM_WRITE_BASELINE=1 and never flags a regression then", () => {
+    seed({ "mrr@50": { name: "mrr", size: 50, value: 0.9 } });
     vi.stubEnv("YNM_WRITE_BASELINE", "1");
-    writeFileSync(file, JSON.stringify({ "mrr@50": { name: "mrr", size: 50, value: 0.9 } }));
-    const r = mod.recordMetric({ name: "mrr", size: 50, value: 0.1 });
-    expect(r.regressed).toBe(false);
-    expect(r.baseline).toEqual({ name: "mrr", size: 50, value: 0.9 });
-    expect(mod.readBaseline()["mrr@50"]).toEqual({ name: "mrr", size: 50, value: 0.1 });
+    const r = recordMetric({ name: "mrr", size: 50, value: 0.1 }, 0.02, { dir });
+    expect(r).toEqual({ baseline: { name: "mrr", size: 50, value: 0.9 }, regressed: false });
+    expect(readBaseline({ dir })["mrr@50"]).toEqual({ name: "mrr", size: 50, value: 0.1 });
+  });
+
+  it("flags a drop beyond tolerance", () => {
+    seed({ "mrr@10": { name: "mrr", size: 10, value: 0.9 } });
+    expect(recordMetric({ name: "mrr", size: 10, value: 0.8 }, 0.02, { dir }).regressed).toBe(true);
+    expect(recordMetric({ name: "mrr", size: 10, value: 0.89 }, 0.02, { dir }).regressed).toBe(
+      false
+    );
+  });
+
+  it("rejects a timing entry stored under a metric key instead of crashing or passing", () => {
+    seed({ "recall@10": timing });
+    expect(() => recordMetric({ name: "recall", size: 10, value: 0.5 }, 0.02, { dir })).toThrow(
+      /recall@10.*timing/
+    );
+  });
+
+  it("does not overwrite a timing entry when writing the baseline", () => {
+    seed({ "recall@10": timing });
+    vi.stubEnv("YNM_WRITE_BASELINE", "1");
+    expect(() => recordMetric({ name: "recall", size: 10, value: 0.5 }, 0.02, { dir })).toThrow(
+      /recall@10/
+    );
+    expect(readBaseline({ dir })).toEqual({ "recall@10": timing });
+  });
+
+  it("never touches the default baseline file when a directory is injected", () => {
+    const before = existsSync(BASELINE_FILE) ? readFileSync(BASELINE_FILE, "utf8") : undefined;
+    vi.stubEnv("YNM_WRITE_BASELINE", "1");
+    recordMetric({ name: "probe", size: 1, value: 1 }, 0.02, { dir });
+    const after = existsSync(BASELINE_FILE) ? readFileSync(BASELINE_FILE, "utf8") : undefined;
+    expect(after).toBe(before);
   });
 });
