@@ -69,6 +69,8 @@ function lambdaEnv(
   const root = mkdtempSync(join(tmpdir(), "ynm-lambda-"));
   return {
     YNM_PUBLIC_URL: PUBLIC.href,
+    // Most tests drive the handler without auth; the refusal itself is tested below.
+    YNM_LAMBDA_ALLOW_OPEN: "1",
     YNM_HOME: join(root, "home"),
     YNM_USER: "lambda",
     YNM_MOUNTS: JSON.stringify([
@@ -174,6 +176,19 @@ describe("Lambda configuration", () => {
     expect(() => createLambdaHandler({ env: {}, quiet: true })).toThrow(/YNM_PUBLIC_URL/);
     expect(() => lambdaConfig({ YNM_PUBLIC_URL: "not a url" })).toThrow(/not a URL/);
     expect(() => lambdaConfig({ YNM_PUBLIC_URL: "ftp://x.example" })).toThrow(/http or https/);
+  });
+
+  it("refuses to start without authentication unless told it may run open", () => {
+    const open = { ...lambdaEnv(), YNM_LAMBDA_ALLOW_OPEN: undefined };
+    expect(() => createLambdaHandler({ env: open, quiet: true })).toThrow(
+      /No authentication is configured/
+    );
+    expect(() =>
+      createLambdaHandler({ env: { ...open, YNM_MCP_TOKEN: "t" }, quiet: true })
+    ).not.toThrow();
+    expect(() =>
+      createLambdaHandler({ env: { ...open, YNM_LAMBDA_ALLOW_OPEN: "1" }, quiet: true })
+    ).not.toThrow();
   });
 
   it("puts the home under /tmp unless YNM_HOME says otherwise, and skips the claude probe", () => {

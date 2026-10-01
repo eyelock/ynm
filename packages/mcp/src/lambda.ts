@@ -249,6 +249,12 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
     return ynm;
   };
   const auth = authFromEnv(cfg.env);
+  // A function is reachable from the internet by design, so it never runs open by accident.
+  if (auth.mode === "none" && cfg.env.YNM_LAMBDA_ALLOW_OPEN !== "1") {
+    throw new Error(
+      "No authentication is configured, and a function is public. Set YNM_JWKS_URL, YNM_OAUTH_INTROSPECTION_URL or YNM_MCP_TOKEN (directly or through YNM_SSM_ENV_PATH); YNM_LAMBDA_ALLOW_OPEN=1 serves without auth, for local tests only"
+    );
+  }
   const scheduler = startScheduler(getYnm, { quiet: opts.quiet });
   const web = createWebHandler(
     () => createYnmServer({ ...serverOpts, version: MCP_VERSION }, getYnm),

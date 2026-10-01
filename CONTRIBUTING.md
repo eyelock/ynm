@@ -80,7 +80,8 @@ would send, and the handler's answer becomes the response. One process is one wa
 restart it to see a cold start.
 
 ```bash
-YNM_MCP_TOKEN=dev-token make lambda-local  # PORT=… to move it; Ctrl-C to stop
+export YNM_MCP_TOKEN=dev-token             # a function refuses to start without auth
+make lambda-local                          # PORT=… to move it; Ctrl-C to stop
 make lambda-event E=dream                  # one scheduled event (dream, compact, health), printed
 ```
 
