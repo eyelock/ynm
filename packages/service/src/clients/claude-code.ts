@@ -169,7 +169,7 @@ export const claudeCode: ClientAdapter = {
   async status({ cwd, home }): Promise<ClientStatus> {
     // Any instruction file Claude Code loads here at launch, by its own lookup rules.
     const guided = claudeHasGuidance(cwd, home, CLAUDE_MD_MARKER);
-    // A team may also have put them in the shared settings on purpose; any of the three counts.
+    // A team may also have put them in the team's settings on purpose; any of the three counts.
     const hookFiles = [
       claudeSettingsPath({ cwd, home, scope: "project" }),
       join(cwd, ".claude", "settings.json"),

@@ -54,7 +54,7 @@ naming clients found on your machine (tutorial 2) may appear, and varies.
 initialised <project path>
   anchor    <40-hex sha> (root-commit)
   config    <project path>/.ynm/config.json
-  refspecs  +refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
+  refspecs  +refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*
   hooks     <project path>/.git/hooks/pre-push
   note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
   also      <client names> on this machine but not used here; add one with `ynm client install <name>`
@@ -71,14 +71,14 @@ git -C /tmp/ynm-tutorial/alice config --get-all remote.origin.push || echo "no p
 ```
 
 Expected: the fetch lines are the ordinary branch refspec and a second one that brings the
-remote's shared memory into a separate namespace, so it can be merged rather than overwritten:
+remote's distributed memory into a separate namespace, so it can be merged rather than overwritten:
 
 ```text
 +refs/heads/*:refs/remotes/origin/*
-+refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
++refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*
 ```
 
-The second command prints only `no push refspec`: there are no push lines. Only `shared` is ever mapped; the
+The second command prints only `no push refspec`: there are no push lines. Only `distributed` is ever mapped; the
 personal level has no refspec at all.
 
 Now Bob:
@@ -106,7 +106,7 @@ Expected: `remembered <26-character id> in project` from each.
 
 ## Sync
 
-`ynm sync` fetches the remote's shared memory, merges it into yours, and pushes. Alice goes
+`ynm sync` fetches the remote's distributed memory, merges it into yours, and pushes. Alice goes
 first:
 
 ```bash
@@ -160,11 +160,11 @@ git -C /tmp/ynm-tutorial/remote.git for-each-ref --format='%(refname)'
 ```
 
 Expected: `remembered <id> in personal`, a sync line, and the remote's refs, only the code branch
-and the shared memory:
+and the distributed memory:
 
 ```text
 refs/heads/main
-refs/notes/ynm/shared/common/semantic/<yyyy-mm>
+refs/notes/ynm/distributed/common/semantic/<yyyy-mm>
 ```
 
 No `personal` ref exists on the remote. Sync never touches the personal store unless you
@@ -185,7 +185,7 @@ Expected: two trace lines that run `.git/hooks/pre-push origin <remote path>`. T
 
 Two things to know about it. It never blocks a push: it ends with `exit 0` even if sync fails,
 and you can repair with a manual `ynm sync`. And the push above found nothing new to send; when
-a push does carry new shared memory, the hook publishes it first, then git pushes the branch and
+a push does carry new distributed memory, the hook publishes it first, then git pushes the branch and
 exits 0.
 
 ## Doctor sees the remote
@@ -195,8 +195,8 @@ cd /tmp/ynm-tutorial/alice
 ynm doctor
 ```
 
-Expected: every line starts with `ok`. Among them are `shared fetch refspec`, `personal refs never pushed: no personal refspecs in remote config (ADR-007)`,
-`no personal refs in project repo: ok (ADR-007)` and `pre-push hook`. The two mount lines
+Expected: every line starts with `ok`. Among them are `distributed fetch refspec`, `personal refs never pushed: no personal refspecs in remote config`,
+`no personal refs in project repo: ok` and `pre-push hook`. The two mount lines
 report `"remote":"origin"`. Any `client` lines at the end are agent clients found on your
 machine, each saying `ynm not registered`: `ynm init` configured none in Alice's clone.
 

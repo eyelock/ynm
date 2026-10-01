@@ -4,7 +4,7 @@ Goal: keep a copy of your memory you can restore from. A git-notes store is a gi
 a backup is a bundle; a SQLite store is a file. The index is derived data and never needs
 backing up: delete it and the next request rebuilds it. Tutorial 11 walks through a restore.
 
-## A project's shared memory
+## A project's distributed memory
 
 Everything is under `refs/notes/ynm/` in the project repository:
 

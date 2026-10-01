@@ -120,7 +120,7 @@ describe("ynm CLI workflow on real git repos", () => {
     expect(r.status, r.stderr).toBe(0);
     expect(JSON.parse(r.stdout).project.pushed.length).toBeGreaterThan(0);
     const remoteRefs = await fx(origin, "for-each-ref", "--format=%(refname)", "refs/notes/");
-    expect(remoteRefs).toMatch(/ynm\/shared/);
+    expect(remoteRefs).toMatch(/ynm\/distributed/);
     expect(remoteRefs).not.toMatch(/personal/);
 
     r = ynm(repo, "sync", "--mount", "personal");

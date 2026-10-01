@@ -1,8 +1,7 @@
 # Share an org store
 
 Goal: keep memory that spans many repositories (organisation-wide conventions, shared runbooks)
-in one dedicated repository on your forge, mounted next to each project's own memory. Background:
-the dedicated-repo topology in [ADR-009](../adr/009-hosting-and-bootstrap.md).
+in one dedicated repository on your forge, mounted next to each project's own memory.
 
 ## Create the store
 

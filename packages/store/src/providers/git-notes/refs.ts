@@ -6,18 +6,17 @@ export const NOTES_PREFIX = "refs/notes/ynm";
 /** Remote-tracking copies used by sync; still under refs/notes/ so `git notes merge` accepts them. */
 export const REMOTE_PREFIX = "refs/notes/ynm-remote";
 
-export function levelDir(level: Level): "personal" | "shared" {
-  return level === "personal" ? "personal" : "shared";
+/** The ref directory for a level is the level's own name: refs/notes/ynm/<personal|distributed>/... */
+export function levelDir(level: Level): Level {
+  return level;
 }
 
 export function levelFromDir(dir: string): Level | null {
-  if (dir === "personal") return "personal";
-  if (dir === "shared") return "distributed";
-  return null;
+  return dir === "personal" || dir === "distributed" ? dir : null;
 }
 
 /**
- * refs/notes/ynm/<personal|shared>/<namespace...>/<type>/<yyyy-mm>. Namespace segments are
+ * refs/notes/ynm/<personal|distributed>/<namespace...>/<type>/<yyyy-mm>. Namespace segments are
  * real ref components; type and bucket have fixed forms, so parsing back is unambiguous.
  */
 export function refFor(key: ShardKey): string {

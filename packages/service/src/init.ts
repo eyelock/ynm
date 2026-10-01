@@ -43,11 +43,11 @@ export interface InitReport {
   clients: ClientSetup[];
 }
 
-export const SHARED_FETCH = (remote: string): string =>
-  `+${NOTES_PREFIX}/shared/*:${REMOTE_PREFIX}/${remote}/shared/*`;
+export const DISTRIBUTED_FETCH = (remote: string): string =>
+  `+${NOTES_PREFIX}/distributed/*:${REMOTE_PREFIX}/${remote}/distributed/*`;
 
 const PRE_PUSH_HOOK = `#!/bin/sh
-# ynm: sync shared memory notes alongside code pushes (installed by \`ynm init\`)
+# ynm: sync distributed memory notes alongside code pushes (installed by \`ynm init\`)
 [ -n "$YNM_SYNC_IN_PROGRESS" ] && exit 0
 command -v ynm >/dev/null 2>&1 && ynm sync --quiet || true
 exit 0
@@ -79,7 +79,7 @@ async function ensureExcluded(repo: string, entries: string[]): Promise<string[]
 
 /**
  * Retrofits a repository (ADR-009): no branch, tag or tracked file changes. Writes
- * .ynm/config.json with the anchor, adds the shared fetch refspec and a pre-push hook, and
+ * .ynm/config.json with the anchor, adds the distributed fetch refspec and a pre-push hook, and
  * ignores the local index and wiki directories. Notes are pushed only by the hook (`ynm sync`),
  * never by a push refspec, so a plain `git push` does not race it.
  */
@@ -120,7 +120,7 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
   const refspecs: string[] = [];
   const hasRemote = (await gitOrNull(["remote", "get-url", remote], { cwd: repo })) !== null;
   if (hasRemote) {
-    const fetch = SHARED_FETCH(remote);
+    const fetch = DISTRIBUTED_FETCH(remote);
     const fetches =
       (await gitOrNull(["config", "--get-all", `remote.${remote}.fetch`], { cwd: repo })) ?? "";
     if (!fetches.split("\n").includes(fetch)) {

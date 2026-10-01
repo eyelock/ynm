@@ -35,7 +35,7 @@ export const DEFAULT_REDACTION = [
 
 export const YnmConfigSchema = z
   .object({
-    anchor: ShaSchema.optional().describe("Anchor commit for this repository's shared notes"),
+    anchor: ShaSchema.optional().describe("Anchor commit for this repository's distributed notes"),
     remote: z.string().default("origin").describe("Remote used by sync"),
     provider: z
       .enum(["git-notes", "fs", "sqlite", "memory"])
@@ -56,10 +56,7 @@ export const YnmConfigSchema = z
       .optional()
       .describe("Explicit extra mounts (org stores, hosted stores)"),
     hooks: z.boolean().default(true).describe("Install git hooks on init"),
-    index: z
-      .enum(["sqlite-fts", "memory"])
-      .default("sqlite-fts")
-      .describe("Index implementation (ADR-005)"),
+    index: z.enum(["sqlite-fts", "memory"]).default("sqlite-fts").describe("Index implementation"),
     dream: DreamConfigSchema.prefault({}).describe("Judge, Writer and consolidation thresholds"),
   })
   .strict();

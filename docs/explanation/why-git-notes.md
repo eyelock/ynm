@@ -2,8 +2,7 @@
 
 ynm keeps memory in git notes: refs under `refs/notes/ynm/`, next to the code, in the same
 repository, moved by the same `git fetch` and `git push`. This page explains why, what that
-buys you, and what it costs. [ADR-003](../adr/003-git-notes-layout.md) records the layout and
-[ADR-009](../adr/009-hosting-and-bootstrap.md) the hosting choices that follow from it.
+buys you, and what it costs.
 
 ## The problem
 
@@ -29,7 +28,7 @@ it on request, and never gets in the way of the code.
 ## How ynm uses them
 
 **One ref per shard.** Each combination of level, namespace, type and month gets its own ref,
-such as `refs/notes/ynm/shared/common/semantic/2026-09`. A shard holds one note: every record for
+such as `refs/notes/ynm/distributed/common/semantic/2026-09`. A shard holds one note: every record for
 that bucket, one JSON object per line. Months keep any one blob small and let old shards go
 quiet.
 

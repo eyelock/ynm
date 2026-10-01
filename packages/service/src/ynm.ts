@@ -192,7 +192,7 @@ export class Ynm {
   }
 
   private requireIndex(): IndexManager {
-    if (!this.index) throw new Error("no index configured; recall and context need one (ADR-005)");
+    if (!this.index) throw new Error("no index configured; recall and context need one");
     return this.index;
   }
 

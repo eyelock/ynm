@@ -1,7 +1,7 @@
 # Retrofit an existing repository
 
-Goal: give a repository that already has history, branches and a team a shared ynm memory,
-without disturbing any of it. Background: [ADR-009](../adr/009-hosting-and-bootstrap.md).
+Goal: give a repository that already has history, branches and a team a distributed ynm memory,
+without disturbing any of it.
 
 ## Run init
 
@@ -15,7 +15,7 @@ For memory, `ynm init` changes no branch, tag, commit or tracked file. It does f
 
 - writes `.ynm/config.json`, which records the anchor (the repository's root commit) and is the
   one file worth committing, so teammates share the anchor and any mounts or redaction settings;
-- adds a fetch refspec for `refs/notes/ynm/shared/*` to `remote.origin` in
+- adds a fetch refspec for `refs/notes/ynm/distributed/*` to `remote.origin` in
   `.git/config` (pass `--remote <name>` to use another remote; without the remote it prints a
   note and you re-run `init` after adding it);
 - installs a `pre-push` hook that runs `ynm sync --quiet`, unless you pass `--no-hooks` or set
@@ -46,7 +46,7 @@ alone, run `ynm init --no-clients`.
 
 If you work through a ynh harness, the repository needs nothing for the agent to have ynm: ynh
 assembles ynm's server, hooks and skill at every launch, and memory goes to your personal store.
-Run `ynm init --no-clients` here only to add shared, team memory, so that init does not also
+Run `ynm init --no-clients` here only to add distributed, team memory, so that init does not also
 write `.mcp.json`, an instruction file and hooks that duplicate the harness.
 
 ## What to commit

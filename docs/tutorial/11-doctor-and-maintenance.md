@@ -6,7 +6,7 @@ index, try the SQLite provider, and take a backup you can restore from.
 ## Prerequisites
 
 `ynm` is on your PATH. Prepare the sandbox, a personal store, a bare remote, and a project
-clone with `origin` pointing at it, ynm initialised and one shared memory written:
+clone with `origin` pointing at it, ynm initialised and one distributed memory written:
 
 ```bash
 rm -rf /tmp/ynm-tutorial
@@ -37,7 +37,7 @@ ynm doctor
 
 Expected: every line starts with `ok`, and the command exits 0. The lines, in order: git is
 available, the config file, the `personal` mount and the `project` mount (each with a JSON blob
-of its repository, anchor, number of shards and `"badLines":0`), the project anchor, the shared
+of its repository, anchor, number of shards and `"badLines":0`), the project anchor, the distributed
 fetch refspec, that personal refs are never pushed, that no personal refs are in the
 project repo, and the pre-push hook. Then one `client` line for each agent client detected on
 your machine. A client with ynm set up says `server, guidance and hooks in place` (or
@@ -47,9 +47,9 @@ command. A client with ynm registered but its
 guidance or hooks missing would be a `warn` line naming `ynm client install <client>`.
 
 ```text
-ok    shared fetch refspec: +refs/notes/ynm/shared/*:refs/notes/ynm-remote/origin/shared/*
-ok    personal refs never pushed: no personal refspecs in remote config (ADR-007)
-ok    no personal refs in project repo: ok (ADR-007)
+ok    distributed fetch refspec: +refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*
+ok    personal refs never pushed: no personal refspecs in remote config
+ok    no personal refs in project repo: ok
 ok    pre-push hook: <project path>/.git/hooks/pre-push
 ```
 
@@ -67,7 +67,7 @@ ynm doctor || echo "exit $?"
 Expected: the same lines as before, except two. A failure, and a warning:
 
 ```text
-FAIL  shared fetch refspec: missing; run `ynm init`
+FAIL  distributed fetch refspec: missing; run `ynm init`
 warn  pre-push hook: not installed
 exit 1
 ```
@@ -184,7 +184,7 @@ git bundle create /tmp/ynm-tutorial/backup.bundle --all
 git bundle list-heads /tmp/ynm-tutorial/backup.bundle
 ```
 
-Expected: `list-heads` prints three lines, each a 40-hex sha and a ref: `refs/heads/main`, the memory shard `refs/notes/ynm/shared/common/semantic/<yyyy-mm>`,
+Expected: `list-heads` prints three lines, each a 40-hex sha and a ref: `refs/heads/main`, the memory shard `refs/notes/ynm/distributed/common/semantic/<yyyy-mm>`,
 and `HEAD`.
 
 Clone the bundle, then fetch the notes, which a plain clone leaves behind:
@@ -198,7 +198,7 @@ git -C /tmp/ynm-tutorial/restored for-each-ref --format='%(refname)' refs/notes
 Expected: the shard is there:
 
 ```text
-refs/notes/ynm/shared/common/semantic/<yyyy-mm>
+refs/notes/ynm/distributed/common/semantic/<yyyy-mm>
 ```
 
 `ynm init` in the restored clone sets it up again, and the memory is back. It uses a fresh home

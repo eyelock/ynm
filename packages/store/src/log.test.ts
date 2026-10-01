@@ -66,7 +66,7 @@ describe("shards", () => {
     expect(groups.get("personal/user/david/semantic/2026-09")?.records).toEqual([a, c]);
   });
   it("refuses a record whose level differs from the log's (ADR-001)", () => {
-    expect(() => assertLevel({ id: "shared", level: "distributed" }, [rec()])).toThrow(
+    expect(() => assertLevel({ id: "distributed", level: "distributed" }, [rec()])).toThrow(
       /refusing a personal record/
     );
   });

@@ -1,5 +1,5 @@
 #!/bin/sh
-# A developer clone: the hosted store is just a git remote; shared notes sync over git://.
+# A developer clone: the hosted store is just a git remote; distributed notes sync over git://.
 set -e
 git clone -q git://store/store.git /work
 cd /work

@@ -64,3 +64,43 @@ describe("tier1 generated docs", () => {
     expect(missing).toEqual([]);
   });
 });
+
+// Design records are internal: user docs, generated reference pages and the text the product
+// prints (errors, doctor lines, flag and tool descriptions) never cite them.
+describe("user-facing text has no design-record references", () => {
+  const repo = join(import.meta.dirname, "..", "..", "..", "..", "..");
+  const walk = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]
+    );
+  it("docs outside docs/adr, and the root README", () => {
+    const files = [
+      ...walk(join(repo, "docs")).filter((f) => !f.includes(`${join("docs", "adr")}`)),
+      join(repo, "README.md"),
+    ].filter((f) => /\.(md|html)$/.test(f));
+    const hits = files.flatMap((f) =>
+      readFileSync(f, "utf8")
+        .split("\n")
+        .map((line, i) => ({ f, i: i + 1, line }))
+        .filter(({ line }) => /\bADR-\d|\badr\//i.test(line))
+        .map(({ f, i, line }) => `${f.slice(repo.length + 1)}:${i}: ${line.trim()}`)
+    );
+    expect(hits).toEqual([]);
+  });
+  it("strings the product prints", () => {
+    const src = ["cli", "mcp", "service", "store", "model", "index", "models", "wiki"].flatMap(
+      (p) =>
+        walk(join(repo, "packages", p, "src")).filter(
+          (f) => f.endsWith(".ts") && !/\.test\.ts$|testing\//.test(f)
+        )
+    );
+    const hits = src.flatMap((f) =>
+      readFileSync(f, "utf8")
+        .split("\n")
+        .map((line, i) => ({ i: i + 1, line }))
+        .filter(({ line }) => !/^\s*(\/\/|\*|\/\*)/.test(line) && /["'`][^"'`]*\bADR-\d/.test(line))
+        .map(({ i, line }) => `${f.slice(repo.length + 1)}:${i}: ${line.trim()}`)
+    );
+    expect(hits).toEqual([]);
+  });
+});

@@ -129,7 +129,7 @@ export function shardMatches(key: ShardKey, filter: ShardFilter | undefined): bo
 
 export class LevelMismatchError extends Error {
   constructor(logId: string, logLevel: Level, recordLevel: Level) {
-    super(`log "${logId}" is ${logLevel}; refusing a ${recordLevel} record (ADR-001, ADR-007)`);
+    super(`log "${logId}" is ${logLevel}; refusing a ${recordLevel} record`);
     this.name = "LevelMismatchError";
   }
 }

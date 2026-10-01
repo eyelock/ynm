@@ -190,7 +190,7 @@ export const TOOL_SPECS = [
     name: "memory_sync",
     command: "sync",
     description:
-      "Fetch, merge and push shared memory with the configured remote. Personal memory is never synced by this tool.",
+      "Fetch, merge and push distributed memory with the configured remote. Personal memory is never synced by this tool.",
     input: SyncInputSchema,
     readOnly: false,
     async run(ynm, input) {

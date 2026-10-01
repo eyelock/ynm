@@ -49,7 +49,7 @@ export function projectInitialised(worktree: WorktreeInfo): boolean {
 }
 
 /**
- * Mount table (ADR-004): personal store always (unless disabled), the project's shared refs when
+ * Mount table (ADR-004): personal store always (unless disabled), the project's distributed refs when
  * the repo has been initialised, then any explicit mounts from config.
  */
 export async function openMounts(opts: OpenMountsOptions): Promise<Mount[]> {

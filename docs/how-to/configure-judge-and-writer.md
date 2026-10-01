@@ -1,8 +1,8 @@
 # Configure the judge and writer
 
 Goal: choose which model does the judging in `ynm dream` and on recall, and which one writes
-merged or reflective text. Background: [ADR-012](../adr/012-model-seams-judge-and-writer.md) and
-tutorial 8.
+merged or reflective text. [Tutorial 8](../tutorial/08-dreaming.md) shows both at work, and
+[Dreaming](../explanation/dreaming.md) explains why they are separate.
 
 Two seams, kept apart on purpose. A **judge** answers typed questions (are these two memories the
 same fact, does this one contradict that one) with probabilities; it never writes text. A

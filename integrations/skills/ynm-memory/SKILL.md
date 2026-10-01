@@ -13,7 +13,7 @@ You have a persistent memory store (ynm). Use it deliberately:
    user preferences, conventions, gotchas you hit, and outcomes of work. One memory per fact.
    Choose the type: `semantic` (facts), `episodic` (what happened), `procedural` (how to do
    things), `reference` (pointers), `working` (only for this session, needs a ttl).
-3. **Level**: `personal` unless the fact is about the shared project and safe for the team, then
+3. **Level**: `personal` unless the fact is about the project and safe for the team, then
    `distributed`. Never store secrets, tokens or credentials.
 4. **Update, don't duplicate**: if a memory exists and is now wrong or incomplete, use
    `memory_supersede`. If it is obsolete, `memory_forget`.
@@ -41,7 +41,7 @@ secrets, or large pasted content. Prefer a one-line summary and a short body.
 - Two or more episodic memories describe the same recurring situation: write one procedural
   memory that says what to do, link it `derives-from` the episodes.
 - A personal memory turns out to be a team convention: use `memory_promote` or ask the user
-  before sharing; promotion copies it into the shared store and links back.
+  before sharing; promotion copies it into the distributed store and links back.
 - A distributed procedural memory is the closest thing to a rule; keep them short, imperative
   and specific to this project.
 

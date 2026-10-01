@@ -76,7 +76,7 @@ you are running the checkout, not a release.
 
 <!-- tabs:end -->
 
-After installing, `ynm init` in a repository is the one setup command: it creates the shared
+After installing, `ynm init` in a repository is the one setup command: it creates the distributed
 memory mount and configures the agent clients the repository already uses; clients found only on
 the machine get a one-line suggestion. Tutorial 2 shows what it does to the repository, tutorial 7
 what it does for each client, and how a ynh harness gets ynm with `ynm client install ynh`.

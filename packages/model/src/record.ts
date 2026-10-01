@@ -12,7 +12,7 @@ export const MEMORY_TYPES = [
   "reflective",
   "reference",
 ] as const;
-export const MemoryTypeSchema = z.enum(MEMORY_TYPES).describe("Memory type (ADR-001)");
+export const MemoryTypeSchema = z.enum(MEMORY_TYPES).describe("Memory type");
 export type MemoryType = z.infer<typeof MemoryTypeSchema>;
 
 /** The privacy boundary is binary (ADR-001, ADR-007). */
@@ -106,7 +106,7 @@ export const ProvenanceSchema = z
     source: z.string().optional().describe("Source reference: URL, file, ticket, tool call"),
     tool: z.string().optional().describe("Tool or command that produced the record"),
   })
-  .describe("Where the record came from (ADR-002)");
+  .describe("Where the record came from");
 export type Provenance = z.infer<typeof ProvenanceSchema>;
 
 export const JsonObjectSchema = z.record(z.string(), z.unknown());

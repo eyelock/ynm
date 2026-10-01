@@ -46,8 +46,8 @@ describe("recall and context (ADR-005)", () => {
     expect(hits[0]?.content).toMatch(/root commit/);
     expect(hits[0]?.mount).toBe("personal");
     expect(hits[0]?.explain?.weights.relevance).toBeGreaterThan(0);
-    const shared = await y.recall({ level: ["distributed"] });
-    expect(shared.map((h) => h.mount)).toEqual(["project"]);
+    const distributed = await y.recall({ level: ["distributed"] });
+    expect(distributed.map((h) => h.mount)).toEqual(["project"]);
   });
 
   it("updates the index exactly after supersede, annotate and forget without a rebuild", async () => {

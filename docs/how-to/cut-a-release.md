@@ -40,7 +40,7 @@ shape goreleaser writes for `ynh`, `depends_on "git"` only) and `ynm-slim` (the 
 `depends_on "git"` and `"node"`, launcher pinned to Homebrew's node). They conflict with each
 other because both install `ynm`. `ynm serve` is the MCP server, so either formula covers the
 CLI, the stdio server clients launch, and the hosted service. How users choose between them is
-in [Install ynm](install.md); the reasoning is [ADR-015](../adr/015-distribution.md).
+in [Install ynm](install.md).
 
 ## How the artefacts are built
 

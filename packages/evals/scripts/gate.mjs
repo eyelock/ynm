@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs one milestone gate: `pnpm gate M1`. A gate is closed only when it is green with zero todos.
+// Runs one milestone gate: `make gate M=M1`. A gate is closed only when it is green with zero todos.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const milestone = (process.argv[2] ?? "").toUpperCase();
 if (!/^M[0-6]$/.test(milestone)) {
-  console.error("usage: pnpm gate M<0-6>");
+  console.error("usage: make gate M=M<0-6>");
   process.exit(2);
 }
 const here = dirname(fileURLToPath(import.meta.url));
