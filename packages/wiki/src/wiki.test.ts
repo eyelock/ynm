@@ -149,4 +149,19 @@ describe("wiki generator (ADR-010)", () => {
     await branch.write(pages);
     expect((await fx(repo, "rev-list", "--count", "refs/heads/ynm/wiki")).trim()).toBe("2");
   });
+
+  it.each([
+    ["a page two folders deep beside a root page", ["index.md", "a/b/c.md"]],
+    ["a page two folders deep with no root page", ["a/b/c.md"]],
+    ["sibling folders each holding deep pages", ["index.md", "a/b/c.md", "x/y/z/w.md"]],
+    ["an intermediate folder with its own page", ["index.md", "a/a.md", "a/b/c.md"]],
+    ["an intermediate folder with no page of its own", ["index.md", "a/b/c.md", "a/b/d/e.md"]],
+    ["deep pages sharing an ancestor", ["a/b/c/d.md", "a/b/e/f.md", "a/g.md"]],
+  ])("keeps every page on the orphan branch: %s", async (_layout, paths) => {
+    const repo = await createRepo(1);
+    const branch = new OrphanBranchTarget(repo);
+    await branch.write(paths.map((path) => ({ path, content: `# ${path}\n` })));
+    expect(await branch.list()).toEqual([...paths].sort());
+    for (const path of paths) expect(await branch.read(path)).toBe(`# ${path}\n`);
+  });
 });
