@@ -1,7 +1,7 @@
 # ynm developer front door. Every command a developer or CI runs is a target here, so the
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
 .PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage coverage-diff \
-        test-hosted test-tutorials eval-tutorials bench bench-large bench-public gate \
+        test-hosted test-tutorials eval-tutorials eval-hosted-remember bench bench-large bench-public gate \
         gen golden docs docs-gen docs-links release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
 M ?= M6
@@ -9,7 +9,7 @@ M ?= M6
 help:
 	@echo "Setup:    deps build install (~/.ynm/bin/ynm runs this checkout) uninstall rebuild build-pkg P= test-pkg P="
 	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage coverage-diff"
-	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials (model-driven, opt-in)"
+	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials eval-hosted-remember (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
 	@echo "Release:  release-slim release-standalone release-manifest release-notes changeset version"
@@ -78,6 +78,10 @@ test-tutorials:
 
 eval-tutorials:
 	YNM_EVAL_CLAUDE_CLI=1 pnpm --filter @ynm/evals eval:tutorials
+
+# Claude Code connected to a hosted ynm by URL alone: do remember intents reach ynm? Spends tokens.
+eval-hosted-remember: build
+	YNM_EVAL_CLAUDE_CLI=1 pnpm --filter @ynm/evals eval:hosted-remember
 
 bench:
 	pnpm bench

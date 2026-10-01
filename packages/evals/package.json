@@ -25,7 +25,8 @@
     "test:hosted": "vitest run src/tier1/hosted --reporter=verbose",
     "bench:public": "vitest run src/tier3/public-benchmarks.test.ts --reporter=verbose",
     "test:tutorials": "vitest run src/tier1/tutorials --reporter=verbose",
-    "eval:tutorials": "vitest run src/tier2/tutorials --reporter=verbose"
+    "eval:tutorials": "vitest run src/tier2/tutorials --reporter=verbose",
+    "eval:hosted-remember": "vitest run src/tier2/guidance/hosted-remember.live.eval.test.ts --reporter=verbose"
   },
   "dependencies": {
     "@ynm/model": "workspace:*",
