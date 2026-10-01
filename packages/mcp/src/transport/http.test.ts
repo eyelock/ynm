@@ -46,8 +46,11 @@ async function hosted(provider: Provider, http: Partial<HttpOptions> = {}) {
     noPersonal: true,
   };
   const getYnm = serviceCache(opts);
+  // 127.0.0.1, not localhost: a single address, so a client connecting while the same process is
+  // busy serving another request never hits Node's per-address connect timeout.
   const handle = await startHttp(() => createYnmServer(opts, getYnm), {
     port: 0,
+    host: "127.0.0.1",
     quiet: true,
     ...http,
   });
@@ -203,7 +206,7 @@ function raw(
   return new Promise((resolve, reject) => {
     const req = httpRequest(
       {
-        host: "localhost",
+        host: "127.0.0.1",
         port,
         method: opts.method ?? "GET",
         path: opts.path ?? "/mcp",
@@ -230,6 +233,7 @@ describe("HTTP front door: CORS, host and origin checks", () => {
   it("answers a preflight from an allowed origin with CORS headers and no auth", async () => {
     const handle = await startHttp(bare, {
       port: 0,
+      host: "127.0.0.1",
       quiet: true,
       authToken: "secret",
       allowedOrigins: ["https://app.example"],
@@ -252,7 +256,12 @@ describe("HTTP front door: CORS, host and origin checks", () => {
   });
 
   it("rejects a foreign origin and a foreign Host header before auth or the handler", async () => {
-    const handle = await startHttp(bare, { port: 0, quiet: true, authToken: "secret" });
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      authToken: "secret",
+    });
     const origin = await fetch(handle.url, {
       method: "POST",
       headers: { Origin: "https://evil.example", Authorization: "Bearer secret" },
@@ -270,7 +279,12 @@ describe("HTTP front door: CORS, host and origin checks", () => {
   });
 
   it("a wildcard host list accepts any Host header", async () => {
-    const handle = await startHttp(bare, { port: 0, quiet: true, allowedHosts: ["*"] });
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      allowedHosts: ["*"],
+    });
     const r = await raw(handle.port, {
       method: "GET",
       path: "/health",
@@ -291,6 +305,7 @@ describe("HTTP front door: CORS, host and origin checks", () => {
   it("refuses a non-Bearer Authorization with a realm challenge", async () => {
     const handle = await startHttp(bare, {
       port: 0,
+      host: "127.0.0.1",
       quiet: true,
       authToken: "secret",
       rejectLegacy: true,
@@ -307,7 +322,12 @@ describe("HTTP front door: CORS, host and origin checks", () => {
   });
 
   it("passes repeated request headers through and serves a client with a static token", async () => {
-    const handle = await startHttp(bare, { port: 0, quiet: true, authToken: "secret" });
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      authToken: "secret",
+    });
     const r = await raw(handle.port, {
       method: "POST",
       headers: { "Set-Cookie": ["a=1", "b=2"] },
