@@ -79,9 +79,37 @@ provider is a new preset. Configuration names the provider and its few values:
             "scopes": { "read": "memory:read", "write": "memory:write" } } }
 ```
 
-Environment variables keep working for containers (`YNM_AUTH_PROVIDER`, `YNM_OAUTH_ISSUER`,
-`YNM_PUBLIC_URL`, …); the old `YNM_JWKS_URL`, `YNM_OAUTH_INTROSPECTION_URL` and `YNM_MCP_TOKEN`
-map onto `oidc` and `introspection` and `local-token` for one release, with a deprecation line.
+`resource` defaults to `YNM_PUBLIC_URL`, which a hosted server already requires, so the URL is set
+once. The auth object never holds a secret.
+
+**Environment.** A server configured by environment alone (a container or a function) uses three
+ordinary environment variables, so a secret store that loads variables at start, such as Parameter
+Store for a function, needs no extra work:
+
+| Variable | Holds |
+|---|---|
+| `YNM_AUTH` | the `auth` object above, as JSON (as `YNM_MOUNTS` holds `mounts`) |
+| `YNM_AUTH_CLIENT_SECRET` | the client secret, for `introspection` and any preset that needs a confidential client |
+| `YNM_AUDIT` | the `audit` object (below), as JSON |
+
+**The old variables, for one release.** `YNM_JWKS_URL` maps onto `oidc` and
+`YNM_OAUTH_INTROSPECTION_URL` onto `introspection`, each with a deprecation line. `YNM_MCP_TOKEN`
+maps onto `local-token` on loopback. Off loopback it runs as a deprecated `bearer` provider: it
+starts, warns at start and on `/health`, and its `Principal` is one fixed `bearer/shared` identity,
+which is what a shared token has always been. The release after that refuses a static token off
+loopback, so a hosted store moves to a real provider within one release instead of on the day this
+ships.
+
+**`/health` reports the mode** as `auth`, so a deploy guard can refuse a store that is not
+protected:
+
+| `auth` | When |
+|---|---|
+| `none` | `--no-auth`, loopback only |
+| `local-token` | the generated local token, loopback only |
+| `bearer` | a static token off loopback, with `"deprecated": true`, for one release |
+| `oidc` | an OpenID Connect provider, with or without a preset |
+| `introspection` | an RFC 7662 introspection endpoint |
 
 ### The server is never open by accident
 
@@ -90,10 +118,14 @@ map onto `oidc` and `introspection` and `local-token` for one release, with a de
   600), printed once, rotated with `ynm serve token --rotate`. `ynm client install <client> --http
   <url>` reads that file for a local URL and writes the bearer header, so local use stays
   zero-configuration (NFR-14).
-- On a non-loopback address (`--host 0.0.0.0` or any routable address) the server refuses to
-  start unless a provider other than `local-token` is configured, and says which settings are
-  missing. The Docker image follows the same rule.
-- `--no-auth` exists for tests and demos and is refused on a non-loopback address.
+- A server reachable from outside the machine refuses to start unless a provider other than
+  `local-token` is configured (or, for one release, a deprecated static token), and says which
+  settings are missing. Reachable means a non-loopback bind address (`--host 0.0.0.0` or any
+  routable address) or running as a function (ADR-009): a function is always treated as public,
+  whatever its URL. The Docker image follows the same rule.
+- `--no-auth` exists for tests and demos and is refused when reachable. It replaces the function's
+  own escape hatch (`YNM_LAMBDA_ALLOW_OPEN`), so there is one rule and one override for every way
+  ynm is served.
 
 ### Identity reaches everything through the `Principal`
 
@@ -123,11 +155,24 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
 - Inputs are recorded as the tool received them after the redaction patterns run over string
   values (ADR-007), so a secret pasted into a query is not written to the audit log either.
 - Refusals (401, 403) are recorded with the reason and whatever identity was presented.
-- Sinks: JSONL file (`--audit-log <path>`, rotated by size) and stdout (for container log
-  pipelines), with the same seam available to an OpenTelemetry or SIEM sink later. Audit is on by
-  default for any provider other than `local-token`.
-- `ynm audit` reads a JSONL audit log: filter by subject, email, tool, status and time;
-  `--json` for scripts.
+- Sinks, configured by the `audit` object (`{ "sink": "file" | "stdout" | "s3", … }`):
+  - **file:** JSONL (`--audit-log <path>`, rotated by size).
+  - **stdout:** for container and function log pipelines. It is the first sink for a function,
+    whose local disk does not outlive the instance; there, audit events share the function's log
+    stream and its retention.
+  - **s3:** follows stdout, reusing the S3 record log's client. One object per request at
+    `<prefix>/<yyyy>/<mm>/<dd>/<ulid>.json`, written with the same conditional put. `bucket`
+    defaults to the store's bucket when the store is on S3 and is required otherwise; `prefix`
+    defaults to `audit/<store prefix>`. Audit therefore never sits under a store prefix, so a
+    retention rule on it cannot expire memory. Date folders let one lifecycle rule set retention
+    and let `ynm audit` read only the days a time filter asks for. The writer needs only
+    `s3:PutObject` on that prefix; `ynm audit` needs `s3:ListBucket` and `s3:GetObject`.
+
+  The same seam takes an OpenTelemetry or SIEM sink later. Audit is on by default for any
+  provider other than `local-token`.
+- `ynm audit` reads a JSONL audit log or an S3 audit prefix: filter by subject, email, tool,
+  status and time; `--json` for scripts. It does not read a cloud provider's log service; stdout
+  audit is read with that service's own tools.
 - The audit log records requests; the git notes log (NFR-4) remains the durable record of every
   change to memory, now attributed to a person. The two answer different questions: who asked
   for what, and what is in the store and who put it there.
@@ -175,9 +220,21 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
 - Client support varies: a client without MCP OAuth support can still use a token obtained out of
   band (`ynm serve token` for local, a provider-issued token for hosted).
 - Provenance gains fields; existing records keep their server-level actor.
-- ADR-009's hosting decision is amended: its auth section moves here.
+- ADR-009's hosting decision is amended: its auth section moves here, and the function's
+  refusal to start without auth becomes this ADR's reachability rule.
+- Auth and audit run in the one request handler that both `ynm serve --http` and the function
+  call, so the 401 challenge, the metadata document, token checks, scope checks and audit behave
+  the same on both.
+- A hosted store on a static token keeps working for one release after this ships, with a
+  warning, and must move to a real provider before the next.
+- With hosted writes defaulting to the distributed level, the instructions a hosted server sends
+  name the `user/<subject>` namespace default, so agents know where unnamed writes land.
 
 ## History
 
 - 2026-09-30: proposed after the first hosted use showed an open-by-default server and no
   per-user identity or audit.
+- 2026-10-01: revised for running as a function: one reachability rule covering functions,
+  a one-release deprecation window for static tokens off loopback, `/health` auth modes, the
+  `YNM_AUTH`, `YNM_AUTH_CLIENT_SECRET` and `YNM_AUDIT` variables, and an S3 audit sink after
+  stdout. Still proposed.
