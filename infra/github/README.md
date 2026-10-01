@@ -41,7 +41,7 @@ terraform apply
 To change a setting, edit the `.tf` file, `plan`, then `apply`. A change made in the GitHub UI
 shows as drift in the next `plan`; either copy it into the configuration or `apply` to undo it.
 
-When the gate moves to a new milestone: `terraform apply -var milestone=M7`, or change the
+When the gate moves to a new milestone: `terraform apply -var milestone=<id>`, or change the
 default in `variables.tf`.
 
 To rotate `RELEASE_TOKEN`:
