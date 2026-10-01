@@ -67,6 +67,7 @@ Before `git push` or opening a pull request:
 |---|---|
 | `packages/model` | Record and query schemas (Zod), ULIDs, the guidance markdown agents receive |
 | `packages/store` | The append-only record log: git-notes, sqlite, fs and memory providers, fold, sync |
+| `packages/store-s3` | The s3 provider, apart so the AWS SDK stays out of the CLI bundles; an in-memory S3 double for tests |
 | `packages/index` | Recall: SQLite FTS index, ranker, context packing |
 | `packages/models` | Judge and Writer seams: TypeSafe, heuristic, Claude CLI, OpenAI-compatible, spend guard |
 | `packages/service` | The one business layer: mounts, remember, recall, dream, wiki, client adapters, tool specs |

@@ -57,7 +57,9 @@ One writer per store is the rule. Scale by store (one container per team or name
 not by replicas of one store. Reads are cheap: the index is SQLite FTS on local disk, p95 recall
 under 200 ms at 100k memories on the reference machine. If a store outgrows a single
 writer, split by namespace or move that store to the sqlite provider (`provider: sqlite` in the
-store's `config.json`) which drops the git write path entirely.
+store's `config.json`) which drops the git write path entirely. A store on the s3 provider has
+no single writer at all: several servers can mount the same bucket prefix and write at once
+([Choose the S3 provider](choose-the-s3-provider.md)).
 
 The dream worker shares the process. Its cost is bounded by `YNM_TOKEN_BUDGET` (input tokens
 per process, default 2M) and the per-pass pair cap in `dream` config; the `/health` scheduler

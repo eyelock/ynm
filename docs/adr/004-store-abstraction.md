@@ -92,3 +92,9 @@ None.
 
 - 2026-09-29 (M5): `SqliteLog` shipped on `node:sqlite`, passed the shared conformance suite, and
   became selectable as default or per-mount provider without sync.
+- 2026-10-01: `S3Log` joined the providers as `s3`, per mount: append-only JSONL objects under
+  unique ULID keys written with `If-None-Match`, so any number of writers append with no lock;
+  revision is the greatest key plus a digest of the shard's keys and ETags, so purge's in-place
+  `If-Match` rewrite moves it too; non-replicating for now (`sync` later, as a union of lines).
+  It lives in `@ynm/store-s3`, loaded on demand, so the AWS SDK stays out of the CLI bundles. It
+  passes the conformance suite against an in-memory double and against MinIO.

@@ -14,6 +14,19 @@ describe("config schema descriptions", () => {
       .map(([k]) => k);
     expect(missing).toEqual([]);
   });
+
+  it("an s3 mount needs a bucket and no path; every other provider needs a path", () => {
+    const s3 = { id: "h", level: "distributed", provider: "s3" };
+    expect(MountConfigSchema.safeParse({ ...s3, bucket: "b", prefix: "p" }).success).toBe(true);
+    expect(MountConfigSchema.safeParse(s3).error?.issues[0]).toMatchObject({
+      path: ["bucket"],
+      message: "an s3 mount needs a bucket",
+    });
+    expect(
+      MountConfigSchema.safeParse({ id: "f", level: "personal", provider: "fs" }).error?.issues[0]
+        ?.message
+    ).toBe("a fs mount needs a path");
+  });
 });
 
 describe("loadConfig (ADR-009)", () => {
