@@ -9,6 +9,7 @@ Recipes for a goal you already have. Each assumes you know the basics from the
 | [Retrofit an existing repository](retrofit-an-existing-repo.md) | Give a repository with history and a team a distributed memory without changing any tracked file, and decide what to do with the client files `ynm init` writes |
 | [Share an org store](share-an-org-store.md) | Keep memory that spans many repositories in one dedicated bare repo, mounted everywhere |
 | [Choose the SQLite provider](choose-the-sqlite-provider.md) | Keep a store in a single SQLite file instead of git notes |
+| [Choose the S3 provider](choose-the-s3-provider.md) | Keep a store in an S3 bucket that many processes can write at once |
 | [Configure the judge and writer](configure-judge-and-writer.md) | Choose which model judges in `ynm dream` and on recall, and which one writes |
 | [Connect a client over HTTP](connect-over-http.md) | Point an agent client at a hosted server instead of a local stdio process |
 | [Add a client adapter](add-a-client-adapter.md) | Teach `ynm init` and `ynm client install` about a new agent client |

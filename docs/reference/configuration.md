@@ -47,10 +47,13 @@ After merging, three keys get runtime defaults when still unset:
 | `mounts` | array of object |  | Explicit extra mounts (org stores, hosted stores) |
 | `mounts[].id` | string |  | Mount id, shown on every hit and accepted by `--mount` |
 | `mounts[].level` | `personal` \| `distributed` |  | Which records the mount accepts |
-| `mounts[].provider` | `git-notes` \| `fs` \| `sqlite` \| `memory` | `git-notes` | Record store provider for this mount |
-| `mounts[].path` | string |  | Repository or directory path |
+| `mounts[].provider` | `git-notes` \| `fs` \| `sqlite` \| `memory` \| `s3` | `git-notes` | Record store provider for this mount |
+| `mounts[].path` | string |  | Repository or directory path; required by every provider but `s3` |
 | `mounts[].anchor` | string |  | Anchor commit for this mount's notes |
 | `mounts[].remote` | string |  | Remote used when syncing this mount |
+| `mounts[].bucket` | string |  | `s3` only: the bucket that holds the store |
+| `mounts[].prefix` | string |  | `s3` only: key prefix the store's objects sit under; default the bucket root |
+| `mounts[].region` | string |  | `s3` only: AWS region of the bucket; default from the AWS environment |
 | `hooks` | boolean | `true` | Install git hooks on init |
 | `index` | `sqlite-fts` \| `memory` | `sqlite-fts` | Index implementation |
 <!-- /gen:config-keys -->
@@ -66,7 +69,13 @@ After merging, three keys get runtime defaults when still unset:
 |---|---|---|---|
 | `personal` | always, unless the server runs with `--no-personal` | `personalStore` | `$YNM_HOME/store-<provider>` |
 | `project` | the repository has a `.ynm/config.json` | the repository | `<repo>/.ynm/store-<provider>` |
-| each `mounts[]` entry | always | `path` | `path` (`sqlite`: `path` if it ends in `.sqlite`, else `path/store.sqlite`) |
+| each `mounts[]` entry | always | `path` | `path` (`sqlite`: `path` if it ends in `.sqlite`, else `path/store.sqlite`; `s3`: `s3://<bucket>/<prefix>`) |
+
+An `s3` mount takes `bucket`, and optionally `prefix` and `region`, instead of `path`.
+Credentials come from the standard AWS chain. The provider is in the Docker image and a source
+checkout, not in the standalone binaries or the slim tarball; see
+[Choose the S3 provider](../how-to/choose-the-s3-provider.md). `s3` is a mount provider only,
+not a value for the top-level `provider`.
 
 A `mounts[]` entry with the `git-notes` provider must set `anchor`; opening it fails otherwise.
 
