@@ -17,8 +17,13 @@ cd /tmp/ynm-tutorial
 ynm init --personal
 git init -q -b main project
 cd project
-git -c user.name=tutorial -c user.email=tutorial@example.com commit -q --allow-empty -m "first commit"
+git config user.name tutorial
+git config user.email tutorial@example.com
+git commit -q --allow-empty -m "first commit"
 ```
+
+The two `git config` lines give this repository its own commit identity, so the commits in this
+tutorial work even on a machine with no git identity set.
 
 Expected: `personal store created at /tmp/ynm-tutorial/home/store.git` and nothing else.
 
