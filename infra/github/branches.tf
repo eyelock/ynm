@@ -8,12 +8,12 @@ resource "github_branch_default" "develop" {
 }
 
 locals {
-  # Status checks each protected branch requires before a PR can merge. "verify" is the ci
-  # workflow's job; "Verify PR source branch" is protect-main.yml, which only runs on PRs into
-  # main.
+  # Status checks each protected branch requires before a PR can merge. "verify" and
+  # "coverage" (coverage of the lines a PR changes) are the ci workflow's jobs; "Verify PR
+  # source branch" is protect-main.yml, which only runs on PRs into main.
   protected_branches = {
     main    = ["verify", "Verify PR source branch"]
-    develop = ["verify"]
+    develop = ["verify", "coverage"]
   }
 }
 

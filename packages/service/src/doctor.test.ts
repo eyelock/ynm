@@ -107,9 +107,9 @@ describe("doctor", () => {
       ok: false,
       detail: "missing anchor in .ynm/config.json",
     });
-    expect(check(report, "shared fetch refspec")).toMatchObject({
+    expect(check(report, "distributed fetch refspec")).toMatchObject({
       ok: false,
-      detail: "missing; run `ynm init`",
+      detail: "missing; `ynm sync` adds it",
     });
     expect(check(report, "personal refs never pushed")?.ok).toBe(false);
     expect(check(report, "no personal refs in project repo")).toMatchObject({
