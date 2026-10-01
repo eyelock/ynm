@@ -68,5 +68,5 @@ For a new owner or name, set `owner` and `repository`, then:
 4. Apply the rest, with the release token and the gate, since the secret and the variable are
    being created: `TF_VAR_release_token=<token> TF_VAR_milestone=<id> terraform apply`.
 
-The protections require the `verify` and `Verify PR source branch` checks, which report once the
-workflows have run on a pull request.
+The protections require the `verify`, `coverage` (on `develop`) and `Verify PR source branch`
+checks, which report once the workflows have run on a pull request.

@@ -66,4 +66,98 @@ describe("hosted scheduler (ADR-009)", () => {
     expect(h.stats.dreamRuns).toBe(0);
     h.stop();
   });
+
+  describe("on fake timers", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it("syncs on its own interval, records the time, and stops cleanly", async () => {
+      let syncs = 0;
+      const fake = {
+        sync: async () => {
+          syncs += 1;
+        },
+      } as unknown as Ynm;
+      const at = new Date("2026-09-30T12:00:00.000Z");
+      const h = startScheduler(async () => fake, { syncEveryMs: 1000, quiet: true, now: () => at });
+      await vi.advanceTimersByTimeAsync(3500);
+      expect(syncs).toBe(3);
+      expect(h.stats.syncRuns).toBe(3);
+      expect(h.stats.lastSyncAt).toBe(at.toISOString());
+      expect(h.stats.dreamRuns).toBe(0);
+      h.stop();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(syncs).toBe(3);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("never overlaps a slow sync: a tick during a run joins it", async () => {
+      let started = 0;
+      let release: () => void = () => {};
+      const fake = {
+        sync: () => {
+          started += 1;
+          return new Promise<void>((r) => {
+            release = r;
+          });
+        },
+      } as unknown as Ynm;
+      const h = startScheduler(async () => fake, { syncEveryMs: 100, quiet: true });
+      await vi.advanceTimersByTimeAsync(450);
+      expect(started).toBe(1);
+      const joined = h.syncNow();
+      release();
+      await joined;
+      expect(h.stats.syncRuns).toBe(1);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(started).toBe(2);
+      release();
+      h.stop();
+    });
+
+    it("zero or missing intervals start no timers", () => {
+      const h = startScheduler(async () => make(), { dreamEveryMs: 0, syncEveryMs: 0 });
+      expect(vi.getTimerCount()).toBe(0);
+      h.stop();
+    });
+
+    it("logs to stderr unless quiet, including non-Error failures", async () => {
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      const h = startScheduler(
+        async () => {
+          throw "disk full";
+        },
+        { dreamEveryMs: 60_000, syncEveryMs: 30_000 }
+      );
+      expect(err).toHaveBeenCalledWith("[ynm-mcp scheduler] dream every 60000ms");
+      expect(err).toHaveBeenCalledWith("[ynm-mcp scheduler] sync every 30000ms");
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(h.stats.lastError).toBe("sync: disk full");
+      // Both timers fire at 60 s; lastError is one field, so the later sync failure wins there
+      // while the dream failure still reaches the log.
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(h.stats.lastError).toBe("sync: disk full");
+      expect(err).toHaveBeenCalledWith("[ynm-mcp scheduler] dream: disk full");
+      h.stop();
+    });
+  });
+
+  it("logs a successful dream run when not quiet", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const ynm = make();
+    const h = startScheduler(async () => ynm, { now: () => new Date(clock) });
+    await h.dreamNow();
+    expect(h.stats.dreamRuns).toBe(1);
+    expect(h.stats.lastError).toBeNull();
+    expect(
+      err.mock.calls.some(([m]) => /^\[ynm-mcp scheduler\] dream #1: \{/.test(String(m)))
+    ).toBe(true);
+    err.mockRestore();
+    h.stop();
+  });
 });

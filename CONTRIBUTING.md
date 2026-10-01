@@ -12,6 +12,11 @@ make typecheck
 make test                        # tier 1 evals and unit tests; no keys, no Docker
 ```
 
+`make coverage` writes each package's report to `packages/<name>/coverage/`; overall totals are
+reported, not enforced. `make coverage-diff` then measures line coverage of what your branch
+adds or changes against `origin/develop` (`BASE=` to change it) and fails below 80%. CI runs
+both on every pull request.
+
 `make rebuild` does all of the above from clean. `make install` gives you a locally addressable
 build to test with, ynh-style: it writes `~/.ynm/bin/ynm`, a launcher that runs this checkout, and
 prints the PATH line if that directory is not on your PATH. `ynm --version` then reports
@@ -48,6 +53,7 @@ gh pr create --base develop
 Before `git push` or opening a pull request:
 
 1. `make verify` passes (check, typecheck, every package's tests).
+   `make coverage coverage-diff` shows changed lines at 80% or more.
 2. `make test-tutorials` passes; if the change touches a tutorial or anything a tutorial runs,
    `make eval-tutorials` for those tutorials too (opt-in, spends tokens).
 3. Generated files are current: `make gen` after tool or client changes, `make docs-gen` after

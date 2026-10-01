@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runRecordLogConformance } from "../testing/conformance.js";
+import { collect, makeRecord, runRecordLogConformance } from "../testing/conformance.js";
 import { SqliteLog } from "./sqlite.js";
 
 const writer = fileURLToPath(new URL("../../test/fixtures/sqlite-writer.mjs", import.meta.url));
@@ -49,4 +49,47 @@ runRecordLogConformance("sqlite", {
       })
     );
   },
+});
+
+describe("SqliteLog specifics", () => {
+  function fresh(): SqliteLog {
+    return new SqliteLog(
+      "s",
+      "personal",
+      join(mkdtempSync(join(tmpdir(), "ynm-sqlite-")), "a", "b.sqlite")
+    );
+  }
+
+  it("creates the parent directory, and an empty append touches no shard", async () => {
+    const log = fresh();
+    expect(await log.append([])).toEqual({ appended: 0, shards: [] });
+    expect(await log.shards()).toEqual([]);
+    log.close();
+  });
+
+  it("works with an in-memory database", async () => {
+    const log = new SqliteLog("m", "personal", ":memory:");
+    await log.append([makeRecord()]);
+    expect(await collect(log)).toHaveLength(1);
+    expect((await log.health()).details).toMatchObject({ file: ":memory:", records: 1, shards: 1 });
+    log.close();
+  });
+
+  it("rolls back the whole batch when a record cannot be written", async () => {
+    const log = fresh();
+    const good = makeRecord();
+    const bad = { ...makeRecord(), data: { n: 1n } } as unknown as typeof good;
+    await expect(log.append([good, bad])).rejects.toThrow(/BigInt/);
+    expect(await collect(log)).toEqual([]);
+    expect(await log.shards()).toEqual([]);
+    // The log is still usable after the rollback.
+    expect((await log.append([good])).appended).toBe(1);
+    log.close();
+  });
+
+  it("closes the database", async () => {
+    const log = fresh();
+    log.close();
+    await expect(log.append([makeRecord()])).rejects.toThrow(/not open/);
+  });
 });

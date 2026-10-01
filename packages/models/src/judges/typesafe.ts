@@ -98,9 +98,7 @@ export class TypeSafeJudge implements Judge {
       answers,
       model: data.model,
       calibrated: true,
-      usage: data.usage
-        ? { inputTokens: data.usage.input_tokens ?? 0, outputTokens: data.usage.output_tokens ?? 0 }
-        : undefined,
+      usage,
     };
   }
 }

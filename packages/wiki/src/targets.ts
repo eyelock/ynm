@@ -74,9 +74,13 @@ export class OrphanBranchTarget implements WikiTarget {
       if (!dirs.has(d)) dirs.set(d, []);
       return dirs.get(d) as Array<{ name: string; kind: "blob" | "tree"; sha: string }>;
     };
+    const parentOf = (path: string) => (dirname(path) === "." ? "" : dirname(path));
     for (const [path, sha] of blobs) {
-      const d = dirname(path) === "." ? "" : dirname(path);
+      const d = parentOf(path);
       ensure(d).push({ name: path.slice(d ? d.length + 1 : 0), kind: "blob", sha });
+      // Register every ancestor now, so a folder with no page of its own is still in the
+      // deepest-first order below and gets attached to its parent before the parent is written.
+      for (let a = d; a; a = parentOf(a)) ensure(parentOf(a));
     }
     const depth = (d: string) => (d ? d.split("/").length : 0);
     const order = [...dirs.keys()].sort((a, b) => depth(b) - depth(a));
@@ -91,9 +95,8 @@ export class OrphanBranchTarget implements WikiTarget {
       ).trim();
       treeSha.set(d, sha);
       if (d) {
-        const parent = dirname(d) === "." ? "" : dirname(d);
+        const parent = parentOf(d);
         ensure(parent).push({ name: d.slice(parent ? parent.length + 1 : 0), kind: "tree", sha });
-        if (!order.includes(parent)) order.push(parent);
       }
     }
     return treeSha.get("") ?? (await git(["mktree"], { cwd: this.repo, input: "" })).trim();

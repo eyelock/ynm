@@ -99,5 +99,6 @@ the judge to reorder the top `rerankTopK` recall hits.
 ## Cost
 
 Calls are metered against a token budget, `YNM_TOKEN_BUDGET` (input tokens per process, default 2
-million); crossing it stops the run instead of spending. A pair judgment is about 700 input
-tokens. Try `ynm dream --dry-run --max-pairs 20` first.
+million); crossing it stops the run instead of spending. When a provider's reply leaves out the
+input-token count, the call is charged at ynm's own estimate of the request size. A pair
+judgment is about 700 input tokens. Try `ynm dream --dry-run --max-pairs 20` first.
