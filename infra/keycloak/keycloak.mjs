@@ -5,8 +5,8 @@
 //                                                     print an access token (default scopes:
 //                                                     "memory:read memory:write")
 //   node infra/keycloak/keycloak.mjs check           prove the realm gives ynm what it needs
-const ISSUER = process.env.YNM_OAUTH_ISSUER ?? "http://localhost:8180/realms/ynm";
-const RESOURCE = process.env.YNM_PUBLIC_URL ?? "http://localhost:3000/mcp";
+const ISSUER = process.env.KEYCLOAK_ISSUER ?? "http://localhost:8180/realms/ynm";
+const RESOURCE = process.env.KEYCLOAK_AUDIENCE ?? "http://localhost:3000/mcp";
 const CLIENT = "ynm-cli";
 
 const discovery = async () => {

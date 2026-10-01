@@ -30,7 +30,7 @@ make keycloak-down     # stop it and throw its data away
 The realm is defined in [`realm-ynm.json`](realm-ynm.json) and imported every time the
 container starts, so `make keycloak-down` followed by `make keycloak` always gives a clean realm.
 To serve ynm on a different address, change the audience in that file and set
-`YNM_PUBLIC_URL` to the same address when running `keycloak.mjs`.
+`KEYCLOAK_AUDIENCE` to the same address when running `keycloak.mjs`.
 
 `make keycloak-check` checks each of these against the running server: discovery, signing keys,
 PKCE, self-registration, and a token's issuer, audience, subject, email, name, client and
