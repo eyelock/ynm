@@ -172,8 +172,8 @@ describe("fold (ADR-002)", () => {
 
 describe("compareRecords", () => {
   it("orders by recordedAt, then id, and treats the same id as equal", () => {
-    const a = create();
-    const sameTime = { ...a, id: `${a.id.slice(0, -1)}Z` };
+    const a = { ...create(), id: "01ARZ3NDEKTSV4RRFFQ69G5FAA" };
+    const sameTime = { ...a, id: "01ARZ3NDEKTSV4RRFFQ69G5FAB" };
     const later = create();
     expect(compareRecords(a, later)).toBe(-1);
     expect(compareRecords(later, a)).toBe(1);
