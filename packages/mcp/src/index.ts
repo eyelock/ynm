@@ -14,7 +14,17 @@ import { MCP_VERSION } from "./version.js";
 export * from "./auth.js";
 export * from "./scheduler.js";
 export { createYnmServer, serviceCache } from "./server.js";
-export { type HttpHandle, type HttpOptions, startHttp } from "./transport/http.js";
+export {
+  createFrontDoor,
+  createWebHandler,
+  type FrontDoorOptions,
+  type FrontDoorResult,
+  type HttpHandle,
+  type HttpOptions,
+  startHttp,
+  type WebHandler,
+  type WebHandlerOptions,
+} from "./transport/http.js";
 export { startStdio } from "./transport/stdio.js";
 export { MCP_VERSION } from "./version.js";
 
