@@ -5,6 +5,24 @@ of a bare git repository (or a SQLite file), the single writer for that store, w
 worker and sync on timers. Agents connect over HTTP with a bearer token; they never need git.
 Developers who do have git use the hosted repo as an ordinary remote.
 
+## Server or Lambda
+
+The same MCP endpoint runs in two shapes:
+
+| | Server (container or `ynm serve --http`) | AWS Lambda function |
+|---|---|---|
+| Runs | all the time | per request; idle costs close to nothing |
+| Store | git-notes or sqlite on its own disk, or any store it can mount | one that does not live on the function's disk: the `s3` provider |
+| Writers | one process, the single writer | many instances at once, which the store must allow |
+| Dream and sync | timers in the process (`--dream-every`, `--sync-every`) | EventBridge Scheduler invokes the function; no sync |
+| Index | built once, kept on disk | rebuilt in `/tmp` on each cold start |
+| Git clients | can use the store's repository as a remote | none: agents connect over HTTP only |
+
+Pick the server for a git-notes store that developers also sync with, or for steady traffic.
+Pick Lambda for an agents-only store used in bursts. A store on the `s3` provider can be mounted
+by either, so moving between them is a redeploy. The rest of this page is about the server;
+[Host ynm on AWS Lambda](host-on-aws-lambda.md) covers the function.
+
 ## Run it
 
 ```sh
@@ -53,7 +71,7 @@ the index is derived data. The commands, for both providers, are in
 
 ## Scaling
 
-One writer per store is the rule. Scale by store (one container per team or namespace root),
+One writer per store is the rule for a git-notes or sqlite store. Scale by store (one container per team or namespace root),
 not by replicas of one store. Reads are cheap: the index is SQLite FTS on local disk, p95 recall
 under 200 ms at 100k memories on the reference machine. If a store outgrows a single
 writer, split by namespace or move that store to the sqlite provider (`provider: sqlite` in the

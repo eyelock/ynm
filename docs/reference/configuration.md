@@ -191,6 +191,19 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 
 The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_CLAUDE_CLI=1`.
 
+### AWS Lambda
+
+The function ([Host ynm on AWS Lambda](../how-to/host-on-aws-lambda.md)) reads the server's
+auth variables (`YNM_JWKS_URL` and the rest, `YNM_REQUIRED_SCOPES`) and the configuration
+variables above, `YNM_MOUNTS` for its store, plus:
+
+| Variable | Effect |
+|---|---|
+| `YNM_PUBLIC_URL` | Required. The URL clients use to reach the function, such as `https://memory.example.com/mcp`. Requests are served as if addressed to it, and it is the only allowed `Host`. The function refuses to start without it |
+
+On Lambda, `YNM_HOME` defaults to `/tmp/ynm` and `YNM_NO_CLAUDE_CLI` to `1`. The port, bind host,
+allowed-host and interval variables do not apply.
+
 ### Internal
 
 | Variable | Effect |
