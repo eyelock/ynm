@@ -12,9 +12,8 @@ To choose between a function and a long-running server, see
 A function's local disk (`/tmp`) belongs to one instance and is lost when AWS recycles it, and
 several instances can run at once. The store must therefore live somewhere else and accept
 writes from more than one instance. Use the `s3` provider: one object per write, no lock, any
-number of writers. Its setup is in the how-to *Choose the s3 provider*
-(`choose-the-s3-provider.md`). A git-notes store does not fit: it needs `git` and a local
-repository, and it expects one writer.
+number of writers. Its setup is in [Choose the s3 provider](choose-the-s3-provider.md). A
+git-notes store does not fit: it needs `git` and a local repository, and it expects one writer.
 
 Only the index lives in `/tmp`. It is derived data, rebuilt from the store when an instance
 starts.
