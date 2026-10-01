@@ -11,7 +11,10 @@ export default class Validate extends YnmCommand {
     "<%= config.bin %> <%= command.id %> ~/my-harness",
   ];
   static override args = {
-    dir: Args.string({ description: "Directory to check (default: the current directory)" }),
+    dir: Args.string({
+      ignoreStdin: true,
+      description: "Directory to check (default: the current directory)",
+    }),
   };
   static override flags = { ...YnmCommand.baseFlags };
 

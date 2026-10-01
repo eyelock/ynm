@@ -41,11 +41,13 @@ export default class Client extends YnmCommand {
   ];
   static override args = {
     action: Args.string({
+      ignoreStdin: true,
       required: true,
       options: ["install", "status", "plan"],
       description: "install, plan or status",
     }),
     name: Args.string({
+      ignoreStdin: true,
       description:
         "Client name; omitted: ynh in a harness directory, else every client this project uses",
       options: CLIENT_ADAPTERS.map((c) => c.name),

@@ -7,7 +7,9 @@ export default class Pin extends YnmCommand {
     "<%= config.bin %> <%= command.id %> 01J...",
     "<%= config.bin %> <%= command.id %> 01J... --unpin",
   ];
-  static override args = { memoryId: Args.string({ required: true, description: "Memory id" }) };
+  static override args = {
+    memoryId: Args.string({ ignoreStdin: true, required: true, description: "Memory id" }),
+  };
   static override flags = {
     ...YnmCommand.baseFlags,
     unpin: Flags.boolean({ description: "Remove the pin", default: false }),

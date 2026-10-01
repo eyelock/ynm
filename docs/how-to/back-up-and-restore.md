@@ -69,5 +69,12 @@ ynm export > memory.jsonl
 ynm import memory.jsonl
 ```
 
+With no file, `ynm import` reads standard input, so one store can be copied straight into another
+without a file in between:
+
+```bash
+ynm export | YNM_HOME=/path/to/other/home ynm import
+```
+
 Use it to move between providers or machines. It backs up one store at a time; pass `--mount`
 for a single mount. Purged records are gone from it, by design.

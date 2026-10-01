@@ -153,5 +153,5 @@ characters outside `[a-z0-9._-]` becomes `-`.
 ## Export format
 
 `ynm export` writes records in this format, one per line, including history and tombstones.
-`ynm import` reads the same format and routes each record to a mount by its `level`; ids are
-kept.
+`ynm import` reads the same format, from a file or from standard input, and routes each record
+to a mount by its `level`; ids are kept.

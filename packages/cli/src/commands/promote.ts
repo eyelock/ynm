@@ -6,7 +6,7 @@ export default class Promote extends YnmCommand {
     "Copy a personal memory into a distributed mount as a new, linked memory";
   static override examples = ["<%= config.bin %> <%= command.id %> 01J..."];
   static override args = {
-    memoryId: Args.string({ required: true, description: "Personal memory id" }),
+    memoryId: Args.string({ ignoreStdin: true, required: true, description: "Personal memory id" }),
   };
   static override flags = {
     ...YnmCommand.baseFlags,
