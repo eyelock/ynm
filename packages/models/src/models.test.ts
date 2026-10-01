@@ -151,6 +151,64 @@ describe("SpendGuard (hard cap on paid usage)", () => {
     expect(SpendGuard.fromEnv({ YNM_TOKEN_BUDGET: "123" }).maxInputTokens).toBe(123);
     expect(SpendGuard.fromEnv({}).maxInputTokens).toBe(2_000_000);
   });
+
+  it("charges the estimate when usage is missing or reports no input tokens", async () => {
+    const { SpendGuard } = await import("./budget.js");
+    const guard = new SpendGuard(1000, "test");
+    guard.charge(undefined, 30);
+    guard.charge({ inputTokens: 0, outputTokens: 12 }, 40);
+    guard.charge({ inputTokens: 25, outputTokens: 0 }, 40);
+    expect(guard.spent).toBe(95);
+    expect(guard.calls).toBe(3);
+  });
+
+  it("counts a TypeSafe call whose reply leaves out input_tokens", async () => {
+    const { SpendGuard } = await import("./budget.js");
+    const guard = new SpendGuard(1000, "test");
+    const fetchMock = (async () =>
+      new Response(
+        JSON.stringify({
+          model: "jev",
+          answers: { q: { type: "noul", noul: 0.5 } },
+          usage: { output_tokens: 4 },
+        }),
+        { status: 200 }
+      )) as unknown as typeof fetch;
+    const j = new TypeSafeJudge({ apiKey: "fake-key", fetch: fetchMock, guard });
+    await j.judge({ a: "x" }, { q: { type: "noul", instructions: "?" } });
+    expect(guard.calls).toBe(1);
+    expect(guard.spent).toBeGreaterThan(0);
+  });
+
+  it("counts an OpenAI-compatible call whose reply has only completion_tokens", async () => {
+    const { SpendGuard, BudgetExceededError } = await import("./budget.js");
+    const fetchMock = (async () =>
+      new Response(
+        JSON.stringify({
+          model: "gpt",
+          choices: [{ message: { content: '{"ok":true}' } }],
+          usage: { completion_tokens: 3 },
+        }),
+        { status: 200 }
+      )) as unknown as typeof fetch;
+    const guard = new SpendGuard(1000, "test");
+    const w = new OpenAICompatibleWriter({
+      baseUrl: "http://paid.invalid/v1",
+      model: "gpt",
+      apiKey: "fake-key",
+      fetch: fetchMock,
+      guard,
+    });
+    const req = { instructions: "say ok", state: {}, schema: z.object({ ok: z.boolean() }) };
+    await w.write(req);
+    expect(guard.spent).toBeGreaterThan(0);
+    // Repeated calls that never report input tokens must still reach the cap.
+    await expect(
+      (async () => {
+        for (let i = 0; i < 20; i++) await w.write(req);
+      })()
+    ).rejects.toThrow(BudgetExceededError);
+  });
 });
 
 describe("WriterEmulatedJudge", () => {
