@@ -22,6 +22,75 @@ build to test with, ynh-style: it writes `~/.ynm/bin/ynm`, a launcher that runs 
 prints the PATH line if that directory is not on your PATH. `ynm --version` then reports
 `<version>-dev.<sha>`, and a rebuild is picked up without reinstalling. `make uninstall` removes it.
 
+## Run the server locally
+
+The MCP server runs three ways, all from the same code: over stdio (what agent clients launch),
+over HTTP (the hosted server), and as an AWS Lambda. Each can be tried on this machine against
+any store, including an S3 one, and connected to a real agent. Start with `make install`.
+
+### A store to run against
+
+By default a server uses your normal stores (`~/.ynm` and the repository you run it in). To
+experiment without touching them, give the shell a scratch home, and optionally an S3 store on a
+local MinIO ([`infra/minio`](infra/minio/README.md), needs Docker):
+
+```bash
+export YNM_HOME=/tmp/ynm-dev               # a throwaway personal store and index
+make minio                                 # MinIO on :9000 with a versioned bucket
+eval "$(make minio-env)"                   # AWS_* and YNM_MOUNTS: an s3 mount named hosted
+make minio-down                            # when done: stop it, drop its data
+```
+
+`YNM_MOUNTS` replaces the mounts from config files for that shell; `unset YNM_MOUNTS` gets yours
+back. `ynm status` shows what is mounted (`s3://ynm-dev/dev` for the MinIO mount). Writes to a
+mount without a personal level need `--level distributed` (or `level: "distributed"` from an
+agent).
+
+### Over stdio
+
+```bash
+ynm serve                                  # speaks MCP on stdin/stdout until stdin closes
+```
+
+Nothing to look at on its own: connect a client that launches it. In Claude Code,
+`claude mcp add ynm-dev -- ynm serve` (pass the scratch settings with `-e`, e.g.
+`claude mcp add ynm-dev -e YNM_HOME=/tmp/ynm-dev -- ynm serve`, plus each `minio-env` value for
+the S3 store); in the MCP inspector,
+`npx @modelcontextprotocol/inspector ynm serve`. `ynm client install <client>` does the same
+setup the way users get it.
+
+### Over HTTP
+
+```bash
+ynm serve --http --port 3000 --no-personal --token dev-token
+curl localhost:3000/health                 # outside auth: auth mode and scheduler stats
+```
+
+Connect Claude Code with
+`claude mcp add --transport http ynm-dev http://localhost:3000/mcp --header "Authorization: Bearer dev-token"`,
+or the inspector with the same URL and header. `--dream-every 1m` runs the dream worker on a
+timer, as a hosted server does. The Docker image is the same server: `docker compose -f
+infra/docker/docker-compose.yml up`.
+
+### As a Lambda
+
+`make lambda-local` builds `dist/lambda.zip`, the package that goes to AWS, and serves it on
+`http://localhost:3000/mcp`: each HTTP request becomes the Function URL event the AWS runtime
+would send, and the handler's answer becomes the response. One process is one warm instance;
+restart it to see a cold start.
+
+```bash
+export YNM_MCP_TOKEN=dev-token             # a function refuses to start without auth
+make lambda-local                          # PORT=… to move it; Ctrl-C to stop
+make lambda-event E=dream                  # one scheduled event (dream, compact, health), printed
+```
+
+It is configured the way the function is, by environment: `YNM_PUBLIC_URL` (defaults to the
+local URL), `YNM_MOUNTS` (defaults to a sqlite store under `.lambda-local/`, so
+`eval "$(make minio-env)"` first to run it on S3 instead), and the auth variables. Connect a client
+exactly as for HTTP above. The same S3 store can be served by the Lambda, `ynm serve --http` and
+the CLI at once: writes never conflict.
+
 ## Branches and pull requests
 
 ynm uses Gitflow, the same model as [ynh](https://github.com/eyelock/ynh). Nothing is committed

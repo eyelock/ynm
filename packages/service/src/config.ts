@@ -180,12 +180,30 @@ export function loadConfig(src: ConfigSources, env: NodeJS.ProcessEnv = process.
   if (env.YNM_USER) fromEnv.userId = env.YNM_USER;
   if (env.YNM_ACTOR) fromEnv.actor = env.YNM_ACTOR;
   if (env.YNM_INDEX) fromEnv.index = env.YNM_INDEX;
+  if (env.YNM_MOUNTS) fromEnv.mounts = mountsFromEnv(env.YNM_MOUNTS);
   merged = { ...merged, ...fromEnv };
   const config = YnmConfigSchema.parse(merged);
   config.userId ??= safeUsername();
   config.personalStore ??= join(src.home, "store.git");
   config.actor ??= `user:${config.userId}`;
   return { config, files, home: src.home };
+}
+
+/**
+ * `YNM_MOUNTS`: the `mounts` array as JSON, for hosts configured by environment alone (a
+ * container or a Lambda function with no config file). It replaces `mounts` from files.
+ */
+function mountsFromEnv(raw: string): unknown {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      `YNM_MOUNTS is not valid JSON: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+  if (!Array.isArray(parsed)) throw new Error("YNM_MOUNTS must be a JSON array of mounts");
+  return parsed;
 }
 
 function safeUsername(): string {
