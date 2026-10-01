@@ -26,6 +26,7 @@
     "bench:public": "pnpm --filter @ynm/evals bench:public"
   },
   "devDependencies": {
+    "@aws-sdk/client-ssm": "^3.1144.0",
     "@biomejs/biome": "^2.4.12",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",

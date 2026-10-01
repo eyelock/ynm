@@ -13,6 +13,7 @@ Recipes for a goal you already have. Each assumes you know the basics from the
 | [Configure the judge and writer](configure-judge-and-writer.md) | Choose which model judges in `ynm dream` and on recall, and which one writes |
 | [Connect a client over HTTP](connect-over-http.md) | Point an agent client at a hosted server instead of a local stdio process |
 | [Add a client adapter](add-a-client-adapter.md) | Teach `ynm init` and `ynm client install` about a new agent client |
-| [Operate a hosted store](operate-a-hosted-store.md) | Run the HTTP service: auth modes, key rotation, the scheduler, scaling |
+| [Operate a hosted store](operate-a-hosted-store.md) | Run the HTTP service: server or Lambda, auth modes, key rotation, the scheduler, scaling |
+| [Host ynm on AWS Lambda](host-on-aws-lambda.md) | Run a hosted store as a Lambda function behind a Function URL, with scheduled dream and compaction |
 | [Back up and restore](back-up-and-restore.md) | Keep a copy of memory you can restore from |
-| [Cut a release](cut-a-release.md) | Version, freeze the evals, tag, and publish the binaries, slim tarball, formulae and image |
+| [Cut a release](cut-a-release.md) | Version, freeze the evals, tag, and publish the binaries, slim tarball, Lambda package, formulae and image |

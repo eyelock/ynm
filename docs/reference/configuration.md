@@ -152,6 +152,7 @@ An uncalibrated judge (`heuristic`, `writer-emulated`) never reaches the act ban
 | `YNM_USER` | Overrides `userId` |
 | `YNM_ACTOR` | Overrides `actor` |
 | `YNM_INDEX` | Overrides `index` |
+| `YNM_MOUNTS` | Replaces `mounts` with this JSON array, for a server configured by environment alone (a container or a Lambda function) |
 
 ### Secrets and models
 
@@ -198,6 +199,21 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 | `YNM_URL` | Server URL used by the compose demo's agent |
 
 The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_CLAUDE_CLI=1`.
+
+### AWS Lambda
+
+The function ([Host ynm on AWS Lambda](../how-to/host-on-aws-lambda.md)) reads the server's
+auth variables (`YNM_JWKS_URL` and the rest, `YNM_REQUIRED_SCOPES`) and the configuration
+variables above, `YNM_MOUNTS` for its store, plus:
+
+| Variable | Effect |
+|---|---|
+| `YNM_PUBLIC_URL` | Required. The URL clients use to reach the function, such as `https://memory.example.com/mcp`. Requests are served as if addressed to it, and it is the only allowed `Host`. The function refuses to start without it |
+| `YNM_LAMBDA_ALLOW_OPEN` | `1` lets the function start with no authentication configured. Without it, a function with none of the auth variables refuses to start, because a Function URL is public. For local tests only |
+| `YNM_SSM_ENV_PATH` | A Parameter Store path; at cold start each parameter under it named like an environment variable becomes that variable unless already set, so secrets stay out of the function's configuration. Values of `unset` are skipped |
+
+On Lambda, `YNM_HOME` defaults to `/tmp/ynm` and `YNM_NO_CLAUDE_CLI` to `1`. The port, bind host,
+allowed-host and interval variables do not apply.
 
 ### Internal
 
