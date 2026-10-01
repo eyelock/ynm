@@ -2,7 +2,7 @@
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
 .PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage coverage-diff \
         test-hosted test-tutorials eval-tutorials bench bench-large bench-public gate \
-        gen golden docs docs-gen docs-links release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
+        gen golden docs docs-gen docs-links lambda release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
 M ?= M6
 
@@ -12,7 +12,7 @@ help:
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
-	@echo "Release:  release-slim release-standalone release-manifest release-notes changeset version"
+	@echo "Release:  lambda (dist/lambda.zip) release-slim release-standalone release-manifest release-notes changeset version"
 	@echo "Other:    cli clean ci (what CI runs: deps build verify gate)"
 
 ## Setup
@@ -129,6 +129,12 @@ release-standalone: build
 	node scripts/release/build-standalone.mjs --os $(OS) --arch $(ARCH) --version $(VERSION) \
 	  --node-tarball "$$(node scripts/release/fetch-node.mjs --os $(OS) --arch $(ARCH))"
 	node scripts/release/smoke.mjs $(VERSION) dist-release/ynm_$(VERSION)_$(OS)_$(ARCH)/ynm
+
+# The AWS Lambda package: dist/lambda.zip holding index.mjs (exports handler), smoke-tested by
+# importing it and calling the handler (docs/how-to/host-on-aws-lambda.md).
+lambda: build
+	node scripts/release/build-lambda.mjs --out dist/lambda.zip
+	node scripts/release/smoke-lambda.mjs dist/lambda.zip
 
 release-manifest:
 	node scripts/release/manifest.mjs $(VERSION)
