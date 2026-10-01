@@ -81,9 +81,16 @@ describe("gate M6: v0.1 release", () => {
     const dir = join(repoRoot, "docs", "adr");
     const files = readdirSync(dir).filter((f) => /^\d{3}-.*\.md$/.test(f));
     expect(files.length).toBeGreaterThanOrEqual(15);
+    // The records the v0.1 release shipped with (000 to 016) are accepted; a later record may be
+    // proposed while it is discussed, but never carries draft-era sections.
+    const RELEASED = 16;
     for (const f of files) {
       const text = readFileSync(join(dir, f), "utf8");
-      expect(text, `${f} not accepted`).toMatch(/^Status: accepted \(\d{4}-\d{2}-\d{2}\)$/m);
+      const status =
+        Number(f.slice(0, 3)) <= RELEASED
+          ? /^Status: accepted \(\d{4}-\d{2}-\d{2}\)$/m
+          : /^Status: (accepted|proposed) \(\d{4}-\d{2}-\d{2}\)$/m;
+      expect(text, `${f} not accepted`).toMatch(status);
       expect(text, `${f} still has an Addenda section`).not.toMatch(/^## Addenda/m);
       expect(text, `${f} still has a draft-era Decided section`).not.toMatch(/^## Decided/m);
     }
