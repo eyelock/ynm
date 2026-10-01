@@ -125,7 +125,7 @@ earlier commits on the ref still hold the removed text. Count how many times it 
 shard's history:
 
 ```bash
-git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/personal/user/tutorial/semantic/$(date +%Y-%m) | grep -o hunter2 | wc -l
+git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/personal/user/tutorial/semantic/$(date -u +%Y-%m) | grep -o hunter2 | wc -l
 ```
 
 Expected: a number greater than zero. The secret is gone from the log and still in git history.
@@ -136,7 +136,7 @@ that way:
 ```bash
 SECRET=$(ynm remember --type semantic --content "Password for the demo box is swordfish." --json | grep '"memoryId"' | cut -d'"' -f4)
 ynm purge "$SECRET" --reason "second secret" --forget-history --yes
-git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/personal/user/tutorial/semantic/$(date +%Y-%m) | grep -o -E "hunter2|swordfish" | wc -l
+git -C /tmp/ynm-tutorial/home/store.git log -p refs/notes/ynm/personal/user/tutorial/semantic/$(date -u +%Y-%m) | grep -o -E "hunter2|swordfish" | wc -l
 ```
 
 Expected: `purged <id>: 1 record(s) removed from personal`, then `0` (macOS pads the count with spaces). Neither secret survives in any

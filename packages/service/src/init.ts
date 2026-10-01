@@ -1,13 +1,12 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, relative } from "node:path";
 import {
   createRootCommit,
+  distributedFetchRefspec,
   findRootCommit,
   git,
   gitOrNull,
   identityEnv,
-  NOTES_PREFIX,
-  REMOTE_PREFIX,
   selectAnchor,
 } from "@ynm/store";
 import { type ClientSetup, configureClients } from "./clients/index.js";
@@ -41,10 +40,49 @@ export interface InitReport {
   notes: string[];
   /** One entry per client configured (or found already configured); empty when none detected. */
   clients: ClientSetup[];
+  /**
+   * Files ynm set up that the team shares and that are not committed yet, relative to the work
+   * tree: commit them so every clone gets the same memory and agent setup.
+   */
+  commit: string[];
+  /** Files ynm set up that are one person's own; they are excluded from git. */
+  local: string[];
 }
 
-export const DISTRIBUTED_FETCH = (remote: string): string =>
-  `+${NOTES_PREFIX}/distributed/*:${REMOTE_PREFIX}/${remote}/distributed/*`;
+/** Client files that belong to one person on one machine, never to the repository. */
+const PERSONAL_FILES = [".claude/settings.local.json", "CLAUDE.local.md"];
+
+/**
+ * Sorts the files init set up into those the team should commit and those that stay local,
+ * excluding the personal ones from git first. Files already committed and unchanged are left out.
+ */
+async function commitAdvice(
+  workTree: string,
+  files: string[]
+): Promise<{ commit: string[]; local: string[] }> {
+  const rels = [...new Set(files.map((f) => relative(workTree, f)))].filter(
+    (r) => r !== "" && !r.startsWith("..") && !isAbsolute(r)
+  );
+  const personal = rels.filter((r) => PERSONAL_FILES.includes(r));
+  const ignored = async (r: string) =>
+    (await gitOrNull(["check-ignore", "-q", "--", r], { cwd: workTree })) !== null;
+  const toExclude: string[] = [];
+  for (const r of personal) if (!(await ignored(r))) toExclude.push(r);
+  if (toExclude.length) await ensureExcluded(workTree, toExclude);
+  const commit: string[] = [];
+  for (const r of rels) {
+    if (personal.includes(r) || (await ignored(r))) continue;
+    const tracked =
+      (await gitOrNull(["ls-files", "--error-unmatch", "--", r], { cwd: workTree })) !== null;
+    const clean =
+      tracked &&
+      (await gitOrNull(["diff", "--quiet", "HEAD", "--", r], { cwd: workTree })) !== null;
+    if (!clean) commit.push(r);
+  }
+  return { commit, local: personal };
+}
+
+export const DISTRIBUTED_FETCH = distributedFetchRefspec;
 
 const PRE_PUSH_HOOK = `#!/bin/sh
 # ynm: sync distributed memory notes alongside code pushes (installed by \`ynm init\`)
@@ -129,7 +167,7 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
     }
   } else {
     notes.push(
-      `remote "${remote}" not found; refspecs not configured (re-run init after adding it)`
+      `no remote "${remote}" yet; distributed memory stays in this clone until you add one, then \`ynm sync\` shares it`
     );
   }
 
@@ -164,6 +202,9 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
           only: opts.clients.only,
         })
       : [];
+  const advice = wt.isBare
+    ? { commit: [], local: [] }
+    : await commitAdvice(wt.currentPath, [configFile, ...clients.flatMap((c) => c.files)]);
   return {
     repo,
     anchor: anchor.sha,
@@ -174,6 +215,7 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
     hooksInstalled,
     notes,
     clients,
+    ...advice,
   };
 }
 

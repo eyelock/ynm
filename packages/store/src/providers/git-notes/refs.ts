@@ -11,6 +11,14 @@ export function levelDir(level: Level): Level {
   return level;
 }
 
+/**
+ * The fetch line that makes a plain `git fetch` bring a remote's distributed memory into the
+ * remote-tracking refs sync merges from. Personal refs never get one.
+ */
+export function distributedFetchRefspec(remote: string): string {
+  return `+${NOTES_PREFIX}/distributed/*:${REMOTE_PREFIX}/${remote}/distributed/*`;
+}
+
 export function levelFromDir(dir: string): Level | null {
   return dir === "personal" || dir === "distributed" ? dir : null;
 }

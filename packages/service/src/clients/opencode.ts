@@ -82,6 +82,10 @@ export const opencode: ClientAdapter = {
     const guided =
       hasGuidanceBlock(join(cwd, "AGENTS.md")) ||
       hasGuidanceBlock(join(home, ".config", "opencode", "AGENTS.md"));
+    const guidanceFile = [
+      join(cwd, "AGENTS.md"),
+      join(home, ".config", "opencode", "AGENTS.md"),
+    ].find((f) => hasGuidanceBlock(f));
     for (const file of [
       join(cwd, "opencode.json"),
       join(home, ".config", "opencode", "opencode.json"),
@@ -94,6 +98,7 @@ export const opencode: ClientAdapter = {
           configured: true,
           detail: file,
           guidance: guided,
+          files: [file, ...(guidanceFile ? [guidanceFile] : [])],
         };
     }
     return {
@@ -101,6 +106,7 @@ export const opencode: ClientAdapter = {
       configured: false,
       detail: "ynm not registered; run `ynm client install opencode`",
       guidance: guided,
+      files: guidanceFile ? [guidanceFile] : [],
     };
   },
 };

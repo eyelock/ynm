@@ -76,6 +76,7 @@ export const copilotCli: ClientAdapter = {
           configured: true,
           detail: file,
           guidance: guided,
+          files: guided ? [join(cwd, "AGENTS.md")] : [],
         };
     }
     return {
@@ -83,6 +84,7 @@ export const copilotCli: ClientAdapter = {
       configured: false,
       detail: "ynm not registered; run `ynm client install copilot-cli`",
       guidance: guided,
+      files: guided ? [join(cwd, "AGENTS.md")] : [],
     };
   },
 };

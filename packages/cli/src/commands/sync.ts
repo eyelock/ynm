@@ -42,7 +42,7 @@ export default class Sync extends YnmCommand {
             .map(([id, r]) =>
               r.skipped
                 ? `${id}: ${r.skipped}`
-                : `${id}: fetched ${r.fetched}, merged ${r.merged.length}, pushed ${r.pushed.length}, retries ${r.retries}${r.conflicts.length ? `, conflicts: ${r.conflicts.join("; ")}` : ""}`
+                : `${id}: fetched ${r.fetched}, merged ${r.merged.length}, pushed ${r.pushed.length}, retries ${r.retries}${r.conflicts.length ? `, conflicts: ${r.conflicts.join("; ")}` : ""}${r.refspecAdded ? `\n  added fetch refspec ${r.refspecAdded}` : ""}`
             )
             .join("\n")
         : "nothing to sync (no replicating distributed mount)"

@@ -158,6 +158,8 @@ export interface ClientSetup {
   applied: string[];
   /** Steps left for the user: commands, or installs that touch files outside the project. */
   run: string[];
+  /** Absolute paths of the files inside the project this client's setup lives in. */
+  files: string[];
   /**
    * Set when the client is on this machine but the project shows no sign of using it: init
    * writes nothing for it and suggests the install command instead.
@@ -198,6 +200,7 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
           detected: d.detail,
           applied: [],
           run: [`ynm client install ${a.name}`],
+          files: [],
           skipped: "machine-only",
         });
         continue;
@@ -231,6 +234,16 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
         c.kind === "write" || c.kind === "merge-json" ? (c.label ?? relative(root, c.path)) : ""
       ),
       run,
+      // Every file in the project the setup lives in, changed this time or not, so init can say
+      // what to commit.
+      files: [
+        ...new Set([
+          ...plan.flatMap((c) =>
+            (c.kind === "write" || c.kind === "merge-json") && inside(c.path) ? [c.path] : []
+          ),
+          ...((await a.status(opts)).files?.filter(inside) ?? []),
+        ]),
+      ],
     });
   }
   return out;

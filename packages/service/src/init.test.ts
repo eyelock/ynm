@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { createBare, createRepo, fx, rootCommit } from "@ynm/store/testing/git";
 import { doctor } from "./doctor.js";
 import { initBare, initProject } from "./init.js";
@@ -164,7 +164,7 @@ describe("openYnm end to end on git notes", () => {
     writeFileSync(join(repo, ".mcp.json"), JSON.stringify({ mcpServers: {} }));
     const clients = { home, env: { PATH: "" } };
     const first = await initProject({ cwd: repo, hooks: false, clients });
-    expect(first.clients).toEqual([
+    expect(first.clients).toMatchObject([
       {
         client: "claude-code",
         detected: ".mcp.json",
@@ -176,9 +176,13 @@ describe("openYnm end to end on git notes", () => {
     expect(existsSync(join(repo, ".claude", "settings.local.json"))).toBe(true);
     expect(existsSync(join(repo, ".claude", "settings.json"))).toBe(false);
     const again = await initProject({ cwd: repo, hooks: false, clients });
-    expect(again.clients).toEqual([
+    // unchanged, but it still names where its setup lives, so init can say what to commit
+    expect(again.clients).toMatchObject([
       { client: "claude-code", detected: ".mcp.json", applied: [], run: [] },
     ]);
+    expect(
+      again.clients[0]?.files.map((f) => relative(realpathSync(repo), realpathSync(f)))
+    ).toEqual([".mcp.json", "AGENTS.md", join(".claude", "settings.local.json")]);
     const none = await initProject({ cwd: await createRepo(1), hooks: false, clients });
     expect(none.clients).toEqual([]);
     const bare = (await initBare(join(await createRepo(0), "m.git"))).repo;
@@ -194,7 +198,7 @@ describe("openYnm end to end on git notes", () => {
     const repo = await createRepo(1);
     const r = await initProject({ cwd: repo, hooks: false, clients: { home, env: { PATH: bin } } });
     // Installed on the machine but not used by this project: suggested, never written.
-    expect(r.clients).toEqual([
+    expect(r.clients).toMatchObject([
       {
         client: "copilot-cli",
         detected: "copilot on PATH",
@@ -234,7 +238,7 @@ describe("openYnm end to end on git notes", () => {
       hooks: false,
       clients: { ...clients, only: ["opencode"] },
     });
-    expect(forced.clients).toEqual([
+    expect(forced.clients).toMatchObject([
       {
         client: "opencode",
         detected: "requested",
@@ -252,6 +256,43 @@ describe("openYnm end to end on git notes", () => {
     await expect(initProject({ cwd: harness })).rejects.toThrow(
       /ynh harness, not a project.*ynm client install ynh/
     );
+  });
+
+  it("says which files to commit and which stay local, and keeps the local ones out of git", async () => {
+    const home = await createRepo(0);
+    const repo = await createRepo(1);
+    writeFileSync(join(repo, ".mcp.json"), JSON.stringify({ mcpServers: {} }));
+    const clients = { home, env: { PATH: "" } };
+    const report = await initProject({ cwd: repo, hooks: false, clients });
+    expect(report.commit.sort()).toEqual([".mcp.json", ".ynm/config.json", "AGENTS.md"]);
+    expect(report.local).toEqual([".claude/settings.local.json"]);
+    const untracked = await fx(repo, "status", "--porcelain");
+    expect(untracked).not.toContain("settings.local.json");
+    await fx(repo, "add", "-A");
+    await fx(repo, "commit", "-q", "-m", "ynm");
+    const again = await initProject({ cwd: repo, hooks: false, clients });
+    expect(again.commit).toEqual([]);
+  });
+
+  it("with no remote yet, sync later adds the fetch refspec itself; nothing to push is not a failure", async () => {
+    const repo = await createRepo(1);
+    const env = { YNM_HOME: join(await createRepo(0), ".ynm") };
+    const report = await initProject({ cwd: repo, env, hooks: false });
+    expect(report.refspecs).toEqual([]);
+    expect(report.notes.join("\n")).toContain("`ynm sync`");
+    expect(report.notes.join("\n")).not.toContain("re-run init");
+    const origin = await createBare();
+    await fx(repo, "remote", "add", "origin", origin);
+    const { ynm } = await openYnm({ cwd: repo, env });
+    const first = (await ynm.sync()).project;
+    expect(first?.conflicts).toEqual([]);
+    expect(first?.refspecAdded).toBe(
+      "+refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*"
+    );
+    await ynm.remember({ type: "semantic", level: "distributed", content: "distributed fact" });
+    const second = (await ynm.sync()).project;
+    expect(second?.refspecAdded).toBeUndefined();
+    expect(second?.pushed.length).toBe(1);
   });
 
   it("doctor warns about a client with the server but no guidance or hooks", async () => {

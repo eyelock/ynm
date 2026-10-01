@@ -100,7 +100,7 @@ export async function doctor(opts: {
           fetches.includes(DISTRIBUTED_FETCH(remote)),
           fetches.includes(DISTRIBUTED_FETCH(remote))
             ? DISTRIBUTED_FETCH(remote)
-            : "missing; run `ynm init`"
+            : "missing; `ynm sync` adds it"
         );
         const pushes =
           (await gitOrNull(["config", "--get-all", `remote.${remote}.push`], { cwd: repo })) ?? "";
