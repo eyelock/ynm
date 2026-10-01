@@ -1,8 +1,8 @@
 # Back up and restore
 
 Goal: keep a copy of your memory you can restore from. A git-notes store is a git repository, so
-a backup is a bundle; a SQLite store is a file. The index is derived data and never needs
-backing up: delete it and the next request rebuilds it. Tutorial 11 walks through a restore.
+a backup is a bundle; a SQLite store is a file; an S3 store is the objects under a prefix. The
+index is derived data and never needs backing up: delete it and the next request rebuilds it. Tutorial 11 walks through a restore.
 
 ## A project's distributed memory
 
@@ -50,6 +50,14 @@ restored repository, or copy it to `/data/store.git` before the container starts
 Copy `store.sqlite` while nothing writes to it, or checkpoint first so the write-ahead log is
 folded in: run `PRAGMA wal_checkpoint(TRUNCATE)` against the file, or copy `store.sqlite` together
 with its `-wal` file. Restore by putting the file back at the same path.
+
+## An S3 store
+
+Turn on versioning for the bucket, so an object deleted or rewritten by mistake can be
+recovered, and replicate it to another bucket or region for a copy outside it. A point-in-time
+copy is a copy of the prefix (`aws s3 sync s3://acme-ynm/stores/team ./team-backup`); restore by
+copying the objects back under the same prefix. Copying while ynm writes is safe: each write is
+a new object, and a record that shows up twice in the copy is read once.
 
 ## As portable JSONL
 

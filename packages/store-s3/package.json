@@ -1,8 +1,8 @@
 {
-  "name": "@ynm/service",
+  "name": "@ynm/store-s3",
   "version": "0.1.1",
   "private": true,
-  "description": "The one business layer: mounts, remember, recall, consolidate, sync, doctor (ADR-008).",
+  "description": "The s3 record log provider: append-only JSONL objects in an S3 bucket (ADR-004). Its own package so the AWS SDK stays out of the CLI bundles.",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -10,9 +10,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./hook-intent": {
-      "types": "./dist/hooks/intent.d.ts",
-      "import": "./dist/hooks/intent.js"
+    "./testing": {
+      "types": "./dist/testing/memory-s3.d.ts",
+      "import": "./dist/testing/memory-s3.js"
     }
   },
   "files": [
@@ -26,13 +26,9 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1144.0",
     "@ynm/model": "workspace:*",
-    "@ynm/store": "workspace:*",
-    "zod": "^4.3.6",
-    "@ynm/index": "workspace:*",
-    "@ynm/models": "workspace:*",
-    "@ynm/wiki": "workspace:*",
-    "@ynm/store-s3": "workspace:*"
+    "@ynm/store": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
@@ -40,7 +36,6 @@
     "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^4.1.4",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.4",
-    "esbuild": "^0.28.2"
+    "vitest": "^4.1.4"
   }
 }
