@@ -15,7 +15,7 @@ const discovery = async () => {
   return res.json();
 };
 
-async function token(user, scopes = "memory:read memory:write") {
+async function grant(user, scopes) {
   const { token_endpoint } = await discovery();
   const res = await fetch(token_endpoint, {
     method: "POST",
@@ -31,8 +31,11 @@ async function token(user, scopes = "memory:read memory:write") {
   });
   const body = await res.json();
   if (!res.ok) throw new Error(`token for ${user}: ${body.error_description ?? body.error}`);
-  return body.access_token;
+  return body;
 }
+
+const token = async (user, scopes = "memory:read memory:write") =>
+  (await grant(user, scopes)).access_token;
 
 const claims = (jwt) => JSON.parse(Buffer.from(jwt.split(".")[1], "base64url").toString());
 
@@ -79,6 +82,15 @@ async function check() {
   const bScopes = b.scope.split(" ");
   line(bScopes.includes("memory:read") && !bScopes.includes("memory:write"), "bob asking for read only gets no write scope", b.scope);
   line(b.sub !== a.sub, "alice and bob are different people");
+
+  // MCP clients such as Claude Code ask for offline_access so they can refresh without a new sign-in.
+  try {
+    const offline = await grant("alice", "memory:read memory:write offline_access");
+    const typ = offline.refresh_token ? claims(offline.refresh_token).typ : undefined;
+    line(typ === "Offline", "a client may ask for offline_access (refresh tokens)", typ);
+  } catch (e) {
+    line(false, "a client may ask for offline_access (refresh tokens)", e.message);
+  }
 
   const reg = await fetch(d.registration_endpoint, {
     method: "POST",

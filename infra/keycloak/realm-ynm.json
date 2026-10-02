@@ -164,6 +164,15 @@
         "display.on.consent.screen": "true",
         "consent.screen.text": "Write to your team's memory"
       }
+    },
+    {
+      "name": "offline_access",
+      "description": "Refresh tokens for MCP clients",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
     }
   ],
   "defaultDefaultClientScopes": [
@@ -174,7 +183,8 @@
   ],
   "defaultOptionalClientScopes": [
     "memory:read",
-    "memory:write"
+    "memory:write",
+    "offline_access"
   ],
   "users": [
     {
@@ -190,6 +200,9 @@
           "value": "alice",
           "temporary": false
         }
+      ],
+      "realmRoles": [
+        "offline_access"
       ]
     },
     {
@@ -205,6 +218,9 @@
           "value": "bob",
           "temporary": false
         }
+      ],
+      "realmRoles": [
+        "offline_access"
       ]
     }
   ],
@@ -237,7 +253,8 @@
       ],
       "optionalClientScopes": [
         "memory:read",
-        "memory:write"
+        "memory:write",
+        "offline_access"
       ]
     },
     {
@@ -302,5 +319,21 @@
         }
       }
     ]
-  }
+  },
+  "roles": {
+    "realm": [
+      {
+        "name": "offline_access",
+        "description": "Lets a client keep a refresh token (offline_access), as MCP clients do"
+      }
+    ]
+  },
+  "scopeMappings": [
+    {
+      "clientScope": "offline_access",
+      "roles": [
+        "offline_access"
+      ]
+    }
+  ]
 }
