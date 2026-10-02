@@ -153,7 +153,21 @@
         "include.in.token.scope": "true",
         "display.on.consent.screen": "true",
         "consent.screen.text": "Read your team's memory"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "ynm audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "http://localhost:3000/mcp",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
     },
     {
       "name": "memory:write",
@@ -163,7 +177,21 @@
         "include.in.token.scope": "true",
         "display.on.consent.screen": "true",
         "consent.screen.text": "Write to your team's memory"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "ynm audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "http://localhost:3000/mcp",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
     },
     {
       "name": "offline_access",

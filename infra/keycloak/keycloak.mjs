@@ -53,6 +53,27 @@ async function wait() {
   }
 }
 
+/** The token Keycloak would issue a client for a user, via the admin API (dev admin/admin). */
+async function exampleToken(clientId, username, scope) {
+  const base = new URL(ISSUER).origin;
+  const res = await fetch(`${base}/realms/master/protocol/openid-connect/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "password", client_id: "admin-cli", username: "admin", password: "admin" }),
+  });
+  if (!res.ok) throw new Error(`admin sign-in ${res.status}`);
+  const { access_token } = await res.json();
+  const admin = `${base}/admin/realms/${ISSUER.split("/realms/")[1]}`;
+  const get = async (path) => {
+    const r = await fetch(`${admin}${path}`, { headers: { authorization: `Bearer ${access_token}` } });
+    if (!r.ok) throw new Error(`admin ${path.split("?")[0]} ${r.status}`);
+    return r.json();
+  };
+  const [c] = await get(`/clients?clientId=${encodeURIComponent(clientId)}`);
+  const [u] = await get(`/users?exact=true&username=${encodeURIComponent(username)}`);
+  return get(`/clients/${c.id}/evaluate-scopes/generate-example-access-token?scope=${encodeURIComponent(scope)}&userId=${u.id}`);
+}
+
 async function check() {
   let failed = 0;
   const line = (ok, what, detail) => {
@@ -101,11 +122,24 @@ async function check() {
       token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
-      scope: "memory:read memory:write",
+      // What Claude Code sends: the resource's scopes_supported plus offline_access.
+      scope: "memory:read memory:write offline_access",
     }),
   });
   const client = await reg.json();
   line(reg.status === 201 && Boolean(client.client_id), "a client registers itself without an account (RFC 7591)", client.client_id ?? `${reg.status} ${client.error_description ?? client.error}`);
+  if (client.client_id) {
+    // A self-registered client cannot use the password grant, so ask the admin API what token
+    // it would get. Keycloak gives such a client only the scopes it asked for, so the audience
+    // must ride on the memory scopes, not on a realm default.
+    try {
+      const example = await exampleToken(client.client_id, "alice", "openid memory:read memory:write offline_access");
+      const regAud = [example.aud].flat().filter(Boolean);
+      line(regAud.includes(RESOURCE), "a self-registered client's tokens name the ynm MCP URL", regAud.join(", ") || "no audience");
+    } catch (e) {
+      line(false, "a self-registered client's tokens name the ynm MCP URL", e.message);
+    }
+  }
   if (client.registration_access_token && client.registration_client_uri)
     await fetch(client.registration_client_uri, {
       method: "DELETE",

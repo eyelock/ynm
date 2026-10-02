@@ -21,7 +21,7 @@ make keycloak-down     # stop it and throw its data away
 | Issuer | `http://localhost:8180/realms/ynm` |
 | Users | `alice` / `alice` and `bob` / `bob`, with emails `alice@example.com` and `bob@example.com` |
 | Scopes | `memory:read` and `memory:write`, granted only when a client asks for them |
-| Audience | every token names `http://localhost:3000/mcp`, the default address of `ynm serve --http` |
+| Audience | every token that carries a memory scope names `http://localhost:3000/mcp`, the default address of `ynm serve --http`. The audience rides on the scopes, so a client that registers itself (and gets only the scopes it asks for) still gets it |
 | `ynm-cli` | a public client with PKCE for the browser flow; it also allows the password grant, so scripts and tests can get a token without a browser |
 | `ynm-server` | a confidential client with secret `ynm-dev-secret`, for token introspection |
 | Client registration | any client on this machine can register itself, the way MCP clients such as Claude Code do on first connect |
