@@ -87,6 +87,10 @@ all is an orphan: kept, reported, not shown.
 The folded memory carries `createdAt` (first record), `updatedAt` (latest record), `versions`
 (records folded), `tombstoned` and `current` (the record that holds the current content).
 
+An `annotate` whose `data` holds a string `dreamed` sets the memory's `dreamed`: the version a
+dream run last finished judging. An annotate that carries only that (no tags, links or other
+fields) is bookkeeping and leaves `updatedAt` where it was; it still counts in `versions`.
+
 ## Relations
 
 <!-- gen:relations -->

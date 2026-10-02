@@ -88,4 +88,5 @@ None.
 
 ## History
 
-No addenda were recorded during the build.
+- 2026-10-03: fold reads `data.dreamed` on an `annotate` into the memory's `dreamed` (ADR-006).
+  An annotate carrying only that is bookkeeping and does not move `updatedAt`.

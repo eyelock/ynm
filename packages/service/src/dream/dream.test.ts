@@ -518,6 +518,192 @@ describe("dream passes: reflect and normalise", () => {
   });
 });
 
+/** Counts the judge calls a dream pass makes, leaving out the write path's own questions. */
+class CountingJudge extends ScriptJudge {
+  calls = 0;
+  override async judge<Q extends Record<string, Question>>(
+    state: unknown,
+    questions: Q
+  ): Promise<Judgment<Q>> {
+    if (!("sensitive" in questions) && !("importance" in questions)) this.calls += 1;
+    return super.judge(state, questions);
+  }
+}
+
+describe("dream runs are incremental", () => {
+  const unrelated = (_s: unknown, id: string) =>
+    id === "sameFact" || id === "contradicts" ? 0.05 : 0.1;
+
+  it("a second run with nothing new calls no model and runs only expiry", async () => {
+    const judge = new CountingJudge(unrelated);
+    const { ynm, run } = make(judge);
+    await ynm.remember({
+      type: "semantic",
+      content: "Notes anchor to the root commit",
+      subject: "entity:notes",
+    });
+    await ynm.remember({
+      type: "semantic",
+      content: "Notes are fetched on sync",
+      subject: "entity:notes",
+    });
+    await ynm.remember({
+      type: "working",
+      namespace: "session/s1",
+      content: "Looking at the sync path",
+      ttl: "PT1H",
+    });
+    const first = await run({});
+    expect(first.fresh).toBe(3);
+    expect(first.dreamed).toBe(3);
+    expect(judge.calls).toBeGreaterThan(0);
+    judge.calls = 0;
+    const second = await run({});
+    expect(second.fresh).toBe(0);
+    expect(second.dreamed).toBe(0);
+    expect(judge.calls).toBe(0);
+    expect(Object.keys(second.passes)).toEqual(["expire"]);
+    expect(second.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
+  });
+
+  it("judges only pairs that involve a new memory", async () => {
+    const judge = new CountingJudge(unrelated);
+    const { ynm, run } = make(judge);
+    for (const content of ["Alpha beta gamma", "Alpha beta delta", "Alpha beta epsilon"])
+      await ynm.remember({ type: "semantic", content, subject: "entity:alpha" });
+    await run({});
+    const added = await ynm.remember({
+      type: "semantic",
+      content: "Alpha beta zeta",
+      subject: "entity:alpha",
+    });
+    const seen: string[][] = [];
+    const spy = new CountingJudge(unrelated);
+    const inner = spy.judge.bind(spy);
+    spy.judge = async (state, questions) => {
+      const pair = state as { a?: { content: string }; b?: { content: string } };
+      if (pair.a && pair.b) seen.push([pair.a.content, pair.b.content]);
+      return inner(state, questions);
+    };
+    const r = await dream(
+      ynm,
+      {},
+      { judge: spy, writer: new NoneWriter(), config: DreamConfigSchema.parse({}) }
+    );
+    expect(r.fresh).toBe(1);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((p) => p.includes("Alpha beta zeta"))).toBe(true);
+    expect((await ynm.find(added.memoryId))?.dreamed).toBeDefined();
+  });
+
+  it("a memory whose content changes is judged again; a flag or tag does not count", async () => {
+    const judge = new CountingJudge(unrelated);
+    const { ynm, run } = make(judge);
+    const a = await ynm.remember({ type: "semantic", content: "Releases happen on Fridays" });
+    await ynm.remember({ type: "semantic", content: "Releases are cut from develop" });
+    await run({});
+    await ynm.annotate({ memoryId: a.memoryId, tags: ["release"], needsReview: true });
+    expect((await run({})).fresh).toBe(0);
+    await ynm.supersede({ memoryId: a.memoryId, content: "Releases happen on Thursdays" });
+    expect((await run({})).fresh).toBe(1);
+  });
+
+  it("a change of subject makes a memory fresh for the contradiction pass", async () => {
+    const judge = new CountingJudge(unrelated);
+    const { ynm, run } = make(judge);
+    const a = await ynm.remember({ type: "semantic", content: "Deploys go out at noon" });
+    await ynm.remember({
+      type: "semantic",
+      content: "Deploys go out at midnight",
+      subject: "entity:deploy",
+    });
+    await run({});
+    // The tools cannot re-subject a memory, but an imported or synced annotate record can.
+    const prior = await ynm.find(a.memoryId);
+    await ynm.mount("personal").log.append([
+      makeRecord({
+        op: "annotate",
+        memoryId: a.memoryId,
+        type: "semantic",
+        namespace: prior?.namespace,
+        subject: "entity:deploy",
+        recordedAt: "2026-12-01T00:00:00.000Z",
+      }),
+    ]);
+    const r = await run({});
+    expect(r.fresh).toBe(1);
+    expect(r.passes.contradict?.judged).toBe(1);
+  });
+
+  it("memories the pair cap defers stay fresh until a later run judges them", async () => {
+    const judge = new CountingJudge(unrelated);
+    const { ynm } = make(judge);
+    for (const content of ["One two three", "One two four", "One two five", "One two six"])
+      await ynm.remember({ type: "semantic", content, subject: "entity:one" });
+    const config = DreamConfigSchema.parse({ maxPairsPerRun: 2 });
+    const runCapped = () => dream(ynm, {}, { judge, writer: new NoneWriter(), config });
+    const first = await runCapped();
+    expect(first.fresh).toBe(4);
+    expect(first.passes.contradict?.skipped).toBeGreaterThan(0);
+    expect(first.dreamed).toBeLessThan(4);
+    let last = first;
+    for (let i = 0; i < 10 && last.fresh > 0; i++) last = await runCapped();
+    expect(last.fresh).toBe(0);
+  });
+
+  it("a promote tag added later still promotes a working memory already dreamed", async () => {
+    const judge = new CountingJudge((_s, id) => (id === "usefulLater" ? 0.05 : 0.1));
+    const { ynm, run } = make(judge);
+    const w = await ynm.remember({
+      type: "working",
+      namespace: "session/s1",
+      content: "The flaky test is in sync.test.ts",
+      ttl: "PT1H",
+    });
+    expect((await run({})).passes.promote?.changed).toEqual([]);
+    await ynm.annotate({ memoryId: w.memoryId, tags: ["promote"] });
+    judge.calls = 0;
+    const r = await run({});
+    expect(r.passes.promote?.changed).toEqual([w.memoryId]);
+    expect(judge.calls).toBe(0);
+  });
+
+  it("a partial run judges only fresh memories but marks none", async () => {
+    const { ynm, run } = make(new CountingJudge(unrelated));
+    await ynm.remember({ type: "semantic", content: "Caches live under XDG_CACHE_HOME" });
+    expect((await run({ passes: ["expire"] })).dreamed).toBe(0);
+    expect((await run({ namespace: "common" })).dreamed).toBe(0);
+    expect((await run({})).dreamed).toBe(1);
+  });
+
+  it("a different judge sees every memory afresh once", async () => {
+    const { ynm, run } = make(new CountingJudge(unrelated));
+    await ynm.remember({ type: "semantic", content: "Builds run on arm64" });
+    await ynm.remember({ type: "semantic", content: "Builds run on x86" });
+    await run({});
+    const heuristic = {
+      judge: new HeuristicJudge(),
+      writer: new NoneWriter(),
+      config: DreamConfigSchema.parse({}),
+    };
+    expect((await dream(ynm, {}, heuristic)).fresh).toBe(2);
+    expect((await dream(ynm, {}, heuristic)).fresh).toBe(0);
+  });
+
+  it("a dry run marks nothing, and marking leaves updatedAt alone", async () => {
+    const judge = new CountingJudge(unrelated);
+    const { ynm, run } = make(judge);
+    const m = await ynm.remember({ type: "semantic", content: "Index lives in the cache dir" });
+    const before = (await ynm.find(m.memoryId))?.updatedAt;
+    expect((await run({ dryRun: true })).dreamed).toBe(0);
+    expect((await ynm.find(m.memoryId))?.dreamed).toBeUndefined();
+    expect((await run({})).dreamed).toBe(1);
+    const after = await ynm.find(m.memoryId);
+    expect(after?.dreamed).toBe(`${after?.current.id}@script`);
+    expect(after?.updatedAt).toBe(before);
+  });
+});
+
 describe("dream types", () => {
   it("an uncalibrated judge never reaches the act band", () => {
     const t = { act: 0.8, review: 0.5 };

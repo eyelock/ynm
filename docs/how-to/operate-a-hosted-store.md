@@ -95,9 +95,11 @@ store's `config.json`) which drops the git write path entirely. A store on the s
 no single writer at all: several servers can mount the same bucket prefix and write at once
 ([Choose the S3 provider](choose-the-s3-provider.md)).
 
-The dream worker shares the process. Its cost is bounded by `YNM_TOKEN_BUDGET` (input tokens
-per process, default 2M) and the per-pass pair cap in `dream` config; the `/health` scheduler
-block shows the last run's pass summary and any error.
+The dream worker shares the process. Each run judges only memories new or changed since the last
+one, so a quiet store costs no model calls however often it dreams. A busy store's cost is
+bounded by `YNM_TOKEN_BUDGET` (input tokens per process, default 2M) and the per-pass pair cap in
+`dream` config; the `/health` scheduler block shows the last run's pass summary and any error,
+and the log line for each run says how many memories were fresh.
 
 ## Local clones and the hosted store
 

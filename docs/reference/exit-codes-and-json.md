@@ -149,13 +149,18 @@ content, in the [record format](record-format.md).
         "notes": []
       }
     },
+    "fresh": 5,
+    "dreamed": 0,
     "usage": { "inputTokens": 0, "outputTokens": 0 },
     "estimatedCostUsd": 0
   }
 }
 ```
 
-Passes appear in the order `expire`, `promote`, `dedupe`, `contradict`, `reflect`, `normalise`.
+`fresh` counts the memories new or changed since a run with this judge last finished with them;
+`dreamed` counts the ones this run finished with and marked (always 0 for a dry run, or a run
+limited by `--passes` or `--namespace`). With `fresh` at 0 only `expire` runs, and the plain
+output adds the line `nothing new since the last run; only expiry ran`. Passes appear in the order `expire`, `promote`, `dedupe`, `contradict`, `reflect`, `normalise`.
 
 ### sync
 
