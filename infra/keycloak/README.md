@@ -40,7 +40,7 @@ Start ynm against this realm and Claude Code signs in by itself:
 YNM_JWKS_URL=http://localhost:8180/realms/ynm/protocol/openid-connect/certs \
 YNM_JWT_ISSUER=http://localhost:8180/realms/ynm \
 YNM_JWT_AUDIENCE=http://localhost:3000/mcp \
-ynm serve --http --port 3000
+ynm serve --http --port 3000 --no-personal
 
 claude mcp add --transport http ynm-kc http://localhost:3000/mcp
 ```
