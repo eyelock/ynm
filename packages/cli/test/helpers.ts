@@ -58,3 +58,26 @@ export function ynmWith(
 export function unwrapped(stderr: string): string {
   return stderr.replace(/\s*\n\s*›?\s*/g, " ");
 }
+
+/**
+ * Runs `script` under `sh -c` with the same isolated environment, so a test can use real shell
+ * plumbing (`< file`, `cat file |`, a slow producer). `ynm` in the script runs the built CLI.
+ */
+export function ynmShell(
+  cwd: string,
+  script: string
+): { stdout: string; stderr: string; status: number | null } {
+  const r = spawnSync("sh", ["-c", `ynm() { node "$YNM_BIN" "$@"; }\n${script}`], {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      YNM_BIN: bin,
+      YNM_HOME: testYnmHome,
+      YNM_USER: "tester",
+      YNM_NO_CLAUDE_CLI: "1",
+    },
+  });
+  return { stdout: r.stdout, stderr: r.stderr, status: r.status };
+}

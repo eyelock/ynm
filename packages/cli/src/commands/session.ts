@@ -10,8 +10,13 @@ export default class Session extends YnmCommand {
     "<%= config.bin %> <%= command.id %> end <sessionId>",
   ];
   static override args = {
-    action: Args.string({ required: true, options: ["start", "end"], description: "start or end" }),
-    sessionId: Args.string({ description: "Session id (required for end)" }),
+    action: Args.string({
+      ignoreStdin: true,
+      required: true,
+      options: ["start", "end"],
+      description: "start or end",
+    }),
+    sessionId: Args.string({ ignoreStdin: true, description: "Session id (required for end)" }),
   };
   static override flags = {
     ...YnmCommand.baseFlags,

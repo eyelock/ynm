@@ -9,11 +9,12 @@ export default class Review extends YnmCommand {
   ];
   static override args = {
     action: Args.string({
+      ignoreStdin: true,
       required: true,
       options: ["list", "clear"],
       description: "list or clear",
     }),
-    memoryId: Args.string({ description: "Memory id (for clear)" }),
+    memoryId: Args.string({ ignoreStdin: true, description: "Memory id (for clear)" }),
   };
   static override flags = {
     ...YnmCommand.baseFlags,
