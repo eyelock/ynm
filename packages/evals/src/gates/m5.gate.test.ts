@@ -44,7 +44,7 @@ describe("gate M5: hosted", () => {
     for (const name of ["copilot-cli adapter", "opencode adapter", "pi adapter"])
       expect(r.out).toContain(name);
     expect(r.out).toMatch(/extension's tools run the ynm CLI/);
-    expect(existsSync(join(repoRoot, "clients", "pi", "ynm.ts"))).toBe(true);
+    expect(existsSync(join(repoRoot, "integrations", "pi", "ynm.ts"))).toBe(true);
   }, 300_000);
 
   it("NFR-6: hosted suite passes against a bare repo on a Gitea container", () => {

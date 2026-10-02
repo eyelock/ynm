@@ -10,7 +10,7 @@
 import { mkdirSync } from "node:fs";
 import type { Ynm } from "@ynm/service";
 import type { RecordLog, ShardKey } from "@ynm/store";
-import { authFromEnv, verifierFor } from "./auth.js";
+import { authFromEnv, protectedResourceFor, verifierFor } from "./auth.js";
 import { startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { createWebHandler } from "./transport/http.js";
@@ -255,14 +255,16 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       "No authentication is configured, and a function is public. Set YNM_JWKS_URL, YNM_OAUTH_INTROSPECTION_URL or YNM_MCP_TOKEN (directly or through YNM_SSM_ENV_PATH); YNM_LAMBDA_ALLOW_OPEN=1 serves without auth, for local tests only"
     );
   }
+  const requiredScopes = cfg.env.YNM_REQUIRED_SCOPES?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const scheduler = startScheduler(getYnm, { quiet: opts.quiet });
   const web = createWebHandler(
     () => createYnmServer({ ...serverOpts, version: MCP_VERSION }, getYnm),
     {
       verifier: verifierFor(auth),
-      requiredScopes: cfg.env.YNM_REQUIRED_SCOPES?.split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      requiredScopes,
+      protectedResource: protectedResourceFor(auth, cfg.env, requiredScopes),
       allowedHosts: [cfg.publicUrl.hostname],
       health: () => ({ auth: auth.mode, runtime: "lambda", scheduler: scheduler.stats }),
       quiet: opts.quiet,

@@ -13,6 +13,7 @@ import {
   originValidationResponse,
   verifyBearerToken,
 } from "@modelcontextprotocol/server";
+import type { ProtectedResource } from "../auth.js";
 
 /** What sits in front of the MCP handler: health, CORS, host and origin checks, auth. */
 export interface FrontDoorOptions {
@@ -21,6 +22,11 @@ export interface FrontDoorOptions {
   /** Token verifier (static, OAuth introspection or JWT via JWKS); see auth.ts. */
   verifier?: OAuthTokenVerifier;
   requiredScopes?: string[];
+  /**
+   * Where clients sign in (RFC 9728). Served at `/.well-known/oauth-protected-resource` and named
+   * in the 401 challenge, so a client such as Claude Code can find the identity provider itself.
+   */
+  protectedResource?: ProtectedResource;
   /** Origins allowed by CORS and origin validation; localhost only by default. */
   allowedOrigins?: string[];
   allowedHosts?: string[];
@@ -57,6 +63,23 @@ const json = (status: number, body: string, headers: Headers): Response => {
   return new Response(body, { status, headers });
 };
 
+const METADATA_PATH = "/.well-known/oauth-protected-resource";
+
+/** The configured resource when it is an http(s) URL, else this server's own `/mcp` URL. */
+function resourceUrl(pr: ProtectedResource, request: URL): URL {
+  try {
+    const url = new URL(pr.resource ?? "");
+    if (url.protocol === "https:" || url.protocol === "http:") return url;
+  } catch {}
+  return new URL("/mcp", request.origin);
+}
+
+/** RFC 9728: the metadata lives under the resource's origin, with the resource's path appended. */
+function metadataUrl(resource: URL): string {
+  const path = resource.pathname === "/" ? "" : resource.pathname;
+  return `${resource.origin}${METADATA_PATH}${path}`;
+}
+
 /**
  * Health outside auth, localhost CORS, host and origin validation, then the bearer check. Web
  * standard, so the Node server and the Lambda entry run the same checks in the same order.
@@ -72,6 +95,24 @@ export function createFrontDoor(
       const body = JSON.stringify({ status: "ok", name: "ynm", ...(options.health?.() ?? {}) });
       return { response: json(200, body, new Headers()) };
     }
+    const pr = options.protectedResource;
+    const resource = pr ? resourceUrl(pr, url) : undefined;
+    // Public by design, like /health: a client reads it before it has a token.
+    if (
+      pr &&
+      resource &&
+      request.method === "GET" &&
+      (url.pathname === METADATA_PATH || url.pathname.startsWith(`${METADATA_PATH}/`))
+    ) {
+      const body = JSON.stringify({
+        resource: resource.href,
+        authorization_servers: pr.authorizationServers,
+        ...(pr.scopesSupported ? { scopes_supported: pr.scopesSupported } : {}),
+        bearer_methods_supported: ["header"],
+      });
+      return { response: json(200, body, new Headers({ "Access-Control-Allow-Origin": "*" })) };
+    }
+    const resourceMetadataUrl = resource ? metadataUrl(resource) : undefined;
     const cors = new Headers();
     const origin = request.headers.get("origin");
     if (origin && origins.includes(origin)) {
@@ -95,11 +136,13 @@ export function createFrontDoor(
         const authInfo = await verifyBearerToken(authorization, {
           verifier: options.verifier,
           requiredScopes: options.requiredScopes,
+          resourceMetadataUrl,
         });
         return { authInfo, cors };
       } catch (err) {
         const challenge = bearerAuthChallengeResponse(err, {
           requiredScopes: options.requiredScopes,
+          resourceMetadataUrl,
         });
         const headers = new Headers(cors);
         for (const [k, v] of challenge.headers) headers.set(k, v);

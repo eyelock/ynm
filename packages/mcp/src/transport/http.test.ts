@@ -176,6 +176,68 @@ describe("token verifiers on the transport (ADR-009)", () => {
     await scoped.handle.close();
   }, 30_000);
 
+  it("advertises where to sign in (RFC 9728) and points the challenge at it", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      quiet: true,
+      verifier: new StaticTokenVerifier(["good"]),
+      protectedResource: {
+        authorizationServers: ["http://localhost:8180/realms/ynm"],
+        scopesSupported: ["memory:read", "memory:write"],
+      },
+    });
+    const base = `http://localhost:${handle.port}`;
+    const missing = await fetch(handle.url, { method: "POST", body: "{}" });
+    expect(missing.status).toBe(401);
+    const metadataUrl = `${base}/.well-known/oauth-protected-resource/mcp`;
+    expect(missing.headers.get("www-authenticate")).toContain(`resource_metadata="${metadataUrl}"`);
+    for (const url of [metadataUrl, `${base}/.well-known/oauth-protected-resource`]) {
+      const res = await fetch(url);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("access-control-allow-origin")).toBe("*");
+      expect(await res.json()).toEqual({
+        resource: `${base}/mcp`,
+        authorization_servers: ["http://localhost:8180/realms/ynm"],
+        scopes_supported: ["memory:read", "memory:write"],
+        bearer_methods_supported: ["header"],
+      });
+    }
+    await handle.close();
+  });
+
+  it("advertises a configured resource, and nothing without a protected resource", async () => {
+    const configured = await startHttp(bare, {
+      port: 0,
+      quiet: true,
+      verifier: new StaticTokenVerifier(["good"]),
+      protectedResource: {
+        authorizationServers: ["https://idp.example.com"],
+        resource: "https://memory.example.com/mcp",
+      },
+    });
+    const missing = await fetch(configured.url, { method: "POST", body: "{}" });
+    expect(missing.headers.get("www-authenticate")).toContain(
+      'resource_metadata="https://memory.example.com/.well-known/oauth-protected-resource/mcp"'
+    );
+    const doc = await (
+      await fetch(`http://localhost:${configured.port}/.well-known/oauth-protected-resource/mcp`)
+    ).json();
+    expect(doc).toMatchObject({ resource: "https://memory.example.com/mcp" });
+    expect(doc).not.toHaveProperty("scopes_supported");
+    await configured.close();
+
+    const plain = await startHttp(bare, {
+      port: 0,
+      quiet: true,
+      verifier: new StaticTokenVerifier(["good"]),
+    });
+    const challenge = await fetch(plain.url, { method: "POST", body: "{}" });
+    expect(challenge.headers.get("www-authenticate")).not.toContain("resource_metadata");
+    const none = await fetch(`http://localhost:${plain.port}/.well-known/oauth-protected-resource`);
+    expect(none.status).not.toBe(200);
+    await plain.close();
+  });
+
   it("health carries the operator's extra fields outside auth", async () => {
     const { handle } = await hosted("sqlite", {
       authToken: "x",
