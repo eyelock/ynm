@@ -13,7 +13,7 @@ import { MCP_VERSION } from "./version.js";
 
 export * from "./auth.js";
 export * from "./scheduler.js";
-export { createYnmServer, serviceCache } from "./server.js";
+export { createYnmServer, serverInstructions, serviceCache } from "./server.js";
 export {
   createFrontDoor,
   createWebHandler,
@@ -92,7 +92,13 @@ export async function main(argv: readonly string[]): Promise<void> {
   }
   const opts = { cwd: args.cwd, noPersonal: args.noPersonal };
   const getYnm = serviceCache(opts);
-  const factory = () => createYnmServer({ ...opts, version: MCP_VERSION }, getYnm);
+  // Open the store up front so the instructions name the levels actually served; a store that
+  // fails to open still serves, and each tool call reports the failure.
+  const levels = await getYnm().then(
+    (y) => [...new Set(y.mounts.map((m) => m.level))],
+    () => undefined
+  );
+  const factory = () => createYnmServer({ ...opts, levels, version: MCP_VERSION }, getYnm);
   if (args.mode === "http") {
     const auth = args.token ? { mode: "bearer" as const, tokens: [args.token] } : authFromEnv();
     const scheduler = startScheduler(getYnm, {

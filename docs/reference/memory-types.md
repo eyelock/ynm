@@ -68,3 +68,6 @@ follow, is explained in [How recall ranks](../explanation/how-recall-ranks.md).
 |---|---|---|---|
 | `personal` (default) | `user/<userId>` | the personal store, `~/.ynm/store.git` | only with `--mount personal` and an explicit `--remote` |
 | `distributed` | `common` | the project repository's `distributed` refs, or a configured mount | yes |
+
+`personal` is the default only where a personal store is open. A hosted server
+(`ynm serve --no-personal`) has none, so a write that names no level is `distributed` there.

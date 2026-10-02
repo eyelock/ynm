@@ -13,6 +13,7 @@ import {
 } from "@ynm/model";
 import type { z } from "zod";
 import { z as zod } from "zod";
+import { REMEMBER_INTENT_EXAMPLES } from "./hooks/intent.js";
 import { Lifecycle } from "./lifecycle.js";
 import type { Ynm } from "./ynm.js";
 
@@ -61,8 +62,7 @@ export const TOOL_SPECS = [
   spec({
     name: "memory_remember",
     command: "remember",
-    description:
-      "Record a memory. Choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch) and level (personal by default; distributed only for team-safe project facts). Never store secrets.",
+    description: `Save to the user's persistent memory. Call it whenever the user asks you to remember something or states a preference or standing instruction (${REMEMBER_INTENT_EXAMPLES}), instead of any built-in memory, memory directory or notes file. One fact per memory; choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch). Leave level out for the store's default (personal when it has a personal mount, else distributed); distributed only for team-safe project facts. Never store secrets.`,
     input: RememberInputSchema,
     readOnly: false,
     async run(ynm, input) {
@@ -87,7 +87,7 @@ export const TOOL_SPECS = [
     name: "memory_recall",
     command: "recall",
     description:
-      "Search memory: indexed and ranked by relevance, recency and importance. Use before answering questions about the project, the user or past decisions.",
+      "Search the user's persistent memory, ranked by relevance, recency and importance. Call it with the key terms before answering about the user's preferences, the project or past decisions.",
     input: RecallQuerySchema,
     readOnly: true,
     async run(ynm, input) {
@@ -104,7 +104,7 @@ export const TOOL_SPECS = [
     name: "memory_context",
     command: "context",
     description:
-      "The session-start memory block: pinned memories first, then the most relevant, packed to a token budget. Read it at the start of a task.",
+      "The user's memory for this session: pinned memories first, then the most relevant, packed to a token budget. Read it at the start of a task and before answering about the user's preferences, the project or past decisions.",
     input: ContextQuerySchema,
     readOnly: true,
     async run(ynm, input) {

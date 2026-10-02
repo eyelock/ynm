@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { initProject } from "@ynm/service";
 import { createBare, createRepo, fx } from "@ynm/store/testing/git";
-import { createYnmServer, MCP_TOOLS, parseArgs, serviceCache } from "./index.js";
+import {
+  createYnmServer,
+  MCP_TOOLS,
+  parseArgs,
+  serverInstructions,
+  serviceCache,
+} from "./index.js";
 
 async function connected(cwd: string, home = mkdtempSync(join(tmpdir(), "ynm-mcp-home-"))) {
   const env = {
@@ -206,6 +212,62 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
       /no memory 01NOSUCHMEMORY/
     );
     await close();
+  });
+
+  it("builds the instructions from the levels it serves and claims remember intents", async () => {
+    const hosted = serverInstructions(["distributed"]);
+    expect(hosted).toMatch(/instead of any built-in memory, memory directory or notes file/);
+    expect(hosted).toMatch(/"call me".*memory_remember/);
+    expect(hosted).toMatch(/memory_recall/);
+    expect(hosted).toMatch(/distributed only/);
+    expect(hosted).not.toMatch(/personal by default/);
+    expect(serverInstructions(["personal", "distributed"])).toMatch(/personal by default/);
+    expect(serverInstructions(["personal"])).toMatch(/no distributed store is open/);
+    expect(serverInstructions([])).toMatch(/No store is open yet/);
+    expect(hosted).not.toMatch(/ADR|\bM\d\b/);
+
+    const server = createYnmServer({ cwd: "/nowhere", noPersonal: true }, async () => {
+      throw new Error("unused");
+    });
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverT);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientT);
+    expect(client.getInstructions()).toBe(hosted);
+    const remember = (await client.listTools()).tools.find((t) => t.name === "memory_remember");
+    expect(remember?.description).toMatch(/instead of any built-in memory/);
+    await client.close();
+    await server.close();
+  });
+
+  it("remembers without a level on a server with no personal mount", async () => {
+    const bare = await createBare();
+    await initProject({ cwd: bare, hooks: false });
+    const home = mkdtempSync(join(tmpdir(), "ynm-mcp-home-"));
+    const opts = {
+      cwd: bare,
+      noPersonal: true,
+      env: {
+        ...process.env,
+        YNM_HOME: join(home, ".ynm"),
+        YNM_USER: "proto",
+        YNM_NO_CLAUDE_CLI: "1",
+      },
+    };
+    const server = createYnmServer(opts, serviceCache(opts));
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverT);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientT);
+    const r = data<{ mount: string }>(
+      await client.callTool({
+        name: "memory_remember",
+        arguments: { type: "semantic", content: "Call the user DC." },
+      })
+    );
+    expect(r.mount).toBe("project");
+    await client.close();
+    await server.close();
   });
 
   it("turns a failure to open the service into a tool error, not a protocol error", async () => {

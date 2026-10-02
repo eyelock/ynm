@@ -155,6 +155,8 @@ of decision gets a new ADR, not an edit.
 - Tutorials are acceptance tests: `make test-tutorials` runs every command
   block; `make eval-tutorials` has a model read, run
   and check them. See [Running tutorials as evals](docs/tutorial/RUNNING.md).
+- `make eval-hosted-remember` (opt-in, spends tokens) connects Claude Code to a hosted server by
+  URL alone, with no hooks or instruction file, and checks that remember requests reach ynm.
 - Tier 2 (model-backed) suites run by path under `packages/evals/src/tier2`. Paid judges need
   both a key and `YNM_EVAL_CALIBRATED=1`; spend is capped by `YNM_EVAL_TOKEN_BUDGET`.
 - Tier 3 public benchmarks: `make bench-public` (retrieval only; `YNM_BENCH_ANSWER=1` answers a

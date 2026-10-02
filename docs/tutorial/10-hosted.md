@@ -86,14 +86,20 @@ so there is no session to open: initialise once to see what it offers, then call
 curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer demo' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}' | grep '^data:' | cut -c7-
 ```
 
-Expected: one line of JSON whose `result` names the server (`"serverInfo":{"name":"ynm","version":"0.1.0", ...}`),
-its capabilities (tools, resources and prompts) and an `instructions` string telling an agent to
-read `memory_context` first and to prefer `memory_supersede` over duplicates.
+Expected: one line of JSON whose `result` names the server (`"serverInfo":{"name":"ynm","version":"<version>", ...}`),
+its capabilities (tools, resources and prompts) and an `instructions` string. It tells an agent
+that ynm is the user's memory, to use `memory_remember` rather than any built-in memory when
+asked to remember something, and to read `memory_recall` or `memory_context` before answering
+about the user or the project. Its last line,
+`- Level: distributed only, shared with everyone who uses this server; leave level out.`, is
+there because this server mounts no personal store. A client connected with nothing but the URL
+gets this text and the tool descriptions, and nothing else.
 
-Now write and read a memory:
+Now write and read a memory. The call names no `level`: with no personal store, the default is
+distributed:
 
 ```bash
-curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer demo' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","level":"distributed","content":"The hosted store answers on port 3999."}}}' | grep '^data:' | cut -c7-
+curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer demo' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","content":"The hosted store answers on port 3999."}}}' | grep '^data:' | cut -c7-
 curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer demo' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_recall","arguments":{"text":"hosted store"}}}' | grep '^data:' | cut -c7-
 ```
 

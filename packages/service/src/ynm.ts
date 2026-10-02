@@ -135,6 +135,14 @@ export class Ynm {
     return m;
   }
 
+  /**
+   * The level a write takes when the caller names none: personal when a personal mount is open,
+   * else distributed (a hosted server mounts no personal store).
+   */
+  defaultLevel(): Level {
+    return this.mounts.some((m) => m.level === "personal") ? "personal" : "distributed";
+  }
+
   /** Personal → the personal mount; distributed → "project" unless a mount is named. */
   routeFor(level: Level, mountId?: string): Mount {
     if (mountId) {
@@ -150,7 +158,7 @@ export class Ynm {
       throw new Error(
         level === "distributed"
           ? "no distributed mount: run `ynm init` in the project (or configure a mount)"
-          : "no personal mount available"
+          : "no personal mount available; leave level out to use the store's default (distributed here)"
       );
     }
     return m;
@@ -422,18 +430,19 @@ export class Ynm {
     mountId?: string
   ): Promise<WriteResult> {
     const input = RememberInputSchema.parse(raw);
+    const level = input.level ?? this.defaultLevel();
     const namespace =
-      input.namespace === "common" && input.level === "personal"
+      input.namespace === "common" && level === "personal"
         ? `user/${this.userId}`
         : input.namespace;
-    const mount = this.routeFor(input.level, mountId);
-    this.guard(input.level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+    const mount = this.routeFor(level, mountId);
+    this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
     const judged = await this.judgeOnWrite(input);
     const record = this.stamp({
       memoryId: "",
       op: "create",
       type: input.type,
-      level: input.level,
+      level,
       namespace,
       subject: input.subject,
       tags: input.tags,

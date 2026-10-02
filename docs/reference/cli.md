@@ -486,7 +486,7 @@ ynm remember [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
-| `--level <value>` | `personal` \| `distributed` |  | `personal` | personal never leaves the user's store by default |
+| `--level <value>` | `personal` \| `distributed` |  |  | personal (private) or distributed (team-shared); omit for the store's default: personal when it has a personal mount, else distributed |
 | `--namespace <value>` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `--summary <value>` | string (max 280) |  |  | One line summary; derived from content if omitted |

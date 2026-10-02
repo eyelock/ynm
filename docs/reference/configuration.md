@@ -227,9 +227,9 @@ allowed-host and interval variables do not apply.
 | Variable | Effect |
 |---|---|
 | `YNM_EVAL_CALIBRATED` | `1` lets model-backed evals use a paid judge when its key is set |
-| `YNM_EVAL_CLAUDE_CLI` | `1` lets evals use the `claude` CLI as a writer, and runs the tutorial evals |
+| `YNM_EVAL_CLAUDE_CLI` | `1` lets evals use the `claude` CLI as a writer, and runs the tutorial and hosted-remember evals |
 | `YNM_EVAL_TOKEN_BUDGET` | Input-token cap per eval suite. Default 250,000 |
-| `YNM_EVAL_MODEL` | Model for the live guidance and tutorial evals. Default `claude-sonnet-4-5` |
+| `YNM_EVAL_MODEL` | Model for the live guidance, hosted-remember and tutorial evals. Default `claude-sonnet-4-5` |
 | `YNM_EVAL_SIZE` | Seeded memories in the model-backed dedupe eval. Default 60 |
 | `YNM_EVAL_CLEANUP_SIZE` | Seeded memories in the model-backed cleanup eval. Default 120 |
 | `YNM_BENCH_LARGE` | `1` adds the 100,000-record sizes to the latency benches |

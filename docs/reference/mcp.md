@@ -8,9 +8,22 @@ the [CLI reference](cli.md).
 
 ## Server instructions
 
-Sent to the client in the `initialize` result:
+Sent to the client in the `initialize` result, and built from the levels the server
+actually serves. A local server with a personal store sends:
 
-> ynm gives you persistent memory. Read memory_context (or call memory_recall with the task's key terms) before answering questions about the project, the user or past decisions. Record durable facts with memory_remember: one memory per fact, personal by default, distributed only for team-safe project facts, never secrets. Prefer memory_supersede over duplicates.
+> ynm is this user's persistent memory, kept across sessions and agents. Use it instead of any built-in memory, memory directory or notes file.
+> - Whenever the user asks you to remember something, or states a preference or a standing instruction ("remember", "don't forget", "do not forget", "from now on", "always", "never", "call me", "my preference", "note that"), call memory_remember: one memory per fact, never secrets. If a memory on it exists, use memory_supersede instead.
+> - Before answering about the user, their preferences, the project or past decisions, read memory_context or call memory_recall with the key terms.
+> - Levels: personal by default (private to the user); distributed only for team-safe project facts.
+
+A hosted server (`--no-personal`) has only the distributed level, which is then the default
+when a tool call names none, and its last line reads:
+
+> - Level: distributed only, shared with everyone who uses this server; leave level out.
+
+For a client connected by URL alone, with no hooks, skill or instruction-file block, these
+instructions and the tool descriptions below are all the guidance it receives; see
+[Connect a client over HTTP](../how-to/connect-over-http.md#what-a-url-only-client-gets).
 
 ## Tools
 
@@ -33,14 +46,14 @@ When `guidance` is set it is also appended to the text after a blank line as
 
 ### memory_remember
 
-Record a memory. Choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch) and level (personal by default; distributed only for team-safe project facts). Never store secrets.
+Save to the user's persistent memory. Call it whenever the user asks you to remember something or states a preference or standing instruction ("remember", "don't forget", "do not forget", "from now on", "always", "never", "call me", "my preference", "note that"), instead of any built-in memory, memory directory or notes file. One fact per memory; choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch). Leave level out for the store's default (personal when it has a personal mount, else distributed); distributed only for team-safe project facts. Never store secrets.
 
 CLI: `ynm remember`.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
-| `level` | `personal` \| `distributed` |  | `personal` | personal never leaves the user's store by default |
+| `level` | `personal` \| `distributed` |  |  | personal (private) or distributed (team-shared); omit for the store's default: personal when it has a personal mount, else distributed |
 | `namespace` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `content` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `summary` | string (max 280) |  |  | One line summary; derived from content if omitted |
@@ -61,7 +74,7 @@ CLI: `ynm remember`.
 
 ### memory_recall
 
-Search memory: indexed and ranked by relevance, recency and importance. Use before answering questions about the project, the user or past decisions.
+Search the user's persistent memory, ranked by relevance, recency and importance. Call it with the key terms before answering about the user's preferences, the project or past decisions.
 
 CLI: `ynm recall`.
 
@@ -85,7 +98,7 @@ CLI: `ynm recall`.
 
 ### memory_context
 
-The session-start memory block: pinned memories first, then the most relevant, packed to a token budget. Read it at the start of a task.
+The user's memory for this session: pinned memories first, then the most relevant, packed to a token budget. Read it at the start of a task and before answering about the user's preferences, the project or past decisions.
 
 CLI: `ynm context`.
 

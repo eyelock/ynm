@@ -190,3 +190,8 @@ but guidance or hooks are missing.
 - 2026-09-30: ynm's shipped artefacts moved under `integrations/`; there is one client-neutral
   `ynm-memory` skill at `integrations/skills/`, which harnesses include with
   `path: integrations` (an older ynm include is replaced in place) and Pi installs.
+- 2026-10-01: the MCP channel made as strong as it can be for clients connected by URL alone:
+  server instructions built from the levels the server serves and naming the remember-intent
+  phrases, `memory_remember`, `memory_recall` and `memory_context` descriptions that claim the
+  job over built-in memory, and a level-less remember that is distributed when no personal mount
+  is open. Hooks remain the deterministic channel.

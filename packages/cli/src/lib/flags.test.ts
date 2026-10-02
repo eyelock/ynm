@@ -31,7 +31,7 @@ describe("flags from Zod (ADR-008)", () => {
     expect(input.importance).toBe(0.7);
     expect(input.dataSchema).toBe("profile/1");
     expect(input.links[0]?.rel).toBe("about");
-    expect(input.level).toBe("personal");
+    expect(input.level).toBeUndefined();
   });
   it("splits comma-separated string-array values and says so in the description", () => {
     const flags = flagsFromSchema(RememberInputSchema);

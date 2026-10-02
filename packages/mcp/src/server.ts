@@ -1,6 +1,13 @@
 import { type CallToolResult, McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
-import { guidance, guidanceNames } from "@ynm/model";
-import { openYnm, TOOL_SPECS, type ToolSpec, wikiPages, type Ynm } from "@ynm/service";
+import { guidance, guidanceNames, type Level } from "@ynm/model";
+import {
+  openYnm,
+  REMEMBER_INTENT_EXAMPLES,
+  TOOL_SPECS,
+  type ToolSpec,
+  wikiPages,
+  type Ynm,
+} from "@ynm/service";
 import { z } from "zod";
 
 export interface YnmServerOptions {
@@ -10,9 +17,43 @@ export interface YnmServerOptions {
   version?: string;
   /** Hosted servers mount no personal store. */
   noPersonal?: boolean;
+  /**
+   * The levels of the mounts actually open, which the instructions describe. Without it they are
+   * inferred from `noPersonal`: personal and distributed, or distributed alone.
+   */
+  levels?: readonly Level[];
 }
 
-const INSTRUCTIONS = `ynm gives you persistent memory. Read memory_context (or call memory_recall with the task's key terms) before answering questions about the project, the user or past decisions. Record durable facts with memory_remember: one memory per fact, personal by default, distributed only for team-safe project facts, never secrets. Prefer memory_supersede over duplicates.`;
+function levelLine(levels: readonly Level[]): string {
+  const personal = levels.includes("personal");
+  const distributed = levels.includes("distributed");
+  if (personal && distributed)
+    return "Levels: personal by default (private to the user); distributed only for team-safe project facts.";
+  if (personal) return "Level: personal (private to the user); no distributed store is open.";
+  if (distributed)
+    return "Level: distributed only, shared with everyone who uses this server; leave level out.";
+  return "No store is open yet; a tool call says why.";
+}
+
+/**
+ * The server `instructions`, which clients that read them (Claude Code puts them in the system
+ * prompt) see in every session. For a client connected by URL alone, with no hooks, no skill and
+ * no instruction-file block, this and the tool descriptions are all the guidance it gets, so they
+ * claim the job outright. Built from the levels the server actually serves.
+ */
+export function serverInstructions(levels: readonly Level[]): string {
+  return [
+    "ynm is this user's persistent memory, kept across sessions and agents. Use it instead of any built-in memory, memory directory or notes file.",
+    `- Whenever the user asks you to remember something, or states a preference or a standing instruction (${REMEMBER_INTENT_EXAMPLES}), call memory_remember: one memory per fact, never secrets. If a memory on it exists, use memory_supersede instead.`,
+    "- Before answering about the user, their preferences, the project or past decisions, read memory_context or call memory_recall with the key terms.",
+    `- ${levelLine(levels)}`,
+  ].join("\n");
+}
+
+/** The levels a server opened with these options serves, when the mounts are not known yet. */
+function inferredLevels(opts: YnmServerOptions): readonly Level[] {
+  return opts.levels ?? (opts.noPersonal ? ["distributed"] : ["personal", "distributed"]);
+}
 
 /** The service is opened once per process; index freshness covers writes from elsewhere. */
 export function serviceCache(opts: YnmServerOptions): () => Promise<Ynm> {
@@ -45,7 +86,10 @@ export function createYnmServer(
 ): McpServer {
   const server = new McpServer(
     { name: "ynm", version: opts.version ?? "0.1.0", title: "ynm: your named memory" },
-    { capabilities: { tools: {}, resources: {}, prompts: {} }, instructions: INSTRUCTIONS }
+    {
+      capabilities: { tools: {}, resources: {}, prompts: {} },
+      instructions: serverInstructions(inferredLevels(opts)),
+    }
   );
 
   for (const spec of TOOL_SPECS as readonly ToolSpec[]) {

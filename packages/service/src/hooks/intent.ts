@@ -54,6 +54,9 @@ export const REMEMBER_INTENT_PHRASES = [
   "note that",
 ] as const;
 
+/** The phrase list quoted for prose: server instructions and tool descriptions name these. */
+export const REMEMBER_INTENT_EXAMPLES = REMEMBER_INTENT_PHRASES.map((p) => `"${p}"`).join(", ");
+
 const phrases = REMEMBER_INTENT_PHRASES.map((p) =>
   p.replace(/'/g, "['’]").replace(/ /g, "\\s+")
 ).join("|");
