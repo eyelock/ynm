@@ -1,9 +1,13 @@
 # Hosted Service
 
-Run ynm as a server: one process in front of one bare repository, speaking MCP over HTTP with a
-bearer token. Agents connect with nothing but a URL and a token; they never need git. You will
-start it, check its health, be refused without the token, make MCP calls with curl, and see the
-result land in the repository.
+Run ynm as a server: one process in front of one bare repository, speaking MCP over HTTP. Agents
+connect with nothing but a URL and a token; they never need git.
+
+The tutorial has two parts. In part 1 the server takes one static token: you start it, check its
+health, are refused without the token, make MCP calls with curl, and see the result land in the
+repository. In part 2 people sign in through an identity provider instead, the way a shared
+server is run: each person gets their own token, a client finds where to sign in by itself, and
+the server refuses a token that lacks the access it needs.
 
 ## Prerequisites
 
@@ -27,6 +31,11 @@ to, so `init --bare` creates a root commit for the purpose. It has no work tree 
 open either, so the report has no `client` lines: `ynm init` configures agent clients only in a
 checkout. Clients reach this store over HTTP instead, as below and in
 [Connect a client over HTTP](../how-to/connect-over-http.md).
+
+## Part 1: a static token
+
+A static token is the quickest way to try the server, and fine for a demo: everyone who has the
+token is the same caller.
 
 ## Start the server
 
@@ -141,6 +150,147 @@ curl -s -m 2 http://localhost:3999/health || echo "server stopped"
 
 Expected: `server stopped`.
 
+## Part 2: sign in with an identity provider
+
+A shared server should know who is calling. Here the server verifies tokens issued by an identity
+provider, and tells clients where to get one. The repository ships a local identity provider for
+this, Keycloak, with two people already in it: `alice` (password `alice`) and `bob` (password
+`bob`). It needs Docker and a checkout of the repository. Set `DOCKER_HOST_AVAILABLE=1` in your
+shell to run this part, and run the `make` steps from the checkout's root.
+
+## Start the identity provider
+
+<!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
+
+```bash
+make keycloak
+make keycloak-check
+```
+
+Expected: `keycloak ready: http://localhost:8180/realms/ynm`, then a list of `ok` lines and
+finally `keycloak gives ynm everything sign-in needs`. The check proves the provider publishes
+its signing keys, lets a client register itself, issues tokens for `http://localhost:3000/mcp`
+naming the person who signed in, and gives bob read access without write access when that is all
+he asks for. The first start downloads the Keycloak image and can take a minute.
+
+## Start the server with sign-in
+
+Three settings point the server at the provider: where its signing keys are, who issues the
+tokens, and the address tokens must be issued for. `YNM_REQUIRED_SCOPES` makes every request
+need both read and write access:
+
+<!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
+
+```bash
+YNM_JWKS_URL=http://localhost:8180/realms/ynm/protocol/openid-connect/certs \
+YNM_JWT_ISSUER=http://localhost:8180/realms/ynm \
+YNM_JWT_AUDIENCE=http://localhost:3000/mcp \
+YNM_REQUIRED_SCOPES=memory:read,memory:write \
+ynm serve --http --port 3000 --no-personal --cwd /tmp/ynm-tutorial/store.git > /tmp/ynm-tutorial/serve.log 2>&1 &
+echo $! > /tmp/ynm-tutorial/serve.pid
+until curl -sf http://localhost:3000/health > /dev/null; do sleep 0.5; done
+curl -s http://localhost:3000/health
+```
+
+Expected: the health line now names the mode `jwt`:
+
+```text
+{"status":"ok","name":"ynm","auth":"jwt","scheduler":{"dreamRuns":0,"syncRuns":0,"lastDreamAt":null,"lastSyncAt":null,"lastError":null,"lastDream":null}}
+```
+
+## Where to sign in
+
+Ask without a token, then read the document the refusal points to:
+
+<!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
+
+```bash
+curl -s -i -X POST http://localhost:3000/mcp -H 'Content-Type: application/json' -d '{}' | grep -i -E '^HTTP|^www-authenticate'
+curl -s http://localhost:3000/.well-known/oauth-protected-resource/mcp
+```
+
+Expected: a `401`, and a challenge that names the access needed and where to read about signing in:
+
+```text
+HTTP/1.1 401 Unauthorized
+www-authenticate: Bearer error="invalid_token", error_description="Missing Authorization header", scope="memory:read memory:write", resource_metadata="http://localhost:3000/.well-known/oauth-protected-resource/mcp"
+{"resource":"http://localhost:3000/mcp","authorization_servers":["http://localhost:8180/realms/ynm"],"scopes_supported":["memory:read","memory:write"],"bearer_methods_supported":["header"]}
+```
+
+The last line is that document: tokens must be issued for `http://localhost:3000/mcp`, by the
+identity provider at `http://localhost:8180/realms/ynm`, with read and write access. That is
+everything a client needs to sign a person in by itself.
+
+## Write as alice
+
+A client signs a person in through the browser. A script can ask the provider for a token
+directly, which `make keycloak-token` does for alice:
+
+<!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
+
+```bash
+ALICE=$(make -s keycloak-token U=alice)
+curl -s -X POST http://localhost:3000/mcp -H "Authorization: Bearer $ALICE" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","content":"Sign-in to the hosted store goes through Keycloak."}}}' | grep '^data:' | cut -c7-
+ynm list --level distributed --cwd /tmp/ynm-tutorial/store.git
+```
+
+Expected: the `memory_remember` result, with a new `memoryId`, `"mount":"project"` and a
+`revision` sha, then both memories in the store, the one from part 1 and alice's:
+
+```text
+<id>  semantic   distributed common                   The hosted store answers on port 3999.
+<id>  semantic   distributed common                   Sign-in to the hosted store goes through Keycloak.
+```
+
+## Bob can read but not write
+
+Bob asks only for read access. This server needs both on every request, so it refuses him:
+
+<!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
+
+```bash
+BOB=$(make -s keycloak-token U=bob S=memory:read)
+curl -s -i -X POST http://localhost:3000/mcp -H "Authorization: Bearer $BOB" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"memory_recall","arguments":{"text":"sign-in"}}}' | grep -i -E '^HTTP|^www-authenticate'
+```
+
+Expected: a `403`, not a `401`. Bob is who he says he is, but lacks the access:
+
+```text
+HTTP/1.1 403 Forbidden
+www-authenticate: Bearer error="insufficient_scope", error_description="Insufficient scope", scope="memory:read memory:write", resource_metadata="http://localhost:3000/.well-known/oauth-protected-resource/mcp"
+```
+
+## Sign in from Claude Code
+
+This step needs a person at a browser, so it is not run automatically. With the server still
+running, add it to Claude Code with nothing but its URL, from a folder of your choice:
+
+<!-- tutorial: skip unless YNM_TUTORIAL_BROWSER -->
+
+```bash
+claude mcp add --transport http --scope local ynm-signin http://localhost:3000/mcp
+claude
+```
+
+Expected: Claude Code starts and says one MCP server needs authentication. Run `/mcp`, pick
+`ynm-signin` and choose Authenticate. A Keycloak login page opens in the browser; sign in as
+`alice` / `alice`. The browser says authentication succeeded, and back in Claude Code `/mcp`
+shows `ynm-signin` connected, with the `memory_*` tools. Ask Claude what it remembers about
+sign-in: it calls `memory_recall` and finds alice's memory. To remove the server afterwards:
+`claude mcp remove ynm-signin -s local`.
+
+## Stop the server and the identity provider
+
+<!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
+
+```bash
+kill $(cat /tmp/ynm-tutorial/serve.pid)
+make keycloak-down
+```
+
+Expected: the server stops, and Docker removes the Keycloak container and its data, so the next
+`make keycloak` starts from a clean realm.
+
 ## The Docker demo
 
 The repository ships a full demonstration in containers: a store, an agent client that speaks HTTP
@@ -168,4 +318,6 @@ rm -rf /tmp/ynm-tutorial
 unset YNM_HOME YNM_USER YNM_NO_CLAUDE_CLI
 ```
 
-To run this for real, see [Operate a hosted store](../how-to/operate-a-hosted-store.md).
+To run this for real, see [Operate a hosted store](../how-to/operate-a-hosted-store.md), and
+[Signing in from a client](../how-to/operate-a-hosted-store.md#authentication) for the settings
+part 2 used.
