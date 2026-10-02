@@ -3,6 +3,7 @@ import {
   authFromEnv,
   IntrospectionVerifier,
   JwksVerifier,
+  protectedResourceFor,
   StaticTokenVerifier,
   verifierFor,
 } from "./auth.js";
@@ -244,3 +245,32 @@ function Bun_or_node_server(jwks: unknown): { url: string; close: () => void } {
   const port = (srv.address() as { port: number }).port;
   return { url: `http://127.0.0.1:${port}`, close: () => srv.close() };
 }
+
+describe("protected resource from the auth config", () => {
+  const jwt = { mode: "jwt" as const, jwksUrl: "https://i/jwks", issuer: "https://i" };
+
+  it("names the JWT issuer as where to sign in, with the public URL as the resource", () => {
+    expect(
+      protectedResourceFor(
+        { ...jwt, audience: "https://aud/mcp" },
+        { YNM_PUBLIC_URL: " https://memory.example.com/mcp " },
+        ["memory:read"]
+      )
+    ).toEqual({
+      authorizationServers: ["https://i"],
+      resource: "https://memory.example.com/mcp",
+      scopesSupported: ["memory:read"],
+    });
+    expect(protectedResourceFor({ ...jwt, audience: "https://aud/mcp" }, {}, [])).toEqual({
+      authorizationServers: ["https://i"],
+      resource: "https://aud/mcp",
+      scopesSupported: undefined,
+    });
+  });
+
+  it("advertises nothing without an issuer to sign in at", () => {
+    expect(protectedResourceFor({ mode: "jwt", jwksUrl: "https://i/jwks" }, {})).toBeUndefined();
+    expect(protectedResourceFor({ mode: "bearer", tokens: ["t"] }, {})).toBeUndefined();
+    expect(protectedResourceFor({ mode: "none" }, {})).toBeUndefined();
+  });
+});

@@ -4,7 +4,7 @@
  * Hosted auth comes from the environment (see auth.ts): YNM_MCP_TOKEN, YNM_OAUTH_INTROSPECTION_URL
  * or YNM_JWKS_URL.
  */
-import { authFromEnv, verifierFor } from "./auth.js";
+import { authFromEnv, protectedResourceFor, verifierFor } from "./auth.js";
 import { parseEvery, startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { startHttp } from "./transport/http.js";
@@ -101,6 +101,9 @@ export async function main(argv: readonly string[]): Promise<void> {
   const factory = () => createYnmServer({ ...opts, levels, version: MCP_VERSION }, getYnm);
   if (args.mode === "http") {
     const auth = args.token ? { mode: "bearer" as const, tokens: [args.token] } : authFromEnv();
+    const requiredScopes = process.env.YNM_REQUIRED_SCOPES?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const scheduler = startScheduler(getYnm, {
       dreamEveryMs: parseEvery(args.dreamEvery),
       syncEveryMs: parseEvery(args.syncEvery),
@@ -113,9 +116,8 @@ export async function main(argv: readonly string[]): Promise<void> {
       port: args.port,
       host,
       verifier: verifierFor(auth),
-      requiredScopes: process.env.YNM_REQUIRED_SCOPES?.split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      requiredScopes,
+      protectedResource: protectedResourceFor(auth, process.env, requiredScopes),
       allowedOrigins: args.allowOrigin,
       allowedHosts,
       rejectLegacy: args.rejectLegacy,

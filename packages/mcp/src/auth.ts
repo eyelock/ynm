@@ -179,3 +179,31 @@ export function authFromEnv(env: NodeJS.ProcessEnv = process.env): AuthConfig {
     };
   return { mode: "none" };
 }
+
+/**
+ * What the server advertises so a client can find where to sign in (RFC 9728): the
+ * authorization servers, and the resource its tokens must be issued for.
+ */
+export interface ProtectedResource {
+  authorizationServers: string[];
+  /** The MCP URL tokens are issued for; when unset, the request's own origin plus `/mcp`. */
+  resource?: string;
+  scopesSupported?: string[];
+}
+
+/**
+ * The protected resource for an auth config, when it names an issuer a client can sign in at:
+ * JWT auth with `YNM_JWT_ISSUER`. The resource is `YNM_PUBLIC_URL`, else the JWT audience.
+ */
+export function protectedResourceFor(
+  cfg: AuthConfig,
+  env: NodeJS.ProcessEnv = process.env,
+  scopes?: string[]
+): ProtectedResource | undefined {
+  if (cfg.mode !== "jwt" || !cfg.issuer) return undefined;
+  return {
+    authorizationServers: [cfg.issuer],
+    resource: env.YNM_PUBLIC_URL?.trim() || cfg.audience,
+    scopesSupported: scopes?.length ? scopes : undefined,
+  };
+}

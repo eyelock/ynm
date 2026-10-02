@@ -58,6 +58,22 @@ Chosen from the environment, first match wins:
 `YNM_REQUIRED_SCOPES=memory:read,memory:write` makes every request carry those scopes (403
 otherwise). Failures answer RFC 6750 challenges (`WWW-Authenticate: Bearer ...`).
 
+**Signing in from a client.** With JWT auth and `YNM_JWT_ISSUER` set, the server tells clients
+where to sign in. It serves `/.well-known/oauth-protected-resource` (RFC 9728), naming the issuer
+as the authorization server, and its 401 challenge points at that document. A client with MCP
+sign-in support, such as Claude Code, then finds the identity provider, opens the sign-in page in
+the browser and sends the token it gets back, so nobody pastes a token. The document names:
+
+| Field | From |
+|---|---|
+| `authorization_servers` | `YNM_JWT_ISSUER` |
+| `resource`, the URL tokens must be issued for | `YNM_PUBLIC_URL`, else `YNM_JWT_AUDIENCE` when it is a URL, else this server's `/mcp` URL |
+| `scopes_supported` | `YNM_REQUIRED_SCOPES`, when set |
+
+Set the audience your identity provider puts in tokens to the same URL as the resource. The
+identity provider must let the client obtain a client ID: by dynamic client registration, or with
+a client registered in advance and given to the client (`claude mcp add --client-id ...`).
+
 **Key rotation.** Static tokens: set `YNM_MCP_TOKEN=new,old`, roll clients to `new`, then drop
 `old` and restart. JWT: rotation happens at the issuer; the JWKS is fetched on demand and cached
 by jose, so new `kid`s work without a restart. Introspection: rotate the client secret at the

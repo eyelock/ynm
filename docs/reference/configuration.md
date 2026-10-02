@@ -177,8 +177,9 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 | Variable | Effect |
 |---|---|
 | `YNM_JWKS_URL` | Verify bearer tokens as JWTs against this JWKS |
-| `YNM_JWT_ISSUER` | Required JWT issuer |
-| `YNM_JWT_AUDIENCE` | Required JWT audience |
+| `YNM_JWT_ISSUER` | Required JWT issuer. Also advertised to clients as where to sign in, at `/.well-known/oauth-protected-resource` |
+| `YNM_JWT_AUDIENCE` | Required JWT audience. When it is a URL and `YNM_PUBLIC_URL` is not set, it is the resource advertised to clients |
+| `YNM_PUBLIC_URL` | The URL clients use to reach the server, advertised as the resource tokens must be issued for |
 | `YNM_OAUTH_INTROSPECTION_URL` | Verify bearer tokens by RFC 7662 introspection at this URL |
 | `YNM_OAUTH_CLIENT_ID` | Client id for introspection |
 | `YNM_OAUTH_CLIENT_SECRET` | Client secret for introspection |
@@ -208,7 +209,7 @@ variables above, `YNM_MOUNTS` for its store, plus:
 
 | Variable | Effect |
 |---|---|
-| `YNM_PUBLIC_URL` | Required. The URL clients use to reach the function, such as `https://memory.example.com/mcp`. Requests are served as if addressed to it, and it is the only allowed `Host`. The function refuses to start without it |
+| `YNM_PUBLIC_URL` | Required. The URL clients use to reach the function, such as `https://memory.example.com/mcp`. Requests are served as if addressed to it, and it is the only allowed `Host`. With JWT auth and an issuer, it is also the resource advertised to clients for sign-in. The function refuses to start without it |
 | `YNM_LAMBDA_ALLOW_OPEN` | `1` lets the function start with no authentication configured. Without it, a function with none of the auth variables refuses to start, because a Function URL is public. For local tests only |
 | `YNM_SSM_ENV_PATH` | A Parameter Store path; at cold start each parameter under it named like an environment variable becomes that variable unless already set, so secrets stay out of the function's configuration. Values of `unset` are skipped |
 

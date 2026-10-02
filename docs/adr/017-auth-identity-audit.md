@@ -238,3 +238,7 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   a one-release deprecation window for static tokens off loopback, `/health` auth modes, the
   `YNM_AUTH`, `YNM_AUTH_CLIENT_SECRET` and `YNM_AUDIT` variables, and an S3 audit sink after
   stdout. Still proposed.
+- 2026-10-02: the discovery half built first, so clients can sign in before the provider seam
+  exists: the metadata document and the challenge's `resource_metadata`, driven by the existing
+  JWT variables (`YNM_JWT_ISSUER` as the authorization server, `YNM_PUBLIC_URL` or the audience as
+  the resource). These move into `YNM_AUTH` with the seam. Still proposed.

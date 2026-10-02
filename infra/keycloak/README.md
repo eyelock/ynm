@@ -32,6 +32,23 @@ container starts, so `make keycloak-down` followed by `make keycloak` always giv
 To serve ynm on a different address, change the audience in that file and set
 `KEYCLOAK_AUDIENCE` to the same address when running `keycloak.mjs`.
 
+## Signing in from Claude Code
+
+Start ynm against this realm and Claude Code signs in by itself:
+
+```sh
+YNM_JWKS_URL=http://localhost:8180/realms/ynm/protocol/openid-connect/certs \
+YNM_JWT_ISSUER=http://localhost:8180/realms/ynm \
+YNM_JWT_AUDIENCE=http://localhost:3000/mcp \
+ynm serve --http --port 3000
+
+claude mcp add --transport http ynm-kc http://localhost:3000/mcp
+```
+
+On first use Claude Code gets a 401, reads where to sign in from
+`http://localhost:3000/.well-known/oauth-protected-resource/mcp`, registers itself with this
+realm, and opens the Keycloak login page. Sign in as `alice` or `bob`.
+
 `make keycloak-check` checks each of these against the running server: discovery, signing keys,
 PKCE, self-registration, and a token's issuer, audience, subject, email, name, client and
 scopes for each user.
