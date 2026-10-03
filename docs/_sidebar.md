@@ -28,6 +28,7 @@
   * [Choose the S3 provider](/how-to/choose-the-s3-provider.md)
   * [Configure the judge and writer](/how-to/configure-judge-and-writer.md)
   * [Connect over HTTP](/how-to/connect-over-http.md)
+  * [Personal memory with a hosted store](/how-to/use-personal-and-hosted-memory.md)
   * [Add a client adapter](/how-to/add-a-client-adapter.md)
   * [Operate a hosted store](/how-to/operate-a-hosted-store.md)
   * [Host on AWS Lambda](/how-to/host-on-aws-lambda.md)

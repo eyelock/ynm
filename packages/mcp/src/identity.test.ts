@@ -117,13 +117,18 @@ describe.each(["git-notes", "sqlite"] as const)(
         const written = data<{ memoryId: string }>(
           await alice.callTool({
             name: "memory_remember",
-            arguments: { type: "semantic", content: "Alice deploys on Thursdays" },
+            arguments: {
+              type: "semantic",
+              level: "distributed",
+              content: "Alice deploys on Thursdays",
+            },
           })
         );
         await bob.callTool({
           name: "memory_remember",
           arguments: {
             type: "semantic",
+            level: "distributed",
             content: "Shared: releases come from develop",
             namespace: "common",
           },

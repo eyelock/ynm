@@ -99,23 +99,37 @@ Expected: one line of JSON whose `result` names the server (`"serverInfo":{"name
 its capabilities (tools, resources and prompts) and an `instructions` string. It tells an agent
 that ynm is the user's memory, to use `memory_remember` rather than any built-in memory when
 asked to remember something, and to read `memory_recall` or `memory_context` before answering
-about the user or the project. Its last line,
-`- Level: distributed only, shared with everyone who uses this server; leave level out.`, is
-there because this server mounts no personal store. A client connected with nothing but the URL
-gets this text and the tool descriptions, and nothing else.
+about the user or the project. Its last line begins
+`- Level: distributed only: everything stored on this server is shared with everyone who uses it`,
+because this server mounts no personal store, and goes on to tell the agent to ask before
+sharing. A client connected with nothing but the URL gets this text and the tool descriptions,
+and nothing else.
 
-Now write and read a memory. The call names no `level`: with no personal store, the default is
-distributed:
+Now write a memory the way an agent would by default, naming no `level`:
 
 ```bash
 curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer demo' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","content":"The hosted store answers on port 3999."}}}' | grep '^data:' | cut -c7-
-curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer demo' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_recall","arguments":{"text":"hosted store"}}}' | grep '^data:' | cut -c7-
+```
+
+Expected: a result with `"isError":true` and nothing stored:
+
+```text
+{"result":{"content":[{"type":"text","text":"nothing stored: this store has no personal level, so a memory stored here is shared with everyone who uses it. To share it, ask the user first, then set level to distributed. To keep it private, store it in a local ynm instead."}],"isError":true},"jsonrpc":"2.0","id":2}
+```
+
+Memory is personal by default, and this server has nowhere personal to put it. Sharing is a
+choice, so the call has to make it: `"level":"distributed"`. Write it that way, then read it back:
+
+```bash
+curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer demo' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","level":"distributed","content":"The hosted store answers on port 3999."}}}' | grep '^data:' | cut -c7-
+curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer demo' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"memory_recall","arguments":{"text":"hosted store"}}}' | grep '^data:' | cut -c7-
 ```
 
 Expected: two lines of JSON. The first is the result of `memory_remember`: its
 `structuredContent` holds a new `memoryId`, `"mount":"project"` and a `revision` sha. The second
 is `memory_recall`, whose `structuredContent.data` is an array with one hit, the memory you just
-wrote, with `"level":"distributed"` and `"namespace":"common"`. Any MCP client library, such as
+wrote, with `"level":"distributed"` and `"namespace":"common"`: a shared token vouches for no one,
+so there is no person to file it under. Any MCP client library, such as
 `@modelcontextprotocol/client` with its HTTP transport, does the same thing with the framing
 handled for you.
 
@@ -230,17 +244,24 @@ directly, which `make keycloak-token` does for alice:
 
 ```bash
 ALICE=$(make -s keycloak-token U=alice)
-curl -s -X POST http://localhost:3000/mcp -H "Authorization: Bearer $ALICE" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","content":"Sign-in to the hosted store goes through Keycloak."}}}' | grep '^data:' | cut -c7-
+curl -s -X POST http://localhost:3000/mcp -H "Authorization: Bearer $ALICE" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","level":"distributed","content":"Sign-in to the hosted store goes through Keycloak."}}}' | grep '^data:' | cut -c7-
+curl -s -X POST http://localhost:3000/mcp -H "Authorization: Bearer $ALICE" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"memory_people","arguments":{"action":"nickname","nickname":"alice"}}}' | grep '^data:' | cut -c7-
 ynm list --level distributed --cwd /tmp/ynm-tutorial/store.git
 ```
 
 Expected: the `memory_remember` result, with a new `memoryId`, `"mount":"project"` and a
-`revision` sha, then both memories in the store, the one from part 1 and alice's:
+`revision` sha; the `memory_people` result, `{"person":"<person id>","nickname":"alice"}`; then
+both memories in the store, the one from part 1 and alice's:
 
 ```text
+<id>  semantic   distributed user/<person id>     Sign-in to the hosted store goes through Keycloak.  (alice)
 <id>  semantic   distributed common                   The hosted store answers on port 3999.
-<id>  semantic   distributed common                   Sign-in to the hosted store goes through Keycloak.
 ```
+
+Alice signed in, so her memory is hers: written as `user:<person id>`, a ynm id derived from her
+sign-in, and filed in her own namespace because she named none. The nickname she set is how the
+store shows her. The server's log holds one audit line per request, with her person id, the
+client and the tools called, and none of the content.
 
 ## Bob can read but not write
 
@@ -250,7 +271,7 @@ Bob asks only for read access. This server needs both on every request, so it re
 
 ```bash
 BOB=$(make -s keycloak-token U=bob S=memory:read)
-curl -s -i -X POST http://localhost:3000/mcp -H "Authorization: Bearer $BOB" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"memory_recall","arguments":{"text":"sign-in"}}}' | grep -i -E '^HTTP|^www-authenticate'
+curl -s -i -X POST http://localhost:3000/mcp -H "Authorization: Bearer $BOB" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"memory_recall","arguments":{"text":"sign-in"}}}' | grep -i -E '^HTTP|^www-authenticate'
 ```
 
 Expected: a `403`, not a `401`. Bob is who he says he is, but lacks the access:

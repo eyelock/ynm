@@ -6,7 +6,7 @@ import { type Judge, type Judgment, NoneWriter, type Question } from "@ynm/model
 import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "./config.js";
 import { RedactionError } from "./redaction.js";
-import { Ynm } from "./ynm.js";
+import { ShareRequiredError, Ynm } from "./ynm.js";
 
 function make(withProject = true): Ynm {
   const mounts = [
@@ -38,7 +38,7 @@ describe("Ynm service", () => {
     expect(m?.current.provenance.actor).toBe("test");
   });
 
-  it("defaults to distributed when there is no personal mount (a hosted server)", async () => {
+  it("never shares by default: with no personal mount, a memory needs an explicit distributed level", async () => {
     const y = new Ynm({
       mounts: [
         {
@@ -53,7 +53,15 @@ describe("Ynm service", () => {
       redaction: DEFAULT_REDACTION,
     });
     expect(y.defaultLevel()).toBe("distributed");
-    const r = await y.remember({ type: "semantic", content: "Call the user DC." });
+    await expect(y.remember({ type: "semantic", content: "Call the user DC." })).rejects.toThrow(
+      ShareRequiredError
+    );
+    expect(await y.list()).toEqual([]);
+    const r = await y.remember({
+      type: "semantic",
+      level: "distributed",
+      content: "Call the user DC.",
+    });
     expect(r.mount).toBe("project");
     const [m] = await y.list();
     expect(m?.current.level).toBe("distributed");

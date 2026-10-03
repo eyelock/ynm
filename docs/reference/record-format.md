@@ -151,7 +151,9 @@ only its id is used.
 
 `/`-separated segments. Each segment starts with `[a-z0-9]` and contains only `[a-z0-9._-]`;
 no segment may contain `..` or end in `.lock`. At most 512 characters. Well-known namespaces:
-`common` (the default for distributed memory), `user/<id>` (the default for personal memory)
+`common` (where distributed memory goes when no signed-in person wrote it and none is named),
+`user/<id>` (the default for personal memory, and on a hosted store for a signed-in person, by
+person id)
 and `session/<id>` (required for working memory). Session ids are lowercased and every run of
 characters outside `[a-z0-9._-]` becomes `-`.
 

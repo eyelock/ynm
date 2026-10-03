@@ -63,7 +63,7 @@ export const TOOL_SPECS = [
   spec({
     name: "memory_remember",
     command: "remember",
-    description: `Save to the user's persistent memory. Call it whenever the user asks you to remember something or states a preference or standing instruction (${REMEMBER_INTENT_EXAMPLES}), instead of any built-in memory, memory directory or notes file. One fact per memory; choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch). Leave level out for the store's default (personal when it has a personal mount, else distributed); distributed only for team-safe project facts. Never store secrets.`,
+    description: `Save to the user's persistent memory. Call it whenever the user asks you to remember something or states a preference or standing instruction (${REMEMBER_INTENT_EXAMPLES}), instead of any built-in memory, memory directory or notes file. One fact per memory; choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch). Leave level out to keep it personal. Set level distributed only when the user chooses to share it with everyone on the store (team-safe project facts); a store with no personal level, such as a hosted one, stores nothing until you do, so ask the user first. Never store secrets.`,
     input: RememberInputSchema,
     readOnly: false,
     async run(ynm, input) {

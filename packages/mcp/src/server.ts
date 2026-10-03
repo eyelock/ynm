@@ -33,7 +33,7 @@ function levelLine(levels: readonly Level[]): string {
     return "Levels: personal by default (private to the user); distributed only for team-safe project facts.";
   if (personal) return "Level: personal (private to the user); no distributed store is open.";
   if (distributed)
-    return "Level: distributed only, shared with everyone who uses this server; leave level out. Leave namespace out too and a memory is filed as yours (user/<your person id> once you are signed in); name one such as common to share it on purpose.";
+    return "Level: distributed only: everything stored on this server is shared with everyone who uses it, and it can keep nothing private. memory_remember stores nothing unless level is distributed, so before the user's first memory here, tell them it will be shared and ask; if they want it private, it belongs in a local ynm. Leave namespace out and a shared memory is filed as theirs (user/<their person id> once signed in); name one such as common to file it with the team.";
   return "No store is open yet; a tool call says why.";
 }
 

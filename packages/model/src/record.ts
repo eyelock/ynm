@@ -193,7 +193,7 @@ const RememberFieldsSchema = z
   .object({
     type: MemoryTypeSchema,
     level: LevelSchema.optional().describe(
-      "personal (private) or distributed (team-shared); omit for the store's default: personal when it has a personal mount, else distributed"
+      "personal (private; the default) or distributed (shared with everyone on the store; only when the user chose to share). A store with no personal level stores nothing unless this is distributed"
     ),
     namespace: NamespaceSchema.optional().describe(
       "Where it lives; omit for your own: user/<you> (on a hosted store, your person id), else common"

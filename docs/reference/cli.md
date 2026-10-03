@@ -519,7 +519,7 @@ ynm remember [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
-| `--level <value>` | `personal` \| `distributed` |  |  | personal (private) or distributed (team-shared); omit for the store's default: personal when it has a personal mount, else distributed |
+| `--level <value>` | `personal` \| `distributed` |  |  | personal (private; the default) or distributed (shared with everyone on the store; only when the user chose to share). A store with no personal level stores nothing unless this is distributed |
 | `--namespace <value>` | string (max 512) |  |  | Where it lives; omit for your own: user/<you> (on a hosted store, your person id), else common |
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `--summary <value>` | string (max 280) |  |  | One line summary; derived from content if omitted |

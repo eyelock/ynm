@@ -50,9 +50,11 @@ what the server sends:
   server serves: a hosted server has only `distributed`. The text is in the
   [MCP reference](../reference/mcp.md#server-instructions).
 - **Tool descriptions.** `memory_remember`'s says the same at the moment the model picks a tool.
-- **Defaults that fit the store.** A `memory_remember` call that names no `level` goes to the
-  distributed store when the server has no personal one, so a hosted server accepts it. Anything
-  stored there is shared with everyone who uses the server.
+- **Sharing is never the default.** A hosted server has no personal store, so a `memory_remember`
+  call that names no `level` stores nothing and answers that the store is shared, to ask the user,
+  and to set `level` to `distributed` to share. Anything stored there is shared with everyone who
+  uses the server. To keep personal memory alongside it, see
+  [Use personal memory with a hosted store](use-personal-and-hosted-memory.md).
 
 This is advisory: the client's built-in memory competes on equal terms, and a model can still
 pick it. That is why `ynm client install` also adds hooks wherever the client supports them, as
