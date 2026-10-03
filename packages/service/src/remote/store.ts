@@ -3,6 +3,7 @@ import {
   Client,
   type OAuthClientProvider,
   StreamableHTTPClientTransport,
+  type Transport,
 } from "@modelcontextprotocol/client";
 import type { ContextBlock } from "@ynm/index";
 
@@ -20,6 +21,8 @@ export interface RemoteStoreOptions {
   /** Default time a call may take before the remote is treated as unavailable. */
   timeoutMs?: number;
   version?: string;
+  /** The connection to use instead of Streamable HTTP to `url` (tests). */
+  transport?: () => Transport | Promise<Transport>;
 }
 
 /** The remote could not be reached, refused the credentials, or took too long. */
@@ -61,10 +64,12 @@ export class RemoteStore {
   private connect(): Promise<Client> {
     this.client ??= (async () => {
       const client = new Client({ name: "ynm", version: this.opts.version ?? "0.0.0" });
-      const transport = new StreamableHTTPClientTransport(new URL(this.url), {
-        authProvider: this.opts.authProvider,
-        ...(this.opts.fetch ? { fetch: this.opts.fetch } : {}),
-      });
+      const transport = this.opts.transport
+        ? await this.opts.transport()
+        : new StreamableHTTPClientTransport(new URL(this.url), {
+            authProvider: this.opts.authProvider,
+            ...(this.opts.fetch ? { fetch: this.opts.fetch } : {}),
+          });
       await client.connect(transport);
       return client;
     })().catch((err: unknown) => {
