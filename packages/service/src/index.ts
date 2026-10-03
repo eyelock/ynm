@@ -18,3 +18,5 @@ export * from "./wiki.js";
 export * from "./worktree.js";
 export * from "./ynm.js";
 export const SERVICE_NAME = "ynm" as const;
+export * from "./remote/auth.js";
+export * from "./remote/store.js";

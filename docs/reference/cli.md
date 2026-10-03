@@ -31,6 +31,8 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`import`](#ynm-import) | Import JSONL records (from a file or stdin), routed by level |
 | [`init`](#ynm-init) | Set up memory for this repository, your personal store, or a dedicated bare repo |
 | [`list`](#ynm-list) | List memories (folded, newest first) across mounts |
+| [`login`](#ynm-login) | Sign in to a hosted store mounted on this machine: opens the browser at its identity provider and keeps the sign-in for this mount |
+| [`logout`](#ynm-logout) | Sign out of a hosted store: forgets this machine's sign-in and client registration for the mount |
 | [`people`](#ynm-people) | Who writes to this store: list people and their nicknames, set or clear a nickname, or link a login from another identity provider to an existing person |
 | [`pin`](#ynm-pin) | Pin a memory so it is always in the context block (or unpin it) |
 | [`promote`](#ynm-promote) | Copy a personal memory into a distributed mount as a new, linked memory |
@@ -341,6 +343,46 @@ Examples:
 ```bash
 ynm list
 ynm list --type procedural --level distributed --json
+```
+
+## ynm login
+
+Sign in to a hosted store mounted on this machine: opens the browser at its identity provider and keeps the sign-in for this mount
+
+```text
+ynm login <mount> [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `mount` | yes |  | Mount id |
+
+Common flags: `--json`, `--cwd`.
+
+Examples:
+
+```bash
+ynm login team
+```
+
+## ynm logout
+
+Sign out of a hosted store: forgets this machine's sign-in and client registration for the mount
+
+```text
+ynm logout <mount> [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `mount` | yes |  | Mount id |
+
+Common flags: `--json`, `--cwd`.
+
+Examples:
+
+```bash
+ynm logout team
 ```
 
 ## ynm people

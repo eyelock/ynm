@@ -6,6 +6,7 @@ import type { LoadedConfig } from "./config.js";
 import { DISTRIBUTED_FETCH } from "./init.js";
 import type { Mount } from "./mounts.js";
 import { projectInitialised } from "./mounts.js";
+import { hasRemoteCredentials } from "./remote/auth.js";
 import type { WorktreeInfo } from "./worktree.js";
 
 export interface Check {
@@ -136,6 +137,18 @@ export async function doctor(opts: {
       true,
       "not inside a git repository; only the personal store is mounted",
       "info"
+    );
+  }
+
+  // Remote mounts are checked for credentials only: doctor stays offline.
+  for (const m of opts.loaded.config.mounts ?? []) {
+    if (m.provider !== "mcp") continue;
+    const signedIn = hasRemoteCredentials(opts.loaded.home, m.id, m.url);
+    add(
+      `mount ${m.id} (mcp)`,
+      signedIn,
+      signedIn ? `${m.url}, signed in` : `${m.url}: not signed in; run \`ynm login ${m.id}\``,
+      signedIn ? "info" : "warn"
     );
   }
 

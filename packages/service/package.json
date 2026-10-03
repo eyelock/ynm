@@ -26,13 +26,14 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@ynm/model": "workspace:*",
-    "@ynm/store": "workspace:*",
-    "zod": "^4.3.6",
+    "@modelcontextprotocol/client": "^2.2.0",
     "@ynm/index": "workspace:*",
+    "@ynm/model": "workspace:*",
     "@ynm/models": "workspace:*",
+    "@ynm/store": "workspace:*",
+    "@ynm/store-s3": "workspace:*",
     "@ynm/wiki": "workspace:*",
-    "@ynm/store-s3": "workspace:*"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

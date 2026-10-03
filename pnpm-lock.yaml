@@ -272,6 +272,9 @@ importers:
 
   packages/service:
     dependencies:
+      '@modelcontextprotocol/client':
+        specifier: ^2.2.0
+        version: 2.2.0
       '@ynm/index':
         specifier: workspace:*
         version: link:../index

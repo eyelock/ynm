@@ -59,6 +59,7 @@ import { RERANK_QUESTION, WRITE_QUESTIONS } from "./dream/questions.js";
 import type { FreshnessReport, IndexManager } from "./indexing.js";
 import type { Mount } from "./mounts.js";
 import { findRedactions, RedactionError } from "./redaction.js";
+import { type RemoteStore, RemoteToolError } from "./remote/store.js";
 
 export interface YnmOptions {
   mounts: Mount[];
@@ -71,6 +72,28 @@ export interface YnmOptions {
   models?: Models;
   dream?: DreamConfig;
   now?: () => Date;
+  /** Hosted stores mounted over MCP (ADR-004, ADR-017): always the distributed level. */
+  remotes?: RemoteStore[];
+}
+
+/** How long session context waits for a remote before going on without it. */
+export const REMOTE_CONTEXT_TIMEOUT_MS = 3000;
+/** The share of the context budget a remote's section may take. */
+const REMOTE_CONTEXT_SHARE = 0.4;
+
+/** Reciprocal-rank fusion: merges ranked lists whose scores come from different rankers. */
+function fuse(lists: RecallHit[][]): RecallHit[] {
+  const fused = new Map<string, { hit: RecallHit; score: number }>();
+  for (const list of lists)
+    list.forEach((hit, i) => {
+      const key = `${hit.mount}:${hit.memoryId}`;
+      const prior = fused.get(key);
+      const score = (prior?.score ?? 0) + 1 / (60 + i + 1);
+      fused.set(key, { hit: prior?.hit ?? hit, score });
+    });
+  return [...fused.values()]
+    .sort((a, b) => b.score - a.score || (a.hit.updatedAt < b.hit.updatedAt ? 1 : -1))
+    .map(({ hit, score }) => ({ ...hit, score }));
 }
 
 export interface RecallHit {
@@ -146,6 +169,9 @@ export class Ynm {
   readonly index?: IndexManager;
   readonly models?: Models;
   readonly dreamConfig?: DreamConfig;
+  readonly remotes: RemoteStore[];
+  /** Remotes the latest read had to go without, and why; tools pass it on as guidance. */
+  readonly remoteIssues = new Map<string, string>();
   /** Set only on a view made by `as`. */
   readonly caller?: Caller;
   private readonly peopleCache: { doc?: PeopleDoc; at: number } = { at: 0 };
@@ -158,6 +184,7 @@ export class Ynm {
     this.index = opts.index;
     this.models = opts.models;
     this.dreamConfig = opts.dream;
+    this.remotes = opts.remotes ?? [];
     const source = opts.now ?? (() => new Date());
     let last = 0;
     // Strictly increasing timestamps within a process keep record order deterministic (ADR-002).
@@ -314,7 +341,33 @@ export class Ynm {
       }
     }
     out.sort((a, b) => b.score - a.score || (a.updatedAt < b.updatedAt ? 1 : -1));
-    return this.rerank(q, out);
+    const remote = await this.remoteRecall(q);
+    return this.rerank(q, remote.length ? fuse([out, ...remote]) : out);
+  }
+
+  /** The remotes a read reaches: distributed ones, unless the query names another mount or level. */
+  private remotesFor(q: { mount?: string; level?: Level[] }): RemoteStore[] {
+    return this.remotes.filter(
+      (r) => (!q.mount || r.id === q.mount) && (!q.level?.length || q.level.includes("distributed"))
+    );
+  }
+
+  /** Each reachable remote's hits for the query; a remote that fails is noted and skipped. */
+  private async remoteRecall(q: RecallQuery): Promise<RecallHit[][]> {
+    const { mount: _m, level: _l, ...query } = q;
+    const lists = await Promise.all(
+      this.remotesFor(q).map(async (r) => {
+        try {
+          const hits = await r.call<RecallHit[]>("memory_recall", query);
+          this.remoteIssues.delete(r.id);
+          return (hits ?? []).map((h) => ({ ...h, mount: r.id }));
+        } catch (err) {
+          this.remoteIssues.set(r.id, (err as Error).message);
+          return [];
+        }
+      })
+    );
+    return lists.filter((l) => l.length);
   }
 
   /**
@@ -369,7 +422,53 @@ export class Ynm {
     }
     const ranked: Ranked[] = rank([lists.flat()], byId, { hasText: !!q.text, now: this.now() });
     pinned.sort((a, b) => b.importance - a.importance || (a.updatedAt < b.updatedAt ? 1 : -1));
-    return buildContext(pinned, ranked, byId, q.budgetTokens);
+    const remote = await this.remoteContext(q);
+    const used = remote.reduce((n, b) => n + b.tokens, 0);
+    const local = buildContext(pinned, ranked, byId, q.budgetTokens - used);
+    if (!remote.length) return local;
+    return {
+      markdown: [local.markdown, ...remote.map((b) => b.markdown)].join("\n"),
+      included: [local.included, ...remote.map((b) => b.included)].flat(),
+      tokens: local.tokens + used,
+      truncated: local.truncated || remote.some((b) => b.truncated),
+    };
+  }
+
+  /**
+   * Each remote's own context section, within its share of the budget and a short timeout, so a
+   * slow or unreachable hosted store never holds up a session; it is noted and left out.
+   */
+  private async remoteContext(q: {
+    mount?: string;
+    level?: Level[];
+    namespace?: string;
+    text?: string;
+    budgetTokens: number;
+  }): Promise<ContextBlock[]> {
+    const remotes = this.remotesFor(q);
+    if (!remotes.length) return [];
+    const share = Math.floor((q.budgetTokens * REMOTE_CONTEXT_SHARE) / remotes.length);
+    const blocks = await Promise.all(
+      remotes.map(async (r) => {
+        try {
+          const block = await r.context(
+            { namespace: q.namespace, text: q.text, budgetTokens: share },
+            REMOTE_CONTEXT_TIMEOUT_MS
+          );
+          this.remoteIssues.delete(r.id);
+          return block.included.length
+            ? {
+                ...block,
+                markdown: block.markdown.replace(/^## Memory\n/, `## Shared memory (${r.id})\n`),
+              }
+            : undefined;
+        } catch (err) {
+          this.remoteIssues.set(r.id, (err as Error).message);
+          return undefined;
+        }
+      })
+    );
+    return blocks.filter((b): b is ContextBlock => !!b);
   }
 
   async reindex(mountId?: string): Promise<Record<string, number>> {
@@ -492,6 +591,12 @@ export class Ynm {
     if (input.level === undefined && !this.mounts.some((m) => m.level === "personal"))
       throw new ShareRequiredError();
     const level = input.level ?? "personal";
+    const remote = this.remoteTarget(level, mountId);
+    if (remote) {
+      this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+      const { level: _l, ...rest } = input;
+      return this.onRemote(remote, "memory_remember", { ...rest, level: "distributed" });
+    }
     const namespace = this.namespaceFor(level, input.namespace);
     const mount = this.routeFor(level, mountId);
     this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
@@ -529,6 +634,46 @@ export class Ynm {
       return `user/${this.userId}`;
     if (named !== undefined) return named;
     return this.caller ? `user/${this.caller.person}` : COMMON_NAMESPACE;
+  }
+
+  /**
+   * The remote a write goes to: the one named, or, for a distributed write with no local
+   * distributed mount to take it, the first remote.
+   */
+  private remoteTarget(level: Level, mountId?: string): RemoteStore | undefined {
+    if (mountId) return this.remotes.find((r) => r.id === mountId);
+    if (level !== "distributed" || this.mounts.some((m) => m.level === "distributed")) return;
+    return this.remotes[0];
+  }
+
+  /** A write on a remote, answered in the local shape with the remote as its mount. */
+  private async onRemote(
+    remote: RemoteStore,
+    tool: string,
+    args: Record<string, unknown>
+  ): Promise<WriteResult> {
+    const r = await remote.call<WriteResult>(tool, args);
+    return { ...r, mount: remote.id };
+  }
+
+  /**
+   * An edit (supersede, annotate, forget) of a memory no local mount holds goes to the remotes,
+   * in order, until one has it.
+   */
+  private async editRemote(
+    memoryId: string,
+    tool: string,
+    args: Record<string, unknown>
+  ): Promise<WriteResult> {
+    for (const remote of this.remotes) {
+      try {
+        return await this.onRemote(remote, tool, args);
+      } catch (err) {
+        if (err instanceof RemoteToolError && /unknown memory/.test(err.message)) continue;
+        throw err;
+      }
+    }
+    throw new Error(`unknown memory ${memoryId}`);
   }
 
   /** The distributed mount that keeps the people document, when its provider can. */
@@ -644,6 +789,8 @@ export class Ynm {
 
   async supersede(raw: SupersedeInput | Record<string, unknown>): Promise<WriteResult> {
     const input = SupersedeInputSchema.parse(raw);
+    if (this.remotes.length && !(await this.find(input.memoryId)))
+      return this.editRemote(input.memoryId, "memory_supersede", input);
     const prior = await this.existing(input.memoryId);
     const mount = this.mount(prior.mount);
     this.guard(prior.level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
@@ -671,6 +818,8 @@ export class Ynm {
 
   async annotate(raw: AnnotateInput | Record<string, unknown>): Promise<WriteResult> {
     const input = AnnotateInputSchema.parse(raw);
+    if (this.remotes.length && !(await this.find(input.memoryId)))
+      return this.editRemote(input.memoryId, "memory_annotate", input);
     const prior = await this.existing(input.memoryId);
     const record = this.stamp({
       memoryId: prior.memoryId,
@@ -693,6 +842,8 @@ export class Ynm {
 
   async forget(raw: ForgetInput | Record<string, unknown>): Promise<WriteResult> {
     const input = ForgetInputSchema.parse(raw);
+    if (this.remotes.length && !(await this.find(input.memoryId)))
+      return this.editRemote(input.memoryId, "memory_forget", input);
     const prior = await this.existing(input.memoryId);
     const record = this.stamp({
       memoryId: prior.memoryId,
@@ -712,9 +863,27 @@ export class Ynm {
   async promote(memoryId: string, mountId?: string): Promise<WriteResult> {
     const prior = await this.existing(memoryId);
     if (prior.level !== "personal") throw new Error(`memory ${memoryId} is already distributed`);
-    const target = this.routeFor("distributed", mountId);
     const cur = prior.current;
     this.guard("distributed", [cur.content, cur.summary, JSON.stringify(cur.data ?? null)]);
+    const remote = this.remoteTarget("distributed", mountId);
+    if (remote)
+      // A copy, shared through the hosted store as the signed-in person; the personal original
+      // stays here, and its id means nothing there, so no link back.
+      return this.onRemote(remote, "memory_remember", {
+        type: prior.type,
+        level: "distributed",
+        ...(prior.namespace.startsWith("user/") ? {} : { namespace: prior.namespace }),
+        subject: prior.subject,
+        tags: prior.tags,
+        content: cur.content,
+        summary: cur.summary,
+        data: cur.data,
+        dataSchema: cur.dataSchema,
+        importance: prior.importance,
+        confidence: prior.confidence,
+        source: `promoted:${prior.mount}`,
+      });
+    const target = this.routeFor("distributed", mountId);
     const record = this.stamp({
       memoryId: "",
       op: "create",
@@ -819,7 +988,14 @@ export class Ynm {
   }
 
   async status(): Promise<{
-    mounts: Array<{ id: string; level: Level; provider: string; location: string; shards: number }>;
+    mounts: Array<{
+      id: string;
+      level: Level;
+      provider: string;
+      location: string;
+      shards: number;
+      error?: string;
+    }>;
   }> {
     const mounts = [];
     for (const m of this.mounts)
@@ -830,6 +1006,23 @@ export class Ynm {
         location: m.location,
         shards: (await m.log.shards()).length,
       });
+    // A remote's shards are the hosted store's own; -1 when it could not be asked.
+    for (const r of this.remotes) {
+      try {
+        const s = await r.call<{ mounts: Array<{ shards: number }> }>("memory_status", {}, 5000);
+        const shards = (s?.mounts ?? []).reduce((n, m) => n + m.shards, 0);
+        mounts.push({ id: r.id, level: r.level, provider: r.provider, location: r.url, shards });
+      } catch (err) {
+        mounts.push({
+          id: r.id,
+          level: r.level,
+          provider: r.provider,
+          location: r.url,
+          shards: -1,
+          error: (err as Error).message,
+        });
+      }
+    }
     return { mounts };
   }
 

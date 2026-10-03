@@ -14,6 +14,8 @@ import Hook from "./hook.js";
 import Import from "./import.js";
 import Init from "./init.js";
 import List from "./list.js";
+import Login from "./login.js";
+import Logout from "./logout.js";
 import People from "./people.js";
 import Pin from "./pin.js";
 import Promote from "./promote.js";
@@ -42,6 +44,8 @@ export const COMMANDS = {
   import: Import,
   init: Init,
   list: List,
+  login: Login,
+  logout: Logout,
   pin: Pin,
   promote: Promote,
   purge: Purge,

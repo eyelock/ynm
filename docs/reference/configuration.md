@@ -47,8 +47,9 @@ After merging, three keys get runtime defaults when still unset:
 | `mounts` | array of object |  | Explicit extra mounts (org stores, hosted stores) |
 | `mounts[].id` | string |  | Mount id, shown on every hit and accepted by `--mount` |
 | `mounts[].level` | `personal` \| `distributed` |  | Which records the mount accepts |
-| `mounts[].provider` | `git-notes` \| `fs` \| `sqlite` \| `memory` \| `s3` | `git-notes` | Record store provider for this mount |
-| `mounts[].path` | string |  | Repository or directory path; required by every provider but `s3` |
+| `mounts[].provider` | `git-notes` \| `fs` \| `sqlite` \| `memory` \| `s3` \| `mcp` | `git-notes` | Record store provider for this mount; `mcp` is a hosted ynm reached over MCP, signed in with `ynm login <id>` |
+| `mounts[].path` | string |  | Repository or directory path; required by every provider but `s3` and `mcp` |
+| `mounts[].url` | string |  | `mcp` only: the hosted store's MCP endpoint, ending in /mcp |
 | `mounts[].anchor` | string |  | Anchor commit for this mount's notes |
 | `mounts[].remote` | string |  | Remote used when syncing this mount |
 | `mounts[].bucket` | string |  | `s3` only: the bucket that holds the store |

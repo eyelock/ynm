@@ -137,7 +137,9 @@ export async function openMounts(opts: OpenMountsOptions): Promise<Mount[]> {
       });
     }
   }
-  for (const m of config.mounts ?? []) mounts.push(await openConfiguredMount(m));
+  // An mcp mount holds no records here; openYnm opens it as a remote store.
+  for (const m of config.mounts ?? [])
+    if (m.provider !== "mcp") mounts.push(await openConfiguredMount(m));
   return mounts;
 }
 

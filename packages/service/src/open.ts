@@ -3,6 +3,8 @@ import { resolveModels } from "@ynm/models";
 import { loadConfig, loadEnvFile, ynmHome } from "./config.js";
 import { defaultIndexLocator, IndexManager } from "./indexing.js";
 import { openMounts } from "./mounts.js";
+import { FileOAuthProvider } from "./remote/auth.js";
+import { RemoteStore } from "./remote/store.js";
 import { detectWorktree } from "./worktree.js";
 import { Ynm } from "./ynm.js";
 
@@ -52,8 +54,27 @@ export async function openYnm(opts: OpenOptions = {}) {
     env,
     { claudeCli }
   );
+  const remotes = (loaded.config.mounts ?? [])
+    .filter((m) => m.provider === "mcp" && m.url)
+    .map(
+      (m) =>
+        new RemoteStore({
+          id: m.id,
+          url: m.url as string,
+          // Never a browser from here: a tool call cannot sign anyone in, `ynm login` does.
+          authProvider: new FileOAuthProvider({
+            home: loaded.home,
+            mountId: m.id,
+            url: m.url as string,
+            onAuthorize: () => {
+              throw new Error(`not signed in to ${m.id}: run \`ynm login ${m.id}\``);
+            },
+          }),
+        })
+    );
   const ynm = new Ynm({
     mounts,
+    remotes,
     actor: opts.actor ?? (loaded.config.actor as string),
     userId: loaded.config.userId as string,
     redaction: loaded.config.redaction,
@@ -61,5 +82,5 @@ export async function openYnm(opts: OpenOptions = {}) {
     models,
     dream: dreamCfg,
   });
-  return { ynm, loaded, worktree, mounts, index, models };
+  return { ynm, loaded, worktree, mounts, remotes, index, models };
 }
