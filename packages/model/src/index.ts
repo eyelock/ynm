@@ -4,6 +4,7 @@
  */
 export * from "./guidance/index.js";
 export * from "./judgments.js";
+export * from "./people.js";
 export * from "./query.js";
 export * from "./record.js";
 export * from "./session.js";

@@ -84,6 +84,47 @@ a client registered in advance and given to the client (`claude mcp add --client
 by jose, so new `kid`s work without a restart. Introspection: rotate the client secret at the
 authorisation server and restart with the new value.
 
+## People
+
+With JWT or introspection auth, every request comes from a person, and what they write is theirs.
+
+- **Who.** Each sign-in resolves to a ynm person id such as `pq3x7k2mabcdwxyz`, derived from the
+  identity provider's issuer and subject. A memory's `provenance.actor` is `user:<person id>`,
+  and `provenance.client` is the client they wrote through. No email or other claim is read or
+  stored. A static token (`YNM_MCP_TOKEN`) vouches for no one, so its writes keep the server's
+  own actor.
+- **Where.** A write that names no namespace goes to the writer's own `user/<person id>`. Name one,
+  such as `common`, to share on purpose.
+- **Nicknames.** A person sets how they appear with the `memory_people` tool (ask the agent to
+  "set my ynm nickname to Sam"), or checks who they are with `memory_people` `whoami`. `ynm list`,
+  `ynm review list`, recall results and the wiki then show the nickname, else the person id. A
+  nickname is visible to everyone who can read the store, so make it a nickname, not a legal name.
+- **Operators.** `ynm people list` shows everyone with a nickname or a linked login;
+  `ynm people clear <person id>` removes a nickname and `ynm people nickname <person id>
+  --nickname ...` sets one. They need write access to the store.
+- **Changing identity provider.** Signing in through a new provider gives a new login, which on its
+  own would be a new person. Before moving, link it: have the person sign in once through the new
+  provider and run `memory_people` `whoami` to see the login's issuer and subject, then
+  `ynm people link <their existing person id> --issuer <issuer> --subject <subject>`. From then
+  on that login writes as the same person, into the same namespace.
+
+The nicknames and linked logins live in one small document beside the memories (`documents/people`
+in the store), not in any memory, so changing one never rewrites history.
+
+## Audit
+
+Every request that reaches the MCP handler, and every refused one, produces one audit event:
+when, the person id and client, method, path, HTTP status, outcome (`ok`, `refused` or `error`),
+a refusal's error code, the tools called with the memory ids they touched, the input size and
+result count, and how long it took. Events never hold tool inputs, queries or memory content.
+Health checks and sign-in discovery are not audited.
+
+`YNM_AUDIT` picks where events go ([configuration reference](../reference/configuration.md)):
+stdout (one JSON line per event, the default when the server checks tokens), a JSONL file rotated
+at 10 MiB, or S3 (one object per event at `audit/<store prefix>/<yyyy>/<mm>/<dd>/<id>.json`,
+outside the store's own prefix, so a retention rule on `audit/` can never expire memory). A sink
+that fails is reported on stderr and never fails the request.
+
 ## Backups
 
 The store is a git repository (or, with the sqlite provider, one file). Bundle it or mirror it;

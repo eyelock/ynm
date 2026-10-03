@@ -17,10 +17,10 @@ function make(): Ynm {
 }
 
 describe("tool specs (ADR-008)", () => {
-  it("defines the ten tools with unique names and commands", () => {
-    expect(TOOL_NAMES).toHaveLength(10);
-    expect(new Set(TOOL_NAMES).size).toBe(10);
-    expect(new Set(TOOL_SPECS.map((t) => t.command)).size).toBe(10);
+  it("defines the eleven tools with unique names and commands", () => {
+    expect(TOOL_NAMES).toHaveLength(11);
+    expect(new Set(TOOL_NAMES).size).toBe(11);
+    expect(new Set(TOOL_SPECS.map((t) => t.command)).size).toBe(11);
   });
 
   it("remember warns about similar memories instead of refusing", async () => {

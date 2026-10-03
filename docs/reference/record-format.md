@@ -31,7 +31,8 @@ relations are generated from the record schema, so they always match the code.
 | `validTo` | date-time or null |  | Event time it stopped being true |
 | `ttl` | string |  | Working memory only |
 | `provenance` | object | yes | Where the record came from |
-| `provenance.actor` | string | yes | Who wrote it, e.g. agent:claude-code or user:david |
+| `provenance.actor` | string | yes | Who wrote it: user:<person id> for a signed-in person on a hosted store, else e.g. user:david or agent:claude-code |
+| `provenance.client` | string |  | The OAuth client a signed-in person wrote through |
 | `provenance.session` | string |  | Session id |
 | `provenance.source` | string |  | Source reference: URL, file, ticket, tool call |
 | `provenance.tool` | string |  | Tool or command that produced the record |

@@ -35,12 +35,13 @@ export default class Review extends YnmCommand {
       return;
     }
     const q = await ynm.reviewQueue(flags.mount);
+    const authors = await Promise.all(q.map((m) => ynm.authorOf(m.current.provenance.actor)));
     this.emit(flags.json, q, () =>
       q.length
         ? q
             .map(
-              (m) =>
-                `${m.memoryId}  ${m.type.padEnd(10)} ${m.mount.padEnd(9)} ${m.current.summary ?? ""}`
+              (m, i) =>
+                `${m.memoryId}  ${m.type.padEnd(10)} ${m.mount.padEnd(9)} ${m.current.summary ?? ""}${authors[i] ? `  (${authors[i]})` : ""}`
             )
             .join("\n")
         : "nothing to review"

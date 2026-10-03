@@ -48,4 +48,4 @@ secrets, or large pasted content. Prefer a one-line summary and a short body.
 
 ## CLI parity
 
-Every tool is also a command with the same flags: `ynm remember`, `ynm recall`, `ynm context`, `ynm supersede`, `ynm annotate`, `ynm forget`, `ynm session`, `ynm dream`, `ynm sync`, `ynm status`. Add `--json` for machine-readable output.
+Every tool is also a command with the same flags: `ynm remember`, `ynm recall`, `ynm context`, `ynm supersede`, `ynm annotate`, `ynm forget`, `ynm session`, `ynm dream`, `ynm sync`, `ynm status`, `ynm people`. Add `--json` for machine-readable output.

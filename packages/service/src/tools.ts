@@ -3,6 +3,7 @@ import {
   ConsolidateInputSchema,
   ContextQuerySchema,
   ForgetInputSchema,
+  PeopleInputSchema,
   PromoteInputSchema,
   RecallQuerySchema,
   RememberInputSchema,
@@ -57,7 +58,7 @@ function spec<S extends z.ZodObject>(s: ToolSpec<S>): ToolSpec<S> {
   return s;
 }
 
-/** The ten tools of ADR-008. MCP and CLI are thin adapters over these. */
+/** The tools of ADR-008 (and ADR-017's people tool). MCP and CLI are thin adapters over these. */
 export const TOOL_SPECS = [
   spec({
     name: "memory_remember",
@@ -205,6 +206,41 @@ export const TOOL_SPECS = [
     readOnly: true,
     async run(ynm) {
       return { data: { ...(await ynm.status()), index: await ynm.indexStatus() } };
+    },
+  }),
+  spec({
+    name: "memory_people",
+    command: "people",
+    description:
+      "Who you are on this store, and how you appear to others: whoami shows your person id and login; nickname sets the name shown on what you write (a nickname, visible to everyone who can read the store); clear removes it. Needs a signed-in caller.",
+    input: PeopleInputSchema,
+    readOnly: false,
+    async run(ynm, input) {
+      const caller = ynm.caller;
+      if (!caller)
+        throw new Error(
+          "memory_people acts on the signed-in caller, and this request has none; use `ynm people` on the command line to manage anyone's entry"
+        );
+      if (input.action === "whoami") {
+        const doc = await ynm.people();
+        return {
+          data: {
+            person: caller.person,
+            nickname: doc.people[caller.person]?.nickname ?? null,
+            client: caller.client ?? null,
+            login: caller.login ?? null,
+          },
+        };
+      }
+      if (input.action === "nickname" && !input.nickname)
+        throw new Error("nickname needs a nickname: the name to show on what you write");
+      const doc = await ynm.setNickname(
+        caller.person,
+        input.action === "nickname" ? input.nickname : undefined
+      );
+      return {
+        data: { person: caller.person, nickname: doc.people[caller.person]?.nickname ?? null },
+      };
     },
   }),
 ] as const satisfies readonly ToolSpec[];

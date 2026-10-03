@@ -41,7 +41,7 @@ function data<T>(r: { structuredContent?: unknown; content: unknown; isError?: b
 }
 
 describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
-  it("lists the ten tools, three resources and three prompts", async () => {
+  it("lists the eleven tools, three resources and three prompts", async () => {
     const { client, close } = await connected(await createRepo(1));
     const tools = await client.listTools();
     expect(tools.tools.map((t) => t.name).sort()).toEqual([...MCP_TOOLS].sort());

@@ -54,7 +54,7 @@ describe("flags from Zod (ADR-008)", () => {
     const flags = flagsFromSchema(RememberInputSchema);
     const d = (name: string) => (flags[name] as { description?: string }).description;
     expect(d("importance")).toBe("0..1 (number) (default: 0.5)");
-    expect(d("namespace")).toContain("(default: common)");
+    expect(d("confidence")).toContain("(default: 1)");
     expect(d("data")).toBe("Structured payload (JSON object)");
     expect(d("tags")).not.toContain("default");
   });

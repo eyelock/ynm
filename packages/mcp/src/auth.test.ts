@@ -127,7 +127,8 @@ describe("auth verifiers reject what they should", () => {
     const bySub = await introspect({ active: true, sub: "user-9" }).verifyAccessToken("t");
     expect(bySub.clientId).toBe("user-9");
     expect(bySub.scopes).toEqual([]);
-    expect(bySub.extra).toEqual({ sub: "user-9" });
+    // With no iss in the response, the introspection endpoint's origin stands in as the issuer.
+    expect(bySub.extra).toEqual({ sub: "user-9", iss: "https://issuer" });
     expect(bySub.expiresAt).toBeGreaterThanOrEqual(Math.floor(Date.now() / 1000) + 3599);
     const anon = await introspect({ active: true }).verifyAccessToken("t");
     expect(anon.clientId).toBe("unknown");
@@ -195,7 +196,7 @@ describe("auth verifiers reject what they should", () => {
       );
       expect(c.scopes).toEqual(["memory:read", "memory:write"]);
       expect(c.clientId).toBe("u1");
-      expect(c.extra).toEqual({ sub: "u1" });
+      expect(c.extra).toEqual({ sub: "u1", iss: "https://issuer" });
 
       const bare = await v.verifyAccessToken(await sign({ scope: 42 }));
       expect(bare.scopes).toEqual([]);

@@ -12,14 +12,16 @@ import {
   type ShardFilter,
   type ShardInfo,
   type ShardKey,
+  type StoreDocument,
   type SyncOptions,
   type SyncResult,
   shardMatches,
 } from "../../log.js";
 import { parseJsonl, serializeJsonl } from "../../parse.js";
 import { objectPresent } from "./anchor.js";
+import { assertDocumentName, commitDocument, readDocumentAt } from "./documents.js";
 import { assertSha, git, gitCommonDir, gitOrNull, identityEnv } from "./git.js";
-import { keyFromRef, NOTES_PREFIX, refFor, refPrefixFor } from "./refs.js";
+import { documentRef, keyFromRef, NOTES_PREFIX, refFor, refPrefixFor } from "./refs.js";
 import { syncDistributed } from "./sync.js";
 
 export interface GitNotesLogOptions {
@@ -252,6 +254,43 @@ export class GitNotesLog implements RecordLog {
     }
     details.badLines = bad;
     return { ok: problems.length === 0, problems, details };
+  }
+
+  async readDocument(name: string): Promise<StoreDocument | null> {
+    assertDocumentName(name);
+    const version = await this.tip(documentRef(this.level, name));
+    if (!version) return null;
+    const text = await readDocumentAt(this.repo, version, name);
+    return text === null ? null : { text, version };
+  }
+
+  /** Version is the document ref's commit sha; `update-ref` with the old value is the CAS. */
+  async writeDocument(name: string, text: string, expected: string | null): Promise<string | null> {
+    assertDocumentName(name);
+    const ref = documentRef(this.level, name);
+    const lock = await this.lockPath();
+    return withLock(
+      lock,
+      async () => {
+        const old = await this.tip(ref);
+        if (old !== expected) return null;
+        const env = await this.identity();
+        const commit = await commitDocument(
+          this.repo,
+          env,
+          name,
+          text,
+          old ? [old] : [],
+          `ynm: document ${name}`
+        );
+        const updated = await gitOrNull(
+          ["update-ref", ref, commit, old ?? "0".repeat(commit.length)],
+          { cwd: this.repo }
+        );
+        return updated === null ? null : commit;
+      },
+      LOCK_TIMEOUT_MS
+    );
   }
 
   async sync(options: SyncOptions = {}): Promise<SyncResult> {

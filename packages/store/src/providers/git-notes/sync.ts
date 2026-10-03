@@ -1,7 +1,15 @@
 import type { Level } from "@ynm/model";
-import type { SyncResult } from "../../log.js";
+import type { SyncOptions, SyncResult } from "../../log.js";
+import { commitDocument, readDocumentAt } from "./documents.js";
 import { git, gitOrNull } from "./git.js";
-import { distributedFetchRefspec, levelDir, NOTES_PREFIX, REMOTE_PREFIX } from "./refs.js";
+import {
+  distributedFetchRefspec,
+  documentPrefix,
+  documentTrackingPrefix,
+  levelDir,
+  NOTES_PREFIX,
+  REMOTE_PREFIX,
+} from "./refs.js";
 
 export interface SyncParams {
   repo: string;
@@ -11,6 +19,7 @@ export interface SyncParams {
   push?: boolean;
   pull?: boolean;
   dryRun?: boolean;
+  mergeDocuments?: SyncOptions["mergeDocuments"];
 }
 
 const MAX_ROUNDS = 3;
@@ -32,8 +41,72 @@ async function isAncestor(repo: string, a: string, b: string): Promise<boolean> 
 }
 
 /**
+ * Reconciles fetched documents with the local ones: create, fast-forward, or for a document
+ * changed on both sides, a two-parent commit of the named merger's output so the push
+ * fast-forwards. With no merger the local copy stays and the document is a conflict.
+ * Returns the names left in conflict, which the push must skip.
+ */
+async function reconcileDocuments(
+  p: SyncParams,
+  env: NodeJS.ProcessEnv,
+  result: SyncResult
+): Promise<Set<string>> {
+  const local = documentPrefix(p.level);
+  const tracking = documentTrackingPrefix(p.remote, p.level);
+  const remoteRefs = await listRefs(p.repo, tracking);
+  const localRefs = await listRefs(p.repo, local);
+  const conflicted = new Set<string>();
+  result.fetched += remoteRefs.size;
+  for (const [rref, rsha] of remoteRefs) {
+    const name = rref.slice(tracking.length);
+    const label = `documents/${name}`;
+    const lref = local + name;
+    const lsha = localRefs.get(lref);
+    if (lsha === rsha) continue;
+    if (p.dryRun) {
+      result.merged.push(label);
+      continue;
+    }
+    if (!lsha || (await isAncestor(p.repo, lsha, rsha))) {
+      await git(["update-ref", lref, rsha, lsha ?? "0".repeat(rsha.length)], { cwd: p.repo });
+      result.merged.push(label);
+      continue;
+    }
+    if (await isAncestor(p.repo, rsha, lsha)) continue;
+    const merger = p.mergeDocuments?.[name];
+    if (!merger) {
+      conflicted.add(name);
+      if (!result.conflicts.includes(label)) result.conflicts.push(label);
+      continue;
+    }
+    const ours = (await readDocumentAt(p.repo, lsha, name)) ?? "";
+    const theirs = (await readDocumentAt(p.repo, rsha, name)) ?? "";
+    const commit = await commitDocument(
+      p.repo,
+      env,
+      name,
+      merger(ours, theirs),
+      [lsha, rsha],
+      `ynm: merge document ${name}`
+    );
+    await git(["update-ref", lref, commit, lsha], { cwd: p.repo });
+    result.merged.push(label);
+  }
+  return conflicted;
+}
+
+/** Local document refs to push: every one except those left diverged by a conflict. */
+async function pushableDocuments(p: SyncParams, conflicted: Set<string>): Promise<string[]> {
+  const prefix = documentPrefix(p.level);
+  return [...(await listRefs(p.repo, prefix)).keys()].filter(
+    (ref) => !conflicted.has(ref.slice(prefix.length))
+  );
+}
+
+/**
  * Fetch into a remote-tracking namespace (never forced into the working refs), fast-forward or
- * `notes merge -s cat_sort_uniq`, push, retry on rejection (ADR-003, ADR-007).
+ * `notes merge -s cat_sort_uniq`, push, retry on rejection (ADR-003, ADR-007). Named documents
+ * ride along on their own refs and are reconciled by `reconcileDocuments`.
  */
 export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
   const dir = levelDir(p.level);
@@ -76,16 +149,25 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
     }
   }
 
+  let conflicted = new Set<string>();
   for (let round = 0; round < MAX_ROUNDS; round++) {
     if (doPull) {
       // The remote may have no notes at all yet; an empty refspec match is not an error we care about.
-      await gitOrNull(["fetch", "--quiet", target, `+${local}*:${tracking}*`], {
-        cwd: p.repo,
-        env,
-      });
+      // Documents are fetched with an explicit refspec only; no config line is added for them.
+      await gitOrNull(
+        [
+          "fetch",
+          "--quiet",
+          target,
+          `+${local}*:${tracking}*`,
+          `+${documentPrefix(p.level)}*:${documentTrackingPrefix(p.remote, p.level)}*`,
+        ],
+        { cwd: p.repo, env }
+      );
       const remoteRefs = await listRefs(p.repo, tracking);
       const localRefs = await listRefs(p.repo, local);
       result.fetched = remoteRefs.size;
+      conflicted = await reconcileDocuments(p, env, result);
       for (const [rref, rsha] of remoteRefs) {
         const lref = local + rref.slice(tracking.length);
         const lsha = localRefs.get(lref);
@@ -113,11 +195,17 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
       }
     }
     if (!doPush || p.dryRun) return result;
+    const notes = [...(await listRefs(p.repo, local)).keys()];
+    const documents = await pushableDocuments(p, conflicted);
     // Nothing written at this level yet: git rejects a push pattern that matches no refs.
-    if ((await listRefs(p.repo, local)).size === 0) return result;
+    if (notes.length === 0 && documents.length === 0) return result;
+    const refspecs = [
+      ...(notes.length > 0 ? [`${local}*:${local}*`] : []),
+      ...documents.map((ref) => `${ref}:${ref}`),
+    ];
     try {
-      await git(["push", "--quiet", target, `${local}*:${local}*`], { cwd: p.repo, env });
-      result.pushed = [...(await listRefs(p.repo, local)).keys()];
+      await git(["push", "--quiet", target, ...refspecs], { cwd: p.repo, env });
+      result.pushed = [...notes, ...documents];
       return result;
     } catch (err) {
       const msg = (err as Error).message;

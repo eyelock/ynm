@@ -6,6 +6,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import type { Level } from "@ynm/model";
 import { S3Log } from "./s3-log.js";
 
+export * from "./audit.js";
 export * from "./s3-log.js";
 
 export interface S3MountConfig {

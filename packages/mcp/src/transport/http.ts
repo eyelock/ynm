@@ -13,6 +13,7 @@ import {
   originValidationResponse,
   verifyBearerToken,
 } from "@modelcontextprotocol/server";
+import type { Auditor } from "../audit.js";
 import type { ProtectedResource } from "../auth.js";
 
 /** What sits in front of the MCP handler: health, CORS, host and origin checks, auth. */
@@ -38,6 +39,10 @@ export interface WebHandlerOptions extends FrontDoorOptions {
   rejectLegacy?: boolean;
   /** Log to stderr; off in tests. */
   quiet?: boolean;
+  /** Writes one event per request that reaches the MCP handler or is refused (ADR-017). */
+  audit?: Auditor;
+  /** The person a verified token belongs to, for the audit event. */
+  identify?: (info: AuthInfo | undefined) => Promise<string | undefined>;
 }
 
 export interface HttpOptions extends WebHandlerOptions {
@@ -169,6 +174,13 @@ export interface WebHandler {
   close: () => Promise<void>;
 }
 
+/** The OAuth error code in a refusal's challenge header, e.g. invalid_token. Never the token. */
+function refusalReason(res: Response): string | undefined {
+  return /error="([^"]+)"/.exec(res.headers.get("www-authenticate") ?? "")?.[1];
+}
+
+const isRefusal = (status: number) => status === 401 || status === 403;
+
 /** Responses that must not carry a body, whatever the handler built. */
 const NULL_BODY = new Set([101, 204, 205, 304]);
 
@@ -195,16 +207,39 @@ export function createWebHandler(
     mcp,
     close: () => mcp.close(),
     fetch: async (request) => {
+      const { audit } = options;
       const verdict = await door(request);
-      if ("response" in verdict) return verdict.response;
-      const res = await mcp.fetch(request, { authInfo: verdict.authInfo });
-      const headers = new Headers(res.headers);
-      for (const [k, v] of verdict.cors) if (!headers.has(k)) headers.set(k, v);
-      return new Response(NULL_BODY.has(res.status) ? null : res.body, {
-        status: res.status,
-        statusText: res.statusText,
-        headers,
+      if ("response" in verdict) {
+        const { response } = verdict;
+        // Health, discovery and preflight answers are not audited; refusals are.
+        if (!audit || !isRefusal(response.status)) return response;
+        return audit
+          .around({ method: request.method, url: request.url }, async () => ({
+            status: response.status,
+            reason: refusalReason(response),
+            response,
+          }))
+          .then((r) => r.response);
+      }
+      const serve = async () => {
+        const res = await mcp.fetch(request, { authInfo: verdict.authInfo });
+        const headers = new Headers(res.headers);
+        for (const [k, v] of verdict.cors) if (!headers.has(k)) headers.set(k, v);
+        // An audited request is read to the end first, so every tool call is in its event.
+        const body = NULL_BODY.has(res.status) ? null : audit ? await res.arrayBuffer() : res.body;
+        return new Response(body, { status: res.status, statusText: res.statusText, headers });
+      };
+      if (!audit) return serve();
+      const r = await audit.around({ method: request.method, url: request.url }, async () => {
+        const response = await serve();
+        return {
+          status: response.status,
+          person: await options.identify?.(verdict.authInfo),
+          client: verdict.authInfo?.clientId,
+          response,
+        };
       });
+      return r.response;
     },
   };
 }
@@ -235,15 +270,33 @@ export async function startHttp(
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? host}`);
     const probe = new Request(url, { method: req.method, headers: toHeaders(req.headers) });
     const verdict = await door(probe);
+    const { audit } = options;
+    const request = { method: req.method ?? "GET", url: url.href };
     if ("response" in verdict) {
       const { response } = verdict;
-      res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
-      res.end(await response.text());
+      const answer = async () => {
+        res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
+        res.end(await response.text());
+        return { status: response.status, reason: refusalReason(response) };
+      };
+      if (audit && isRefusal(response.status)) await audit.around(request, answer);
+      else await answer();
       return;
     }
     for (const [k, v] of verdict.cors) res.setHeader(k, v);
     (req as typeof req & { auth?: AuthInfo }).auth = verdict.authInfo;
-    await mcp(req, res);
+    if (!audit) {
+      await mcp(req, res);
+      return;
+    }
+    await audit.around(request, async () => {
+      await mcp(req, res);
+      return {
+        status: res.statusCode,
+        person: await options.identify?.(verdict.authInfo),
+        client: verdict.authInfo?.clientId,
+      };
+    });
   });
 
   const bound = await new Promise<number>((resolve) => {

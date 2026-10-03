@@ -12,7 +12,9 @@ import type {
   DreamConfig,
   ForgetInput,
   Level,
+  Login,
   MemoryRecord,
+  PeopleDoc,
   PurgeInput,
   RecallQuery,
   RecordFilter,
@@ -22,12 +24,21 @@ import type {
 } from "@ynm/model";
 import {
   AnnotateInputSchema,
+  COMMON_NAMESPACE,
   ContextQuerySchema,
   ForgetInputSchema,
+  loginKey,
   MemoryRecordSchema,
+  mergePeopleText,
+  NicknameSchema,
+  PEOPLE_DOCUMENT,
+  PersonIdSchema,
   PurgeInputSchema,
+  parsePeople,
+  personOfActor,
   RecallQuerySchema,
   RememberInputSchema,
+  resolvePerson,
   SupersedeInputSchema,
   summarize,
   ulid,
@@ -77,6 +88,8 @@ export interface RecallHit {
   pinned: boolean;
   importance: number;
   updatedAt: string;
+  /** Who last wrote it, when that was a signed-in person: their nickname, else their person id. */
+  author?: string;
 }
 
 export interface MemoryWithMount extends Memory {
@@ -94,6 +107,19 @@ export interface ListOptions extends RecordFilter {
   mount?: string;
 }
 
+/** A signed-in person making a request to a hosted store (ADR-017). */
+export interface Caller {
+  /** The ynm person id their login resolves to. */
+  person: string;
+  /** The OAuth client they came through. */
+  client?: string;
+  /** The login itself, so a person can be told what to link. */
+  login?: Login;
+}
+
+/** How long a process trusts its copy of the people document before reading it again. */
+const PEOPLE_TTL_MS = 30_000;
+
 /**
  * The one business layer (ADR-008). Routes writes by level, folds reads across mounts, and
  * applies the redaction gate before anything reaches a distributed log (ADR-007).
@@ -107,6 +133,9 @@ export class Ynm {
   readonly index?: IndexManager;
   readonly models?: Models;
   readonly dreamConfig?: DreamConfig;
+  /** Set only on a view made by `as`. */
+  readonly caller?: Caller;
+  private readonly peopleCache: { doc?: PeopleDoc; at: number } = { at: 0 };
 
   constructor(opts: YnmOptions) {
     this.mounts = opts.mounts;
@@ -124,6 +153,16 @@ export class Ynm {
       last = t;
       return new Date(t);
     };
+  }
+
+  /**
+   * This store as one signed-in person sees it: what they write is theirs (`user:<person id>`)
+   * and lands in `user/<person id>` unless they name a namespace. Shares everything else.
+   */
+  as(caller: Caller): Ynm {
+    const view = Object.create(this) as Ynm;
+    Object.defineProperty(view, "caller", { value: caller, enumerable: true });
+    return view;
   }
 
   mount(id: string): Mount {
@@ -177,7 +216,11 @@ export class Ynm {
       id,
       memoryId: partial.op === "create" ? id : partial.memoryId,
       recordedAt: at.toISOString(),
-      provenance: { actor: this.actor, ...partial.provenance },
+      provenance: {
+        actor: this.caller ? `user:${this.caller.person}` : this.actor,
+        ...(this.caller?.client ? { client: this.caller.client } : {}),
+        ...partial.provenance,
+      },
     };
     return MemoryRecordSchema.parse(record);
   }
@@ -252,6 +295,7 @@ export class Ynm {
           pinned: m.pinned,
           importance: m.importance,
           updatedAt: m.updatedAt,
+          ...(await this.authorField(m.state?.current.provenance.actor)),
         });
       }
     }
@@ -431,10 +475,7 @@ export class Ynm {
   ): Promise<WriteResult> {
     const input = RememberInputSchema.parse(raw);
     const level = input.level ?? this.defaultLevel();
-    const namespace =
-      input.namespace === "common" && level === "personal"
-        ? `user/${this.userId}`
-        : input.namespace;
+    const namespace = this.namespaceFor(level, input.namespace);
     const mount = this.routeFor(level, mountId);
     this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
     const judged = await this.judgeOnWrite(input);
@@ -459,6 +500,111 @@ export class Ynm {
       provenance: { session: input.session, source: input.source },
     });
     return this.write(mount, record);
+  }
+
+  /**
+   * Where a write goes when it names no namespace: the writer's own. On a personal mount that is
+   * `user/<user id>` (as is `common`, which never leaves the machine); for a signed-in person on
+   * a hosted store it is `user/<person id>`; otherwise `common`.
+   */
+  private namespaceFor(level: Level, named: string | undefined): string {
+    if (level === "personal" && (named === undefined || named === COMMON_NAMESPACE))
+      return `user/${this.userId}`;
+    if (named !== undefined) return named;
+    return this.caller ? `user/${this.caller.person}` : COMMON_NAMESPACE;
+  }
+
+  /** The distributed mount that keeps the people document, when its provider can. */
+  private peopleMount(): Mount | undefined {
+    const m =
+      this.mounts.find((x) => x.level === "distributed" && x.id === "project") ??
+      this.mounts.find((x) => x.level === "distributed");
+    return m?.log.readDocument && m.log.writeDocument ? m : undefined;
+  }
+
+  /** Nicknames and linked logins; cached briefly, since every signed-in request resolves one. */
+  async people(fresh = false): Promise<PeopleDoc> {
+    const cache = this.peopleCache;
+    if (!fresh && cache.doc && this.now().getTime() - cache.at < PEOPLE_TTL_MS) return cache.doc;
+    const mount = this.peopleMount();
+    const doc = parsePeople((await mount?.log.readDocument?.(PEOPLE_DOCUMENT))?.text);
+    cache.doc = doc;
+    cache.at = this.now().getTime();
+    return doc;
+  }
+
+  /**
+   * Who wrote something, for display, when a signed-in person did: their nickname, else their
+   * person id. Undefined for every other actor, which listings already identify by level.
+   */
+  async authorOf(actor: string | undefined): Promise<string | undefined> {
+    const person = personOfActor(actor);
+    if (!person) return undefined;
+    return (await this.people()).people[person]?.nickname ?? person;
+  }
+
+  private async authorField(actor: string | undefined): Promise<{ author?: string }> {
+    const author = await this.authorOf(actor);
+    return author ? { author } : {};
+  }
+
+  /** The person a login belongs to. */
+  async personFor(login: Login): Promise<string> {
+    return resolvePerson(await this.people(), login);
+  }
+
+  /** Read, change and write the people document, retrying when someone else wrote first. */
+  private async updatePeople(change: (doc: PeopleDoc) => void): Promise<PeopleDoc> {
+    const mount = this.peopleMount();
+    if (!mount?.log.readDocument || !mount.log.writeDocument)
+      throw new Error("this store keeps no people (it has no distributed mount that can)");
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const current = await mount.log.readDocument(PEOPLE_DOCUMENT);
+      const doc = parsePeople(current?.text);
+      change(doc);
+      const text = `${JSON.stringify(doc, null, 2)}\n`;
+      if (await mount.log.writeDocument(PEOPLE_DOCUMENT, text, current?.version ?? null)) {
+        this.peopleCache.doc = doc;
+        this.peopleCache.at = this.now().getTime();
+        return doc;
+      }
+    }
+    throw new Error("the people document kept changing underneath this write; try again");
+  }
+
+  /** Sets (or, with no nickname, clears) how a person appears to everyone who reads the store. */
+  async setNickname(person: string, nickname: string | undefined): Promise<PeopleDoc> {
+    const id = PersonIdSchema.parse(person);
+    const name = nickname === undefined ? undefined : NicknameSchema.parse(nickname);
+    return this.updatePeople((doc) => {
+      const prior = doc.people[id];
+      doc.people[id] = {
+        logins: prior?.logins ?? [],
+        ...(name ? { nickname: name } : {}),
+        updatedAt: this.now().toISOString(),
+      };
+    });
+  }
+
+  /**
+   * Links a login to an existing person, so signing in with it (say, through a new identity
+   * provider) writes as that person. A login belongs to one person; linking moves it.
+   */
+  async linkLogin(login: Login, person: string): Promise<PeopleDoc> {
+    const id = PersonIdSchema.parse(person);
+    const key = loginKey(login);
+    return this.updatePeople((doc) => {
+      const at = this.now().toISOString();
+      for (const [other, p] of Object.entries(doc.people))
+        if (other !== id && p.logins.includes(key))
+          doc.people[other] = { ...p, logins: p.logins.filter((l) => l !== key), updatedAt: at };
+      const prior = doc.people[id];
+      doc.people[id] = {
+        ...prior,
+        logins: [...new Set([...(prior?.logins ?? []), key])],
+        updatedAt: at,
+      };
+    });
   }
 
   async find(memoryId: string): Promise<MemoryWithMount | null> {
@@ -647,7 +793,10 @@ export class Ynm {
     for (const mount of this.mounts) {
       if (opts.mount ? mount.id !== opts.mount : mount.level !== "distributed") continue;
       if (!mount.log.sync) continue;
-      results[mount.id] = await mount.log.sync(opts);
+      results[mount.id] = await mount.log.sync({
+        ...opts,
+        mergeDocuments: { [PEOPLE_DOCUMENT]: mergePeopleText, ...opts.mergeDocuments },
+      });
     }
     return results;
   }

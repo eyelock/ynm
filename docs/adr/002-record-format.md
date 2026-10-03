@@ -90,3 +90,5 @@ None.
 
 - 2026-10-03: fold reads `data.dreamed` on an `annotate` into the memory's `dreamed` (ADR-006).
   An annotate carrying only that is bookkeeping and does not move `updatedAt`.
+- 2026-10-03: `provenance.client` records the OAuth client a signed-in person wrote through, and
+  a hosted write's actor is `user:<person id>` (ADR-017).

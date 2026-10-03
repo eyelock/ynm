@@ -101,7 +101,13 @@ export type Link = z.infer<typeof LinkSchema>;
 
 export const ProvenanceSchema = z
   .object({
-    actor: z.string().min(1).describe("Who wrote it, e.g. agent:claude-code or user:david"),
+    actor: z
+      .string()
+      .min(1)
+      .describe(
+        "Who wrote it: user:<person id> for a signed-in person on a hosted store, else e.g. user:david or agent:claude-code"
+      ),
+    client: z.string().optional().describe("The OAuth client a signed-in person wrote through"),
     session: z.string().optional().describe("Session id"),
     source: z.string().optional().describe("Source reference: URL, file, ticket, tool call"),
     tool: z.string().optional().describe("Tool or command that produced the record"),
@@ -189,7 +195,9 @@ const RememberFieldsSchema = z
     level: LevelSchema.optional().describe(
       "personal (private) or distributed (team-shared); omit for the store's default: personal when it has a personal mount, else distributed"
     ),
-    namespace: NamespaceSchema.default(COMMON_NAMESPACE),
+    namespace: NamespaceSchema.optional().describe(
+      "Where it lives; omit for your own: user/<you> (on a hosted store, your person id), else common"
+    ),
     content: z.string().min(1).max(65_536).describe("Markdown; the memory itself"),
     summary: z
       .string()

@@ -22,8 +22,8 @@ export async function objectPresent(cwd: string, sha: string): Promise<boolean> 
 
 /**
  * The oldest root commit by committer date, ties broken by the smaller sha (ADR-003). Notes refs
- * are excluded: every notes history starts with a parentless commit and must never be mistaken
- * for the repository's root. Root commits of a shallow clone are graft points, not real roots,
+ * and document refs (refs/ynm/*) are excluded: every notes or document history starts with a
+ * parentless commit and must never be mistaken for the repository's root. Root commits of a shallow clone are graft points, not real roots,
  * so callers must pass the configured anchor for shallow repos.
  */
 export async function findRootCommit(cwd: string): Promise<string | null> {
@@ -32,6 +32,7 @@ export async function findRootCommit(cwd: string): Promise<string | null> {
       "rev-list",
       "--max-parents=0",
       "--exclude=refs/notes/*",
+      "--exclude=refs/ynm/*",
       "--exclude=refs/ynm-remote/*",
       "--all",
       "--format=%H %ct",
