@@ -1,0 +1,13 @@
+# One AWS account's baseline, for server stores. Copy to accounts/<account>.tfvars and
+# example.s3.tfbackend.example to accounts/<account>.s3.tfbackend (both gitignored), then with
+# the ynm-provisioner profile:
+#   terraform init -backend-config=accounts/<account>.s3.tfbackend
+#   terraform apply -var-file=accounts/<account>.tfvars
+account_id = "123456789012"
+region     = "us-east-1"
+owner      = "example"
+
+workload_boundary_arn = "arn:aws:iam::123456789012:policy/ynm-boundary/ynm-workload-boundary"
+
+# Whether the ynm image on ghcr.io needs registry credentials to pull.
+registry_credentials = true

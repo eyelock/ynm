@@ -40,6 +40,11 @@ it) under `/data/store.git`. `GET /health` reports auth mode and scheduler stats
 auth. Bind to `0.0.0.0` only in containers or behind a proxy: the Host header check is then
 disabled (`--allow-host *`); set `--allow-host memory.example.com` on a public listener.
 
+On AWS, [`infra/aws`](../../infra/aws/README.md) runs one store per client, either as a Lambda on
+an s3 store (close to free while idle) or as this container on a small server with the store on
+its own volume, with sign-in through an identity provider such as an Auth0 tenant
+([`infra/auth0`](../../infra/auth0/README.md)).
+
 `infra/docker/docker-compose.yml` is the reference topology: a store, an agent client with no
 git, and a developer clone that syncs through `git://store/store.git` (`YNM_GIT_DAEMON=1`
 serves the bare repo with receive-pack enabled; use SSH or a forge for anything beyond a demo).
