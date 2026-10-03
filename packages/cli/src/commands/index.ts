@@ -14,6 +14,7 @@ import Hook from "./hook.js";
 import Import from "./import.js";
 import Init from "./init.js";
 import List from "./list.js";
+import People from "./people.js";
 import Pin from "./pin.js";
 import Promote from "./promote.js";
 import Purge from "./purge.js";
@@ -47,6 +48,7 @@ export const COMMANDS = {
   recall: Recall,
   reindex: Reindex,
   remember: Remember,
+  people: People,
   review: Review,
   serve: Serve,
   session: Session,

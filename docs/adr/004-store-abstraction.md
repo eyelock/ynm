@@ -98,3 +98,9 @@ None.
   `If-Match` rewrite moves it too; non-replicating for now (`sync` later, as a union of lines).
   It lives in `@ynm/store-s3`, loaded on demand, so the AWS SDK stays out of the CLI bundles. It
   passes the conformance suite against an in-memory double and against MinIO.
+- 2026-10-03: named documents beside the records (`readDocument`, `writeDocument`): a small JSON
+  document per store, outside every shard, never scanned, folded or purged, written whole with a
+  compare-and-swap on its version. Every provider keeps one: memory, fs (`documents/<name>.json`),
+  sqlite (a `documents` table), s3 (`<prefix>/documents/<name>.json`, `If-Match`), git-notes (a
+  commit on `refs/ynm/<level>/documents/<name>`, synced with the notes and merged by a per-name
+  merger). The first is ADR-017's `people`.

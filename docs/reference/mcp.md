@@ -19,7 +19,7 @@ actually serves. A local server with a personal store sends:
 A hosted server (`--no-personal`) has only the distributed level, which is then the default
 when a tool call names none, and its last line reads:
 
-> - Level: distributed only, shared with everyone who uses this server; leave level out.
+> - Level: distributed only, shared with everyone who uses this server; leave level out. Leave namespace out too and a memory is filed as yours (user/<your person id> once you are signed in); name one such as common to share it on purpose.
 
 For a client connected by URL alone, with no hooks, skill or instruction-file block, these
 instructions and the tool descriptions below are all the guidance it receives; see
@@ -39,6 +39,7 @@ instructions and the tool descriptions below are all the guidance it receives; s
 | [`memory_consolidate`](#memory_consolidate) | [`ynm dream`](cli.md#ynm-dream) | no | no |
 | [`memory_sync`](#memory_sync) | [`ynm sync`](cli.md#ynm-sync) | no | no |
 | [`memory_status`](#memory_status) | [`ynm status`](cli.md#ynm-status) | yes | no |
+| [`memory_people`](#memory_people) | [`ynm people`](cli.md#ynm-people) | no | no |
 
 A tool result carries the payload as JSON text and as `structuredContent: { data, guidance }`.
 When `guidance` is set it is also appended to the text after a blank line as
@@ -54,7 +55,7 @@ CLI: `ynm remember`.
 |---|---|---|---|---|
 | `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
 | `level` | `personal` \| `distributed` |  |  | personal (private) or distributed (team-shared); omit for the store's default: personal when it has a personal mount, else distributed |
-| `namespace` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
+| `namespace` | string (max 512) |  |  | Where it lives; omit for your own: user/<you> (on a hosted store, your person id), else common |
 | `content` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `summary` | string (max 280) |  |  | One line summary; derived from content if omitted |
 | `subject` | string (max 200) |  |  | Entity or topic key |
@@ -218,6 +219,17 @@ Mounts, shard counts and index freshness.
 CLI: `ynm status`.
 
 No input fields.
+
+### memory_people
+
+Who you are on this store, and how you appear to others: whoami shows your person id and login; nickname sets the name shown on what you write (a nickname, visible to everyone who can read the store); clear removes it. Needs a signed-in caller.
+
+CLI: `ynm people`.
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `action` | `whoami` \| `nickname` \| `clear` | yes |  | whoami: your person id and login; nickname: set yours; clear: remove yours |
+| `nickname` | string (max 64) |  |  | For nickname: how you appear to everyone who can read the store; not a real name |
 
 ## Resources
 

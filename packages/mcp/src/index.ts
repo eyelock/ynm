@@ -5,6 +5,7 @@
  * or YNM_JWKS_URL.
  */
 import { authFromEnv, protectedResourceFor, verifierFor } from "./auth.js";
+import { hostedAudit } from "./identity.js";
 import { parseEvery, startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { startHttp } from "./transport/http.js";
@@ -39,6 +40,7 @@ export const MCP_TOOLS = [
   "memory_consolidate",
   "memory_sync",
   "memory_status",
+  "memory_people",
 ] as const;
 
 export interface CliArgs {
@@ -122,6 +124,7 @@ export async function main(argv: readonly string[]): Promise<void> {
       allowedHosts,
       rejectLegacy: args.rejectLegacy,
       health: () => ({ auth: auth.mode, scheduler: scheduler.stats }),
+      ...hostedAudit(process.env, auth.mode !== "none", getYnm),
     });
     console.error(`ynm-mcp auth: ${auth.mode}`);
     const shutdown = async () => {

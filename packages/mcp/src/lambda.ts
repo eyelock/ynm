@@ -11,6 +11,7 @@ import { mkdirSync } from "node:fs";
 import type { Ynm } from "@ynm/service";
 import type { RecordLog, ShardKey } from "@ynm/store";
 import { authFromEnv, protectedResourceFor, verifierFor } from "./auth.js";
+import { hostedAudit } from "./identity.js";
 import { startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { createWebHandler } from "./transport/http.js";
@@ -259,6 +260,7 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
     .map((s) => s.trim())
     .filter(Boolean);
   const scheduler = startScheduler(getYnm, { quiet: opts.quiet });
+  const audited = hostedAudit(cfg.env, auth.mode !== "none", getYnm);
   const web = createWebHandler(
     () => createYnmServer({ ...serverOpts, version: MCP_VERSION }, getYnm),
     {
@@ -268,6 +270,7 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       allowedHosts: [cfg.publicUrl.hostname],
       health: () => ({ auth: auth.mode, runtime: "lambda", scheduler: scheduler.stats }),
       quiet: opts.quiet,
+      ...audited,
     }
   );
   const log = (msg: string) => {

@@ -13,6 +13,8 @@ export interface WikiInput {
   records?: Iterable<MemoryRecord>;
   title?: string;
   generatedAt?: string;
+  /** Who an actor is, for display (a signed-in person's nickname); undefined leaves it out. */
+  author?: (actor: string) => string | undefined;
 }
 
 export function slug(s: string): string {
@@ -74,9 +76,13 @@ export function generateWiki(input: WikiInput): WikiPage[] {
     const records = [...input.records].sort((a, b) =>
       a.recordedAt < b.recordedAt ? -1 : a.recordedAt > b.recordedAt ? 1 : a.id < b.id ? -1 : 1
     );
+    const by = (r: MemoryRecord) => {
+      const name = r.provenance.actor ? input.author?.(r.provenance.actor) : undefined;
+      return name ? ` (${name})` : "";
+    };
     const lines = records.map(
       (r) =>
-        `## [${r.recordedAt.slice(0, 10)}] ${r.op} | ${r.summary ?? r.content?.split("\n")[0] ?? r.reason ?? r.memoryId}`
+        `## [${r.recordedAt.slice(0, 10)}] ${r.op} | ${r.summary ?? r.content?.split("\n")[0] ?? r.reason ?? r.memoryId}${by(r)}`
     );
     pages.push({
       path: "log.md",
@@ -88,7 +94,7 @@ export function generateWiki(input: WikiInput): WikiPage[] {
     const c = m.current;
     pages.push({
       path: `memories/${m.memoryId}.md`,
-      content: `${frontmatter({ type: "memory", memoryId: m.memoryId, memoryType: m.type, level: m.level, namespace: m.namespace, subject: m.subject, tags: m.tags, importance: m.importance, confidence: m.confidence, pinned: m.pinned || undefined, needsReview: m.needsReview || undefined, createdAt: m.createdAt, updatedAt: m.updatedAt, versions: m.versions, dataSchema: c.dataSchema })}# ${c.summary ?? m.memoryId}\n\n${(c.content ?? "").trim()}\n${c.data ? `\n\`\`\`json\n${JSON.stringify(c.data, null, 2)}\n\`\`\`\n` : ""}${m.links.length ? `\n## Links\n\n${m.links.map((l) => `- ${l.rel} → [${l.to}](${l.to}.md)`).join("\n")}\n` : ""}`,
+      content: `${frontmatter({ type: "memory", memoryId: m.memoryId, memoryType: m.type, level: m.level, namespace: m.namespace, subject: m.subject, author: input.author?.(c.provenance.actor), tags: m.tags, importance: m.importance, confidence: m.confidence, pinned: m.pinned || undefined, needsReview: m.needsReview || undefined, createdAt: m.createdAt, updatedAt: m.updatedAt, versions: m.versions, dataSchema: c.dataSchema })}# ${c.summary ?? m.memoryId}\n\n${(c.content ?? "").trim()}\n${c.data ? `\n\`\`\`json\n${JSON.stringify(c.data, null, 2)}\n\`\`\`\n` : ""}${m.links.length ? `\n## Links\n\n${m.links.map((l) => `- ${l.rel} → [${l.to}](${l.to}.md)`).join("\n")}\n` : ""}`,
     });
   }
 

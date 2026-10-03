@@ -49,6 +49,27 @@ describe("findRootCommit", () => {
   });
 });
 
+describe("findRootCommit and documents", () => {
+  it("never mistakes an older document commit for the root", async () => {
+    const repo = await createRepo(1);
+    const root = await rootCommit(repo);
+    // A parentless document commit dated before the real root would win if it were counted.
+    const blob = (await git(["hash-object", "-w", "--stdin"], { cwd: repo, input: "{}" })).trim();
+    const tree = (
+      await git(["mktree"], { cwd: repo, input: `100644 blob ${blob}\tpeople.json\n` })
+    ).trim();
+    const doc = (
+      await git(["commit-tree", tree, "-m", "ynm: document people"], {
+        cwd: repo,
+        env: { ...IDENTITY, GIT_COMMITTER_DATE: "2000-01-01T00:00:00Z" },
+      })
+    ).trim();
+    await fx(repo, "update-ref", "refs/ynm/distributed/documents/people", doc);
+    await fx(repo, "update-ref", "refs/ynm-remote/origin/distributed/documents/people", doc);
+    expect(await findRootCommit(repo)).toBe(root);
+  });
+});
+
 describe("createRootCommit", () => {
   it("moves main when HEAD is detached", async () => {
     const repo = await createRepo(2);

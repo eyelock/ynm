@@ -9,6 +9,8 @@ import {
   type Ynm,
 } from "@ynm/service";
 import { z } from "zod";
+import { jsonBytes, recordCall } from "./audit.js";
+import { storeFor } from "./identity.js";
 
 export interface YnmServerOptions {
   /** Working directory the service is opened from; hosted servers point this at a bare repo. */
@@ -31,7 +33,7 @@ function levelLine(levels: readonly Level[]): string {
     return "Levels: personal by default (private to the user); distributed only for team-safe project facts.";
   if (personal) return "Level: personal (private to the user); no distributed store is open.";
   if (distributed)
-    return "Level: distributed only, shared with everyone who uses this server; leave level out.";
+    return "Level: distributed only, shared with everyone who uses this server; leave level out. Leave namespace out too and a memory is filed as yours (user/<your person id> once you are signed in); name one such as common to share it on purpose.";
   return "No store is open yet; a tool call says why.";
 }
 
@@ -53,6 +55,23 @@ export function serverInstructions(levels: readonly Level[]): string {
 /** The levels a server opened with these options serves, when the mounts are not known yet. */
 function inferredLevels(opts: YnmServerOptions): readonly Level[] {
   return opts.levels ?? (opts.noPersonal ? ["distributed"] : ["personal", "distributed"]);
+}
+
+/**
+ * What a tool's result says about the memories it touched, for the audit event: ids only (a write
+ * names one, a recall lists its hits), and how many results there were. Never content.
+ */
+function touched(data: unknown): { memoryIds?: string[]; resultCount?: number } {
+  const idOf = (x: unknown) =>
+    x && typeof x === "object" && typeof (x as { memoryId?: unknown }).memoryId === "string"
+      ? (x as { memoryId: string }).memoryId
+      : undefined;
+  if (Array.isArray(data)) {
+    const ids = data.map(idOf).filter((x): x is string => !!x);
+    return { resultCount: data.length, ...(ids.length ? { memoryIds: ids } : {}) };
+  }
+  const id = idOf(data);
+  return id ? { memoryIds: [id] } : {};
 }
 
 /** The service is opened once per process; index freshness covers writes from elsewhere. */
@@ -104,12 +123,15 @@ export function createYnmServer(
           idempotentHint: spec.readOnly,
         },
       },
-      async (args) => {
+      async (args, ctx) => {
+        const inputBytes = jsonBytes(args ?? {});
         try {
-          const ynm = await getYnm();
+          const ynm = await storeFor(await getYnm(), ctx?.http?.authInfo);
           const r = await spec.run(ynm, spec.input.parse(args ?? {}));
+          recordCall({ tool: spec.name, status: "ok", inputBytes, ...touched(r.data) });
           return toolResult(r.data, r.guidance);
         } catch (err) {
+          recordCall({ tool: spec.name, status: "error", inputBytes });
           return errorResult(err);
         }
       }

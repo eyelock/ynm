@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
@@ -224,7 +224,7 @@ describe("Lambda handler over Function URL events (ADR-009)", () => {
             fetch: viaLambda(handler, { base64 }),
           })
         );
-        expect((await client.listTools()).tools).toHaveLength(10);
+        expect((await client.listTools()).tools).toHaveLength(11);
         const r = data<{ mount: string }>(
           await client.callTool({
             name: "memory_remember",
@@ -279,6 +279,54 @@ describe("Lambda handler over Function URL events (ADR-009)", () => {
     );
     expect((await client.listTools()).tools.length).toBeGreaterThan(0);
     await client.close();
+  }, 30_000);
+
+  it("audits each MCP request and each refusal to the configured sink, never health checks", async () => {
+    const auditLog = join(mkdtempSync(join(tmpdir(), "ynm-lambda-audit-")), "audit.jsonl");
+    const handler = createLambdaHandler({
+      env: lambdaEnv({
+        YNM_MCP_TOKEN: "secret",
+        YNM_AUDIT: JSON.stringify({ sink: "file", path: auditLog }),
+      }),
+      quiet: true,
+    });
+    await handler(event({ rawPath: "/health" }));
+    const denied = (await handler(
+      event({ method: "POST", headers: { "content-type": "application/json" }, body: "{}" })
+    )) as FunctionUrlResult;
+    expect(denied.statusCode).toBe(401);
+    const client = new Client({ name: "lambda-test", version: "0" });
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(PUBLIC), {
+        fetch: viaLambda(handler),
+        requestInit: { headers: { Authorization: "Bearer secret" } },
+      })
+    );
+    const w = data<{ memoryId: string }>(
+      await client.callTool({
+        name: "memory_remember",
+        arguments: { type: "semantic", content: "A fact nobody should find in the audit log" },
+      })
+    );
+    await client.close();
+    const events = readFileSync(auditLog, "utf8")
+      .trim()
+      .split("\n")
+      .map(
+        (l) =>
+          JSON.parse(l) as {
+            outcome: string;
+            reason?: string;
+            person?: string;
+            calls: Array<{ tool: string; memoryIds?: string[] }>;
+          }
+      );
+    expect(events[0]).toMatchObject({ outcome: "refused", reason: "invalid_token" });
+    const remember = events.find((e) => e.calls.some((c) => c.tool === "memory_remember"));
+    expect(remember?.calls[0]?.memoryIds).toEqual([w.memoryId]);
+    // A shared token vouches for no one.
+    expect(remember?.person).toBeUndefined();
+    expect(readFileSync(auditLog, "utf8")).not.toMatch(/nobody should find/);
   }, 30_000);
 
   it("checks Origin against the allowed list and answers a malformed request with a 500", async () => {

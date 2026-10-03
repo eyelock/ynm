@@ -103,10 +103,10 @@ describe("MemoryRecordSchema (ADR-002)", () => {
 });
 
 describe("input schemas", () => {
-  it("RememberInput leaves level to the store and defaults namespace, importance and confidence", () => {
+  it("RememberInput leaves level and namespace to the store and defaults importance and confidence", () => {
     const i = RememberInputSchema.parse({ type: "episodic", content: "x" });
     expect(i.level).toBeUndefined();
-    expect(i.namespace).toBe("common");
+    expect(i.namespace).toBeUndefined();
     expect(i.importance).toBe(0.5);
     expect(i.confidence).toBe(1);
   });

@@ -51,3 +51,23 @@ export function keyFromRef(ref: string, prefix: string = NOTES_PREFIX): ShardKey
 export function remoteRef(remote: string, localRef: string): string {
   return `${REMOTE_PREFIX}/${remote}/${localRef.slice(NOTES_PREFIX.length + 1)}`;
 }
+
+/**
+ * Named documents (e.g. "people") live outside refs/notes, one commit chain per document at
+ * refs/ynm/<level>/documents/<name>, so no shard listing ever sees them.
+ */
+export const DOCUMENTS_PREFIX = "refs/ynm";
+/** Remote-tracking copies of documents fetched by sync. */
+export const DOCUMENTS_REMOTE_PREFIX = "refs/ynm-remote";
+
+export function documentPrefix(level: Level): string {
+  return `${DOCUMENTS_PREFIX}/${levelDir(level)}/documents/`;
+}
+
+export function documentRef(level: Level, name: string): string {
+  return `${documentPrefix(level)}${name}`;
+}
+
+export function documentTrackingPrefix(remote: string, level: Level): string {
+  return `${DOCUMENTS_REMOTE_PREFIX}/${remote}/${levelDir(level)}/documents/`;
+}

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { MemoryRecord } from "@ynm/model";
+import { authorName, type MemoryRecord, personOfActor } from "@ynm/model";
 import { fold } from "@ynm/store";
 import {
   DirectoryTarget,
@@ -35,11 +35,17 @@ export function wikiTarget(mount: Mount, opts: WikiBuildOptions): WikiTarget {
 }
 
 /** Pages for one mount, generated from the fold (ADR-010). */
-export async function wikiPages(_ynm: Ynm, mount: Mount): Promise<WikiPage[]> {
+export async function wikiPages(ynm: Ynm, mount: Mount): Promise<WikiPage[]> {
   const records: MemoryRecord[] = [];
   for await (const r of mount.log.scan()) records.push(r);
   const { memories } = fold(records);
-  return generateWiki({ memories: memories.values(), records, title: `Memory: ${mount.id}` });
+  const people = await ynm.people();
+  return generateWiki({
+    memories: memories.values(),
+    records,
+    title: `Memory: ${mount.id}`,
+    author: (actor) => (personOfActor(actor) ? authorName(actor, people) : undefined),
+  });
 }
 
 export async function buildWiki(

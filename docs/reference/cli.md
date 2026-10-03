@@ -31,6 +31,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`import`](#ynm-import) | Import JSONL records (from a file or stdin), routed by level |
 | [`init`](#ynm-init) | Set up memory for this repository, your personal store, or a dedicated bare repo |
 | [`list`](#ynm-list) | List memories (folded, newest first) across mounts |
+| [`people`](#ynm-people) | Who writes to this store: list people and their nicknames, set or clear a nickname, or link a login from another identity provider to an existing person |
 | [`pin`](#ynm-pin) | Pin a memory so it is always in the context block (or unpin it) |
 | [`promote`](#ynm-promote) | Copy a personal memory into a distributed mount as a new, linked memory |
 | [`purge`](#ynm-purge) | Physically remove a memory's records (leaves an audited purge marker) |
@@ -342,6 +343,38 @@ ynm list
 ynm list --type procedural --level distributed --json
 ```
 
+## ynm people
+
+Who writes to this store: list people and their nicknames, set or clear a nickname, or link a login from another identity provider to an existing person
+
+```text
+ynm people <action> [person] [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `action` | yes | `list`, `whoami`, `nickname`, `clear`, `link` | list, whoami, nickname, clear or link |
+| `person` | no |  | Person id (nickname, clear, link) |
+
+| Flag | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `--nickname <value>` | string (max 64) |  |  | For nickname: how the person appears to everyone who can read the store |
+| `--issuer <value>` | string |  |  | For link: the login's issuer, as its tokens state it |
+| `--subject <value>` | string |  |  | For link: the login's subject at that issuer |
+
+Common flags: `--json`, `--cwd`.
+
+MCP tool: [`memory_people`](mcp.md#memory_people).
+
+Examples:
+
+```bash
+ynm people list
+ynm people nickname pabcdefghijklmnop --nickname David
+ynm people clear pabcdefghijklmnop
+ynm people link pabcdefghijklmnop --issuer https://login.example.com/ --subject 00u1abc
+```
+
 ## ynm pin
 
 Pin a memory so it is always in the context block (or unpin it)
@@ -487,7 +520,7 @@ ynm remember [flags]
 |---|---|---|---|---|
 | `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
 | `--level <value>` | `personal` \| `distributed` |  |  | personal (private) or distributed (team-shared); omit for the store's default: personal when it has a personal mount, else distributed |
-| `--namespace <value>` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
+| `--namespace <value>` | string (max 512) |  |  | Where it lives; omit for your own: user/<you> (on a hosted store, your person id), else common |
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `--summary <value>` | string (max 280) |  |  | One line summary; derived from content if omitted |
 | `--subject <value>` | string (max 200) |  |  | Entity or topic key |

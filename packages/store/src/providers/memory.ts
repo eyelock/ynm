@@ -10,9 +10,16 @@ import {
   type ShardFilter,
   type ShardInfo,
   type ShardKey,
+  type StoreDocument,
   shardId,
   shardMatches,
 } from "../log.js";
+
+const DOCUMENT_NAME = /^[a-z0-9-]+$/;
+
+function assertDocumentName(name: string): void {
+  if (!DOCUMENT_NAME.test(name)) throw new Error(`invalid document name: ${JSON.stringify(name)}`);
+}
 
 /** In-process log for tests and ephemeral use. */
 export class MemoryLog implements RecordLog {
@@ -21,6 +28,8 @@ export class MemoryLog implements RecordLog {
     string,
     { key: ShardKey; records: MemoryRecord[]; revision: number }
   >();
+  private readonly documents = new Map<string, StoreDocument>();
+  private documentVersion = 0;
 
   constructor(
     readonly id: string,
@@ -59,6 +68,21 @@ export class MemoryLog implements RecordLog {
 
   async health(): Promise<HealthReport> {
     return { ok: true, problems: [], details: { shards: this.store.size } };
+  }
+
+  async readDocument(name: string): Promise<StoreDocument | null> {
+    assertDocumentName(name);
+    const doc = this.documents.get(name);
+    return doc ? { ...doc } : null;
+  }
+
+  async writeDocument(name: string, text: string, expected: string | null): Promise<string | null> {
+    assertDocumentName(name);
+    if ((this.documents.get(name)?.version ?? null) !== expected) return null;
+    this.documentVersion += 1;
+    const version = String(this.documentVersion);
+    this.documents.set(name, { text, version });
+    return version;
   }
 
   async purge(memoryId: string): Promise<PurgeResult> {

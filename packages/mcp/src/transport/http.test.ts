@@ -87,7 +87,7 @@ describe.each<Provider>(["git-notes", "sqlite"])(
       });
       expect(unauth.status).toBe(401);
       const client = await connect(handle.url, "secret");
-      expect((await client.listTools()).tools).toHaveLength(10);
+      expect((await client.listTools()).tools).toHaveLength(11);
       const r = data<{ mount: string }>(
         await client.callTool({
           name: "memory_remember",

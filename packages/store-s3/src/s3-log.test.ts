@@ -225,6 +225,44 @@ describe("S3Log layout and listing", () => {
   });
 });
 
+describe("S3Log documents", () => {
+  it("keeps a document at <prefix>/documents/<name>.json, versioned by its ETag", async () => {
+    const s3 = new MemoryS3();
+    const log = fresh("personal", s3);
+    const version = await log.writeDocument("people", "{}", null);
+    expect(s3.keys()).toEqual([`${log.prefix}/documents/people.json`]);
+    expect(version).toMatch(/^".+"$/);
+    expect(await log.readDocument("people")).toEqual({ text: "{}", version });
+    await log.append([makeRecord({ recordedAt: SHARD_TIME })]);
+    expect(await log.shards()).toHaveLength(1);
+    expect((await log.health()).details).toMatchObject({ shards: 1, objects: 1 });
+  });
+
+  it("sends If-None-Match to create and If-Match to replace", async () => {
+    const s3 = new MemoryS3();
+    const log = fresh("personal", s3);
+    const sent: Array<Record<string, unknown>> = [];
+    s3.before = (c) => {
+      if (c instanceof PutObjectCommand) sent.push({ ...c.input });
+    };
+    const v1 = (await log.writeDocument("people", "[1]", null)) as string;
+    await log.writeDocument("people", "[2]", v1);
+    expect(sent[0]).toMatchObject({ IfNoneMatch: "*" });
+    expect(sent[0]?.IfMatch).toBeUndefined();
+    expect(sent[1]).toMatchObject({ IfMatch: v1 });
+  });
+
+  it("treats a replaced-but-deleted document as a lost race and surfaces other errors", async () => {
+    const s3 = new MemoryS3();
+    const log = fresh("personal", s3);
+    expect(await log.writeDocument("people", "[]", '"gone"')).toBeNull();
+    s3.before = () => {
+      throw s3Error("AccessDenied", 403);
+    };
+    await expect(log.writeDocument("people", "[]", null)).rejects.toThrow(/AccessDenied/);
+  });
+});
+
 describe("S3Log health", () => {
   it("reports counts, bad lines with their object, and versioning", async () => {
     const s3 = new MemoryS3({ versioned: true });

@@ -68,6 +68,7 @@ export class IntrospectionVerifier implements OAuthTokenVerifier {
       scope?: string;
       exp?: number;
       sub?: string;
+      iss?: string;
     };
     if (!data.active) throw invalid("token inactive");
     const info: AuthInfo = {
@@ -75,7 +76,8 @@ export class IntrospectionVerifier implements OAuthTokenVerifier {
       clientId: data.client_id ?? data.sub ?? "unknown",
       scopes: data.scope ? data.scope.split(" ") : [],
       expiresAt: expiry(data.exp),
-      extra: { sub: data.sub },
+      // A login needs an issuer; an introspection response may leave it out, so the endpoint stands in.
+      extra: { sub: data.sub, iss: data.iss ?? new URL(this.opts.url).origin },
     };
     const until = Math.min(
       Date.now() + (this.opts.cacheMs ?? 60_000),
@@ -119,7 +121,7 @@ export class JwksVerifier implements OAuthTokenVerifier {
       clientId: String(payload.azp ?? payload.client_id ?? payload.sub ?? "jwt"),
       scopes: scopesOf(payload, this.opts.scopeClaim),
       expiresAt: expiry(payload.exp),
-      extra: { sub: payload.sub },
+      extra: { sub: payload.sub, iss: payload.iss },
     };
   }
 }

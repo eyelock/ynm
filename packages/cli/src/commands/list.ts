@@ -21,12 +21,15 @@ export default class List extends YnmCommand {
     const filter = inputFromFlags(RecordFilterSchema, rest);
     const { ynm } = await this.open({ cwd });
     const memories = await ynm.list({ ...filter, mount });
+    const authors = await Promise.all(
+      memories.map((m) => ynm.authorOf(m.current.provenance.actor))
+    );
     this.emit(json, memories, () =>
       memories.length
         ? memories
             .map(
-              (m) =>
-                `${m.memoryId}  ${m.type.padEnd(10)} ${m.level.padEnd(11)} ${m.namespace.padEnd(24)} ${m.pinned ? "* " : ""}${m.current.summary ?? ""}`
+              (m, i) =>
+                `${m.memoryId}  ${m.type.padEnd(10)} ${m.level.padEnd(11)} ${m.namespace.padEnd(24)} ${m.pinned ? "* " : ""}${m.current.summary ?? ""}${authors[i] ? `  (${authors[i]})` : ""}`
             )
             .join("\n")
         : "no memories"

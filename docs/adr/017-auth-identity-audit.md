@@ -242,3 +242,25 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   exists: the metadata document and the challenge's `resource_metadata`, driven by the existing
   JWT variables (`YNM_JWT_ISSUER` as the authorization server, `YNM_PUBLIC_URL` or the audience as
   the resource). These move into `YNM_AUTH` with the seam. Still proposed.
+- 2026-10-03: the identity and audit half built, with these changes to the design above. Still
+  proposed.
+  - **A ynm person id between the identity provider and the records.** A login (issuer and
+    subject) resolves to a person id, `p` plus 16 base32 characters of a hash of the login, so
+    it exists without a write. Records carry `actor: user:<person id>` and the OAuth client as
+    `provenance.client`; unnamed hosted writes go to `user/<person id>`. Neither the subject nor
+    any email reaches a record, and moving to another identity provider does not split a person:
+    `ynm people link` attaches the new login to the existing person id.
+  - **No email.** It is personal data that append-only, replicated records cannot easily shed,
+    and the person id makes it unnecessary; no claim beyond `iss` and `sub` is read.
+  - **Nicknames, not names.** A `people` document beside the record log (ADR-004) maps person ids
+    to the nickname each person sets for themselves (`memory_people`) and to their linked
+    logins. Listings, recall, the review queue and the wiki show the nickname, else the person id.
+    Concurrent edits on git-notes clones merge per person, newer entry winning, logins combined.
+  - **Audit is metadata only.** Each event holds when, the person id and client, method, path,
+    status and outcome, the refusal's error code, the tools called with the memory ids they
+    touched, input size and result count, and the duration; never tool inputs or content. Only
+    requests that reach the MCP handler, and refusals, are audited. Sinks are stdout, a rotated
+    JSONL file and S3, chosen by `YNM_AUDIT`; unset, stdout when the server checks tokens.
+  - Not yet built: `ynm audit`, the `YNM_AUTH` configuration and provider presets, and the single
+    reachability rule with `--no-auth`. A shared static token still vouches for no one, so its
+    writes keep the server's actor.

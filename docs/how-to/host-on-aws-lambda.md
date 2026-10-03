@@ -116,4 +116,9 @@ https://memory.example.com/mcp --token ...`.
 The function writes its log lines to stderr, and Lambda sends them to CloudWatch Logs: the auth
 mode at start, each dream and compact run, and any request that failed inside the function
 (which the client sees as a `500`). Requests refused by the token check are not errors and are
-not logged.
+not logged as such.
+
+With auth configured, each MCP request and each refused one also writes an audit event as one
+JSON line on stdout, so the log group holds them too; set `YNM_AUDIT` to `{"sink":"s3"}` to keep
+them under `audit/` in the store's bucket instead, with their own retention. See
+[People and Audit](operate-a-hosted-store.md#people) in Operating a hosted store.

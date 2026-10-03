@@ -29,6 +29,7 @@ import {
   type ShardFilter,
   type ShardInfo,
   type ShardKey,
+  type StoreDocument,
   serializeJsonl,
   shardId,
   shardMatches,
@@ -79,6 +80,7 @@ export const DEFAULT_COMPACT_THRESHOLD = 32;
 const RETRIES = 10;
 const READ_CONCURRENCY = 8;
 const OBJECT_NAME = /^[0-9A-HJKMNP-TV-Z]{26}\.jsonl$/;
+const DOCUMENT_NAME = /^[a-z0-9-]+$/;
 
 interface ObjectRef {
   key: string;
@@ -181,6 +183,13 @@ export class S3Log implements RecordLog {
 
   private shardPrefix(key: ShardKey): string {
     return `${this.root}${key.level}/${key.namespace}/${key.type}/${key.bucket}/`;
+  }
+
+  /** `<prefix>/documents/<name>.json`: beside the level directories, so no listing sees it. */
+  private documentKey(name: string): string {
+    if (!DOCUMENT_NAME.test(name))
+      throw new Error(`invalid document name: ${JSON.stringify(name)}`);
+    return `${this.root}documents/${name}.json`;
   }
 
   /** Reads `<level>/<namespace...>/<type>/<bucket>/<ulid>.jsonl` from the end; null for strays. */
@@ -373,6 +382,32 @@ export class S3Log implements RecordLog {
         out.push({ ...s.key, revision: revisionOf(s.objects) as string });
     }
     return out;
+  }
+
+  async readDocument(name: string): Promise<StoreDocument | null> {
+    const body = await this.read(this.documentKey(name));
+    return body ? { text: body.text, version: body.etag } : null;
+  }
+
+  /** Compare-and-swap on the ETag: `If-None-Match: *` to create, `If-Match` to replace. */
+  async writeDocument(name: string, text: string, expected: string | null): Promise<string | null> {
+    const key = this.documentKey(name);
+    try {
+      const res = (await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: text,
+          ContentType: "application/json",
+          ...(expected === null ? { IfNoneMatch: "*" } : { IfMatch: expected }),
+        })
+      )) as PutObjectCommandOutput;
+      return res.ETag ?? "";
+    } catch (err) {
+      // A missing object under If-Match means someone deleted it: also a lost race.
+      if (isPreconditionFailed(err) || isNotFound(err)) return null;
+      throw err;
+    }
   }
 
   /** The bucket's versioning status: Enabled, Suspended, Disabled, or unknown without permission. */
