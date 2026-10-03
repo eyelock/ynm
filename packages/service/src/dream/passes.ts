@@ -69,7 +69,7 @@ export async function promote(ctx: DreamContext): Promise<PassReport> {
     namespace: ctx.namespace,
     includeTombstoned: false,
   });
-  for (const m of byOwner(working, (w) => w.memoryId)) {
+  for (const m of byOwner(ctx, working, (w) => w.memoryId)) {
     if (!ctx.fresh.has(m.memoryId) && !m.tags.includes("promote")) continue;
     r.candidates += 1;
     let target: "semantic" | "episodic" | "procedural" | "reference" = "episodic";
@@ -125,11 +125,15 @@ export async function promote(ctx: DreamContext): Promise<PassReport> {
 }
 
 /**
- * Every pass works through fresh memories in one order, oldest id first, so under the pair cap
- * they all finish the same leading memories and each run shrinks the backlog.
+ * Every pass works through fresh memories in the run's one working order (newest first), so under
+ * the pair cap they all finish the same leading memories and each run shrinks the backlog. The
+ * sort is stable: items of one owner keep their order (a memory's nearest neighbours first).
  */
-function byOwner<T>(items: T[], owner: (t: T) => string): T[] {
-  return [...items].sort((x, y) => (owner(x) < owner(y) ? -1 : owner(x) > owner(y) ? 1 : 0));
+function byOwner<T>(ctx: DreamContext, items: T[], owner: (t: T) => string): T[] {
+  const at = (t: T) => ctx.order.get(owner(t)) ?? Number.POSITIVE_INFINITY;
+  return [...items].sort(
+    (x, y) => at(x) - at(y) || (owner(x) < owner(y) ? -1 : owner(x) > owner(y) ? 1 : 0)
+  );
 }
 
 interface Pair {
@@ -138,8 +142,10 @@ interface Pair {
   /** The newer memory. */
   b: MemoryWithMount;
   /**
-   * The fresh memory this pair is judged for. A pair the cap defers keeps only its owner fresh,
-   * and pairs come grouped by owner, so every run finishes whole memories and the backlog shrinks.
+   * The fresh memory this pair is judged for: of two fresh sides, the one first in the working
+   * order, so the pair is judged at the earlier of their two turns. A pair the cap defers keeps
+   * only its owner fresh, and pairs come grouped by owner, so every run finishes whole memories
+   * and the backlog shrinks.
    */
   owner: string;
 }
@@ -158,7 +164,8 @@ async function candidatePairs(
   const byId = new Map(memories.map((m) => [m.memoryId, m]));
   const seen = new Set<string>();
   const pairs: Pair[] = [];
-  for (const m of memories) {
+  // Walk owners in the order they are judged, so a pair goes to the side whose turn comes first.
+  for (const m of byOwner(ctx, memories, (x) => x.memoryId)) {
     if (!ctx.fresh.has(m.memoryId)) continue;
     const text = `${m.current.summary ?? ""} ${(m.current.content ?? "").slice(0, 400)}`;
     const hits = await ctx.ynm.recall({
@@ -181,7 +188,7 @@ async function candidatePairs(
       pairs.push({ a, b, owner: m.memoryId });
     }
   }
-  return byOwner(pairs, (p) => p.owner);
+  return pairs;
 }
 
 const MergedSchema = z.object({ content: z.string().min(1), summary: z.string().min(1).max(280) });
@@ -266,7 +273,7 @@ export async function dedupe(ctx: DreamContext, pairsOut?: Pair[]): Promise<Pass
 /**
  * Pass 4: contradictions among memories sharing a subject (plus pairs dedupe flagged), for pairs
  * with at least one fresh side. A fresh memory owns its pairs with every peer except fresh ones
- * newer than itself (they own those), up to the newest peers one run can judge.
+ * ahead of it in the working order (they own those), up to the newest peers one run can judge.
  */
 export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise<PassReport> {
   const r = emptyReport();
@@ -283,12 +290,12 @@ export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise
   const pairs: Pair[] = [...extra];
   const seen = new Set(extra.map((p) => [p.a.memoryId, p.b.memoryId].sort().join(":")));
   for (const list of bySubject.values()) {
-    const sorted = [...list].sort((x, y) => (x.updatedAt < y.updatedAt ? -1 : 1));
+    const sorted = byOwner(ctx, list, (m) => m.memoryId);
     sorted.forEach((owner, i) => {
       if (!ctx.fresh.has(owner.memoryId)) return;
       const peers = sorted
-        .filter((p, k) => k !== i && (k < i || !ctx.fresh.has(p.memoryId)))
-        .slice(-ctx.maxPairs);
+        .filter((p, k) => k !== i && (k > i || !ctx.fresh.has(p.memoryId)))
+        .slice(0, ctx.maxPairs);
       for (const peer of peers) {
         const key = [owner.memoryId, peer.memoryId].sort().join(":");
         if (seen.has(key)) continue;
@@ -299,7 +306,7 @@ export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise
     });
   }
   r.candidates = pairs.length;
-  for (const { a, b, owner } of byOwner(pairs, (p) => p.owner)) {
+  for (const { a, b, owner } of byOwner(ctx, pairs, (p) => p.owner)) {
     if (ctx.pairsJudged.n >= ctx.maxPairs) {
       r.skipped += 1;
       ctx.deferred.add(owner);

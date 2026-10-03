@@ -54,6 +54,7 @@ export async function dream(
     pairsJudged: { n: 0 },
     fresh: new Set(fresh.keys()),
     deferred: new Set(),
+    order: workingOrder(before),
   };
   const report: DreamReport = {
     dryRun: input.dryRun,
@@ -104,6 +105,20 @@ export async function dream(
     ? report.usage.inputTokens * JEV_USD_PER_INPUT_TOKEN
     : 0;
   return report;
+}
+
+/**
+ * Newest first, fixed at the start of the run so a flag or merge mid-run reorders nothing. Under
+ * the pair cap the newest memories are judged first: a new memory is the likeliest restatement of
+ * an older one, and the newer side is the one a merge keeps.
+ */
+function workingOrder(memories: MemoryWithMount[]): Map<string, number> {
+  const sorted = [...memories].sort(
+    (x, y) =>
+      (x.updatedAt < y.updatedAt ? 1 : x.updatedAt > y.updatedAt ? -1 : 0) ||
+      (x.memoryId < y.memoryId ? 1 : x.memoryId > y.memoryId ? -1 : 0)
+  );
+  return new Map(sorted.map((m, i) => [m.memoryId, i]));
 }
 
 /**
