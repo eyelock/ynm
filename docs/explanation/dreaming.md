@@ -63,7 +63,9 @@ count as changes.
   example when you add a key so a calibrated model replaces the heuristic.
 - **A capped run catches up.** When the pair cap stops a run early, the memories it did not
   finish stay fresh and the next run carries on from them. Every pass works through fresh
-  memories in the same order, so each run finishes some and the backlog shrinks.
+  memories in the same order, newest first, so each run finishes some and the backlog shrinks.
+  A pair is judged at the turn of whichever memory comes first, so the newest memories, the
+  likeliest to repeat an older one, are compared with the rest before the cap runs out.
 
 The mark is an ordinary `annotate` record, so it syncs like any other and every clone and every
 instance of a hosted store agrees on what has been dreamed. It does not change `updatedAt`, so

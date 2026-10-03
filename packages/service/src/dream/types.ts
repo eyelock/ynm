@@ -45,6 +45,11 @@ export interface DreamContext {
   fresh: Set<string>;
   /** Fresh memories with a judgment left for a later run (the pair cap); they stay fresh. */
   deferred: Set<string>;
+  /**
+   * Each memory's place in the run's working order: newest first, as the run found them. Every
+   * pass works through owners in this order, and a pair belongs to whichever side comes first.
+   */
+  order: Map<string, number>;
 }
 
 /**
