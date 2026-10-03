@@ -117,6 +117,19 @@ export interface Caller {
   login?: Login;
 }
 
+/**
+ * A new memory named no level on a store with no personal level, where it could only be shared
+ * (ADR-007). Sharing is chosen, never defaulted, so nothing was stored.
+ */
+export class ShareRequiredError extends Error {
+  constructor() {
+    super(
+      "nothing stored: this store has no personal level, so a memory stored here is shared with everyone who uses it. To share it, ask the user first, then set level to distributed. To keep it private, store it in a local ynm instead."
+    );
+    this.name = "ShareRequiredError";
+  }
+}
+
 /** How long a process trusts its copy of the people document before reading it again. */
 const PEOPLE_TTL_MS = 30_000;
 
@@ -175,8 +188,9 @@ export class Ynm {
   }
 
   /**
-   * The level a write takes when the caller names none: personal when a personal mount is open,
-   * else distributed (a hosted server mounts no personal store).
+   * The level a read or a session works at when the caller names none: personal when a personal
+   * mount is open, else distributed (a hosted server mounts no personal store). A new memory never
+   * defaults to distributed: see `remember`.
    */
   defaultLevel(): Level {
     return this.mounts.some((m) => m.level === "personal") ? "personal" : "distributed";
@@ -197,7 +211,7 @@ export class Ynm {
       throw new Error(
         level === "distributed"
           ? "no distributed mount: run `ynm init` in the project (or configure a mount)"
-          : "no personal mount available; leave level out to use the store's default (distributed here)"
+          : "no personal mount available: this store is shared only; set level to distributed to share, or keep it private in a local ynm"
       );
     }
     return m;
@@ -474,7 +488,10 @@ export class Ynm {
     mountId?: string
   ): Promise<WriteResult> {
     const input = RememberInputSchema.parse(raw);
-    const level = input.level ?? this.defaultLevel();
+    // Personal by default; sharing is chosen. Where only sharing is possible, it must be asked for.
+    if (input.level === undefined && !this.mounts.some((m) => m.level === "personal"))
+      throw new ShareRequiredError();
+    const level = input.level ?? "personal";
     const namespace = this.namespaceFor(level, input.namespace);
     const mount = this.routeFor(level, mountId);
     this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);

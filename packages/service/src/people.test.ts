@@ -30,9 +30,14 @@ describe("people on a hosted store (ADR-017)", () => {
     const base = hosted();
     const person = await base.personFor(auth0);
     const me = base.as({ person, client: "claude-code", login: auth0 });
-    const own = await me.remember({ type: "semantic", content: "Deploys are on Thursdays" });
+    const own = await me.remember({
+      type: "semantic",
+      level: "distributed",
+      content: "Deploys are on Thursdays",
+    });
     const shared = await me.remember({
       type: "semantic",
+      level: "distributed",
       content: "Releases are cut from develop",
       namespace: "common",
     });
@@ -47,7 +52,11 @@ describe("people on a hosted store (ADR-017)", () => {
     expect((await base.find(own.memoryId))?.current.provenance.actor).toBe(`user:${person}`);
     // The view changes nothing for anyone else.
     expect(base.caller).toBeUndefined();
-    const server = await base.remember({ type: "semantic", content: "Backups run nightly" });
+    const server = await base.remember({
+      type: "semantic",
+      level: "distributed",
+      content: "Backups run nightly",
+    });
     const record = await base.find(server.memoryId);
     expect(record?.namespace).toBe("common");
     expect(record?.current.provenance.actor).toBe("user:ynm-eyelock");
@@ -74,7 +83,11 @@ describe("people on a hosted store (ADR-017)", () => {
     const base = hosted(log);
     const person = personIdFor(auth0);
     const me = base.as({ person, login: auth0 });
-    const w = await me.remember({ type: "semantic", content: "Use pnpm, not npm" });
+    const w = await me.remember({
+      type: "semantic",
+      level: "distributed",
+      content: "Use pnpm, not npm",
+    });
     expect(await base.authorOf(`user:${person}`)).toBe(person);
     await base.setNickname(person, "David");
     // Another process sees it through the store, not the cache.

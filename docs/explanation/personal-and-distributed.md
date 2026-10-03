@@ -84,6 +84,9 @@ which.
   distributed, if it contains nothing secret.
 - Not sure: personal. Promotion is one command later; un-sharing is not possible.
 
-The guidance agents receive says the same thing, and it is why personal is the default. A hosted
-server has no personal store, so there an agent's writes are distributed, shared with everyone
-who uses the server, and its instructions say so.
+The guidance agents receive says the same thing, and it is why personal is the default, everywhere.
+Sharing is chosen, never defaulted: a hosted server has no personal store, so there a memory that
+names no level is not stored at all. The agent is told the store is shared with everyone who uses
+it and to ask before sharing; only a call that says `distributed` is stored. Connecting to a
+hosted server is agreeing that what you share there is shared; keeping your own memory beside it
+is a local ynm ([Use personal memory with a hosted store](../how-to/use-personal-and-hosted-memory.md)).

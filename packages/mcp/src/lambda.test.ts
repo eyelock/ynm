@@ -305,7 +305,11 @@ describe("Lambda handler over Function URL events (ADR-009)", () => {
     const w = data<{ memoryId: string }>(
       await client.callTool({
         name: "memory_remember",
-        arguments: { type: "semantic", content: "A fact nobody should find in the audit log" },
+        arguments: {
+          type: "semantic",
+          level: "distributed",
+          content: "A fact nobody should find in the audit log",
+        },
       })
     );
     await client.close();

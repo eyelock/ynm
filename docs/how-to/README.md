@@ -12,6 +12,7 @@ Recipes for a goal you already have. Each assumes you know the basics from the
 | [Choose the S3 provider](choose-the-s3-provider.md) | Keep a store in an S3 bucket that many processes can write at once |
 | [Configure the judge and writer](configure-judge-and-writer.md) | Choose which model judges in `ynm dream` and on recall, and which one writes |
 | [Connect a client over HTTP](connect-over-http.md) | Point an agent client at a hosted server instead of a local stdio process |
+| [Use personal memory with a hosted store](use-personal-and-hosted-memory.md) | Keep your memory private locally while reading, and choosing to share into, a team's hosted store |
 | [Add a client adapter](add-a-client-adapter.md) | Teach `ynm init` and `ynm client install` about a new agent client |
 | [Operate a hosted store](operate-a-hosted-store.md) | Run the HTTP service: server or Lambda, auth modes, key rotation, the scheduler, scaling |
 | [Host ynm on AWS Lambda](host-on-aws-lambda.md) | Run a hosted store as a Lambda function behind a Function URL, with scheduled dream and compaction |

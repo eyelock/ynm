@@ -240,7 +240,7 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     await server.close();
   });
 
-  it("remembers without a level on a server with no personal mount", async () => {
+  it("on a server with no personal mount, stores a memory only when it is shared on purpose", async () => {
     const bare = await createBare();
     await initProject({ cwd: bare, hooks: false });
     const home = mkdtempSync(join(tmpdir(), "ynm-mcp-home-"));
@@ -259,13 +259,20 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     await server.connect(serverT);
     const client = new Client({ name: "test", version: "0" });
     await client.connect(clientT);
+    const unnamed = await client.callTool({
+      name: "memory_remember",
+      arguments: { type: "semantic", content: "Call the user DC." },
+    });
+    expect(unnamed.isError).toBe(true);
+    expect(JSON.stringify(unnamed.content)).toMatch(/nothing stored: .*shared with everyone/);
     const r = data<{ mount: string }>(
       await client.callTool({
         name: "memory_remember",
-        arguments: { type: "semantic", content: "Call the user DC." },
+        arguments: { type: "semantic", level: "distributed", content: "Call the user DC." },
       })
     );
     expect(r.mount).toBe("project");
+    expect(client.getInstructions()).toMatch(/stores nothing unless level is distributed/);
     await client.close();
     await server.close();
   });

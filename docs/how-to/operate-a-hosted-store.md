@@ -93,8 +93,12 @@ With JWT or introspection auth, every request comes from a person, and what they
   and `provenance.client` is the client they wrote through. No email or other claim is read or
   stored. A static token (`YNM_MCP_TOKEN`) vouches for no one, so its writes keep the server's
   own actor.
-- **Where.** A write that names no namespace goes to the writer's own `user/<person id>`. Name one,
-  such as `common`, to share on purpose.
+- **Sharing is explicit.** A hosted store has no personal level, so a new memory is stored only
+  when the call says `level: distributed`; one that names no level is refused with an explanation,
+  and the server's instructions tell agents to ask the person before sharing. Editing, retiring
+  and annotating memories already on the store work as before.
+- **Where.** A shared memory that names no namespace goes to the writer's own `user/<person id>`.
+  Name one, such as `common`, to file it with the team.
 - **Nicknames.** A person sets how they appear with the `memory_people` tool (ask the agent to
   "set my ynm nickname to Sam"), or checks who they are with `memory_people` `whoami`. `ynm list`,
   `ynm review list`, recall results and the wiki then show the nickname, else the person id. A
