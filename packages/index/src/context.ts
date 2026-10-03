@@ -16,6 +16,8 @@ function line(m: IndexedMemory): string {
 /**
  * The always-in-context tier (ADR-005): pinned memories first, then ranked ones, packed to a
  * token budget. One line per memory so the block stays cheap; full content is a recall away.
+ * When nothing fits the markdown is empty, not a bare heading: each surface says "no memory" in
+ * its own words.
  */
 export function buildContext(
   pinned: IndexedMemory[],
@@ -47,5 +49,6 @@ export function buildContext(
     const m = byId.get(r.memoryId);
     if (m && !push(m)) break;
   }
+  if (!lines.length) return { markdown: "", included, tokens: 0, truncated };
   return { markdown: `${header}${lines.join("\n")}\n`, included, tokens, truncated };
 }

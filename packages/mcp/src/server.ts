@@ -1,6 +1,7 @@
 import { type CallToolResult, McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
 import { guidance, guidanceNames, type Level } from "@ynm/model";
 import {
+  emptyContextNote,
   openYnm,
   REMEMBER_INTENT_EXAMPLES,
   TOOL_SPECS,
@@ -169,11 +170,9 @@ export function createYnmServer(
     },
     async (uri) => {
       const ynm = await getYnm();
-      return {
-        contents: [
-          { uri: uri.href, mimeType: "text/markdown", text: (await ynm.context({})).markdown },
-        ],
-      };
+      const block = await ynm.context({});
+      const text = block.markdown || emptyContextNote(block.truncated, true);
+      return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
     }
   );
 

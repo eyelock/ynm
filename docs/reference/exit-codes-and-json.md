@@ -110,6 +110,12 @@ content, in the [record format](record-format.md).
 }
 ```
 
+When nothing is stored, `markdown` is empty and `included` is `[]`; without `--json`,
+`ynm context` prints `no memory yet`. When there is memory but none of it fits `--budget-tokens`,
+`markdown` is empty too, `truncated` is `true`, and the human output says so. Over MCP,
+`memory_context` returns the same empty `markdown` with guidance that points the agent at
+`memory_remember` and `memory_recall`.
+
 ### session
 
 `session start`:
@@ -119,9 +125,12 @@ content, in the [record format](record-format.md).
   "sessionId": "01m3pqb8nhjrpr56ppbvvxk2n8",
   "namespace": "session/01m3pqb8nhjrpr56ppbvvxk2n8",
   "ttl": "PT8H",
-  "context": { "markdown": "## Memory\n\n", "included": [], "tokens": 3, "truncated": false }
+  "context": { "markdown": "", "included": [], "tokens": 0, "truncated": false }
 }
 ```
+
+This one started on an empty store, so its `context.markdown` is empty; the human output shows
+`no memory yet` in place of the context block.
 
 `session end <id>`: `{ "sessionId": "...", "expired": ["<memoryId>", ...] }`.
 

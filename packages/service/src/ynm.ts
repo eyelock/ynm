@@ -427,11 +427,8 @@ export class Ynm {
     const local = buildContext(pinned, ranked, byId, q.budgetTokens - used);
     if (!remote.length) return local;
     return {
-      // An empty personal section is dropped rather than shown as a bare heading.
-      markdown: [
-        ...(local.included.length ? [local.markdown] : []),
-        ...remote.map((b) => b.markdown),
-      ].join("\n"),
+      // An empty personal section has empty markdown, so it drops out here.
+      markdown: [local.markdown, ...remote.map((b) => b.markdown)].filter(Boolean).join("\n"),
       included: [local.included, ...remote.map((b) => b.included)].flat(),
       tokens: local.tokens + used,
       truncated: local.truncated || remote.some((b) => b.truncated),

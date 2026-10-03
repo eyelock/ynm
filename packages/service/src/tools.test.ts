@@ -1,5 +1,6 @@
 import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "./config.js";
+import { EMPTY_CONTEXT_GUIDANCE } from "./hooks/intent.js";
 import { IndexManager } from "./indexing.js";
 import { TOOL_NAMES, TOOL_SPECS, toolSpec } from "./tools.js";
 import { Ynm } from "./ynm.js";
@@ -82,6 +83,26 @@ describe("tool specs drive the service", () => {
     const hit = await run(y, "memory_recall", { text: "Fridays" });
     expect((hit.data as Array<{ content: string }>)[0]?.content).toBe("Deploys go out on Fridays");
     expect(hit.guidance).toBeUndefined();
+  });
+
+  it("context and session start say there is no memory yet instead of a bare heading", async () => {
+    const y = make();
+    const empty = await run(y, "memory_context", {});
+    expect((empty.data as { markdown: string }).markdown).toBe("");
+    expect(empty.guidance).toBe(EMPTY_CONTEXT_GUIDANCE);
+    const started = await run(y, "memory_session", { action: "start" });
+    expect((started.data as { context: { markdown: string } }).context.markdown).toBe("");
+    expect(started.guidance).toMatch(/^No memory yet\. .* Write working memory to namespace /);
+    await run(y, "memory_remember", { type: "semantic", content: "Deploys go out on Fridays" });
+    const some = await run(y, "memory_context", {});
+    expect((some.data as { markdown: string }).markdown).toMatch(/^## Memory\n/);
+    expect(some.guidance).toBeUndefined();
+    const again = await run(y, "memory_session", { action: "start" });
+    expect(again.guidance).toMatch(/^Write working memory/);
+    // Memory that does not fit the budget is not "no memory".
+    const squeezed = await run(y, "memory_context", { budgetTokens: 1 });
+    expect((squeezed.data as { markdown: string }).markdown).toBe("");
+    expect(squeezed.guidance).toMatch(/^No memory fits the token budget\. Raise budgetTokens/);
   });
 
   it("counts several similar memories in the remember guidance", async () => {
