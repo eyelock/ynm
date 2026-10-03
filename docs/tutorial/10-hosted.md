@@ -170,16 +170,18 @@ Expected: `server stopped`.
 A shared server should know who is calling. Here the server verifies tokens issued by an identity
 provider, and tells clients where to get one. The repository ships a local identity provider for
 this, Keycloak, with two people already in it: `alice` (password `alice`) and `bob` (password
-`bob`). It needs Docker and a checkout of the repository. Set `DOCKER_HOST_AVAILABLE=1` in your
-shell to run this part, and run the `make` steps from the checkout's root.
+`bob`). It needs Docker and a checkout of the repository. To run this part, set
+`DOCKER_HOST_AVAILABLE=1` in your shell and point `YNM_REPO` at the checkout, for example with
+`export YNM_REPO=$HOME/src/ynm`, using the path of your own checkout. The steps run the
+repository's `make` targets from there while your shell stays in the sandbox.
 
 ## Start the identity provider
 
 <!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
 
 ```bash
-make keycloak
-make keycloak-check
+make -C "$YNM_REPO" keycloak
+make -C "$YNM_REPO" keycloak-check
 ```
 
 Expected: `keycloak ready: http://localhost:8180/realms/ynm`, then a list of `ok` lines and
@@ -244,7 +246,7 @@ directly, which `make keycloak-token` does for alice:
 <!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
 
 ```bash
-ALICE=$(make -s keycloak-token U=alice)
+ALICE=$(make -s -C "$YNM_REPO" keycloak-token U=alice)
 curl -s -X POST http://localhost:3000/mcp -H "Authorization: Bearer $ALICE" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","level":"distributed","content":"Sign-in to the hosted store goes through Keycloak."}}}' | grep '^data:' | cut -c7-
 curl -s -X POST http://localhost:3000/mcp -H "Authorization: Bearer $ALICE" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"memory_people","arguments":{"action":"nickname","nickname":"alice"}}}' | grep '^data:' | cut -c7-
 ynm list --level distributed --cwd /tmp/ynm-tutorial/store.git
@@ -271,7 +273,7 @@ Bob asks only for read access. This server needs both on every request, so it re
 <!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
 
 ```bash
-BOB=$(make -s keycloak-token U=bob S=memory:read)
+BOB=$(make -s -C "$YNM_REPO" keycloak-token U=bob S=memory:read)
 curl -s -i -X POST http://localhost:3000/mcp -H "Authorization: Bearer $BOB" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"memory_recall","arguments":{"text":"sign-in"}}}' | grep -i -E '^HTTP|^www-authenticate'
 ```
 
@@ -382,7 +384,7 @@ home (here the sandbox's), refreshes on its own, and `ynm logout team` forgets i
 
 ```bash
 kill $(cat /tmp/ynm-tutorial/serve.pid)
-make keycloak-down
+make -C "$YNM_REPO" keycloak-down
 ```
 
 Expected: the server stops, and Docker removes the Keycloak container and its data, so the next
@@ -392,14 +394,13 @@ Expected: the server stops, and Docker removes the Keycloak container and its da
 
 The repository ships a full demonstration in containers: a store, an agent client that speaks HTTP
 with no git, and a developer clone that syncs through the store. It needs Docker and a
-checkout of the repository, and it takes a few minutes to build. Set
-`DOCKER_HOST_AVAILABLE=1` in your shell to run it, then run the script from the checkout's
-root.
+checkout of the repository, and it takes a few minutes to build. It runs with
+`DOCKER_HOST_AVAILABLE` and `YNM_REPO` set as for part 2.
 
 <!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
 
 ```bash
-infra/docker/demo.sh
+"$YNM_REPO"/infra/docker/demo.sh
 ```
 
 Expected: three headed sections, `=== agent (HTTP, no git)`, `=== clone (git remote = the hosted
@@ -412,7 +413,7 @@ scheduler counters moved. The script removes its containers when it finishes.
 ```bash
 cd /tmp
 rm -rf /tmp/ynm-tutorial
-unset YNM_HOME YNM_USER YNM_NO_CLAUDE_CLI
+unset YNM_HOME YNM_USER YNM_NO_CLAUDE_CLI YNM_REPO
 ```
 
 To run this for real, see [Operate a hosted store](../how-to/operate-a-hosted-store.md), and
