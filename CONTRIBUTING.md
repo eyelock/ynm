@@ -20,7 +20,11 @@ both on every pull request.
 `make rebuild` does all of the above from clean. `make install` gives you a locally addressable
 build to test with, ynh-style: it writes `~/.ynm/bin/ynm`, a launcher that runs this checkout, and
 prints the PATH line if that directory is not on your PATH. `ynm --version` then reports
-`<version>-dev.<sha>`, and a rebuild is picked up without reinstalling. `make uninstall` removes it.
+`<version>-dev.<sha>`, and a rebuild is picked up without reinstalling. Run it from the main checkout,
+not a worktree: the launcher points at the directory it was installed from, and `make install`
+warns when that is a worktree. If that directory is removed, `ynm` says so and names the checkout
+to re-run `make install` from; under `ynm hook` it prints `{}` instead, so an agent session
+carries on. `make uninstall` removes it.
 
 ## Run the server locally
 
