@@ -133,6 +133,9 @@ describe("remote mounts in the service (ADR-004)", () => {
     // An empty shared store adds nothing.
     const empty = local(remote(hostedYnm()));
     expect((await empty.context({})).markdown).not.toMatch(/Shared memory/);
+    // With no personal memory, the block is the shared section alone, not a bare heading.
+    const sharedOnly = local(remote(hosted));
+    expect((await sharedOnly.context({})).markdown).toMatch(/^## Shared memory \(team\)\n/);
   });
 
   it("edits a shared memory where it lives and promotes a personal one by copy", async () => {
@@ -199,7 +202,7 @@ describe("remote mounts in the service (ADR-004)", () => {
     const y = local(unreachable());
     await y.remember({ type: "semantic", content: "Offline note" });
     const r = await toolSpec("memory_recall")?.run(y, { text: "offline", limit: 10 } as never);
-    expect(r?.guidance).toMatch(/Shared memory left out: team \(team: connect ECONNREFUSED/);
+    expect(r?.guidance).toMatch(/Shared memory left out: team: connect ECONNREFUSED/);
     const none = await toolSpec("memory_recall")?.run(y, {
       text: "nothing like this",
       limit: 10,
@@ -219,7 +222,7 @@ describe("remote mounts in the service (ADR-004)", () => {
       },
     });
     await expect(signIn.call("memory_status", {})).rejects.toThrow(
-      /team: not signed in \(run `ynm login`\)/
+      /^team: not signed in: run `ynm login team`$/
     );
     const slow = remote(hostedYnm(), { transport: () => new Promise(() => {}), timeoutMs: 50 });
     await expect(slow.call("memory_status", {})).rejects.toThrow(/no answer within 50 ms/);

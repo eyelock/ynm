@@ -65,10 +65,14 @@ below: a hook runs on every prompt, whatever the model thinks.
 Claude Code (and a ynh harness) also get the agent hooks, as they do for stdio: Claude Code's in
 `.claude/settings.local.json` (or `~/.claude/settings.json` with `--scope user`), the harness's in its
 manifest. The hooks run the local `ynm hook` command, so they need `ynm` on the machine and they
-read the local store, not the hosted one. The prompt hook, which steers "remember this" into
-`memory_remember`, works the same either way; the session-start hook shows only local memory,
-and with no local memory it adds a single line pointing at `memory_recall`. If the machine has
-no `ynm` at all, install with `--no-hooks`.
+read the local stores, not the server the client is connected to. The prompt hook, which steers
+"remember this" into `memory_remember`, works the same either way; the session-start hook shows
+only local memory, and with no local memory it adds a single line pointing at `memory_recall`. If
+the machine has no `ynm` at all, install with `--no-hooks`.
+
+To have the hooks, and everything else, see the hosted store too, connect the client to the local
+ynm and mount the hosted store in it rather than connecting the client to the server: see
+[Use personal memory with a hosted store](use-personal-and-hosted-memory.md).
 
 `ynm init` does not take `--http`: it registers the local stdio server, and only for clients the
 project already uses. For a hosted server, use `ynm client install` as above, and

@@ -61,7 +61,8 @@ function spec<S extends z.ZodObject>(s: ToolSpec<S>): ToolSpec<S> {
 /** Which shared stores a read had to go without, so the agent knows the answer may be partial. */
 function skipped(ynm: Ynm): string | undefined {
   if (!ynm.remoteIssues.size) return undefined;
-  return `Shared memory left out: ${[...ynm.remoteIssues].map(([id, why]) => `${id} (${why})`).join("; ")}.`;
+  // Each reason already names its mount.
+  return `Shared memory left out: ${[...ynm.remoteIssues.values()].join("; ")}.`;
 }
 
 /** The tools of ADR-008 (and ADR-017's people tool). MCP and CLI are thin adapters over these. */

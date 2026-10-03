@@ -47,6 +47,8 @@ to one ynm, which reaches the hosted store for you over MCP, signed in as you.
   answer from personal memory and say the shared store was left out; session start waits at most
   three seconds for it. A shared write fails with the reason rather than landing somewhere else.
 
+Tutorial 10 shows all of this against a local server and identity provider.
+
 ## Or: two servers side by side
 
 Without a mount, an agent can also be given both stores as separate MCP servers:

@@ -44,4 +44,21 @@ describe("ynm login and logout", () => {
     expect(r.stdout.trim()).toBe("signed out of gone");
     expect(ynmWith(dir, {}, "logout", "gone").stdout.trim()).toBe("not signed in to gone");
   });
+
+  it("status and recall say why a hosted store was left out", () => {
+    const env = testEnv({
+      YNM_MOUNTS: JSON.stringify([
+        { id: "away", level: "distributed", provider: "mcp", url: "http://127.0.0.1:9/mcp" },
+      ]),
+    });
+    const status = ynmWith(dir, { env }, "status");
+    expect(status.status, status.stderr).toBe(0);
+    const line = status.stdout.split("\n").find((l) => l.includes("away")) ?? "";
+    expect(line).toMatch(/mcp\s+http:\/\/127\.0\.0\.1:9\/mcp {2}\(.+\)$/);
+    expect(line).not.toContain("shard");
+    const recall = ynmWith(dir, { env }, "recall", "--text", "anything");
+    expect(recall.status, recall.stderr).toBe(0);
+    expect(recall.stdout.trim()).toBe("no matches");
+    expect(unwrapped(recall.stderr)).toMatch(/^shared memory left out: .+/m);
+  });
 });

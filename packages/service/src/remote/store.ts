@@ -102,7 +102,7 @@ export class RemoteStore {
       return (result.structuredContent as { data: T } | undefined)?.data as T;
     } catch (err) {
       if (err instanceof RemoteToolError || err instanceof RemoteUnavailableError) throw err;
-      throw new RemoteUnavailableError(this.id, describe(err));
+      throw new RemoteUnavailableError(this.id, describe(err, this.id));
     } finally {
       clearTimeout(timer);
     }
@@ -119,9 +119,10 @@ export class RemoteStore {
   }
 }
 
-function describe(err: unknown): string {
+function describe(err: unknown, id: string): string {
   const message = err instanceof Error ? err.message : String(err);
+  // Every sign-in failure reads the same, whichever layer noticed it.
   if (/unauthori[sz]ed|401|invalid_token|not signed in|ynm login/i.test(message))
-    return `not signed in (run \`ynm login\`): ${message}`;
+    return `not signed in: run \`ynm login ${id}\``;
   return message;
 }

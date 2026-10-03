@@ -30,7 +30,11 @@ export default class Status extends YnmCommand {
         ...status.mounts.map((m) => {
           const ix = index.find((i) => i.mount === m.id);
           const ixText = ix ? `index ${ix.fresh ? "fresh" : "stale"} (${ix.indexed})` : "";
-          return `  ${m.id.padEnd(10)} ${m.level.padEnd(12)} ${m.provider.padEnd(10)} ${m.shards} shard(s)  ${ixText}  ${m.location}`;
+          // A hosted store that could not be asked shows why, not a shard count.
+          const cols = m.error
+            ? [m.location, `(${m.error.replace(`${m.id}: `, "")})`]
+            : [`${m.shards} shard(s)`, ixText, m.location];
+          return `  ${m.id.padEnd(10)} ${m.level.padEnd(12)} ${m.provider.padEnd(10)} ${cols.filter(Boolean).join("  ")}`;
         }),
         ...(status.mounts.length ? [] : ["  no mounts"]),
       ].join("\n")

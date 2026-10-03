@@ -157,7 +157,7 @@ describe("a remote mount: a hosted ynm over MCP (ADR-004, ADR-017)", () => {
     await offline.remember({ type: "semantic", content: "Personal note while offline" });
     const r = await run(offline, "memory_recall", { text: "offline" });
     expect((r.data as Array<{ mount: string }>).every((h) => h.mount === "personal")).toBe(true);
-    expect(r.guidance).toMatch(/Shared memory left out: team \(/);
+    expect(r.guidance).toMatch(/Shared memory left out: team: /);
     const c = await run(offline, "memory_context", {});
     expect((c.data as { markdown: string }).markdown).not.toMatch(/Shared memory/);
     expect((await offline.status()).mounts.find((m) => m.id === "team")?.shards).toBe(-1);
@@ -169,6 +169,8 @@ describe("a remote mount: a hosted ynm over MCP (ADR-004, ADR-017)", () => {
   it("refuses a bad credential as not signed in", async () => {
     const y = local(hosted.handle.url, "wrong");
     const r = await run(y, "memory_recall", { text: "deploy" });
-    expect(r.guidance).toMatch(/team \(team: not signed in/);
+    expect(r.guidance).toMatch(
+      /Shared memory left out: team: not signed in: run `ynm login team`\./
+    );
   });
 });

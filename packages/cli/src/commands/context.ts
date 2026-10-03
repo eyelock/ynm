@@ -18,5 +18,6 @@ export default class Context extends YnmCommand {
     const { ynm } = await this.open({ cwd });
     const block = await ynm.context(q);
     this.emit(json, block, () => block.markdown);
+    this.noteLeftOut(ynm);
   }
 }
