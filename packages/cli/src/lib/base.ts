@@ -26,6 +26,11 @@ export abstract class YnmCommand extends Command {
     this.log(json ? JSON.stringify(value, null, 2) : human());
   }
 
+  /** On stderr, so JSON output stays parseable: a hosted store a read could not include, and why. */
+  protected noteLeftOut(ynm: { remoteIssues: Map<string, string> }): void {
+    for (const why of ynm.remoteIssues.values()) this.logToStderr(`shared memory left out: ${why}`);
+  }
+
   protected override async catch(err: Error & { exitCode?: number }): Promise<unknown> {
     if (err instanceof RedactionError) this.error(`refused: ${err.message}`, { exit: 2 });
     if (err instanceof InvalidInputError) this.error(`invalid input: ${err.message}`, { exit: 2 });

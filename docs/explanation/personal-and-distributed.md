@@ -88,5 +88,7 @@ The guidance agents receive says the same thing, and it is why personal is the d
 Sharing is chosen, never defaulted: a hosted server has no personal store, so there a memory that
 names no level is not stored at all. The agent is told the store is shared with everyone who uses
 it and to ask before sharing; only a call that says `distributed` is stored. Connecting to a
-hosted server is agreeing that what you share there is shared; keeping your own memory beside it
-is a local ynm ([Use personal memory with a hosted store](../how-to/use-personal-and-hosted-memory.md)).
+hosted server is agreeing that what you share there is shared. To keep your own memory beside it,
+a local ynm mounts the hosted store: personal memory stays on your machine, and the hosted store
+is reached through it, signed in as you
+([Use personal memory with a hosted store](../how-to/use-personal-and-hosted-memory.md)).

@@ -7,7 +7,8 @@ The tutorial has two parts. In part 1 the server takes one static token: you sta
 health, are refused without the token, make MCP calls with curl, and see the result land in the
 repository. In part 2 people sign in through an identity provider instead, the way a shared
 server is run: each person gets their own token, a client finds where to sign in by itself, and
-the server refuses a token that lacks the access it needs.
+the server refuses a token that lacks the access it needs. Last, your own ynm mounts the server
+as its shared store, so personal memory stays on your machine beside it.
 
 ## Prerequisites
 
@@ -299,6 +300,81 @@ Expected: Claude Code starts and says one MCP server needs authentication. Run `
 shows `ynm-signin` connected, with the `memory_*` tools. Ask Claude what it remembers about
 sign-in: it calls `memory_recall` and finds alice's memory. To remove the server afterwards:
 `claude mcp remove ynm-signin -s local`.
+
+## Mount it from your own ynm
+
+An agent connected to the server directly sees only the shared store. Your own ynm can mount the
+server instead, as its distributed store: the agent then talks to one ynm, your personal memory
+stays on your machine, and the server is reached for you, signed in as you. Add the mount to the
+sandbox's config:
+
+<!-- tutorial: skip unless DOCKER_HOST_AVAILABLE -->
+
+```bash
+mkdir -p /tmp/ynm-tutorial/home
+cat > /tmp/ynm-tutorial/home/config.json <<'EOF'
+{ "mounts": [ { "id": "team", "level": "distributed", "provider": "mcp", "url": "http://localhost:3000/mcp" } ] }
+EOF
+ynm status
+ynm recall --text "sign-in"
+```
+
+Expected: the status lists your personal store and the `team` mount, which says why it could not
+be read; recall answers from personal memory alone, which is empty, and says what it left out:
+
+```text
+ynm <version>
+config: /tmp/ynm-tutorial/home/config.json
+  personal   personal     git-notes  0 shard(s)  index fresh (0)  /tmp/ynm-tutorial/home/store.git
+  team       distributed  mcp        http://localhost:3000/mcp  (not signed in: run `ynm login team`)
+no matches
+shared memory left out: team: not signed in: run `ynm login team`
+```
+
+Being signed out, or offline, never stops ynm: reads go on without the shared store and say so.
+
+## Sign in to the mount
+
+Signing in needs a person at a browser, so this step is not run automatically:
+
+<!-- tutorial: skip unless YNM_TUTORIAL_BROWSER -->
+
+```bash
+ynm login team
+ynm remember --type semantic --content "I check sign-in changes against a fresh browser profile."
+ynm remember --type semantic --level distributed --content "The hosted store's sign-in is checked before every release."
+ynm recall --text "sign-in"
+ynm list --level distributed --cwd /tmp/ynm-tutorial/store.git
+ynm context
+```
+
+Expected: `ynm login` opens a Keycloak login page; sign in as `alice` / `alice`, and it prints
+`signed in to team (http://localhost:3000/mcp)`. The first memory names no level, so it stays
+personal: `remembered <id> in personal`. The second asks to share: `remembered <id> in team`.
+Recall finds three memories in one list, your personal one and the two on the server, each
+labelled with where it lives:
+
+```text
+0.016  <id>  semantic   personal  I check sign-in changes against a fresh browser profile.
+0.016  <id>  semantic   team      Sign-in to the hosted store goes through Keycloak.
+0.016  <id>  semantic   team      The hosted store's sign-in is checked before every release.
+```
+
+The listing of the server's store shows only the shared memory, written by alice, beside her
+earlier one; the personal memory never left your machine. The context block has your memory first
+and the shared store's after it:
+
+```text
+## Memory
+- (semantic) I check sign-in changes against a fresh browser profile.
+
+## Shared memory (team)
+- (semantic) The hosted store's sign-in is checked before every release.
+- (semantic) Sign-in to the hosted store goes through Keycloak.
+```
+
+`ynm doctor` shows the mount as signed in. The sign-in is kept in `auth/team.json` under the ynm
+home (here the sandbox's), refreshes on its own, and `ynm logout team` forgets it.
 
 ## Stop the server and the identity provider
 

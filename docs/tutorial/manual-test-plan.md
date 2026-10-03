@@ -201,9 +201,11 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 10.13 | [Write as alice](10-hosted.md#write-as-alice) | `ALICE=$(make -s keycloak-token U=alice)` | needs `DOCKER_HOST_AVAILABLE` |
 | 10.14 | [Bob can read but not write](10-hosted.md#bob-can-read-but-not-write) | `BOB=$(make -s keycloak-token U=bob S=memory:read)` | needs `DOCKER_HOST_AVAILABLE` |
 | 10.15 | [Sign in from Claude Code](10-hosted.md#sign-in-from-claude-code) | `claude mcp add --transport http --scope local ynm-signin http://local...` | needs `YNM_TUTORIAL_BROWSER` |
-| 10.16 | [Stop the server and the identity provider](10-hosted.md#stop-the-server-and-the-identity-provider) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.17 | [The Docker demo](10-hosted.md#the-docker-demo) | `infra/docker/demo.sh` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.18 | [Cleanup](10-hosted.md#cleanup) | `cd /tmp` |  |
+| 10.16 | [Mount it from your own ynm](10-hosted.md#mount-it-from-your-own-ynm) | `mkdir -p /tmp/ynm-tutorial/home` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.17 | [Sign in to the mount](10-hosted.md#sign-in-to-the-mount) | `ynm login team` | needs `YNM_TUTORIAL_BROWSER` |
+| 10.18 | [Stop the server and the identity provider](10-hosted.md#stop-the-server-and-the-identity-provider) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.19 | [The Docker demo](10-hosted.md#the-docker-demo) | `infra/docker/demo.sh` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.20 | [Cleanup](10-hosted.md#cleanup) | `cd /tmp` |  |
 
 ## [Doctor and Maintenance](11-doctor-and-maintenance.md)
 

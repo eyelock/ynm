@@ -72,6 +72,34 @@ describe("doctor", () => {
     expect(report.ok).toBe(false);
   });
 
+  it("reports whether each remote mount is signed in, without going online", async () => {
+    const home = tempDir("ynm-doc-");
+    const url = "https://memory.example.com/mcp";
+    const config = YnmConfigSchema.parse({
+      provider: "memory",
+      mounts: [{ id: "team", level: "distributed", provider: "mcp", url }],
+    });
+    const base = {
+      loaded: { config, files: [], home },
+      worktree: worktree(home, { isBare: true }),
+      mounts: [],
+    };
+    expect(check(await doctor(base), "mount team (mcp)")).toMatchObject({
+      ok: false,
+      level: "warn",
+    });
+    expect(check(await doctor(base), "mount team (mcp)")?.detail).toMatch(/run `ynm login team`/);
+    mkdirSync(join(home, "auth"), { recursive: true });
+    writeFileSync(
+      join(home, "auth", "team.json"),
+      JSON.stringify({ url, tokens: { access_token: "a", token_type: "Bearer" } })
+    );
+    expect(check(await doctor(base), "mount team (mcp)")).toMatchObject({
+      ok: true,
+      detail: `${url}, signed in`,
+    });
+  });
+
   it("warns when a local launcher exists but its directory is not on PATH", async () => {
     const home = tempDir("ynm-doc-");
     const bin = join(home, "bin");

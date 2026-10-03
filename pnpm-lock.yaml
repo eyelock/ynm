@@ -272,6 +272,9 @@ importers:
 
   packages/service:
     dependencies:
+      '@modelcontextprotocol/client':
+        specifier: ^2.2.0
+        version: 2.2.0
       '@ynm/index':
         specifier: workspace:*
         version: link:../index
@@ -294,6 +297,9 @@ importers:
         specifier: ^4.3.6
         version: 4.6.5
     devDependencies:
+      '@modelcontextprotocol/server':
+        specifier: ^2.2.0
+        version: 2.2.0
       '@types/node':
         specifier: ^26.0.1
         version: 26.6.3

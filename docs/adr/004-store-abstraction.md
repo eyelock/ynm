@@ -104,3 +104,11 @@ None.
   sqlite (a `documents` table), s3 (`<prefix>/documents/<name>.json`, `If-Match`), git-notes (a
   commit on `refs/ynm/<level>/documents/<name>`, synced with the notes and merged by a per-name
   merger). The first is ADR-017's `people`.
+- 2026-10-03: remote mounts. A mount with `provider: "mcp"` and a `url` is a hosted ynm reached
+  over MCP rather than a record log: it holds nothing locally, is always distributed, and is signed
+  in as the person (`ynm login <id>`, OAuth with PKCE, credentials under `~/.ynm/auth/`), so
+  attribution and audit stay on the hosted store (ADR-017). Recall fuses its hits with the local
+  ones by reciprocal rank; context gives it a section within part of the budget and a three-second
+  wait; a distributed write with no local distributed mount, an edit of an id no local mount holds,
+  and `promote` go to it. A remote that cannot be reached is left out of reads and named in the
+  tool's guidance. Listing, review, dreaming and the wiki stay local.

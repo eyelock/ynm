@@ -27,6 +27,21 @@ describe("config schema descriptions", () => {
         ?.message
     ).toBe("a fs mount needs a path");
   });
+
+  it("an mcp mount needs a url, no path, and is distributed", () => {
+    const mcp = { id: "team", level: "distributed", provider: "mcp" };
+    expect(MountConfigSchema.safeParse({ ...mcp, url: "https://m.example.com/mcp" }).success).toBe(
+      true
+    );
+    expect(MountConfigSchema.safeParse(mcp).error?.issues[0]).toMatchObject({
+      path: ["url"],
+      message: "an mcp mount needs a url",
+    });
+    expect(
+      MountConfigSchema.safeParse({ ...mcp, level: "personal", url: "https://m.example.com/mcp" })
+        .error?.issues[0]?.message
+    ).toMatch(/is distributed/);
+  });
 });
 
 describe("loadConfig (ADR-009)", () => {

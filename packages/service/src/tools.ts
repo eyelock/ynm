@@ -58,6 +58,13 @@ function spec<S extends z.ZodObject>(s: ToolSpec<S>): ToolSpec<S> {
   return s;
 }
 
+/** Which shared stores a read had to go without, so the agent knows the answer may be partial. */
+function skipped(ynm: Ynm): string | undefined {
+  if (!ynm.remoteIssues.size) return undefined;
+  // Each reason already names its mount.
+  return `Shared memory left out: ${[...ynm.remoteIssues.values()].join("; ")}.`;
+}
+
 /** The tools of ADR-008 (and ADR-017's people tool). MCP and CLI are thin adapters over these. */
 export const TOOL_SPECS = [
   spec({
@@ -93,12 +100,13 @@ export const TOOL_SPECS = [
     readOnly: true,
     async run(ynm, input) {
       const hits = await ynm.recall(input);
-      return {
-        data: hits,
-        guidance: hits.length
+      const guidance = [
+        hits.length
           ? undefined
           : "No matches. Try broader terms, drop filters, or check memory_context for pinned memories.",
-      };
+        skipped(ynm),
+      ].filter(Boolean);
+      return { data: hits, guidance: guidance.length ? guidance.join(" ") : undefined };
     },
   }),
   spec({
@@ -109,7 +117,7 @@ export const TOOL_SPECS = [
     input: ContextQuerySchema,
     readOnly: true,
     async run(ynm, input) {
-      return { data: await ynm.context(input) };
+      return { data: await ynm.context(input), guidance: skipped(ynm) };
     },
   }),
   spec({

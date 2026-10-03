@@ -13,14 +13,21 @@ export const MountConfigSchema = z
     id: z.string().min(1).describe("Mount id, shown on every hit and accepted by `--mount`"),
     level: z.enum(["personal", "distributed"]).describe("Which records the mount accepts"),
     provider: z
-      .enum(["git-notes", "fs", "sqlite", "memory", "s3"])
+      .enum(["git-notes", "fs", "sqlite", "memory", "s3", "mcp"])
       .default("git-notes")
-      .describe("Record store provider for this mount"),
+      .describe(
+        "Record store provider for this mount; `mcp` is a hosted ynm reached over MCP, signed in with `ynm login <id>`"
+      ),
     path: z
       .string()
       .min(1)
       .optional()
-      .describe("Repository or directory path; required by every provider but `s3`"),
+      .describe("Repository or directory path; required by every provider but `s3` and `mcp`"),
+    url: z
+      .string()
+      .url()
+      .optional()
+      .describe("`mcp` only: the hosted store's MCP endpoint, ending in /mcp"),
     anchor: ShaSchema.optional().describe("Anchor commit for this mount's notes"),
     remote: z.string().optional().describe("Remote used when syncing this mount"),
     bucket: z.string().min(1).optional().describe("`s3` only: the bucket that holds the store"),
@@ -37,6 +44,17 @@ export const MountConfigSchema = z
   .superRefine((m, ctx) => {
     if (m.provider === "s3" && !m.bucket)
       ctx.addIssue({ code: "custom", path: ["bucket"], message: "an s3 mount needs a bucket" });
+    if (m.provider === "mcp") {
+      if (!m.url)
+        ctx.addIssue({ code: "custom", path: ["url"], message: "an mcp mount needs a url" });
+      if (m.level !== "distributed")
+        ctx.addIssue({
+          code: "custom",
+          path: ["level"],
+          message: "an mcp mount is distributed: a hosted store is shared",
+        });
+      return;
+    }
     if (m.provider !== "s3" && !m.path)
       ctx.addIssue({
         code: "custom",
