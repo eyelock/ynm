@@ -2,7 +2,8 @@
 
 ## Build and test
 
-Requires Node 22.13 or later (for `node:sqlite`) and pnpm via `corepack enable`.
+Requires Node 22.13 or later (for `node:sqlite`) and pnpm via `corepack enable` (on Node 25 or
+later, which no longer bundle corepack, `npm install -g corepack` first).
 
 ```bash
 make deps
