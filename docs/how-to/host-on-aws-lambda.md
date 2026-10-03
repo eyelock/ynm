@@ -81,7 +81,7 @@ requests. Use EventBridge Scheduler instead, with the function as the target and
 | Input | Suggested rate | What it does |
 |---|---|---|
 | `{ "ynm": "health" }` | every 5 minutes | Keeps an instance warm and its index built, so most requests skip the cold start |
-| `{ "ynm": "dream" }` | every 15 minutes | One consolidation run, the same run the server's `--dream-every` makes, under the same token budget |
+| `{ "ynm": "dream" }` | every 15 minutes | One consolidation run, the same run the server's `--dream-every` makes, under the same token budget. It judges only memories new or changed since the last run, so on a quiet store it calls no model |
 | `{ "ynm": "compact" }` | daily | Compacts the store where the provider supports it (the `s3` provider merges a shard's small objects); a no-op that says so otherwise |
 
 A failed dream run fails the invocation, so Lambda's error metric and an alarm on it catch it.

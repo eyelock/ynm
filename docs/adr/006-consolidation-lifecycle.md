@@ -96,3 +96,9 @@ None.
 - 2026-09-29 (M4): all six passes built with index-sourced candidate pairs and stored judgments.
 - 2026-09-29 (M4): review queue as `needsReview`; dream report with per-pass counts and cost.
 - 2026-09-29 (M4): purge command with shard rewrite, purge marker and `--forget-history`.
+- 2026-10-03: dreams are incremental. A full run marks each memory it finished with a `dreamed`
+  annotate (content record, subject, judge); later runs judge only fresh memories and pairs with
+  a fresh side, and with nothing fresh run only expire. Each pair has one owning fresh memory and
+  every pass works in the same order, so a capped run leaves its owners fresh and the backlog
+  shrinks. This implements the "records since last dream" trigger above in a form every clone
+  shares.

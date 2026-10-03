@@ -105,6 +105,22 @@ counts (`0/8` and `0/1`), then a review queue of four memories, the two pairs, n
 
 The database memory is not there. It was compared and found unremarkable.
 
+That run marked every memory as dreamed, so running it again has nothing new to judge:
+
+```bash
+ynm dream
+```
+
+Expected:
+
+```text
+expire: 0/0 changed
+nothing new since the last run; only expiry ran
+```
+
+Only memories that are new or have changed since are judged next time, so a scheduled dream on a
+quiet store calls no model at all.
+
 ## Decide, and clear the flag
 
 A human resolves the queue. Say the two API memories really are the same and you are content to

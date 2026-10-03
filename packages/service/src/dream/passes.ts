@@ -58,16 +58,19 @@ export async function expire(ctx: DreamContext): Promise<PassReport> {
 
 /**
  * Pass 2: working memory that should outlive the session. An explicit `promote` tag acts without
- * a model; otherwise the judge decides and only a calibrated judge may act.
+ * a model; otherwise the judge decides and only a calibrated judge may act. Only fresh memories
+ * are judged; a tagged one is promoted whenever it is seen.
  */
 export async function promote(ctx: DreamContext): Promise<PassReport> {
   const r = emptyReport();
   const at = ctx.now().toISOString();
-  for (const m of await ctx.ynm.list({
+  const working = await ctx.ynm.list({
     type: "working",
     namespace: ctx.namespace,
     includeTombstoned: false,
-  })) {
+  });
+  for (const m of byOwner(working, (w) => w.memoryId)) {
+    if (!ctx.fresh.has(m.memoryId) && !m.tags.includes("promote")) continue;
     r.candidates += 1;
     let target: "semantic" | "episodic" | "procedural" | "reference" = "episodic";
     let decision: "act" | "review" | "ignore";
@@ -76,6 +79,7 @@ export async function promote(ctx: DreamContext): Promise<PassReport> {
     else {
       if (ctx.pairsJudged.n >= ctx.maxPairs) {
         r.skipped += 1;
+        ctx.deferred.add(m.memoryId);
         continue;
       }
       const j = await ctx.judge.judge({ memory: brief(m) }, PROMOTE_QUESTIONS);
@@ -120,12 +124,30 @@ export async function promote(ctx: DreamContext): Promise<PassReport> {
   return r;
 }
 
-interface Pair {
-  a: MemoryWithMount;
-  b: MemoryWithMount;
+/**
+ * Every pass works through fresh memories in one order, oldest id first, so under the pair cap
+ * they all finish the same leading memories and each run shrinks the backlog.
+ */
+function byOwner<T>(items: T[], owner: (t: T) => string): T[] {
+  return [...items].sort((x, y) => (owner(x) < owner(y) ? -1 : owner(x) > owner(y) ? 1 : 0));
 }
 
-/** Candidate pairs from the index: each memory's nearest neighbours of the same type and mount. */
+interface Pair {
+  /** The older memory. */
+  a: MemoryWithMount;
+  /** The newer memory. */
+  b: MemoryWithMount;
+  /**
+   * The fresh memory this pair is judged for. A pair the cap defers keeps only its owner fresh,
+   * and pairs come grouped by owner, so every run finishes whole memories and the backlog shrinks.
+   */
+  owner: string;
+}
+
+/**
+ * Candidate pairs from the index: each fresh memory's nearest neighbours of the same type and
+ * mount. A pair of two memories already dreamed was judged by an earlier run.
+ */
 async function candidatePairs(
   ctx: DreamContext,
   types: Array<MemoryWithMount["type"]>
@@ -137,6 +159,7 @@ async function candidatePairs(
   const seen = new Set<string>();
   const pairs: Pair[] = [];
   for (const m of memories) {
+    if (!ctx.fresh.has(m.memoryId)) continue;
     const text = `${m.current.summary ?? ""} ${(m.current.content ?? "").slice(0, 400)}`;
     const hits = await ctx.ynm.recall({
       text,
@@ -144,7 +167,8 @@ async function candidatePairs(
       namespace: ctx.namespace,
       mount: m.mount,
       rerank: false, // candidates come from the index only; the judge sees pairs, not queries
-      limit: ctx.config.candidatesPerMemory + 1,
+      // No more neighbours than one run can judge, so a memory can always be finished.
+      limit: Math.min(ctx.config.candidatesPerMemory, ctx.maxPairs) + 1,
     });
     for (const h of hits) {
       if (h.memoryId === m.memoryId) continue;
@@ -154,10 +178,10 @@ async function candidatePairs(
       if (seen.has(key)) continue;
       seen.add(key);
       const [a, b] = m.updatedAt <= other.updatedAt ? [m, other] : [other, m];
-      pairs.push({ a, b });
+      pairs.push({ a, b, owner: m.memoryId });
     }
   }
-  return pairs;
+  return byOwner(pairs, (p) => p.owner);
 }
 
 const MergedSchema = z.object({ content: z.string().min(1), summary: z.string().min(1).max(280) });
@@ -174,9 +198,10 @@ export async function dedupe(ctx: DreamContext, pairsOut?: Pair[]): Promise<Pass
     "reflective",
   ]);
   r.candidates = pairs.length;
-  for (const { a, b } of pairs) {
+  for (const { a, b, owner } of pairs) {
     if (ctx.pairsJudged.n >= ctx.maxPairs) {
       r.skipped += 1;
+      ctx.deferred.add(owner);
       continue;
     }
     const j = await ctx.judge.judge({ a: brief(a), b: brief(b) }, PAIR_QUESTIONS);
@@ -186,7 +211,7 @@ export async function dedupe(ctx: DreamContext, pairsOut?: Pair[]): Promise<Pass
     r.fallback ||= !j.calibrated;
     const same = (j.answers.sameFact as { noul: number }).noul;
     const contradicts = (j.answers.contradicts as { noul: number }).noul;
-    if (contradicts >= ctx.config.thresholds.contradict.review) pairsOut?.push({ a, b });
+    if (contradicts >= ctx.config.thresholds.contradict.review) pairsOut?.push({ a, b, owner });
     const decision = band(same, ctx.config.thresholds.dedupe, j.calibrated);
     const data = {
       judgments: [storedJudgment("dedupe", j, PAIR_QUESTIONS, at, decision)],
@@ -238,7 +263,11 @@ export async function dedupe(ctx: DreamContext, pairsOut?: Pair[]): Promise<Pass
   return r;
 }
 
-/** Pass 4: contradictions among memories sharing a subject (plus pairs dedupe flagged). */
+/**
+ * Pass 4: contradictions among memories sharing a subject (plus pairs dedupe flagged), for pairs
+ * with at least one fresh side. A fresh memory owns its pairs with every peer except fresh ones
+ * newer than itself (they own those), up to the newest peers one run can judge.
+ */
 export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise<PassReport> {
   const r = emptyReport();
   const at = ctx.now().toISOString();
@@ -255,18 +284,25 @@ export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise
   const seen = new Set(extra.map((p) => [p.a.memoryId, p.b.memoryId].sort().join(":")));
   for (const list of bySubject.values()) {
     const sorted = [...list].sort((x, y) => (x.updatedAt < y.updatedAt ? -1 : 1));
-    for (let i = 0; i < sorted.length; i++)
-      for (let k = i + 1; k < sorted.length; k++) {
-        const key = [sorted[i]?.memoryId, sorted[k]?.memoryId].sort().join(":");
+    sorted.forEach((owner, i) => {
+      if (!ctx.fresh.has(owner.memoryId)) return;
+      const peers = sorted
+        .filter((p, k) => k !== i && (k < i || !ctx.fresh.has(p.memoryId)))
+        .slice(-ctx.maxPairs);
+      for (const peer of peers) {
+        const key = [owner.memoryId, peer.memoryId].sort().join(":");
         if (seen.has(key)) continue;
         seen.add(key);
-        pairs.push({ a: sorted[i] as MemoryWithMount, b: sorted[k] as MemoryWithMount });
+        const [a, b] = peer.updatedAt <= owner.updatedAt ? [peer, owner] : [owner, peer];
+        pairs.push({ a, b, owner: owner.memoryId });
       }
+    });
   }
   r.candidates = pairs.length;
-  for (const { a, b } of pairs) {
+  for (const { a, b, owner } of byOwner(pairs, (p) => p.owner)) {
     if (ctx.pairsJudged.n >= ctx.maxPairs) {
       r.skipped += 1;
+      ctx.deferred.add(owner);
       continue;
     }
     const questions = { contradicts: PAIR_QUESTIONS.contradicts, ...SUPERSEDE_QUESTION };
@@ -316,7 +352,10 @@ const ReflectionSchema = z.object({
   content: z.string().min(1),
 });
 
-/** Pass 5: one reflective memory per subject with enough episodes, verified before it is written. */
+/**
+ * Pass 5: one reflective memory per subject with enough episodes, verified before it is written.
+ * A subject is reflected on again only when one of its episodes is fresh.
+ */
 export async function reflect(ctx: DreamContext): Promise<PassReport> {
   const r = emptyReport();
   const at = ctx.now().toISOString();
@@ -331,6 +370,7 @@ export async function reflect(ctx: DreamContext): Promise<PassReport> {
   }
   for (const [key, list] of episodes) {
     if (list.length < ctx.config.thresholds.reflect.minEpisodes) continue;
+    if (!list.some((m) => ctx.fresh.has(m.memoryId))) continue;
     const latest = list.reduce((x, y) => (x.updatedAt > y.updatedAt ? x : y));
     const existing = reflections.get(key);
     if (existing && existing.updatedAt >= latest.updatedAt) continue;
@@ -436,10 +476,11 @@ export function absolutise(text: string, recordedAt: string): string {
   });
 }
 
-/** Pass 6: relative dates become absolute (no model); importance re-scored by a calibrated judge. */
+/** Pass 6: relative dates in fresh memories become absolute (no model). */
 export async function normalise(ctx: DreamContext): Promise<PassReport> {
   const r = emptyReport();
   for (const m of await ctx.ynm.list({ namespace: ctx.namespace, includeTombstoned: false })) {
+    if (!ctx.fresh.has(m.memoryId)) continue;
     const content = m.current.content ?? "";
     if (!RELATIVE.test(content)) {
       RELATIVE.lastIndex = 0;

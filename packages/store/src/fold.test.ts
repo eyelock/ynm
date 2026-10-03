@@ -84,6 +84,28 @@ describe("fold (ADR-002)", () => {
     expect(m?.tags).toEqual(["a", "z"]);
   });
 
+  it("a dream mark records the version judged and is not an update", () => {
+    const c = create();
+    const mark = on(c, "annotate", { data: { dreamed: c.id } });
+    const m = fold([c, mark]).memories.get(c.memoryId);
+    expect(m?.dreamed).toBe(c.id);
+    expect(m?.updatedAt).toBe(c.recordedAt);
+    expect(m?.versions).toBe(2);
+    // Anything else alongside the mark is an ordinary annotate.
+    const flagged = on(c, "annotate", { needsReview: true, data: { dreamed: "later" } });
+    const n = fold([c, mark, flagged]).memories.get(c.memoryId);
+    expect(n?.dreamed).toBe("later");
+    expect(n?.updatedAt).toBe(flagged.recordedAt);
+    // Other annotate data leaves the mark alone, and a mark that arrives before its base counts.
+    const other = on(c, "annotate", { data: { judgments: [] } });
+    expect(fold([c, mark, other]).memories.get(c.memoryId)?.dreamed).toBe(c.id);
+    const early = on(c, "annotate", {
+      data: { dreamed: c.id },
+      recordedAt: new Date(Date.parse(c.recordedAt) - 500).toISOString(),
+    });
+    expect(fold([early, c]).memories.get(c.memoryId)?.dreamed).toBe(c.id);
+  });
+
   it("is order independent", () => {
     const c = create();
     const a = on(c, "annotate", { tags: ["x"] });

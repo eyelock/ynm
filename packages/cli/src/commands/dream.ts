@@ -22,12 +22,13 @@ export default class Dream extends YnmCommand {
       json,
       report,
       () =>
-        Object.entries(report.passes)
-          .map(
+        [
+          ...Object.entries(report.passes).map(
             ([name, p]) =>
               `${name}: ${p.changed.length}/${p.candidates} ${report.dryRun ? "would change" : "changed"}`
-          )
-          .join("\n") || "no passes ran"
+          ),
+          ...(report.full?.fresh === 0 ? ["nothing new since the last run; only expiry ran"] : []),
+        ].join("\n") || "no passes ran"
     );
   }
 }

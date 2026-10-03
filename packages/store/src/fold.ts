@@ -21,6 +21,8 @@ export interface Memory {
   updatedAt: string;
   /** Number of records folded into this memory. */
   versions: number;
+  /** The version a dream run last finished judging, from an annotate record's `data.dreamed`. */
+  dreamed?: string;
 }
 
 export interface FoldResult {
@@ -77,10 +79,34 @@ export function memoryFromBase(r: MemoryRecord): Memory {
   };
 }
 
+/** The `data.dreamed` an annotate record carries, if any. */
+function dreamedOf(r: MemoryRecord): string | undefined {
+  const d = r.data?.dreamed;
+  return r.op === "annotate" && typeof d === "string" ? d : undefined;
+}
+
+/**
+ * An annotate that only marks a memory as dreamed: bookkeeping, so it does not count as an
+ * update (expiry, ordering and `since` filters all read updatedAt).
+ */
+function isDreamMark(r: MemoryRecord): boolean {
+  return (
+    dreamedOf(r) !== undefined &&
+    Object.keys(r.data ?? {}).length === 1 &&
+    r.tags.length === 0 &&
+    r.links.length === 0 &&
+    r.subject === undefined &&
+    r.importance === undefined &&
+    r.confidence === undefined &&
+    r.pinned === undefined &&
+    r.needsReview === undefined
+  );
+}
+
 /** Applies one record that is newer than everything already folded into `m`. */
 export function applyRecord(m: Memory, r: MemoryRecord): void {
   m.versions += 1;
-  m.updatedAt = r.recordedAt;
+  if (!isDreamMark(r)) m.updatedAt = r.recordedAt;
   switch (r.op) {
     case "supersede":
       m.current = r;
@@ -103,6 +129,7 @@ export function applyRecord(m: Memory, r: MemoryRecord): void {
       if (r.confidence !== undefined) m.confidence = r.confidence;
       if (r.pinned !== undefined) m.pinned = r.pinned;
       if (r.needsReview !== undefined) m.needsReview = r.needsReview;
+      m.dreamed = dreamedOf(r) ?? m.dreamed;
       break;
     case "tombstone":
       m.tombstoned = true;
@@ -144,6 +171,7 @@ function applyBefore(m: Memory, r: MemoryRecord): void {
       if (m.current.pinned === undefined && r.pinned !== undefined) m.pinned = r.pinned;
       if (m.current.needsReview === undefined && r.needsReview !== undefined)
         m.needsReview = r.needsReview;
+      m.dreamed ??= dreamedOf(r);
       break;
     case "tombstone":
       if (m.current.op !== "supersede") {
