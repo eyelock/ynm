@@ -119,6 +119,11 @@ export interface Metric {
   name: string;
   size: number;
   value: number;
+  /**
+   * The drop the suite allows, stored with the value so the release gate compares releases with
+   * the same allowance; `null` marks an informational metric (cost, seconds) that never gates.
+   */
+  tolerance?: number | null;
 }
 
 /** Records a quality metric (higher is better); a drop of more than `tolerance` vs baseline fails. */
@@ -131,7 +136,7 @@ export function recordMetric(
   const all = readBaseline(opts) as Record<string, Timing | Metric>;
   const baseline = entryOfKind(all, key, "metric", baselineFile(opts.dir));
   if (process.env.YNM_WRITE_BASELINE === "1") {
-    all[key] = m;
+    all[key] = { ...m, tolerance: Number.isFinite(tolerance) ? tolerance : null };
     writeBaseline(opts.dir ?? BASELINE_DIR, all);
   }
   const regressed =

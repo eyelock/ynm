@@ -11,7 +11,13 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
    `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1 make bench` and the tier 1 quality suites,
    then `make bench-public` for the tier 3 reports (`packages/evals/reports/<v>/`). Commit both.
 4. `make gate M=M6` must be green. Its release check builds the slim tarball and this machine's
-   standalone binary and runs both (below).
+   standalone binary and runs both (below). It also compares the new baseline and benchmark
+   reports with the previous release's: a metric that dropped by more than its suite's
+   tolerance, a timing more than 3x slower, or a benchmark score that fell fails the gate. Fix
+   the regression; if it is a deliberate trade-off, record it in
+   `packages/evals/baselines/<v>.accepted.json` as `{ "<key>": "<reason>" }`, which the release
+   pull request then shows for review. The same gate runs as the `release gate` check on every
+   pull request into `main`.
 5. Open a pull request from `release/vX.Y.Z` into `main`; merge it with a true merge (not
    squash) once CI is green. Then open a second pull request from the release branch into
    `develop` so `develop` has the version bump and frozen evals too (the mandatory back-merge),
