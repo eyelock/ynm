@@ -50,9 +50,14 @@ describe("buildContext", () => {
     expect(block.tokens).toBeLessThanOrEqual(30);
   });
 
-  it("returns just the header when the budget is too small for anything", () => {
+  it("returns empty markdown, not a bare heading, when the budget is too small for anything", () => {
     const m = doc({ summary: "a memory" });
     const block = buildContext([m], [], new Map(), 1);
-    expect(block).toEqual({ markdown: "## Memory\n\n", included: [], tokens: 3, truncated: true });
+    expect(block).toEqual({ markdown: "", included: [], tokens: 0, truncated: true });
+  });
+
+  it("returns empty markdown when there is no memory at all", () => {
+    const block = buildContext([], [], new Map(), 1000);
+    expect(block).toEqual({ markdown: "", included: [], tokens: 0, truncated: false });
   });
 });

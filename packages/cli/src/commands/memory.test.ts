@@ -13,6 +13,23 @@ describe("ynm memory commands, human output", () => {
     expect(ynm(dir, "recall", "--text", "anything").stdout.trim()).toBe("no matches");
   });
 
+  it("context and session start say there is no memory yet, not a bare heading", () => {
+    const ctx = ynm(dir, "context");
+    expect(ctx.status, ctx.stderr).toBe(0);
+    expect(ctx.stdout).toBe("no memory yet\n");
+    const json = JSON.parse(ynm(dir, "context", "--json").stdout) as { markdown: string };
+    expect(json.markdown).toBe("");
+    const start = ynm(dir, "session", "start", "s-empty");
+    expect(start.status, start.stderr).toBe(0);
+    expect(start.stdout).toMatch(
+      /^session s-empty\nworking namespace \S+ \(ttl PT8H\)\n\nno memory yet\n$/
+    );
+    const startJson = JSON.parse(ynm(dir, "session", "start", "s-empty", "--json").stdout) as {
+      context: { markdown: string };
+    };
+    expect(startJson.context.markdown).toBe("");
+  });
+
   it("list, recall --explain and reindex print one line per memory", () => {
     const r = ynm(dir, "remember", "--type", "semantic", "--content", "Indent with tabs", "--json");
     expect(r.status, r.stderr).toBe(0);
@@ -33,6 +50,10 @@ describe("ynm memory commands, human output", () => {
       new RegExp(`^\\d\\.\\d{3}\\s+${id}\\s+semantic\\s+personal\\s+\\* `)
     );
     expect(hits.stdout).toMatch(/\n\s+rel \d\.\d{2} rec \d\.\d{2} imp \d\.\d{2}/);
+
+    expect(ynm(dir, "context", "--budget-tokens", "1").stdout.trim()).toBe(
+      "no memory fits the token budget; raise --budget-tokens"
+    );
 
     const plain = ynm(dir, "recall", "--text", "tabs");
     expect(plain.stdout).not.toMatch(/rel \d/);

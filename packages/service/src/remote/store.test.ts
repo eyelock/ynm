@@ -132,10 +132,15 @@ describe("remote mounts in the service (ADR-004)", () => {
     expect(block.tokens).toBeLessThanOrEqual(400);
     // An empty shared store adds nothing.
     const empty = local(remote(hostedYnm()));
-    expect((await empty.context({})).markdown).not.toMatch(/Shared memory/);
+    expect(await empty.context({})).toMatchObject({ markdown: "", included: [], tokens: 0 });
     // With no personal memory, the block is the shared section alone, not a bare heading.
     const sharedOnly = local(remote(hosted));
     expect((await sharedOnly.context({})).markdown).toMatch(/^## Shared memory \(team\)\n/);
+    const spec = toolSpec("memory_context");
+    if (!spec) throw new Error("missing memory_context");
+    const tool = await spec.run(sharedOnly, { budgetTokens: 1500 } as never);
+    expect((tool.data as { markdown: string }).markdown).toMatch(/^## Shared memory \(team\)\n/);
+    expect(tool.guidance).toBeUndefined();
   });
 
   it("edits a shared memory where it lives and promotes a personal one by copy", async () => {

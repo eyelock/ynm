@@ -14,7 +14,7 @@ import {
 } from "@ynm/model";
 import type { z } from "zod";
 import { z as zod } from "zod";
-import { REMEMBER_INTENT_EXAMPLES } from "./hooks/intent.js";
+import { emptyContextNote, REMEMBER_INTENT_EXAMPLES } from "./hooks/intent.js";
 import { Lifecycle } from "./lifecycle.js";
 import type { Ynm } from "./ynm.js";
 
@@ -117,7 +117,12 @@ export const TOOL_SPECS = [
     input: ContextQuerySchema,
     readOnly: true,
     async run(ynm, input) {
-      return { data: await ynm.context(input), guidance: skipped(ynm) };
+      const block = await ynm.context(input);
+      const guidance = [
+        block.markdown ? undefined : emptyContextNote(block.truncated, true),
+        skipped(ynm),
+      ].filter(Boolean);
+      return { data: block, guidance: guidance.length ? guidance.join(" ") : undefined };
     },
   }),
   spec({
@@ -173,7 +178,12 @@ export const TOOL_SPECS = [
         );
         return {
           data: s,
-          guidance: `Write working memory to namespace ${s.namespace} with type working and ttl ${s.ttl}. Call memory_session end when done.`,
+          guidance: [
+            s.context.markdown ? undefined : emptyContextNote(s.context.truncated, true),
+            `Write working memory to namespace ${s.namespace} with type working and ttl ${s.ttl}. Call memory_session end when done.`,
+          ]
+            .filter(Boolean)
+            .join(" "),
         };
       }
       if (!input.sessionId) throw new Error("sessionId is required to end a session");

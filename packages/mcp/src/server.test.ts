@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { initProject } from "@ynm/service";
+import { EMPTY_CONTEXT_GUIDANCE, initProject } from "@ynm/service";
 import { createBare, createRepo, fx } from "@ynm/store/testing/git";
 import {
   createYnmServer,
@@ -71,10 +71,22 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     const call = (name: string, args: Record<string, unknown> = {}) =>
       client.callTool({ name, arguments: args });
 
+    // An empty store: no bare heading, and a note that points at memory_remember.
+    const startedCall = await call("memory_session", { action: "start" });
     const started = data<{ sessionId: string; namespace: string; context: { markdown: string } }>(
-      await call("memory_session", { action: "start" })
+      startedCall
     );
-    expect(started.context.markdown).toMatch(/^## Memory/);
+    expect(started.context.markdown).toBe("");
+    expect((startedCall.structuredContent as { guidance: string }).guidance).toMatch(
+      /^No memory yet\. Use memory_remember .*Write working memory to namespace /
+    );
+    const emptyCall = await call("memory_context", {});
+    expect(data<{ markdown: string }>(emptyCall).markdown).toBe("");
+    expect((emptyCall.structuredContent as { guidance: string }).guidance).toBe(
+      EMPTY_CONTEXT_GUIDANCE
+    );
+    const emptyRes = await client.readResource({ uri: "memory://context" });
+    expect((emptyRes.contents[0] as { text: string }).text).toBe(EMPTY_CONTEXT_GUIDANCE);
 
     const r1 = data<{ memoryId: string; mount: string }>(
       await call("memory_remember", {

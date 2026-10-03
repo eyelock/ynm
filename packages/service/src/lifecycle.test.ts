@@ -31,7 +31,8 @@ describe("lifecycle (sessions and expire pass)", () => {
   it("starts a session with a context block and a session namespace", async () => {
     const s = await life.start({});
     expect(s.namespace).toBe(`session/${s.sessionId}`);
-    expect(s.context.markdown).toMatch(/^## Memory/);
+    // Nothing stored yet: an empty block, not a bare heading.
+    expect(s.context.markdown).toBe("");
   });
 
   it("expires working memory after its ttl, and end runs the pass", async () => {
