@@ -242,6 +242,7 @@ allowed-host and interval variables do not apply.
 | `YNM_BENCH_DIR` | Where public benchmark datasets are cached. Default `~/.ynm/bench` |
 | `YNM_BASELINE_VERSION` | Baseline file version under `packages/evals/baselines`. Default: the CLI package version |
 | `YNM_DEV_BUILD` | Set by the `make install` launcher to the checkout path; `ynm --version` then reports `<version>-dev.<sha>` |
+| `YNM_REPO` | Path of your ynm checkout, for the tutorial steps that run its `make` targets and scripts. The tutorial evals set it to the checkout under test |
 | `YNM_WRITE_BASELINE` | `1` rewrites the baseline file |
 | `YNM_WRITE_GOLDEN` | `1` rewrites golden files |
 | `YNM_GATE` | Set by `make gate` to the gate being run |
