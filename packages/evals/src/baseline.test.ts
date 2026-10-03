@@ -78,7 +78,7 @@ describe("baseline location", () => {
     recordMetric({ name: "mrr", size: 10, value: 0.5 }, 0.02, { dir });
     expect(readBaseline({ dir })).toEqual({
       "recall@10": timing,
-      "mrr@10": { name: "mrr", size: 10, value: 0.5 },
+      "mrr@10": { name: "mrr", size: 10, value: 0.5, tolerance: 0.02 },
     });
   });
 });
@@ -168,7 +168,19 @@ describe("recordMetric", () => {
     vi.stubEnv("YNM_WRITE_BASELINE", "1");
     const r = recordMetric({ name: "mrr", size: 50, value: 0.1 }, 0.02, { dir });
     expect(r).toEqual({ baseline: { name: "mrr", size: 50, value: 0.9 }, regressed: false });
-    expect(readBaseline({ dir })["mrr@50"]).toEqual({ name: "mrr", size: 50, value: 0.1 });
+    expect(readBaseline({ dir })["mrr@50"]).toEqual({
+      name: "mrr",
+      size: 50,
+      value: 0.1,
+      tolerance: 0.02,
+    });
+    recordMetric({ name: "cost", size: 50, value: 0.3 }, Number.POSITIVE_INFINITY, { dir });
+    expect(readBaseline({ dir })["cost@50"]).toEqual({
+      name: "cost",
+      size: 50,
+      value: 0.3,
+      tolerance: null,
+    });
   });
 
   it("flags a drop beyond tolerance", () => {

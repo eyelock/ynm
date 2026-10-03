@@ -7,6 +7,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readBaseline } from "../baseline.js";
+import { formatRegressions, releaseRegressions } from "../release-regressions.js";
 import { readReport } from "../tier3/report.js";
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
@@ -44,6 +45,7 @@ const FROZEN_KEYS = [
   "rerank-lift:typesafe@300",
   "reflect-written-rate:typesafe@2",
   "cleanup-dedupe-precision:typesafe@120",
+  "cleanup-dedupe-recall:typesafe@120",
 ];
 
 describe("gate M6: v0.1 release", () => {
@@ -75,6 +77,19 @@ describe("gate M6: v0.1 release", () => {
     const missing = FROZEN_KEYS.filter((k) => !(k in b));
     expect(missing, `baseline ${version} is missing keys`).toEqual([]);
     expect(process.env.YNM_BASELINE_VERSION ?? version).toBe(version);
+  });
+
+  it("ADR-014: no regression against the previous release's frozen baseline and reports", () => {
+    const r = releaseRegressions(version);
+    expect(
+      r.regressions,
+      `${version} regressed against ${r.previousVersion}; fix it, or record the trade-off in packages/evals/baselines/${version}.accepted.json as { "<key>": "<reason>" }:\n${formatRegressions(r.regressions)}`
+    ).toEqual([]);
+    expect(
+      r.invalidAccepted,
+      `${version}.accepted.json lists keys with no reason or that no longer regress`
+    ).toEqual([]);
+    for (const a of r.accepted) console.info(`accepted regression ${a.key}: ${a.reason}`);
   });
 
   it("ADRs consolidated: addenda folded, status accepted", () => {

@@ -9,10 +9,11 @@ resource "github_branch_default" "develop" {
 
 locals {
   # Status checks each protected branch requires before a PR can merge. "verify" and
-  # "coverage" (coverage of the lines a PR changes) are the ci workflow's jobs; "Verify PR
-  # source branch" is protect-main.yml, which only runs on PRs into main.
+  # "coverage" (coverage of the lines a PR changes) are the ci workflow's jobs; "release gate"
+  # (the M6 gate, frozen evals compared with the previous release) is a ci job that runs only on
+  # PRs into main, as does "Verify PR source branch" from protect-main.yml.
   protected_branches = {
-    main    = ["verify", "Verify PR source branch"]
+    main    = ["verify", "release gate", "Verify PR source branch"]
     develop = ["verify", "coverage"]
   }
 }
