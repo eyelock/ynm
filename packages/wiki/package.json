@@ -1,6 +1,6 @@
 {
   "name": "@ynm/wiki",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Compiled markdown projection of the fold, behind a WikiTarget seam (ADR-010).",
   "license": "MIT",

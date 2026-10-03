@@ -1,6 +1,6 @@
 {
   "name": "@ynm/cli",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "The ynm command line (oclif); flags generated from the same Zod schemas as the MCP tools (ADR-008).",
   "license": "MIT",

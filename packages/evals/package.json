@@ -1,6 +1,6 @@
 {
   "name": "@ynm/evals",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Standing evals and milestone gates (ADR-014). Tier 1 runs on every PR.",
   "license": "MIT",
