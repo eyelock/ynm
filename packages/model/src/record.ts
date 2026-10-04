@@ -105,7 +105,7 @@ export const ProvenanceSchema = z
       .string()
       .min(1)
       .describe(
-        "Who wrote it: user:<person id> for a signed-in person on a hosted store, token:static for anyone holding a hosted store's shared static token, else e.g. user:david or agent:claude-code"
+        "Who wrote it: user:<person id> for a signed-in person on a hosted store, token:static for anyone holding a hosted store's shared static token, client:<client id> for an identity provider's token that names a client but no subject, else e.g. user:david or agent:claude-code"
       ),
     client: z.string().optional().describe("The OAuth client a signed-in person wrote through"),
     session: z.string().optional().describe("Session id"),

@@ -16,7 +16,7 @@ import type { z } from "zod";
 import { z as zod } from "zod";
 import { emptyContextNote, REMEMBER_INTENT_EXAMPLES } from "./hooks/intent.js";
 import { Lifecycle } from "./lifecycle.js";
-import type { Ynm } from "./ynm.js";
+import { STATIC_TOKEN_ACTOR, type Ynm } from "./ynm.js";
 
 export interface ToolResult {
   /** JSON-serialisable payload; the MCP layer returns it as structured content and text. */
@@ -235,9 +235,13 @@ export const TOOL_SPECS = [
     readOnly: false,
     async run(ynm, input) {
       const caller = ynm.caller;
-      if (!caller && ynm.staticToken)
+      if (!caller && ynm.sharedActor === STATIC_TOKEN_ACTOR)
         throw new Error(
           "memory_people acts on the signed-in caller, and this request came with the server's static token, which is shared and belongs to no one: everything written with it is recorded as token:static. Sign in through the server's identity provider to have a person id of your own"
+        );
+      if (!caller && ynm.sharedActor)
+        throw new Error(
+          `memory_people acts on the signed-in caller, and this request's token has no subject to identify a person, only the client it was issued to: everything written with it is recorded as ${ynm.sharedActor}. Use a token that carries a subject (sub) to have a person id of your own`
         );
       if (!caller)
         throw new Error(

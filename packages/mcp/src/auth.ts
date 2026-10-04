@@ -27,6 +27,25 @@ export function isStaticToken(info: AuthInfo | undefined): boolean {
   return info?.extra?.[STATIC_TOKEN_EXTRA] === true;
 }
 
+/**
+ * The client an identity provider's token says it was issued to (JWT `azp` or `client_id`,
+ * introspection `client_id`), kept only when the token names one. Unlike `AuthInfo.clientId`, it
+ * never falls back to the subject or a placeholder, so a token with no subject can be recorded as
+ * its client.
+ */
+export const CLIENT_ID_EXTRA = "client";
+
+/** The client a token names, if it names one. */
+export function clientIdOf(info: AuthInfo | undefined): string | undefined {
+  const id = info?.extra?.[CLIENT_ID_EXTRA];
+  return typeof id === "string" && id ? id : undefined;
+}
+
+/** A claim as a non-empty string, if it is one. */
+function claim(value: unknown): string | undefined {
+  return typeof value === "string" && value ? value : undefined;
+}
+
 /** Dev and tests: one or more static tokens, compared in constant time via hashing. */
 export class StaticTokenVerifier implements OAuthTokenVerifier {
   private readonly hashes: Set<string>;
@@ -94,7 +113,11 @@ export class IntrospectionVerifier implements OAuthTokenVerifier {
       scopes: data.scope ? data.scope.split(" ") : [],
       expiresAt: expiry(data.exp),
       // A login needs an issuer; an introspection response may leave it out, so the endpoint stands in.
-      extra: { sub: data.sub, iss: data.iss ?? new URL(this.opts.url).origin },
+      extra: {
+        sub: data.sub,
+        iss: data.iss ?? new URL(this.opts.url).origin,
+        ...clientExtra(claim(data.client_id)),
+      },
     };
     const until = Math.min(
       Date.now() + (this.opts.cacheMs ?? 60_000),
@@ -138,9 +161,17 @@ export class JwksVerifier implements OAuthTokenVerifier {
       clientId: String(payload.azp ?? payload.client_id ?? payload.sub ?? "jwt"),
       scopes: scopesOf(payload, this.opts.scopeClaim),
       expiresAt: expiry(payload.exp),
-      extra: { sub: payload.sub, iss: payload.iss },
+      extra: {
+        sub: payload.sub,
+        iss: payload.iss,
+        ...clientExtra(claim(payload.azp) ?? claim(payload.client_id)),
+      },
     };
   }
+}
+
+function clientExtra(client: string | undefined): Record<string, string> {
+  return client ? { [CLIENT_ID_EXTRA]: client } : {};
 }
 
 function scopesOf(payload: JWTPayload, claim?: string): string[] {

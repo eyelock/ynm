@@ -273,3 +273,12 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   and CI. Named tokens or a token-holder option were rejected as a second, weaker identity system.
   Writes the server makes itself, such as scheduled dream runs, keep the server's actor. Still
   proposed.
+- 2026-10-04: an identity provider's token with no `sub` but a client id (JWT `azp` or
+  `client_id`, introspection `client_id`) has its writes recorded as `actor: client:<client id>`,
+  not the server's actor. Like the static token it is a shared identity with no person id: an
+  unnamed write goes to `common`, `memory_people` refuses because the token has no subject to
+  identify a person, readers show no author, and audit events carry that client with no person.
+  Only a token with neither a subject nor a client id keeps the server's actor. The static token's
+  view became one general view carrying a fixed shared actor, so the store still chooses a write's
+  actor in one place. Refusing such writes was rejected because client-credentials tokens without
+  `sub` are legitimate, and documenting the gap alone left the records misleading. Still proposed.

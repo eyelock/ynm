@@ -177,16 +177,16 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 
 | Variable | Effect |
 |---|---|
-| `YNM_JWKS_URL` | Verify bearer tokens as JWTs against this JWKS |
+| `YNM_JWKS_URL` | Verify bearer tokens as JWTs against this JWKS. A token's `iss` and `sub` identify a person; one with no `sub` writes as `client:<azp or client_id>`, else as the server's own actor |
 | `YNM_JWT_ISSUER` | Required JWT issuer. Also advertised to clients as where to sign in, at `/.well-known/oauth-protected-resource` |
 | `YNM_JWT_AUDIENCE` | Required JWT audience. When it is a URL and `YNM_PUBLIC_URL` is not set, it is the resource advertised to clients |
 | `YNM_PUBLIC_URL` | The URL clients use to reach the server, advertised as the resource tokens must be issued for |
-| `YNM_OAUTH_INTROSPECTION_URL` | Verify bearer tokens by RFC 7662 introspection at this URL |
+| `YNM_OAUTH_INTROSPECTION_URL` | Verify bearer tokens by RFC 7662 introspection at this URL. A response with no `sub` writes as `client:<client_id>`, else as the server's own actor |
 | `YNM_OAUTH_CLIENT_ID` | Client id for introspection |
 | `YNM_OAUTH_CLIENT_SECRET` | Client secret for introspection |
 | `YNM_MCP_TOKEN` | Static bearer tokens, comma-separated. A shared secret: every caller using one is the same identity, and what they write is recorded as `token:static` |
 | `YNM_REQUIRED_SCOPES` | Scopes every token must carry, comma-separated |
-| `YNM_AUDIT` | Where each request's audit event goes, as JSON: `{"sink":"stdout"}`, `{"sink":"file","path":"/var/log/ynm/audit.jsonl"}`, `{"sink":"s3"}` (optional `bucket`, `prefix`, `region`; on an S3 store the bucket defaults to the store's and the prefix to `audit/<store prefix>`), or `{"sink":"off"}`. Unset: stdout when the server checks tokens, else off. Events hold metadata only: when, who (person id and client; a static token has no person and client `static`), which tools, outcome, duration, memory ids and sizes, never content |
+| `YNM_AUDIT` | Where each request's audit event goes, as JSON: `{"sink":"stdout"}`, `{"sink":"file","path":"/var/log/ynm/audit.jsonl"}`, `{"sink":"s3"}` (optional `bucket`, `prefix`, `region`; on an S3 store the bucket defaults to the store's and the prefix to `audit/<store prefix>`), or `{"sink":"off"}`. Unset: stdout when the server checks tokens, else off. Events hold metadata only: when, who (person id and client; a static token has no person and client `static`, and a token with no subject has no person and the client it names), which tools, outcome, duration, memory ids and sizes, never content |
 | `YNM_HTTP_HOST` | Bind host when `--host` is not given. Default `localhost` |
 | `PORT` | Port when `--port` is not given. Default 3000 |
 | `YNM_ALLOWED_HOSTS` | Allowed `Host` headers when `--allow-host` is not given, comma-separated |

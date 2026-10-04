@@ -153,6 +153,15 @@ export interface ListOptions extends RecordFilter {
  */
 export const STATIC_TOKEN_ACTOR = "token:static";
 
+/**
+ * The actor a write records when an identity provider's token names no subject but does name the
+ * client it was issued to (ADR-017): `client:<id>`. Every holder of such a token is that client,
+ * never a person and never the server's own user.
+ */
+export function clientActor(clientId: string): string {
+  return `client:${clientId}`;
+}
+
 /** A signed-in person making a request to a hosted store (ADR-017). */
 export interface Caller {
   /** The ynm person id their login resolves to. */
@@ -197,8 +206,11 @@ export class Ynm {
   readonly remoteIssues = new Map<string, string>();
   /** Set only on a view made by `as`. */
   readonly caller?: Caller;
-  /** Set only on a view made by `asStaticToken`. */
-  readonly staticToken?: true;
+  /**
+   * Set only on a view made by `asShared`: the one actor every write records for a caller who is
+   * no person, such as the static token (`token:static`) or a token's client (`client:<id>`).
+   */
+  readonly sharedActor?: string;
   private readonly peopleCache: { doc?: PeopleDoc; at: number } = { at: 0 };
 
   constructor(opts: YnmOptions) {
@@ -231,19 +243,20 @@ export class Ynm {
   }
 
   /**
-   * This store as a caller holding the server's static token sees it: what they write is recorded
-   * as `token:static`, a shared identity, and lands in `common` unless they name a namespace.
+   * This store as a caller who is no person sees it, such as everyone holding the server's static
+   * token (`token:static`) or a token that names only its client (`client:<id>`): what they write
+   * is recorded as that one shared actor and lands in `common` unless they name a namespace.
    */
-  asStaticToken(): Ynm {
+  asShared(actor: string): Ynm {
     const view = Object.create(this) as Ynm;
-    Object.defineProperty(view, "staticToken", { value: true, enumerable: true });
+    Object.defineProperty(view, "sharedActor", { value: actor, enumerable: true });
     return view;
   }
 
-  /** Who a write is recorded as: the signed-in person, the static token, else this process. */
+  /** Who a write is recorded as: the signed-in person, the shared actor, else this process. */
   private writer(): string {
     if (this.caller) return `user:${this.caller.person}`;
-    return this.staticToken ? STATIC_TOKEN_ACTOR : this.actor;
+    return this.sharedActor ?? this.actor;
   }
 
   mount(id: string): Mount {
