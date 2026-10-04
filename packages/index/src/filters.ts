@@ -14,6 +14,7 @@ export function matches(m: IndexedMemory, q: IndexQuery): boolean {
   if (!namespaceMatches(m.namespace, q.namespace)) return false;
   if (q.subject && m.subject !== q.subject) return false;
   if (q.tags?.length && !q.tags.every((t) => m.tags.includes(t))) return false;
+  if (q.excludeTags?.some((t) => m.tags.includes(t))) return false;
   if (q.dataKey && !m.dataKeys.includes(q.dataKey)) return false;
   if (q.since && m.updatedAt < q.since) return false;
   if (q.until && m.updatedAt > q.until) return false;

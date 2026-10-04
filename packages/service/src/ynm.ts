@@ -31,6 +31,7 @@ import {
   MemoryRecordSchema,
   mergePeopleText,
   NicknameSchema,
+  OCCURRENCE_TAG,
   PEOPLE_DOCUMENT,
   PersonIdSchema,
   PurgeInputSchema,
@@ -413,7 +414,14 @@ export class Ynm {
     const byId = new Map<string, IndexedMemory>();
     for (const mount of this.mountsFor(q)) {
       const ix = await index.ensureFresh(mount);
-      const base = { namespace: q.namespace, level: q.level, type: q.type };
+      // Occurrences never reach the block (buildContext drops them too); leaving them out of the
+      // search keeps a long run of repeats from crowding out the candidates that can.
+      const base = {
+        namespace: q.namespace,
+        level: q.level,
+        type: q.type,
+        excludeTags: [OCCURRENCE_TAG],
+      };
       const p = await ix.search({ ...base, pinnedOnly: true, limit: 200 });
       for (const m of (await ix.get(p.map((h) => h.memoryId))).values()) pinned.push(m);
       const hits = await ix.search({ ...base, text: q.text, limit: 100 });

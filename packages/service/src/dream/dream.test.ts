@@ -720,3 +720,96 @@ describe("dream types", () => {
     expect(total).toEqual({ inputTokens: 4, outputTokens: 5 });
   });
 });
+
+describe("dream leaves occurrences to reflection", () => {
+  /** Calls every pair the same fact, a contradiction and superseded by the newer side. */
+  const merges = (_s: unknown, id: string) =>
+    id === "sameFact" || id === "contradicts" || id === "newerSupersedes" ? 0.95 : 0.05;
+  const writer = fixedWriter({
+    summary: "The sensor test keeps sticking",
+    content: "TestSince stuck on three runs: 2026-09-29.",
+  });
+
+  /** A judge that records the contents of every pair it is asked about. */
+  function spying() {
+    const judge = new CountingJudge(merges);
+    const pairs: string[][] = [];
+    const inner = judge.judge.bind(judge);
+    judge.judge = async (state, questions) => {
+      const pair = state as { a?: { content: string }; b?: { content: string } };
+      if (pair.a && pair.b) pairs.push([pair.a.content, pair.b.content]);
+      return inner(state, questions);
+    };
+    return { judge, pairs };
+  }
+
+  async function seed(ynm: Ynm) {
+    const occurrences = [];
+    for (let i = 0; i < 3; i++)
+      occurrences.push(
+        await ynm.remember({
+          type: "episodic",
+          subject: "sig/stuck/sensor:test/test:TestSince",
+          content: `Occurrence: TestSince stuck in the sensor suite, run ${i}`,
+          tags: ["occurrence", "ynf.failure.v1"],
+        })
+      );
+    const older = await ynm.remember({
+      type: "semantic",
+      content: "Notes anchor to the root commit",
+    });
+    const newer = await ynm.remember({
+      type: "semantic",
+      content: "Notes are anchored to the root commit of the repo",
+    });
+    return { occurrences, older, newer };
+  }
+
+  it("never merges or supersedes an occurrence, reflects on them and marks them dreamed", async () => {
+    const { judge, pairs } = spying();
+    const { ynm, run } = make(judge, writer);
+    const { occurrences, older, newer } = await seed(ynm);
+    const r = await run({});
+    // No pair the judge saw had an occurrence on either side.
+    expect(pairs.length).toBeGreaterThan(0);
+    expect(pairs.flat().some((c) => c.startsWith("Occurrence:"))).toBe(false);
+    for (const o of occurrences) {
+      const m = await ynm.find(o.memoryId);
+      expect(m?.tombstoned).toBe(false);
+      expect(m?.current.content).toMatch(
+        /^Occurrence: TestSince stuck in the sensor suite, run \d$/
+      );
+      expect(m?.links).toEqual([]);
+      expect(m?.dreamed).toBe(`${m?.current.id}#${m?.subject}@script`);
+    }
+    // The ordinary pair beside them is still deduped.
+    expect(r.passes.dedupe?.changed).toEqual([older.memoryId]);
+    expect((await ynm.find(older.memoryId))?.tombstoned).toBe(true);
+    expect((await ynm.find(newer.memoryId))?.tombstoned).toBe(false);
+    const refl = await ynm.list({ type: "reflective", includeTombstoned: false });
+    expect(refl).toHaveLength(1);
+    expect(refl[0]?.subject).toBe("sig/stuck/sensor:test/test:TestSince");
+    expect(refl[0]?.links.map((l) => l.to).sort()).toEqual(
+      occurrences.map((o) => o.memoryId).sort()
+    );
+    // The reflection is standing knowledge, not another occurrence.
+    expect(refl[0]?.tags).toEqual(["ynf.failure.v1"]);
+    // Nothing about the occurrences is left to reconsider: fresh now are the new reflection and
+    // the merged survivor, and the subject is not reflected on again.
+    const again = await run({});
+    expect(again.fresh).toBe(2);
+    expect(again.passes.reflect?.candidates).toBe(0);
+  });
+
+  it("occurrences consume none of the pair budget", async () => {
+    const { judge } = spying();
+    const { ynm, run } = make(judge, writer);
+    const { older } = await seed(ynm);
+    const r = await run({ maxPairs: 1 });
+    expect(r.passes.dedupe?.candidates).toBe(1);
+    expect(r.passes.dedupe?.judged).toBe(1);
+    expect(r.passes.dedupe?.skipped).toBe(0);
+    expect(r.passes.dedupe?.changed).toEqual([older.memoryId]);
+    expect(r.passes.contradict?.skipped).toBe(0);
+  });
+});
