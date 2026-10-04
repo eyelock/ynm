@@ -121,6 +121,7 @@ Models and consolidation thresholds, under the `dream` key. See
 | `dream.thresholds.reflect` | object |  | Settings for the reflect pass |
 | `dream.thresholds.reflect.minEpisodes` | integer >= 2 | `3` | Episodes a subject needs before it is reflected on |
 | `dream.thresholds.reflect.flagAt` | number 0..1 | `0.7` | A verification question at or above this withholds the draft |
+| `dream.occurrenceRetention` | string or null | `P90D` | How long the expire pass keeps memories tagged `occurrence`, as an ISO 8601 duration since their last change; `null` keeps them forever. Occurrences the newest reflection on their subject links to are always kept |
 | `dream.maxPairsPerRun` | integer >= 1 | `2000` | Cap on judged pairs per dream run |
 | `dream.candidatesPerMemory` | integer 1..20 | `5` | Nearest neighbours considered per memory |
 | `dream.rerank` | boolean | `true` | Judge-backed rerank of the top candidates on recall |

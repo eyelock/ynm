@@ -102,10 +102,12 @@ ynm dream --dry-run
 ```
 
 Expected: one line per pass. Two of them would act: `expire` on the one-second note and
-`promote` on the tagged decision. Counts read `changed/candidates`.
+`promote` on the tagged decision. `retention`, part of the expire pass, retires old occurrence
+records and has none to look at here. Counts read `changed/candidates`.
 
 ```text
 expire: 1/2 would change
+retention: 0/0 would change
 promote: 1/2 would change
 dedupe: 0/0 would change
 contradict: 0/0 would change

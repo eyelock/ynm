@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IsoDurationSchema } from "./record.js";
 
 /** A stored model decision, kept as `annotate` data so weights can change without re-inference (ADR-012). */
 export const StoredJudgmentSchema = z.object({
@@ -70,6 +71,11 @@ export const DreamConfigSchema = z
       })
       .prefault({})
       .describe("Confidence bands per pass"),
+    occurrenceRetention: IsoDurationSchema.nullable()
+      .default("P90D")
+      .describe(
+        "How long the expire pass keeps memories tagged `occurrence`, as an ISO 8601 duration since their last change; `null` keeps them forever. Occurrences the newest reflection on their subject links to are always kept"
+      ),
     maxPairsPerRun: z
       .number()
       .int()
