@@ -201,6 +201,10 @@ export class SqliteIndex implements MemoryIndex {
       clauses.push("EXISTS (SELECT 1 FROM json_each(m.tags) WHERE value = ?)");
       params.push(t);
     }
+    for (const t of q.excludeTags ?? []) {
+      clauses.push("NOT EXISTS (SELECT 1 FROM json_each(m.tags) WHERE value = ?)");
+      params.push(t);
+    }
     if (q.dataKey) {
       clauses.push("EXISTS (SELECT 1 FROM json_each(m.dataKeys) WHERE value = ?)");
       params.push(q.dataKey);

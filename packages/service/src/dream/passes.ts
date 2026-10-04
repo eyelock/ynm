@@ -1,3 +1,4 @@
+import { OCCURRENCE_TAG } from "@ynm/model";
 import { z } from "zod";
 import { durationMs } from "../lifecycle.js";
 import type { MemoryWithMount } from "../ynm.js";
@@ -25,6 +26,14 @@ function brief(m: MemoryWithMount) {
     subject: m.subject ?? null,
     updatedAt: m.updatedAt,
   };
+}
+
+/**
+ * A memory its writer marked as one occurrence of an event: dedupe and contradiction leave it
+ * alone, on either side of a pair, so repeats survive for reflection to count.
+ */
+function isOccurrence(m: MemoryWithMount): boolean {
+  return m.tags.includes(OCCURRENCE_TAG);
 }
 
 async function flag(
@@ -152,7 +161,8 @@ interface Pair {
 
 /**
  * Candidate pairs from the index: each fresh memory's nearest neighbours of the same type and
- * mount. A pair of two memories already dreamed was judged by an earlier run.
+ * mount. A pair of two memories already dreamed was judged by an earlier run. Occurrences are
+ * never owners or neighbours.
  */
 async function candidatePairs(
   ctx: DreamContext,
@@ -160,7 +170,8 @@ async function candidatePairs(
 ): Promise<Pair[]> {
   const memories = (
     await ctx.ynm.list({ namespace: ctx.namespace, includeTombstoned: false })
-  ).filter((m) => types.includes(m.type));
+  ).filter((m) => types.includes(m.type) && !isOccurrence(m));
+  // Recall hits can include occurrences; looking them up here drops them.
   const byId = new Map(memories.map((m) => [m.memoryId, m]));
   const seen = new Set<string>();
   const pairs: Pair[] = [];
@@ -274,21 +285,22 @@ export async function dedupe(ctx: DreamContext, pairsOut?: Pair[]): Promise<Pass
  * Pass 4: contradictions among memories sharing a subject (plus pairs dedupe flagged), for pairs
  * with at least one fresh side. A fresh memory owns its pairs with every peer except fresh ones
  * ahead of it in the working order (they own those), up to the newest peers one run can judge.
+ * Occurrences are left out on both sides.
  */
 export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise<PassReport> {
   const r = emptyReport();
   const at = ctx.now().toISOString();
   const memories = (
     await ctx.ynm.list({ namespace: ctx.namespace, includeTombstoned: false })
-  ).filter((m) => m.subject && m.type !== "working");
+  ).filter((m) => m.subject && m.type !== "working" && !isOccurrence(m));
   const bySubject = new Map<string, MemoryWithMount[]>();
   for (const m of memories) {
     const list = bySubject.get(`${m.mount}:${m.subject}`) ?? [];
     list.push(m);
     bySubject.set(`${m.mount}:${m.subject}`, list);
   }
-  const pairs: Pair[] = [...extra];
-  const seen = new Set(extra.map((p) => [p.a.memoryId, p.b.memoryId].sort().join(":")));
+  const pairs: Pair[] = extra.filter((p) => !isOccurrence(p.a) && !isOccurrence(p.b));
+  const seen = new Set(pairs.map((p) => [p.a.memoryId, p.b.memoryId].sort().join(":")));
   for (const list of bySubject.values()) {
     const sorted = byOwner(ctx, list, (m) => m.memoryId);
     sorted.forEach((owner, i) => {
@@ -361,7 +373,8 @@ const ReflectionSchema = z.object({
 
 /**
  * Pass 5: one reflective memory per subject with enough episodes, verified before it is written.
- * A subject is reflected on again only when one of its episodes is fresh.
+ * A subject is reflected on again only when one of its episodes is fresh. Occurrences count as
+ * episodes like any other; the reflection does not inherit their occurrence tag.
  */
 export async function reflect(ctx: DreamContext): Promise<PassReport> {
   const r = emptyReport();
@@ -444,7 +457,7 @@ export async function reflect(ctx: DreamContext): Promise<PassReport> {
           subject,
           content: written.content,
           summary: written.summary,
-          tags: [...new Set(list.flatMap((m) => m.tags))],
+          tags: [...new Set(list.flatMap((m) => m.tags))].filter((t) => t !== OCCURRENCE_TAG),
           links: list.map((m) => ({ rel: "derives-from" as const, to: m.memoryId })),
         },
         first.mount

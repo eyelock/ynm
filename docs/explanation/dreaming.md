@@ -31,19 +31,45 @@ A dream runs these in order over one namespace, or over everything:
 3. **Dedupe.** Each memory is compared with its nearest neighbours of the same type from the
    index, and the Judge scores whether each pair states the same fact. For a duplicate, the newer
    memory survives; with a Writer, its text is rewritten to merge both; the older one is linked
-   and tombstoned.
+   and tombstoned. Occurrences (below) are never compared.
 4. **Contradict.** Memories that share a subject are compared for incompatible claims. Both get a
    `contradicts` link. The older is tombstoned only if the Judge is also confident the newer one
-   replaces it; otherwise both are flagged for a person to decide.
+   replaces it; otherwise both are flagged for a person to decide. Occurrences are left out.
 5. **Reflect.** For a subject with three or more episodes, the Writer drafts a summary of what
    they add up to, reporting only what the episodes say. The Judge then checks the draft for
    unsupported claims, lost facts and wrong dates. Any doubt withholds it. A written reflection
-   links to its episodes and replaces the previous reflection on that subject.
+   links to its episodes and replaces the previous reflection on that subject. Occurrences count
+   as episodes like any other.
 6. **Normalise.** Relative dates ("yesterday", "3 days ago") are rewritten as absolute ones,
    counted from when the memory was recorded. No model.
 
 Candidate pairs come from the index and are capped per run, so a dream over a large store costs
 a bounded number of judgments.
+
+## Occurrences
+
+Some memories record events, where repetition is the point: one memory per time a test failed,
+a deploy was rolled back or a step got stuck, all sharing one subject. Two of them read alike,
+so dedupe could merge them, and a later one could be judged to supersede an earlier one. Either
+way the count is lost, and reflection never sees the episodes it needs.
+
+A writer marks such a memory with the reserved tag `occurrence`:
+
+```bash
+ynm remember --type episodic --subject "sig/stuck/test:TestSince" --tags occurrence \
+  --content "TestSince stuck in the sensor suite on run 412"
+```
+
+Dedupe and contradict then leave it alone: it is never paired, on either side, so it is never
+merged, superseded or flagged, and it costs none of the pair cap. Reflect still counts it, so
+three occurrences of one subject become one reflective memory saying "this keeps happening".
+That reflection does not carry the `occurrence` tag: it is the standing lesson, and it is
+deduped and checked for contradictions like any other memory. Expiry and normalising dates work
+on occurrences as usual, and a full run marks them finished like everything else.
+
+An occurrence is also left out of the session-start context block, pinned or not: one event among
+many is not something to start every session with, and the reflection is. Recall, list and every
+other read return occurrences as usual.
 
 ## Only what changed
 

@@ -1,3 +1,4 @@
+import { OCCURRENCE_TAG } from "@ynm/model";
 import { estimateTokens } from "./tokens.js";
 import type { IndexedMemory, Ranked } from "./types.js";
 
@@ -16,6 +17,8 @@ function line(m: IndexedMemory): string {
 /**
  * The always-in-context tier (ADR-005): pinned memories first, then ranked ones, packed to a
  * token budget. One line per memory so the block stays cheap; full content is a recall away.
+ * Occurrences (the reserved occurrence tag) are left out, pinned or not: one event among many
+ * repeats is not standing context, and reflection writes the memory that is.
  * When nothing fits the markdown is empty, not a bare heading: each surface says "no memory" in
  * its own words.
  */
@@ -32,6 +35,7 @@ export function buildContext(
   const included: string[] = [];
   let truncated = false;
   const push = (m: IndexedMemory): boolean => {
+    if (m.tags.includes(OCCURRENCE_TAG)) return true;
     const l = line(m);
     const t = estimateTokens(l);
     if (tokens + t > budgetTokens) {

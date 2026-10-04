@@ -118,6 +118,14 @@ export type Provenance = z.infer<typeof ProvenanceSchema>;
 export const JsonObjectSchema = z.record(z.string(), z.unknown());
 
 /**
+ * Reserved tag a writer puts on a record of an event where repetition is the signal: each
+ * occurrence counts. Consolidation never merges or supersedes such a memory (dedupe and
+ * contradiction skip it), reflection still counts it as an episode of its subject, and the
+ * session-start context block leaves it out; recall and list return it as usual.
+ */
+export const OCCURRENCE_TAG = "occurrence";
+
+/**
  * One line of the log. Immutable. The canonical shape every provider stores and every consumer
  * reads (ADR-002).
  */
@@ -138,7 +146,10 @@ export const MemoryRecordSchema = z
     dataSchema: z.string().max(100).optional().describe("Name of the expected shape of data"),
     importance: UnitSchema.optional().describe("0..1; writer-supplied default 0.5"),
     confidence: UnitSchema.optional().describe("0..1"),
-    pinned: z.boolean().optional().describe("Always included in the context block"),
+    pinned: z
+      .boolean()
+      .optional()
+      .describe("Always included in the context block, unless tagged occurrence"),
     needsReview: z.boolean().optional().describe("Flagged by a low-confidence model decision"),
     recordedAt: IsoDateTimeSchema.describe("Transaction time"),
     validFrom: IsoDateTimeSchema.optional().describe("Event time the memory became true"),

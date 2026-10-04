@@ -65,7 +65,7 @@ export function runIndexConformance(name: string, create: () => Promise<MemoryIn
       await ix.close();
     });
 
-    it("filters by type, level, namespace prefix, subject, tags, data key, time and pinned", async () => {
+    it("filters by type, level, namespace prefix, subject, tags, excluded tags, data key, time and pinned", async () => {
       const ix = await create();
       const a = doc({
         type: "procedural",
@@ -94,6 +94,10 @@ export function runIndexConformance(name: string, create: () => Promise<MemoryIn
         [a.memoryId, b.memoryId].sort()
       );
       expect(await ids({ tags: ["ci", "git"], limit: 10 })).toEqual([a.memoryId]);
+      expect(await ids({ excludeTags: ["git"], limit: 10 })).toEqual([b.memoryId]);
+      expect(await ids({ tags: ["ci"], excludeTags: ["x", "git"], limit: 10 })).toEqual([
+        b.memoryId,
+      ]);
       expect(await ids({ dataKey: "cmd", limit: 10 })).toEqual([a.memoryId]);
       expect(await ids({ since: "2026-09-15T00:00:00.000Z", limit: 10 })).toEqual([a.memoryId]);
       expect(await ids({ until: "2026-09-15T00:00:00.000Z", limit: 10 })).toEqual([b.memoryId]);

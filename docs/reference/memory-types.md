@@ -16,7 +16,8 @@ each type is for and when to use it, read [The six memory types](../explanation/
 | `reference` | where to find something | no | agents | dedupe, contradict, normalise |
 
 Contradict and reflect consider only memories with a `subject`. Dedupe compares a memory with
-its nearest neighbours of the same type in the same mount.
+its nearest neighbours of the same type in the same mount. A memory of any type tagged
+`occurrence` is left out of dedupe and contradict entirely, and still read by reflect.
 
 ## Rules per type
 
@@ -27,6 +28,7 @@ its nearest neighbours of the same type in the same mount.
 | `working` | tagged `promote`: the promote pass turns it into an `episodic` memory without a judge and tombstones the original | the promote pass |
 | `working` | untagged: promoted only when a calibrated judge scores it useful beyond the session at or above `dream.thresholds.promote.act`; the judge also picks `semantic`, `procedural` or `reference` as the target | the promote pass |
 | `episodic` | three or more with the same `subject` (`dream.thresholds.reflect.minEpisodes`) are summarised into one `reflective` memory | the reflect pass, which needs a Writer |
+| any | tagged `occurrence`: never deduped, merged or superseded by a dream, still counted by reflect, and left out of the context block | the dedupe, contradict and reflect passes; the context block |
 | `reflective` | links `derives-from` each episode it summarises; written only when no verification question reaches `dream.thresholds.reflect.flagAt` | the reflect pass |
 
 Every other field (`subject`, `tags`, `importance`, `validFrom`, `validTo`, `data`) is available

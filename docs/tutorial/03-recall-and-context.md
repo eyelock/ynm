@@ -162,6 +162,9 @@ ynm context --budget-tokens 40
 Expected: the heading and a single line. Which memory it is depends on how the near-tied
 memories rank; it is not necessarily the runbook.
 
+A memory tagged `occurrence`, one event in a series that dreaming reflects on, never appears in
+the context block. Recall and list still return it.
+
 ## Pin a memory
 
 Under a tight budget the runbook may be cut. A pin says "always include this", and pinned
