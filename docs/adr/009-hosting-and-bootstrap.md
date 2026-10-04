@@ -132,3 +132,9 @@ Cases handled:
   the same front door and handler, a fresh server per request; `YNM_PUBLIC_URL` names the public
   host; EventBridge Scheduler invokes dream and compaction). The single-writer rule is about git
   refs: a store with no shared ref, such as `s3`, may take writes from many instances.
+- 2026-10-04: the Lambda entry and `ynm serve --http` log one line per request (method, path,
+  status, duration, JSON-RPC method and tool, auth kind, and on Lambda the request id and a mark
+  for a response cut off near the timeout), and one line per scheduled run; never tokens, queries
+  or bodies (`packages/mcp/src/transport/request-log.ts`). The Lambda Terraform alarms on the API's
+  5xx rate over its request count, with a request floor and 2 of 3 periods, and on function errors
+  in 2 periods over two dream intervals, instead of on any single burst.
