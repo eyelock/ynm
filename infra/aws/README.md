@@ -79,7 +79,10 @@ https://<client>.ynm.eyelock.net/mcp
 2. Copy `lambda/clients/example.tfvars.example` and `example.s3.tfbackend.example` to
    `<client>.tfvars` and `<client>.s3.tfbackend`. Set the client name, account, emails and
    `package_version`, and the state key to `aws/<account>/lambda/<client>/terraform.tfstate`. Leave `auth = null` for a static token, or
-   paste the store's `auth` object from its identity provider.
+   paste the store's `auth` object from its identity provider. A static token is a shared secret:
+   everyone using it is recorded as `token:static`, so there is no per-person audit trail; for
+   that, use an identity provider, with machine tokens from its client credentials grant for
+   workers and CI.
 3. Apply:
 
    ```bash

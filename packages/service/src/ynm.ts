@@ -131,6 +131,12 @@ export interface ListOptions extends RecordFilter {
   mount?: string;
 }
 
+/**
+ * The actor a write made with a hosted server's static token records (ADR-017). The token is a
+ * shared secret: everyone holding it is this one actor, never the server's own user.
+ */
+export const STATIC_TOKEN_ACTOR = "token:static";
+
 /** A signed-in person making a request to a hosted store (ADR-017). */
 export interface Caller {
   /** The ynm person id their login resolves to. */
@@ -175,6 +181,8 @@ export class Ynm {
   readonly remoteIssues = new Map<string, string>();
   /** Set only on a view made by `as`. */
   readonly caller?: Caller;
+  /** Set only on a view made by `asStaticToken`. */
+  readonly staticToken?: true;
   private readonly peopleCache: { doc?: PeopleDoc; at: number } = { at: 0 };
 
   constructor(opts: YnmOptions) {
@@ -204,6 +212,22 @@ export class Ynm {
     const view = Object.create(this) as Ynm;
     Object.defineProperty(view, "caller", { value: caller, enumerable: true });
     return view;
+  }
+
+  /**
+   * This store as a caller holding the server's static token sees it: what they write is recorded
+   * as `token:static`, a shared identity, and lands in `common` unless they name a namespace.
+   */
+  asStaticToken(): Ynm {
+    const view = Object.create(this) as Ynm;
+    Object.defineProperty(view, "staticToken", { value: true, enumerable: true });
+    return view;
+  }
+
+  /** Who a write is recorded as: the signed-in person, the static token, else this process. */
+  private writer(): string {
+    if (this.caller) return `user:${this.caller.person}`;
+    return this.staticToken ? STATIC_TOKEN_ACTOR : this.actor;
   }
 
   mount(id: string): Mount {
@@ -259,7 +283,7 @@ export class Ynm {
       memoryId: partial.op === "create" ? id : partial.memoryId,
       recordedAt: at.toISOString(),
       provenance: {
-        actor: this.caller ? `user:${this.caller.person}` : this.actor,
+        actor: this.writer(),
         ...(this.caller?.client ? { client: this.caller.client } : {}),
         ...partial.provenance,
       },

@@ -108,3 +108,9 @@ The server accepts a static token (`YNM_MCP_TOKEN`), JWTs verified against a JWK
 introspection, chosen from its environment. For rotation, run the server with `new,old`, move
 clients to `new`, then drop `old`. Details are in
 [Operate a hosted store](operate-a-hosted-store.md#authentication).
+
+A static token is a shared secret: everyone who connects with it is the same caller, and what they
+write is recorded as `token:static`, not as them. That's fine for one person or a demo, but there
+is no per-person audit trail. For that, the server needs an identity provider (JWT or
+introspection): each person signs in and writes as themselves, and workers and CI jobs use machine
+tokens from the provider's client credentials grant.

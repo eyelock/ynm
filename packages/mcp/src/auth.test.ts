@@ -2,6 +2,7 @@ import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import {
   authFromEnv,
   IntrospectionVerifier,
+  isStaticToken,
   JwksVerifier,
   protectedResourceFor,
   StaticTokenVerifier,
@@ -11,7 +12,12 @@ import {
 describe("auth verifiers (ADR-009)", () => {
   it("static tokens", async () => {
     const v = new StaticTokenVerifier(["s3cret"], ["memory:write"]);
-    expect((await v.verifyAccessToken("s3cret")).scopes).toEqual(["memory:write"]);
+    const info = await v.verifyAccessToken("s3cret");
+    expect(info.scopes).toEqual(["memory:write"]);
+    // Marked as a static token, so its writes are recorded as the shared token.
+    expect(isStaticToken(info)).toBe(true);
+    expect(isStaticToken({ ...info, extra: { sub: "s", iss: "i" } })).toBe(false);
+    expect(isStaticToken(undefined)).toBe(false);
     await expect(v.verifyAccessToken("nope")).rejects.toThrow(/invalid token/);
   });
 

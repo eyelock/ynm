@@ -194,18 +194,19 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 10.6 | [Talk MCP with a token (2)](10-hosted.md#talk-mcp-with-a-token) | `curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer d...` |  |
 | 10.7 | [Talk MCP with a token (3)](10-hosted.md#talk-mcp-with-a-token) | `curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer d...` |  |
 | 10.8 | [See it land in the repository](10-hosted.md#see-it-land-in-the-repository) | `ynm list --level distributed --cwd /tmp/ynm-tutorial/store.git` |  |
-| 10.9 | [Stop the server](10-hosted.md#stop-the-server) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` |  |
-| 10.10 | [Start the identity provider](10-hosted.md#start-the-identity-provider) | `make -C "$YNM_REPO" keycloak` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.11 | [Start the server with sign-in](10-hosted.md#start-the-server-with-sign-in) | `YNM_JWKS_URL=http://localhost:8180/realms/ynm/protocol/openid-connect...` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.12 | [Where to sign in](10-hosted.md#where-to-sign-in) | `curl -s -i -X POST http://localhost:3000/mcp -H 'Content-Type: applic...` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.13 | [Write as alice](10-hosted.md#write-as-alice) | `ALICE=$(make -s -C "$YNM_REPO" keycloak-token U=alice)` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.14 | [Bob can read but not write](10-hosted.md#bob-can-read-but-not-write) | `BOB=$(make -s -C "$YNM_REPO" keycloak-token U=bob S=memory:read)` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.15 | [Sign in from Claude Code](10-hosted.md#sign-in-from-claude-code) | `claude mcp add --transport http --scope local ynm-signin http://local...` | needs `YNM_TUTORIAL_BROWSER` |
-| 10.16 | [Mount it from your own ynm](10-hosted.md#mount-it-from-your-own-ynm) | `mkdir -p /tmp/ynm-tutorial/home` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.17 | [Sign in to the mount](10-hosted.md#sign-in-to-the-mount) | `ynm login team` | needs `YNM_TUTORIAL_BROWSER` |
-| 10.18 | [Stop the server and the identity provider](10-hosted.md#stop-the-server-and-the-identity-provider) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.19 | [The Docker demo](10-hosted.md#the-docker-demo) | `"$YNM_REPO"/infra/docker/demo.sh` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.20 | [Cleanup](10-hosted.md#cleanup) | `cd /tmp` |  |
+| 10.9 | [See it land in the repository (2)](10-hosted.md#see-it-land-in-the-repository) | `ynm export --level distributed --cwd /tmp/ynm-tutorial/store.git \| gr...` |  |
+| 10.10 | [Stop the server](10-hosted.md#stop-the-server) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` |  |
+| 10.11 | [Start the identity provider](10-hosted.md#start-the-identity-provider) | `make -C "$YNM_REPO" keycloak` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.12 | [Start the server with sign-in](10-hosted.md#start-the-server-with-sign-in) | `YNM_JWKS_URL=http://localhost:8180/realms/ynm/protocol/openid-connect...` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.13 | [Where to sign in](10-hosted.md#where-to-sign-in) | `curl -s -i -X POST http://localhost:3000/mcp -H 'Content-Type: applic...` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.14 | [Write as alice](10-hosted.md#write-as-alice) | `ALICE=$(make -s -C "$YNM_REPO" keycloak-token U=alice)` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.15 | [Bob can read but not write](10-hosted.md#bob-can-read-but-not-write) | `BOB=$(make -s -C "$YNM_REPO" keycloak-token U=bob S=memory:read)` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.16 | [Sign in from Claude Code](10-hosted.md#sign-in-from-claude-code) | `claude mcp add --transport http --scope local ynm-signin http://local...` | needs `YNM_TUTORIAL_BROWSER` |
+| 10.17 | [Mount it from your own ynm](10-hosted.md#mount-it-from-your-own-ynm) | `mkdir -p /tmp/ynm-tutorial/home` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.18 | [Sign in to the mount](10-hosted.md#sign-in-to-the-mount) | `ynm login team` | needs `YNM_TUTORIAL_BROWSER` |
+| 10.19 | [Stop the server and the identity provider](10-hosted.md#stop-the-server-and-the-identity-provider) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.20 | [The Docker demo](10-hosted.md#the-docker-demo) | `"$YNM_REPO"/infra/docker/demo.sh` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.21 | [Cleanup](10-hosted.md#cleanup) | `cd /tmp` |  |
 
 ## [Doctor and Maintenance](11-doctor-and-maintenance.md)
 

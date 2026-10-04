@@ -264,3 +264,12 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   - Not yet built: `ynm audit`, the `YNM_AUTH` configuration and provider presets, and the single
     reachability rule with `--no-auth`. A shared static token still vouches for no one, so its
     writes keep the server's actor.
+- 2026-10-04: a static token's writes are recorded as `actor: token:static`, not the server's
+  actor, which made every shared-token write look like the server's own user. The token is still
+  one shared identity for everyone holding it (the fixed identity the decision above calls
+  `bearer/shared`): no person id, `memory_people` refuses with an
+  explanation, and its audit events carry client `static` with no person. Per-person identity
+  needs an identity provider, with machine tokens from the client credentials grant for workers
+  and CI. Named tokens or a token-holder option were rejected as a second, weaker identity system.
+  Writes the server makes itself, such as scheduled dream runs, keep the server's actor. Still
+  proposed.

@@ -235,6 +235,10 @@ export const TOOL_SPECS = [
     readOnly: false,
     async run(ynm, input) {
       const caller = ynm.caller;
+      if (!caller && ynm.staticToken)
+        throw new Error(
+          "memory_people acts on the signed-in caller, and this request came with the server's static token, which is shared and belongs to no one: everything written with it is recorded as token:static. Sign in through the server's identity provider to have a person id of your own"
+        );
       if (!caller)
         throw new Error(
           "memory_people acts on the signed-in caller, and this request has none; use `ynm people` on the command line to manage anyone's entry"

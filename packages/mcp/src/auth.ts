@@ -16,6 +16,17 @@ function invalid(message: string): OAuthError {
 
 import { createRemoteJWKSet, type JWTPayload, jwtVerify } from "jose";
 
+/**
+ * Marks the auth info of a request made with a static token. Such a token is a shared secret that
+ * vouches for no one, so its writes are recorded as the shared token, never as a person.
+ */
+export const STATIC_TOKEN_EXTRA = "staticToken";
+
+/** Whether a request was authenticated by a static token rather than an identity provider. */
+export function isStaticToken(info: AuthInfo | undefined): boolean {
+  return info?.extra?.[STATIC_TOKEN_EXTRA] === true;
+}
+
 /** Dev and tests: one or more static tokens, compared in constant time via hashing. */
 export class StaticTokenVerifier implements OAuthTokenVerifier {
   private readonly hashes: Set<string>;
@@ -28,7 +39,13 @@ export class StaticTokenVerifier implements OAuthTokenVerifier {
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     if (!this.hashes.has(createHash("sha256").update(token).digest("hex")))
       throw invalid("invalid token");
-    return { token, clientId: "static", scopes: this.scopes, expiresAt: expiry() };
+    return {
+      token,
+      clientId: "static",
+      scopes: this.scopes,
+      expiresAt: expiry(),
+      extra: { [STATIC_TOKEN_EXTRA]: true },
+    };
   }
 }
 

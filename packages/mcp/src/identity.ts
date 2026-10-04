@@ -2,10 +2,11 @@ import type { AuthInfo } from "@modelcontextprotocol/server";
 import type { Login } from "@ynm/model";
 import type { Ynm } from "@ynm/service";
 import { Auditor, type AuditSink, auditSinkFromEnv } from "./audit.js";
+import { isStaticToken } from "./auth.js";
 
 /**
  * The login a verified token vouches for (ADR-017): its issuer and subject. A shared static token
- * vouches for no one, so it has none and writes stay the server's own.
+ * vouches for no one, so it has none.
  */
 export function loginOf(info: AuthInfo | undefined): Login | undefined {
   const sub = info?.extra?.sub;
@@ -15,10 +16,13 @@ export function loginOf(info: AuthInfo | undefined): Login | undefined {
     : undefined;
 }
 
-/** The store as the request's signed-in person sees it, or as it is when nobody signed in. */
+/**
+ * The store as the request's signed-in person sees it; as the shared static token sees it, whose
+ * writes are recorded as `token:static`; or as it is when nobody signed in (stdio, `--no-auth`).
+ */
 export async function storeFor(ynm: Ynm, info: AuthInfo | undefined): Promise<Ynm> {
   const login = loginOf(info);
-  if (!login) return ynm;
+  if (!login) return isStaticToken(info) ? ynm.asStaticToken() : ynm;
   return ynm.as({ person: await ynm.personFor(login), client: info?.clientId, login });
 }
 

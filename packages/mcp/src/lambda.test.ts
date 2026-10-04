@@ -13,6 +13,7 @@ import {
   toRequest,
   toResult,
 } from "./lambda.js";
+import { serviceCache } from "./server.js";
 
 const PUBLIC = new URL("https://memory.example.com/mcp");
 
@@ -283,13 +284,13 @@ describe("Lambda handler over Function URL events (ADR-009)", () => {
 
   it("audits each MCP request and each refusal to the configured sink, never health checks", async () => {
     const auditLog = join(mkdtempSync(join(tmpdir(), "ynm-lambda-audit-")), "audit.jsonl");
-    const handler = createLambdaHandler({
-      env: lambdaEnv({
-        YNM_MCP_TOKEN: "secret",
-        YNM_AUDIT: JSON.stringify({ sink: "file", path: auditLog }),
-      }),
-      quiet: true,
+    const env = lambdaEnv({
+      YNM_MCP_TOKEN: "secret",
+      YNM_AUDIT: JSON.stringify({ sink: "file", path: auditLog }),
     });
+    const cfg = lambdaConfig(env);
+    const getYnm = serviceCache({ cwd: cfg.home, env: cfg.env, noPersonal: true });
+    const handler = createLambdaHandler({ env, getYnm, quiet: true });
     await handler(event({ rawPath: "/health" }));
     const denied = (await handler(
       event({ method: "POST", headers: { "content-type": "application/json" }, body: "{}" })
@@ -322,14 +323,20 @@ describe("Lambda handler over Function URL events (ADR-009)", () => {
             outcome: string;
             reason?: string;
             person?: string;
+            client?: string;
             calls: Array<{ tool: string; memoryIds?: string[] }>;
           }
       );
     expect(events[0]).toMatchObject({ outcome: "refused", reason: "invalid_token" });
     const remember = events.find((e) => e.calls.some((c) => c.tool === "memory_remember"));
     expect(remember?.calls[0]?.memoryIds).toEqual([w.memoryId]);
-    // A shared token vouches for no one.
+    // A shared token vouches for no one: no person, the shared client, and its writes recorded
+    // as the token, never as the function's own user.
     expect(remember?.person).toBeUndefined();
+    expect(remember?.client).toBe("static");
+    expect((await (await getYnm()).find(w.memoryId))?.current.provenance.actor).toBe(
+      "token:static"
+    );
     expect(readFileSync(auditLog, "utf8")).not.toMatch(/nobody should find/);
   }, 30_000);
 
