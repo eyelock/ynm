@@ -562,7 +562,7 @@ describe("dream runs are incremental", () => {
     expect(second.fresh).toBe(0);
     expect(second.dreamed).toBe(0);
     expect(judge.calls).toBe(0);
-    expect(Object.keys(second.passes)).toEqual(["expire"]);
+    expect(Object.keys(second.passes)).toEqual(["expire", "retention"]);
     expect(second.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
   });
 
@@ -718,5 +718,317 @@ describe("dream types", () => {
     addUsage(total);
     addUsage(total, { inputTokens: 1, outputTokens: 1 });
     expect(total).toEqual({ inputTokens: 4, outputTokens: 5 });
+  });
+});
+
+describe("dream leaves occurrences to reflection", () => {
+  /** Calls every pair the same fact, a contradiction and superseded by the newer side. */
+  const merges = (_s: unknown, id: string) =>
+    id === "sameFact" || id === "contradicts" || id === "newerSupersedes" ? 0.95 : 0.05;
+  const writer = fixedWriter({
+    summary: "The sensor test keeps sticking",
+    content: "TestSince stuck on three runs: 2026-09-29.",
+  });
+
+  /** A judge that records the contents of every pair it is asked about. */
+  function spying() {
+    const judge = new CountingJudge(merges);
+    const pairs: string[][] = [];
+    const inner = judge.judge.bind(judge);
+    judge.judge = async (state, questions) => {
+      const pair = state as { a?: { content: string }; b?: { content: string } };
+      if (pair.a && pair.b) pairs.push([pair.a.content, pair.b.content]);
+      return inner(state, questions);
+    };
+    return { judge, pairs };
+  }
+
+  async function seed(ynm: Ynm) {
+    const occurrences = [];
+    for (let i = 0; i < 3; i++)
+      occurrences.push(
+        await ynm.remember({
+          type: "episodic",
+          subject: "sig/stuck/sensor:test/test:TestSince",
+          content: `Occurrence: TestSince stuck in the sensor suite, run ${i}`,
+          tags: ["occurrence", "ynf.failure.v1"],
+        })
+      );
+    const older = await ynm.remember({
+      type: "semantic",
+      content: "Notes anchor to the root commit",
+    });
+    const newer = await ynm.remember({
+      type: "semantic",
+      content: "Notes are anchored to the root commit of the repo",
+    });
+    return { occurrences, older, newer };
+  }
+
+  it("never merges or supersedes an occurrence, reflects on them and marks them dreamed", async () => {
+    const { judge, pairs } = spying();
+    const { ynm, run } = make(judge, writer);
+    const { occurrences, older, newer } = await seed(ynm);
+    const r = await run({});
+    // No pair the judge saw had an occurrence on either side.
+    expect(pairs.length).toBeGreaterThan(0);
+    expect(pairs.flat().some((c) => c.startsWith("Occurrence:"))).toBe(false);
+    for (const o of occurrences) {
+      const m = await ynm.find(o.memoryId);
+      expect(m?.tombstoned).toBe(false);
+      expect(m?.current.content).toMatch(
+        /^Occurrence: TestSince stuck in the sensor suite, run \d$/
+      );
+      expect(m?.links).toEqual([]);
+      expect(m?.dreamed).toBe(`${m?.current.id}#${m?.subject}@script`);
+    }
+    // The ordinary pair beside them is still deduped.
+    expect(r.passes.dedupe?.changed).toEqual([older.memoryId]);
+    expect((await ynm.find(older.memoryId))?.tombstoned).toBe(true);
+    expect((await ynm.find(newer.memoryId))?.tombstoned).toBe(false);
+    const refl = await ynm.list({ type: "reflective", includeTombstoned: false });
+    expect(refl).toHaveLength(1);
+    expect(refl[0]?.subject).toBe("sig/stuck/sensor:test/test:TestSince");
+    expect(refl[0]?.links.map((l) => l.to).sort()).toEqual(
+      occurrences.map((o) => o.memoryId).sort()
+    );
+    // The reflection is standing knowledge, not another occurrence.
+    expect(refl[0]?.tags).toEqual(["ynf.failure.v1"]);
+    // Nothing about the occurrences is left to reconsider: fresh now are the new reflection and
+    // the merged survivor, and the subject is not reflected on again.
+    const again = await run({});
+    expect(again.fresh).toBe(2);
+    expect(again.passes.reflect?.candidates).toBe(0);
+  });
+
+  it("occurrences consume none of the pair budget", async () => {
+    const { judge } = spying();
+    const { ynm, run } = make(judge, writer);
+    const { older } = await seed(ynm);
+    const r = await run({ maxPairs: 1 });
+    expect(r.passes.dedupe?.candidates).toBe(1);
+    expect(r.passes.dedupe?.judged).toBe(1);
+    expect(r.passes.dedupe?.skipped).toBe(0);
+    expect(r.passes.dedupe?.changed).toEqual([older.memoryId]);
+    expect(r.passes.contradict?.skipped).toBe(0);
+  });
+});
+
+describe("dream retires old occurrences", () => {
+  const DAY = 86_400_000;
+  const SUBJECT = "sig/stuck/sensor:test/test:TestSince";
+  const writer = fixedWriter({
+    summary: "The sensor test keeps sticking",
+    content: "TestSince stuck on several runs.",
+  });
+
+  /** A store on a clock the test moves; every read of it ticks a second, as `make` does. */
+  function clocked(overrides: Record<string, unknown> = {}) {
+    let base = Date.parse("2026-06-01T00:00:00.000Z");
+    let t = 0;
+    const now = () => new Date(base + ++t * 1000);
+    const judge = new CountingJudge(() => 0.05);
+    const config = DreamConfigSchema.parse(overrides);
+    const ynm = new Ynm({
+      mounts: [
+        { id: "personal", level: "personal", location: "mem", log: new MemoryLog("p", "personal") },
+      ],
+      actor: "t",
+      userId: "u",
+      redaction: DEFAULT_REDACTION,
+      index: new IndexManager("memory", { fileFor: () => ":memory:" }),
+      models: { judge, writer, resolution: { judge: "test", writer: "test" } },
+      dream: config,
+      now,
+    });
+    const occurrence = (n: string, subject: string | undefined = SUBJECT, type = "episodic") =>
+      ynm.remember({
+        type: type as "episodic",
+        subject,
+        content: `Occurrence: TestSince stuck, run ${n}`,
+        tags: ["occurrence", "ynf.failure.v1"],
+      });
+    return {
+      ynm,
+      judge,
+      occurrence,
+      advance: (days: number) => {
+        base += days * DAY;
+      },
+      run: (input: Record<string, unknown>) => dream(ynm, input, { judge, writer, config, now }),
+    };
+  }
+  const tombstoned = async (ynm: Ynm, id: string) => (await ynm.find(id))?.tombstoned;
+
+  it("tombstones an occurrence past the window and keeps one inside it", async () => {
+    const s = clocked();
+    const old = await s.occurrence("old");
+    s.advance(91);
+    const recent = await s.occurrence("recent");
+    const r = await s.run({ passes: ["expire"] });
+    expect(r.passes.retention).toMatchObject({ candidates: 2, changed: [old.memoryId] });
+    // TTL expiry is counted on its own: retention is not an expiry.
+    expect(r.passes.expire).toMatchObject({ candidates: 0, changed: [] });
+    expect(await tombstoned(s.ynm, old.memoryId)).toBe(true);
+    expect(await tombstoned(s.ynm, recent.memoryId)).toBe(false);
+    const tombstone = (await s.ynm.records({ includeTombstoned: true })).find(
+      (x) => x.memoryId === old.memoryId && x.op === "tombstone"
+    );
+    expect(tombstone?.reason).toBe("occurrence retention (P90D)");
+    expect(s.judge.calls).toBe(0);
+  });
+
+  it("keeps the occurrences the newest reflection on their subject links to", async () => {
+    const s = clocked();
+    const evidence = [await s.occurrence("1"), await s.occurrence("2"), await s.occurrence("3")];
+    await s.run({ passes: ["reflect"] });
+    const [refl] = await s.ynm.list({ type: "reflective", includeTombstoned: false });
+    expect(refl?.links.map((l) => l.to).sort()).toEqual(evidence.map((m) => m.memoryId).sort());
+    // Written after the reflection, so it is not part of its evidence.
+    const later = await s.occurrence("4");
+    // An older reflection's links protect nothing: only the newest reflection counts.
+    const stale = await s.occurrence("5");
+    await s.ynm.remember({
+      type: "reflective",
+      subject: SUBJECT,
+      content: "An earlier take",
+      links: [{ rel: "derives-from", to: stale.memoryId }],
+    });
+    await s.ynm.annotate({ memoryId: refl?.memoryId as string, reason: "touch", tags: ["x"] });
+    // Another subject's reflection does not protect this one's occurrences either.
+    const other = await s.occurrence("6", "sig/other");
+    s.advance(100);
+    const r = await s.run({ passes: ["expire"] });
+    expect(r.passes.retention?.changed.sort()).toEqual(
+      [later.memoryId, stale.memoryId, other.memoryId].sort()
+    );
+    expect(r.passes.retention?.notes).toEqual([
+      "kept 3 past retention as evidence for a reflection",
+    ]);
+    for (const m of evidence) expect(await tombstoned(s.ynm, m.memoryId)).toBe(false);
+  });
+
+  it("a reflection links only the newest twelve episodes it was written from", async () => {
+    const s = clocked();
+    const all = [];
+    for (let i = 0; i < 14; i++) all.push(await s.occurrence(String(i)));
+    await s.run({ passes: ["reflect"] });
+    const [refl] = await s.ynm.list({ type: "reflective", includeTombstoned: false });
+    expect(refl?.links.map((l) => l.to).sort()).toEqual(
+      all
+        .slice(-12)
+        .map((m) => m.memoryId)
+        .sort()
+    );
+    s.advance(100);
+    const r = await s.run({ passes: ["expire"] });
+    expect(r.passes.retention?.changed.sort()).toEqual(
+      all
+        .slice(0, 2)
+        .map((m) => m.memoryId)
+        .sort()
+    );
+  });
+
+  it("keeps everything when retention is off, and omits it from the report", async () => {
+    const s = clocked({ occurrenceRetention: null });
+    const old = await s.occurrence("old");
+    s.advance(1000);
+    const r = await s.run({ passes: ["expire"] });
+    expect(Object.keys(r.passes)).toEqual(["expire"]);
+    expect(await tombstoned(s.ynm, old.memoryId)).toBe(false);
+  });
+
+  it("honours a configured window", async () => {
+    const s = clocked({ occurrenceRetention: "P7D" });
+    const old = await s.occurrence("old");
+    s.advance(8);
+    const r = await s.run({ passes: ["expire"] });
+    expect(r.passes.retention?.changed).toEqual([old.memoryId]);
+  });
+
+  it("a dry run reports what would be retired and changes nothing", async () => {
+    const s = clocked();
+    const old = await s.occurrence("old");
+    s.advance(91);
+    const r = await s.run({ passes: ["expire"], dryRun: true });
+    expect(r.passes.retention?.changed).toEqual([old.memoryId]);
+    expect(await tombstoned(s.ynm, old.memoryId)).toBe(false);
+  });
+
+  it("leaves memories without the tag alone and keeps working-memory ttl expiry as it was", async () => {
+    const s = clocked();
+    const episode = await s.ynm.remember({
+      type: "episodic",
+      subject: SUBJECT,
+      content: "An ordinary episode, long ago",
+    });
+    const fact = await s.ynm.remember({ type: "semantic", content: "Notes anchor to the root" });
+    const due = await s.ynm.remember({
+      type: "working",
+      namespace: "session/s1",
+      content: "short-lived",
+      ttl: "PT1S",
+    });
+    // Retention applies to an occurrence of any type, not only episodic ones.
+    const semantic = await s.occurrence("semantic", undefined, "semantic");
+    s.advance(1000);
+    const r = await s.run({ passes: ["expire"] });
+    expect(r.passes.expire).toMatchObject({ candidates: 1, changed: [due.memoryId] });
+    expect(r.passes.retention).toMatchObject({ candidates: 1, changed: [semantic.memoryId] });
+    expect(await tombstoned(s.ynm, episode.memoryId)).toBe(false);
+    expect(await tombstoned(s.ynm, fact.memoryId)).toBe(false);
+    expect(await tombstoned(s.ynm, due.memoryId)).toBe(true);
+  });
+
+  it("a full run retires before reflecting, and still marks what it finished with", async () => {
+    const s = clocked();
+    const evidence = [await s.occurrence("1"), await s.occurrence("2"), await s.occurrence("3")];
+    const first = await s.run({});
+    expect(first.passes.reflect?.changed).toHaveLength(1);
+    const unlinked = await s.occurrence("4");
+    s.advance(100);
+    const fresh = [await s.occurrence("5"), await s.occurrence("6")];
+    const r = await s.run({});
+    // The unlinked old occurrence goes; the reflection's evidence stays and is reflected on again.
+    expect(r.passes.retention?.changed).toEqual([unlinked.memoryId]);
+    expect(r.passes.reflect?.changed).toHaveLength(1);
+    const [refl] = await s.ynm.list({ type: "reflective", includeTombstoned: false });
+    expect(refl?.links.map((l) => l.to).sort()).toEqual(
+      [...evidence, ...fresh].map((m) => m.memoryId).sort()
+    );
+    // The two new occurrences are marked; the retired one is gone, not left fresh.
+    for (const m of fresh) expect((await s.ynm.find(m.memoryId))?.dreamed).toBeDefined();
+    const again = await s.run({});
+    expect(again.passes.retention?.changed).toEqual([]);
+    expect(again.passes.reflect?.candidates).toBe(0);
+  });
+
+  it("a run scoped to a namespace retires only there, protected by a reflection elsewhere", async () => {
+    const s = clocked();
+    const kept = await s.ynm.remember({
+      type: "episodic",
+      namespace: "team/a",
+      subject: SUBJECT,
+      content: "Occurrence in team a",
+      tags: ["occurrence"],
+    });
+    const outside = await s.ynm.remember({
+      type: "episodic",
+      namespace: "team/b",
+      content: "Occurrence in team b",
+      tags: ["occurrence"],
+    });
+    await s.ynm.remember({
+      type: "reflective",
+      namespace: "team/c",
+      subject: SUBJECT,
+      content: "A reflection filed elsewhere",
+      links: [{ rel: "derives-from", to: kept.memoryId }],
+    });
+    s.advance(100);
+    const r = await s.run({ passes: ["expire"], namespace: "team/a" });
+    expect(r.passes.retention).toMatchObject({ candidates: 1, changed: [] });
+    expect(await tombstoned(s.ynm, outside.memoryId)).toBe(false);
   });
 });

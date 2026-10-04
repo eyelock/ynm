@@ -31,6 +31,7 @@ import {
   MemoryRecordSchema,
   mergePeopleText,
   NicknameSchema,
+  OCCURRENCE_TAG,
   PEOPLE_DOCUMENT,
   PersonIdSchema,
   PurgeInputSchema,
@@ -113,6 +114,22 @@ export interface RecallHit {
   updatedAt: string;
   /** Who last wrote it, when that was a signed-in person: their nickname, else their person id. */
   author?: string;
+  /** The structured payload of the current version, when it has one. */
+  data?: Record<string, unknown>;
+  /** The name of data's shape, when the writer gave one. */
+  dataSchema?: string;
+  /** The source reference the current version was written with, when it has one. */
+  source?: string;
+}
+
+/** A hit's structured fields from the folded state; a key is left out when the memory lacks it. */
+function structuredFields(m: IndexedMemory): Pick<RecallHit, "data" | "dataSchema" | "source"> {
+  const cur = m.state?.current;
+  return {
+    ...(cur?.data ? { data: cur.data } : {}),
+    ...(cur?.dataSchema ? { dataSchema: cur.dataSchema } : {}),
+    ...(cur?.provenance.source ? { source: cur.provenance.source } : {}),
+  };
 }
 
 export interface MemoryWithMount extends Memory {
@@ -128,6 +145,21 @@ export interface WriteResult {
 
 export interface ListOptions extends RecordFilter {
   mount?: string;
+}
+
+/**
+ * The actor a write made with a hosted server's static token records (ADR-017). The token is a
+ * shared secret: everyone holding it is this one actor, never the server's own user.
+ */
+export const STATIC_TOKEN_ACTOR = "token:static";
+
+/**
+ * The actor a write records when an identity provider's token names no subject but does name the
+ * client it was issued to (ADR-017): `client:<id>`. Every holder of such a token is that client,
+ * never a person and never the server's own user.
+ */
+export function clientActor(clientId: string): string {
+  return `client:${clientId}`;
 }
 
 /** A signed-in person making a request to a hosted store (ADR-017). */
@@ -174,6 +206,11 @@ export class Ynm {
   readonly remoteIssues = new Map<string, string>();
   /** Set only on a view made by `as`. */
   readonly caller?: Caller;
+  /**
+   * Set only on a view made by `asShared`: the one actor every write records for a caller who is
+   * no person, such as the static token (`token:static`) or a token's client (`client:<id>`).
+   */
+  readonly sharedActor?: string;
   private readonly peopleCache: { doc?: PeopleDoc; at: number } = { at: 0 };
 
   constructor(opts: YnmOptions) {
@@ -203,6 +240,23 @@ export class Ynm {
     const view = Object.create(this) as Ynm;
     Object.defineProperty(view, "caller", { value: caller, enumerable: true });
     return view;
+  }
+
+  /**
+   * This store as a caller who is no person sees it, such as everyone holding the server's static
+   * token (`token:static`) or a token that names only its client (`client:<id>`): what they write
+   * is recorded as that one shared actor and lands in `common` unless they name a namespace.
+   */
+  asShared(actor: string): Ynm {
+    const view = Object.create(this) as Ynm;
+    Object.defineProperty(view, "sharedActor", { value: actor, enumerable: true });
+    return view;
+  }
+
+  /** Who a write is recorded as: the signed-in person, the shared actor, else this process. */
+  private writer(): string {
+    if (this.caller) return `user:${this.caller.person}`;
+    return this.sharedActor ?? this.actor;
   }
 
   mount(id: string): Mount {
@@ -258,7 +312,7 @@ export class Ynm {
       memoryId: partial.op === "create" ? id : partial.memoryId,
       recordedAt: at.toISOString(),
       provenance: {
-        actor: this.caller ? `user:${this.caller.person}` : this.actor,
+        actor: this.writer(),
         ...(this.caller?.client ? { client: this.caller.client } : {}),
         ...partial.provenance,
       },
@@ -337,6 +391,7 @@ export class Ynm {
           importance: m.importance,
           updatedAt: m.updatedAt,
           ...(await this.authorField(m.state?.current.provenance.actor)),
+          ...structuredFields(m),
         });
       }
     }
@@ -413,7 +468,14 @@ export class Ynm {
     const byId = new Map<string, IndexedMemory>();
     for (const mount of this.mountsFor(q)) {
       const ix = await index.ensureFresh(mount);
-      const base = { namespace: q.namespace, level: q.level, type: q.type };
+      // Occurrences never reach the block (buildContext drops them too); leaving them out of the
+      // search keeps a long run of repeats from crowding out the candidates that can.
+      const base = {
+        namespace: q.namespace,
+        level: q.level,
+        type: q.type,
+        excludeTags: [OCCURRENCE_TAG],
+      };
       const p = await ix.search({ ...base, pinnedOnly: true, limit: 200 });
       for (const m of (await ix.get(p.map((h) => h.memoryId))).values()) pinned.push(m);
       const hits = await ix.search({ ...base, text: q.text, limit: 100 });

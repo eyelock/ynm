@@ -24,14 +24,14 @@ relations are generated from the record schema, so they always match the code.
 | `dataSchema` | string (max 100) |  | Name of the expected shape of data |
 | `importance` | number 0..1 |  | 0..1; writer-supplied default 0.5 |
 | `confidence` | number 0..1 |  | 0..1 |
-| `pinned` | boolean |  | Always included in the context block |
+| `pinned` | boolean |  | Always included in the context block, unless tagged occurrence |
 | `needsReview` | boolean |  | Flagged by a low-confidence model decision |
 | `recordedAt` | date-time | yes | Transaction time |
 | `validFrom` | date-time |  | Event time the memory became true |
 | `validTo` | date-time or null |  | Event time it stopped being true |
 | `ttl` | string |  | Working memory only |
 | `provenance` | object | yes | Where the record came from |
-| `provenance.actor` | string | yes | Who wrote it: user:<person id> for a signed-in person on a hosted store, else e.g. user:david or agent:claude-code |
+| `provenance.actor` | string | yes | Who wrote it: user:<person id> for a signed-in person on a hosted store, token:static for anyone holding a hosted store's shared static token, client:<client id> for an identity provider's token that names a client but no subject, else e.g. user:david or agent:claude-code |
 | `provenance.client` | string |  | The OAuth client a signed-in person wrote through |
 | `provenance.session` | string |  | Session id |
 | `provenance.source` | string |  | Source reference: URL, file, ticket, tool call |
@@ -41,6 +41,13 @@ relations are generated from the record schema, so they always match the code.
 | `links[].to` | string | yes | memoryId of the target |
 | `reason` | string (max 1000) |  | Why, for tombstone, purge-marker and annotate |
 <!-- /gen:record-fields -->
+
+Two tags are reserved; ynm acts on them when it sees them, and every other tag is free-form.
+
+| Tag | Effect |
+|---|---|
+| `promote` | On a `working` memory: the dream promote pass turns it into an `episodic` memory without a judge, and the copy drops the tag |
+| `occurrence` | Marks one occurrence of an event, where repetition is the signal. Dream's dedupe and contradict passes never pair it, so it is never merged or superseded; the reflect pass still counts it as an episode of its subject, and the reflection it writes drops the tag. The session-start context block leaves it out, pinned or not; recall and list return it as usual. Dream's expire pass tombstones it once it is older than `dream.occurrenceRetention` (90 days by default), unless the newest reflection on its subject links to it |
 
 Unknown fields are rejected. `id` and `memoryId` are ULIDs: 26 characters, Crockford base 32,
 sortable by creation time. `recordedAt` is stamped by the writer in UTC. `ttl` is an ISO 8601

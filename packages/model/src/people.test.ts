@@ -83,6 +83,12 @@ describe("people (ADR-017)", () => {
     expect(authorName(`user:${id}`, emptyPeople())).toBe(id);
     expect(authorName("user:david", doc)).toBe("david");
     expect(authorName("agent:claude-code", doc)).toBe("agent:claude-code");
+    // A shared static token is no person.
+    expect(personOfActor("token:static")).toBeUndefined();
+    expect(authorName("token:static", doc)).toBe("token:static");
+    // Nor is a token's client, recorded when its token names no subject.
+    expect(personOfActor("client:ci-runner")).toBeUndefined();
+    expect(authorName("client:ci-runner", doc)).toBe("client:ci-runner");
     expect(authorName(undefined, doc)).toBeUndefined();
   });
 

@@ -12,7 +12,9 @@ import { personIdFor } from "@ynm/model";
 import { initProject } from "@ynm/service";
 import { createBare } from "@ynm/store/testing/git";
 import { type AuditEvent, Auditor } from "./audit.js";
-import { hostedAudit, loginOf } from "./identity.js";
+import { IntrospectionVerifier, StaticTokenVerifier } from "./auth.js";
+import { hostedAudit, loginOf, sharedActorOf, storeFor } from "./identity.js";
+import { startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { startHttp } from "./transport/http.js";
 
@@ -33,7 +35,7 @@ const idp: OAuthTokenVerifier = {
   },
 };
 
-async function hosted(provider: "git-notes" | "sqlite") {
+async function hosted(provider: "git-notes" | "sqlite", verifier: OAuthTokenVerifier = idp) {
   const home = join(mkdtempSync(join(tmpdir(), "ynm-id-home-")), ".ynm");
   mkdirSync(home, { recursive: true });
   let cwd: string;
@@ -68,7 +70,7 @@ async function hosted(provider: "git-notes" | "sqlite") {
     port: 0,
     host: "127.0.0.1",
     quiet: true,
-    verifier: idp,
+    verifier,
     audit: new Auditor({ write: async (e) => void events.push(e) }),
     identify,
   });
@@ -204,6 +206,283 @@ describe.each(["git-notes", "sqlite"] as const)(
     });
   }
 );
+
+describe.each(["git-notes", "sqlite"] as const)("a static token over HTTP on %s", (provider) => {
+  it("records writes as token:static, never the server's user, and audits the shared client", async () => {
+    const { handle, getYnm, events } = await hosted(provider, new StaticTokenVerifier(["demo"]));
+    try {
+      const client = await connect(handle.url, "demo");
+      const written = data<{ memoryId: string }>(
+        await client.callTool({
+          name: "memory_remember",
+          arguments: { type: "semantic", level: "distributed", content: "Workers share one token" },
+        })
+      );
+      const ynm = await getYnm();
+      const memory = await ynm.find(written.memoryId);
+      expect(memory?.current.provenance.actor).toBe("token:static");
+      expect(memory?.current.provenance.client).toBeUndefined();
+      // A shared token is no one's own, so an unnamed write is the team's.
+      expect(memory?.namespace).toBe("common");
+
+      // Every other op records the same actor.
+      data(
+        await client.callTool({
+          name: "memory_annotate",
+          arguments: { memoryId: written.memoryId, tags: ["ci"] },
+        })
+      );
+      const other = data<{ memoryId: string }>(
+        await client.callTool({
+          name: "memory_remember",
+          arguments: { type: "semantic", level: "distributed", content: "Retired soon" },
+        })
+      );
+      data(
+        await client.callTool({
+          name: "memory_supersede",
+          arguments: { memoryId: other.memoryId, content: "Retired now" },
+        })
+      );
+      data(
+        await client.callTool({ name: "memory_forget", arguments: { memoryId: other.memoryId } })
+      );
+      const records = await ynm.records({ includeTombstoned: true });
+      expect(records.map((r) => r.op).sort()).toEqual(
+        ["annotate", "create", "create", "supersede", "tombstone"].sort()
+      );
+      expect(new Set(records.map((r) => r.provenance.actor))).toEqual(new Set(["token:static"]));
+
+      // Readers cope: no author to show, and memory_people says why it has no one to act on.
+      const hits = data<Array<{ memoryId: string; author?: string }>>(
+        await client.callTool({ name: "memory_recall", arguments: { text: "share one token" } })
+      );
+      const hit = hits.find((h) => h.memoryId === written.memoryId);
+      expect(hit).toBeDefined();
+      expect(hit?.author).toBeUndefined();
+      const people = await client.callTool({
+        name: "memory_people",
+        arguments: { action: "whoami" },
+      });
+      expect(people.isError).toBe(true);
+      expect(JSON.stringify(people.content)).toMatch(/static token.*token:static/);
+
+      // The audit event names the shared client and no person, matching the records.
+      const remember = events.find((e) => e.calls.some((c) => c.tool === "memory_remember"));
+      expect(remember).toMatchObject({ client: "static", outcome: "ok", status: 200 });
+      expect(remember?.person).toBeUndefined();
+      expect(remember?.calls.find((c) => c.tool === "memory_remember")?.memoryIds).toEqual([
+        written.memoryId,
+      ]);
+      await client.close();
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it("keeps the server's own actor for a scheduled dream run, which is no caller", async () => {
+    const { handle, getYnm } = await hosted(provider, new StaticTokenVerifier(["demo"]));
+    try {
+      const client = await connect(handle.url, "demo");
+      const written = data<{ memoryId: string }>(
+        await client.callTool({
+          name: "memory_remember",
+          arguments: {
+            type: "working",
+            level: "distributed",
+            content: "scratch for a moment",
+            ttl: "PT1S",
+            namespace: "session/s1",
+          },
+        })
+      );
+      await client.close();
+      await new Promise((r) => setTimeout(r, 1100));
+      const scheduler = startScheduler(getYnm, { quiet: true });
+      await scheduler.dreamNow();
+      scheduler.stop();
+      expect(scheduler.stats.lastDream?.expire?.changed).toBe(1);
+      const records = (await (await getYnm()).records({ includeTombstoned: true })).filter(
+        (r) => r.memoryId === written.memoryId
+      );
+      expect(records.map((r) => [r.op, r.provenance.actor])).toEqual([
+        ["create", "token:static"],
+        ["tombstone", "user:server"],
+      ]);
+    } finally {
+      await handle.close();
+    }
+  });
+});
+
+/**
+ * An identity provider whose tokens carry no subject: `runner` names its client (as a JWT `azp`
+ * or introspection `client_id` does), `anon` names nothing at all.
+ */
+const subjectless: OAuthTokenVerifier = {
+  async verifyAccessToken(token: string): Promise<AuthInfo> {
+    const base = { token, scopes: ["memory:read", "memory:write"] };
+    const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+    if (token === "runner")
+      return {
+        ...base,
+        clientId: "ci-runner",
+        expiresAt,
+        extra: { iss: ISSUER, client: "ci-runner" },
+      };
+    if (token === "anon") return { ...base, clientId: "jwt", expiresAt, extra: { iss: ISSUER } };
+    throw new OAuthError(OAuthErrorCode.InvalidToken, "unknown token");
+  },
+};
+
+describe.each(["git-notes", "sqlite"] as const)(
+  "an identity-provider token with no subject over HTTP on %s",
+  (provider) => {
+    it("records writes as client:<id>, never the server's user, and audits the client", async () => {
+      const { handle, getYnm, events } = await hosted(provider, subjectless);
+      try {
+        const client = await connect(handle.url, "runner");
+        const written = data<{ memoryId: string }>(
+          await client.callTool({
+            name: "memory_remember",
+            arguments: {
+              type: "semantic",
+              level: "distributed",
+              content: "The runner builds nightly",
+            },
+          })
+        );
+        data(
+          await client.callTool({
+            name: "memory_annotate",
+            arguments: { memoryId: written.memoryId, tags: ["ci"] },
+          })
+        );
+        const ynm = await getYnm();
+        const memory = await ynm.find(written.memoryId);
+        expect(memory?.current.provenance.actor).toBe("client:ci-runner");
+        expect(memory?.current.provenance.client).toBeUndefined();
+        expect(memory?.namespace).toBe("common");
+        const records = await ynm.records({ includeTombstoned: true });
+        expect(records.map((r) => [r.op, r.provenance.actor]).sort()).toEqual([
+          ["annotate", "client:ci-runner"],
+          ["create", "client:ci-runner"],
+        ]);
+
+        // No person: no author shown, and memory_people says the token has no subject.
+        const hits = data<Array<{ memoryId: string; author?: string }>>(
+          await client.callTool({ name: "memory_recall", arguments: { text: "runner builds" } })
+        );
+        const hit = hits.find((h) => h.memoryId === written.memoryId);
+        expect(hit).toBeDefined();
+        expect(hit?.author).toBeUndefined();
+        const people = await client.callTool({
+          name: "memory_people",
+          arguments: { action: "whoami" },
+        });
+        expect(people.isError).toBe(true);
+        expect(JSON.stringify(people.content)).toMatch(
+          /no subject to identify a person.*client:ci-runner/
+        );
+
+        // The audit event names the same client and no person.
+        const remember = events.find((e) => e.calls.some((c) => c.tool === "memory_remember"));
+        expect(remember).toMatchObject({ client: "ci-runner", outcome: "ok", status: 200 });
+        expect(remember?.person).toBeUndefined();
+        await client.close();
+      } finally {
+        await handle.close();
+      }
+    });
+
+    it("records the server's own actor when the token names no client either", async () => {
+      const { handle, getYnm } = await hosted(provider, subjectless);
+      try {
+        const client = await connect(handle.url, "anon");
+        const written = data<{ memoryId: string }>(
+          await client.callTool({
+            name: "memory_remember",
+            arguments: { type: "semantic", level: "distributed", content: "Nobody in particular" },
+          })
+        );
+        const memory = await (await getYnm()).find(written.memoryId);
+        expect(memory?.current.provenance.actor).toBe("user:server");
+        const people = await client.callTool({
+          name: "memory_people",
+          arguments: { action: "whoami" },
+        });
+        expect(people.isError).toBe(true);
+        expect(JSON.stringify(people.content)).toMatch(/this request has none/);
+        await client.close();
+      } finally {
+        await handle.close();
+      }
+    });
+  }
+);
+
+describe("sharedActorOf", () => {
+  it("is token:static for a static token, client:<id> for a named client, else nothing", async () => {
+    const base = { token: "t", clientId: "c", scopes: [] };
+    const staticInfo = await new StaticTokenVerifier(["demo"]).verifyAccessToken("demo");
+    expect(sharedActorOf(staticInfo)).toBe("token:static");
+    expect(sharedActorOf({ ...base, extra: { iss: "i", client: "ci-runner" } })).toBe(
+      "client:ci-runner"
+    );
+    expect(sharedActorOf({ ...base, extra: { iss: "i" } })).toBeUndefined();
+    expect(sharedActorOf(base)).toBeUndefined();
+    expect(sharedActorOf(undefined)).toBeUndefined();
+  });
+});
+
+describe("storeFor", () => {
+  it("is the person for a login, token:static for a static token, else the store itself", async () => {
+    const opts = {
+      cwd: await createBare(),
+      env: {
+        ...process.env,
+        YNM_HOME: join(mkdtempSync(join(tmpdir(), "ynm-id-home-")), ".ynm"),
+        YNM_USER: "server",
+        YNM_NO_CLAUDE_CLI: "1",
+      },
+      noPersonal: true,
+    };
+    await initProject({ cwd: opts.cwd, hooks: false });
+    const ynm = await serviceCache(opts)();
+    const remember = async (store: typeof ynm) => {
+      const r = await store.remember({ type: "semantic", level: "distributed", content: "x" });
+      return (await ynm.find(r.memoryId))?.current.provenance.actor;
+    };
+    const staticInfo = await new StaticTokenVerifier(["demo"]).verifyAccessToken("demo");
+    expect(await remember(await storeFor(ynm, staticInfo))).toBe("token:static");
+    const jwt = await idp.verifyAccessToken("alice");
+    expect(await remember(await storeFor(ynm, jwt))).toBe(
+      `user:${personIdFor({ issuer: ISSUER, subject: "auth0|alice" })}`
+    );
+    // No auth (stdio, --no-auth), and a client merely named "static" by an identity provider.
+    expect(await remember(await storeFor(ynm, undefined))).toBe("user:server");
+    expect(
+      await remember(await storeFor(ynm, { token: "t", clientId: "static", scopes: [] }))
+    ).toBe("user:server");
+    // An introspected token with a client_id and no sub writes as its client; with neither, as the
+    // server. A login still wins over the client the token was issued through.
+    const introspect = (body: object) =>
+      new IntrospectionVerifier({
+        url: "https://issuer/introspect",
+        clientId: "id",
+        clientSecret: "s",
+        fetch: (async () =>
+          new Response(JSON.stringify({ active: true, ...body }))) as unknown as typeof fetch,
+      }).verifyAccessToken("t");
+    expect(await remember(await storeFor(ynm, await introspect({ client_id: "worker" })))).toBe(
+      "client:worker"
+    );
+    expect(await remember(await storeFor(ynm, await introspect({})))).toBe("user:server");
+    expect(
+      await remember(await storeFor(ynm, await introspect({ client_id: "worker", sub: "w1" })))
+    ).toBe(`user:${personIdFor({ issuer: "https://issuer", subject: "w1" })}`);
+  });
+});
 
 describe("hostedAudit", () => {
   it("is off without auth or when set off, on (stdout) with auth, and reports a bad setting", async () => {

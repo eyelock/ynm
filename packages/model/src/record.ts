@@ -105,7 +105,7 @@ export const ProvenanceSchema = z
       .string()
       .min(1)
       .describe(
-        "Who wrote it: user:<person id> for a signed-in person on a hosted store, else e.g. user:david or agent:claude-code"
+        "Who wrote it: user:<person id> for a signed-in person on a hosted store, token:static for anyone holding a hosted store's shared static token, client:<client id> for an identity provider's token that names a client but no subject, else e.g. user:david or agent:claude-code"
       ),
     client: z.string().optional().describe("The OAuth client a signed-in person wrote through"),
     session: z.string().optional().describe("Session id"),
@@ -116,6 +116,14 @@ export const ProvenanceSchema = z
 export type Provenance = z.infer<typeof ProvenanceSchema>;
 
 export const JsonObjectSchema = z.record(z.string(), z.unknown());
+
+/**
+ * Reserved tag a writer puts on a record of an event where repetition is the signal: each
+ * occurrence counts. Consolidation never merges or supersedes such a memory (dedupe and
+ * contradiction skip it), reflection still counts it as an episode of its subject, and the
+ * session-start context block leaves it out; recall and list return it as usual.
+ */
+export const OCCURRENCE_TAG = "occurrence";
 
 /**
  * One line of the log. Immutable. The canonical shape every provider stores and every consumer
@@ -138,7 +146,10 @@ export const MemoryRecordSchema = z
     dataSchema: z.string().max(100).optional().describe("Name of the expected shape of data"),
     importance: UnitSchema.optional().describe("0..1; writer-supplied default 0.5"),
     confidence: UnitSchema.optional().describe("0..1"),
-    pinned: z.boolean().optional().describe("Always included in the context block"),
+    pinned: z
+      .boolean()
+      .optional()
+      .describe("Always included in the context block, unless tagged occurrence"),
     needsReview: z.boolean().optional().describe("Flagged by a low-confidence model decision"),
     recordedAt: IsoDateTimeSchema.describe("Transaction time"),
     validFrom: IsoDateTimeSchema.optional().describe("Event time the memory became true"),

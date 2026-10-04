@@ -112,6 +112,7 @@ describe("gate M4: lifecycle", () => {
       "normalise",
       "promote",
       "reflect",
+      "retention",
     ]);
     expect(r.judge.calibrated).toBe(false);
     expect(r.passes.reflect?.fallback).toBe(true);

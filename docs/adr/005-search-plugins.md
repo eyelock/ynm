@@ -101,6 +101,9 @@ as markdown. This is the always-in-context tier (Letta blocks, MEMORY.md).
 
 ## History
 
+- 2026-10-04: the context block leaves out memories tagged `occurrence` (pinned or not), both in
+  `buildContext` and in the searches that gather its candidates, so a long run of events cannot
+  crowd out standing memory. A hosted store packs its section through the same code.
 - 2026-09-29 (M4): Judge-backed reranker became the final recall stage when a calibrated judge is
   configured.
 - 2026-09-29 (M2): `node:sqlite` spike passed; the default index dropped the native module and

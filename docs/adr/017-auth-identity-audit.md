@@ -264,3 +264,21 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   - Not yet built: `ynm audit`, the `YNM_AUTH` configuration and provider presets, and the single
     reachability rule with `--no-auth`. A shared static token still vouches for no one, so its
     writes keep the server's actor.
+- 2026-10-04: a static token's writes are recorded as `actor: token:static`, not the server's
+  actor, which made every shared-token write look like the server's own user. The token is still
+  one shared identity for everyone holding it (the fixed identity the decision above calls
+  `bearer/shared`): no person id, `memory_people` refuses with an
+  explanation, and its audit events carry client `static` with no person. Per-person identity
+  needs an identity provider, with machine tokens from the client credentials grant for workers
+  and CI. Named tokens or a token-holder option were rejected as a second, weaker identity system.
+  Writes the server makes itself, such as scheduled dream runs, keep the server's actor. Still
+  proposed.
+- 2026-10-04: an identity provider's token with no `sub` but a client id (JWT `azp` or
+  `client_id`, introspection `client_id`) has its writes recorded as `actor: client:<client id>`,
+  not the server's actor. Like the static token it is a shared identity with no person id: an
+  unnamed write goes to `common`, `memory_people` refuses because the token has no subject to
+  identify a person, readers show no author, and audit events carry that client with no person.
+  Only a token with neither a subject nor a client id keeps the server's actor. The static token's
+  view became one general view carrying a fixed shared actor, so the store still chooses a write's
+  actor in one place. Refusing such writes was rejected because client-credentials tokens without
+  `sub` are legitimate, and documenting the gap alone left the records misleading. Still proposed.

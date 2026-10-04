@@ -16,7 +16,7 @@ import type { z } from "zod";
 import { z as zod } from "zod";
 import { emptyContextNote, REMEMBER_INTENT_EXAMPLES } from "./hooks/intent.js";
 import { Lifecycle } from "./lifecycle.js";
-import type { Ynm } from "./ynm.js";
+import { STATIC_TOKEN_ACTOR, type Ynm } from "./ynm.js";
 
 export interface ToolResult {
   /** JSON-serialisable payload; the MCP layer returns it as structured content and text. */
@@ -95,7 +95,7 @@ export const TOOL_SPECS = [
     name: "memory_recall",
     command: "recall",
     description:
-      "Search the user's persistent memory, ranked by relevance, recency and importance. Call it with the key terms before answering about the user's preferences, the project or past decisions.",
+      "Search the user's persistent memory, ranked by relevance, recency and importance. Call it with the key terms before answering about the user's preferences, the project or past decisions. A hit carries the memory's data, dataSchema and source when it has them.",
     input: RecallQuerySchema,
     readOnly: true,
     async run(ynm, input) {
@@ -235,6 +235,14 @@ export const TOOL_SPECS = [
     readOnly: false,
     async run(ynm, input) {
       const caller = ynm.caller;
+      if (!caller && ynm.sharedActor === STATIC_TOKEN_ACTOR)
+        throw new Error(
+          "memory_people acts on the signed-in caller, and this request came with the server's static token, which is shared and belongs to no one: everything written with it is recorded as token:static. Sign in through the server's identity provider to have a person id of your own"
+        );
+      if (!caller && ynm.sharedActor)
+        throw new Error(
+          `memory_people acts on the signed-in caller, and this request's token has no subject to identify a person, only the client it was issued to: everything written with it is recorded as ${ynm.sharedActor}. Use a token that carries a subject (sub) to have a person id of your own`
+        );
       if (!caller)
         throw new Error(
           "memory_people acts on the signed-in caller, and this request has none; use `ynm people` on the command line to manage anyone's entry"

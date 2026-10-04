@@ -24,7 +24,7 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
    and delete the release branch after both are in.
 6. Tag `v<version>` on `main` and push the tag. The `release` workflow then:
    - `verify`: re-runs build, check, typecheck, tests and the M6 gate;
-   - `build`: on `macos-14` (both darwin targets) and `ubuntu-24.04` (both linux targets),
+   - `build`: on `macos-26` (both darwin targets) and `ubuntu-24.04` (both linux targets),
      builds the four standalone binaries and smoke-tests each runner's native one;
    - `release`: builds and smoke-tests the slim tarball and the Lambda package, writes
      `manifest.json` and `checksums.txt`, and attaches them with every tarball and the zip to a

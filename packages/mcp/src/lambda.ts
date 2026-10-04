@@ -15,6 +15,16 @@ import { hostedAudit } from "./identity.js";
 import { startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { createWebHandler } from "./transport/http.js";
+import {
+  consoleSink,
+  formatRequestLine,
+  type LogSink,
+  levelFor,
+  type RequestLogEntry,
+  type RequestSeen,
+  rpcFromBody,
+  rpcFromHeaders,
+} from "./transport/request-log.js";
 import { MCP_VERSION } from "./version.js";
 
 /** A Lambda Function URL request, payload format 2.0 (the fields ynm reads). */
@@ -28,7 +38,41 @@ export interface FunctionUrlEvent {
   cookies?: string[];
   body?: string;
   isBase64Encoded?: boolean;
-  requestContext: { http: { method: string }; domainName?: string };
+  requestContext: {
+    http: { method: string };
+    domainName?: string;
+    requestId?: string;
+    /** When the gateway or Function URL received the request, in epoch milliseconds. */
+    timeEpoch?: number;
+  };
+}
+
+/**
+ * API Gateway's integration timeout (infra/aws/lambda/api.tf). Its clock starts when the request
+ * arrives, so it also counts a cold start's init, which the function's own remaining time does
+ * not: a cold request can reach the client as a 504 while the handler still has time left.
+ */
+export const GATEWAY_TIMEOUT_MS = 30_000;
+/** How long before a deadline the handler stops reading and answers with what it has. */
+const DEADLINE_MARGIN_MS = 1_000;
+
+/**
+ * How long the handler may spend on a request's body, and which limit binds: the function's
+ * remaining time, or the gateway's, measured from when the request arrived (`timeEpoch`).
+ */
+export function responseBudget(
+  now: number,
+  remainingMs: number | undefined,
+  timeEpoch: number | undefined,
+  gatewayTimeoutMs = GATEWAY_TIMEOUT_MS
+): { timeoutMs?: number; bound?: "timeout" | "gateway"; waited?: number } {
+  const fn = remainingMs === undefined ? undefined : remainingMs - DEADLINE_MARGIN_MS;
+  const waited = timeEpoch === undefined ? undefined : Math.max(0, now - timeEpoch);
+  const gw = waited === undefined ? undefined : gatewayTimeoutMs - waited - DEADLINE_MARGIN_MS;
+  if (fn === undefined && gw === undefined) return { waited };
+  const bound = gw !== undefined && (fn === undefined || gw < fn) ? "gateway" : "timeout";
+  const ms = bound === "gateway" ? (gw as number) : (fn as number);
+  return { timeoutMs: Math.max(0, ms), bound, waited };
 }
 
 /** A Function URL response, payload format 2.0. */
@@ -57,6 +101,8 @@ export interface ScheduledResult {
 /** The part of the Lambda context ynm uses. */
 export interface LambdaContext {
   getRemainingTimeInMillis?: () => number;
+  /** The invocation's id, the one Lambda prints on each of its own log lines. */
+  awsRequestId?: string;
 }
 
 export type LambdaHandler = (
@@ -109,12 +155,17 @@ const TEXTUAL =
 /**
  * Reads a body to the end, or until `timeoutMs` passes: a stream that never ends (a
  * notification stream) is cut off with what it had sent, rather than running the function out.
+ * `truncated` says it was cut off.
  */
-async function readBody(res: Response, timeoutMs?: number): Promise<Buffer> {
-  if (!res.body) return Buffer.alloc(0);
+async function readBody(
+  res: Response,
+  timeoutMs?: number
+): Promise<{ bytes: Buffer; truncated: boolean }> {
+  if (!res.body) return { bytes: Buffer.alloc(0), truncated: false };
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   const deadline = timeoutMs === undefined ? undefined : Date.now() + timeoutMs;
+  let truncated = false;
   for (;;) {
     let timer: NodeJS.Timeout | undefined;
     const timeout =
@@ -126,13 +177,14 @@ async function readBody(res: Response, timeoutMs?: number): Promise<Buffer> {
     const next = await (timeout ? Promise.race([reader.read(), timeout]) : reader.read());
     clearTimeout(timer);
     if (next === null) {
+      truncated = true;
       await reader.cancel().catch(() => {});
       break;
     }
     if (next.done) break;
     chunks.push(next.value);
   }
-  return Buffer.concat(chunks);
+  return { bytes: Buffer.concat(chunks), truncated };
 }
 
 /** A web `Response` as a buffered Function URL result; binary bodies go base64. */
@@ -140,20 +192,43 @@ export async function toResult(
   res: Response,
   opts: { timeoutMs?: number } = {}
 ): Promise<FunctionUrlResult> {
+  return (await bufferResult(res, opts)).result;
+}
+
+/**
+ * `toResult`, also saying whether the body was cut off at `timeoutMs`. A cut-off response still
+ * goes out with its status and what was sent, so the client sees a short body, not an error.
+ */
+export async function bufferResult(
+  res: Response,
+  opts: { timeoutMs?: number } = {}
+): Promise<{ result: FunctionUrlResult; truncated: boolean }> {
   const headers: Record<string, string> = {};
   res.headers.forEach((value, name) => {
     if (name !== "set-cookie") headers[name] = value;
   });
   const cookies = res.headers.getSetCookie();
-  const bytes = await readBody(res, opts.timeoutMs);
+  const { bytes, truncated } = await readBody(res, opts.timeoutMs);
   const textual = bytes.length === 0 || TEXTUAL.test(res.headers.get("content-type") ?? "");
   return {
-    statusCode: res.status,
-    headers,
-    ...(cookies.length ? { cookies } : {}),
-    body: textual ? bytes.toString("utf8") : bytes.toString("base64"),
-    isBase64Encoded: !textual,
+    result: {
+      statusCode: res.status,
+      headers,
+      ...(cookies.length ? { cookies } : {}),
+      body: textual ? bytes.toString("utf8") : bytes.toString("base64"),
+      isBase64Encoded: !textual,
+    },
+    truncated,
   };
+}
+
+/** The JSON-RPC method(s) and tool of a Function URL request: the standard headers, else the body. */
+function rpcOf(event: FunctionUrlEvent, request: Request) {
+  const fromHeaders = rpcFromHeaders(request.headers);
+  if (fromHeaders.rpc || request.method !== "POST" || event.body === undefined) return fromHeaders;
+  return rpcFromBody(
+    event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body
+  );
 }
 
 export interface LambdaConfig {
@@ -232,6 +307,8 @@ export interface LambdaHandlerOptions {
   getYnm?: () => Promise<Ynm>;
   /** No logging to stderr (tests). */
   quiet?: boolean;
+  /** Where the handler's own log lines go (tests); the console by default, nowhere when quiet. */
+  log?: LogSink;
 }
 
 /**
@@ -273,8 +350,18 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       ...audited,
     }
   );
-  const log = (msg: string) => {
-    if (!opts.quiet) console.error(`[ynm-mcp lambda] ${msg}`);
+  const sink = opts.log ?? (opts.quiet ? undefined : consoleSink);
+  // Logging never fails a request or an event.
+  const log = (msg: string, level: "info" | "error" = "error") => {
+    try {
+      sink?.(level, `[ynm-mcp lambda] ${msg}`);
+    } catch {}
+  };
+  let cold = true;
+  const firstUse = () => {
+    const was = cold;
+    cold = false;
+    return was;
   };
   if (!opts.quiet) console.error(`ynm-mcp auth: ${auth.mode}`);
 
@@ -294,7 +381,7 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       }
       case "compact": {
         const mounts = await compactMounts(await getYnm());
-        log(`compact: ${JSON.stringify(mounts.map(({ results: _, ...m }) => m))}`);
+        log(`compact: ${JSON.stringify(mounts.map(({ results: _, ...m }) => m))}`, "info");
         return { ynm: "compact", status: "ok", mounts };
       }
       default:
@@ -304,27 +391,75 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
     }
   };
 
+  const idField = (context?: LambdaContext) =>
+    context?.awsRequestId ? ` id=${context.awsRequestId}` : "";
+
+  /** One line per scheduled event: `scheduled <task> ok|failed <ms>ms [cold] id=…[: error]`. */
+  const runScheduled = async (task: unknown, context?: LambdaContext) => {
+    const started = performance.now();
+    const wasCold = firstUse() ? " cold" : "";
+    const name = typeof task === "string" && /^[\w-]{1,32}$/.test(task) ? task : "?";
+    const took = () => `${Math.round(performance.now() - started)}ms`;
+    try {
+      const result = await scheduled(task);
+      log(`scheduled ${name} ok ${took()}${wasCold}${idField(context)}`, "info");
+      return result;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`scheduled ${name} failed ${took()}${wasCold}${idField(context)}: ${msg}`);
+      throw err;
+    }
+  };
+
   return async (event, context) => {
-    if (isScheduledEvent(event)) return scheduled(event.ynm);
+    if (isScheduledEvent(event)) return runScheduled(event.ynm, context);
     if (!isFunctionUrlEvent(event))
       throw new Error(
         'unrecognised event: expected a Function URL request (payload format 2.0) or { "ynm": "dream" | "compact" | "health" }'
       );
-    const remaining = context?.getRemainingTimeInMillis?.();
+    const started = performance.now();
+    const budget = responseBudget(
+      Date.now(),
+      context?.getRemainingTimeInMillis?.(),
+      event.requestContext.timeEpoch
+    );
+    const entry: Partial<RequestLogEntry> = {
+      method: event.requestContext.http.method,
+      path: event.rawPath || "/",
+      id: context?.awsRequestId,
+      cold: firstUse(),
+      waited: budget.waited,
+    };
+    const seen: RequestSeen = {};
+    let result: FunctionUrlResult;
     try {
-      const response = await web.fetch(toRequest(event, cfg.publicUrl));
-      return await toResult(response, {
-        timeoutMs: remaining === undefined ? undefined : Math.max(0, remaining - 1000),
-      });
+      const request = toRequest(event, cfg.publicUrl);
+      try {
+        Object.assign(entry, rpcOf(event, request));
+      } catch {}
+      const response = await web.fetch(request, seen);
+      const buffered = await bufferResult(response, { timeoutMs: budget.timeoutMs });
+      result = buffered.result;
+      if (buffered.truncated) entry.cut = budget.bound ?? "timeout";
     } catch (err) {
-      log(`request failed: ${err instanceof Error ? err.message : String(err)}`);
-      return {
+      log(`request failed${idField(context)}: ${err instanceof Error ? err.message : String(err)}`);
+      result = {
         statusCode: 500,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ error: "internal error" }),
         isBase64Encoded: false,
       };
     }
+    try {
+      const line = {
+        ...(entry as RequestLogEntry),
+        ...seen,
+        status: result.statusCode,
+        ms: performance.now() - started,
+      };
+      log(formatRequestLine(line), levelFor(line));
+    } catch {}
+    return result;
   };
 }
 

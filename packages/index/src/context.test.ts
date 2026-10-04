@@ -1,3 +1,4 @@
+import { OCCURRENCE_TAG } from "@ynm/model";
 import { buildContext } from "./context.js";
 import { doc } from "./testing/conformance.js";
 
@@ -48,6 +49,27 @@ describe("buildContext", () => {
     expect(block.truncated).toBe(true);
     expect(block.included).toEqual([small.memoryId]);
     expect(block.tokens).toBeLessThanOrEqual(30);
+  });
+
+  it("leaves out occurrences, pinned or ranked, and packs what follows them", () => {
+    const pinnedEvent = doc({ pinned: true, summary: "pinned event", tags: [OCCURRENCE_TAG] });
+    const event = doc({ summary: "one failure", tags: ["ynf", OCCURRENCE_TAG] });
+    const fact = doc({ summary: "standing fact" });
+    const byId = new Map([event, fact].map((m) => [m.memoryId, m]));
+    const block = buildContext(
+      [pinnedEvent],
+      [
+        { memoryId: event.memoryId, score: 2 },
+        { memoryId: fact.memoryId, score: 1 },
+      ],
+      byId,
+      1000
+    );
+    expect(block.included).toEqual([fact.memoryId]);
+    expect(block.markdown).toBe("## Memory\n- (semantic) standing fact\n");
+    expect(block.truncated).toBe(false);
+    // Only occurrences: no block at all.
+    expect(buildContext([pinnedEvent], [], byId, 1000).markdown).toBe("");
   });
 
   it("returns empty markdown, not a bare heading, when the budget is too small for anything", () => {

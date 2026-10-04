@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { McpServer } from "@modelcontextprotocol/server";
+import { OCCURRENCE_TAG } from "@ynm/model";
 import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "../config.js";
 import { IndexManager } from "../indexing.js";
@@ -113,6 +114,38 @@ describe("remote mounts in the service (ADR-004)", () => {
     ).toBe(true);
   });
 
+  it("passes a shared memory's data, dataSchema and source through recall", async () => {
+    const hosted = hostedYnm();
+    const y = local(remote(hosted));
+    const payload = { signature: "timeout in step 3", count: 2, lane: "release" };
+    const typed = await y.remember({
+      type: "episodic",
+      level: "distributed",
+      namespace: "common",
+      content: "Build failed on the release lane",
+      data: payload,
+      dataSchema: "ynf.failure.v1",
+      source: "run:42",
+    });
+    const plain = await y.remember({
+      type: "semantic",
+      level: "distributed",
+      namespace: "common",
+      content: "Releases run on Thursdays",
+    });
+    const hits = await y.recall({ mount: "team" });
+    const hit = hits.find((h) => h.memoryId === typed.memoryId);
+    expect(hit).toMatchObject({
+      mount: "team",
+      data: payload,
+      dataSchema: "ynf.failure.v1",
+      source: "run:42",
+    });
+    const bare = hits.find((h) => h.memoryId === plain.memoryId);
+    expect(bare?.mount).toBe("team");
+    expect(bare && ["data", "dataSchema", "source"].filter((k) => k in bare)).toEqual([]);
+  });
+
   it("adds a shared section to the context block, within its share of the budget", async () => {
     const hosted = hostedYnm();
     const y = local(remote(hosted));
@@ -141,6 +174,43 @@ describe("remote mounts in the service (ADR-004)", () => {
     const tool = await spec.run(sharedOnly, { budgetTokens: 1500 } as never);
     expect((tool.data as { markdown: string }).markdown).toMatch(/^## Shared memory \(team\)\n/);
     expect(tool.guidance).toBeUndefined();
+  });
+
+  it("leaves occurrences out of the context block, personal and shared, but recalls them", async () => {
+    const hosted = hostedYnm();
+    const y = local(remote(hosted));
+    await y.remember({ type: "semantic", content: "I review PRs as drafts" });
+    const mine = await y.remember({
+      type: "episodic",
+      subject: "sig/flaky",
+      content: "Flaky test failed on my run",
+      tags: [OCCURRENCE_TAG],
+    });
+    await y.pin(mine.memoryId); // a pinned occurrence stays out too
+    await y.remember({
+      type: "semantic",
+      level: "distributed",
+      namespace: "common",
+      content: "Releases come from develop",
+    });
+    const shared = await y.remember({
+      type: "episodic",
+      level: "distributed",
+      namespace: "common",
+      subject: "sig/flaky",
+      content: "Flaky test failed on the team run",
+      tags: [OCCURRENCE_TAG],
+    });
+    const block = await y.context({ budgetTokens: 1000 });
+    expect(block.markdown).toMatch(/I review PRs as drafts/);
+    expect(block.markdown).toMatch(/Releases come from develop/);
+    expect(block.markdown).not.toMatch(/Flaky/);
+    expect(block.included).toHaveLength(2);
+    // The hosted store packs its own section without them too.
+    expect((await hosted.context({})).markdown).not.toMatch(/Flaky/);
+    const hits = await y.recall({ text: "flaky test failed" });
+    expect(hits.map((h) => h.memoryId).sort()).toEqual([mine.memoryId, shared.memoryId].sort());
+    expect((await y.list({ tags: [OCCURRENCE_TAG] })).length).toBe(2);
   });
 
   it("edits a shared memory where it lives and promotes a personal one by copy", async () => {

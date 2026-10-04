@@ -61,7 +61,7 @@ https://<client>.ynm.eyelock.net/mcp
   s3://ynm-store-<client>-<account>/store/   (versioned; one object per write)
 
   EventBridge Scheduler: dream every 15 min, compact daily, health every 5 min (keep-warm)
-  CloudWatch: log group /ynm/<client>; alarms on function errors and API 5xx → SNS → alarm_email
+  CloudWatch: log group /ynm/<client>; alarms on function errors and the API 5xx rate → SNS → alarm_email
 ```
 
 - **ynm checks every token itself.** API Gateway does no auth and passes requests straight
@@ -79,7 +79,10 @@ https://<client>.ynm.eyelock.net/mcp
 2. Copy `lambda/clients/example.tfvars.example` and `example.s3.tfbackend.example` to
    `<client>.tfvars` and `<client>.s3.tfbackend`. Set the client name, account, emails and
    `package_version`, and the state key to `aws/<account>/lambda/<client>/terraform.tfstate`. Leave `auth = null` for a static token, or
-   paste the store's `auth` object from its identity provider.
+   paste the store's `auth` object from its identity provider. A static token is a shared secret:
+   everyone using it is recorded as `token:static`, so there is no per-person audit trail; for
+   that, use an identity provider, with machine tokens from its client credentials grant for
+   workers and CI.
 3. Apply:
 
    ```bash
@@ -115,9 +118,38 @@ All from `infra/aws/lambda`, initialised for the client.
 |---|---|
 | Upgrade ynm | build or download the new package, set `package_version`, `terraform apply` |
 | Pick up a changed secret | `aws lambda update-function-configuration --function-name ynm-<client> --description "secrets $(date +%F)"` starts fresh instances |
-| Logs | CloudWatch log group `/ynm/<client>` |
+| Logs | CloudWatch log group `/ynm/<client>`: one line per request and per scheduled run; the format and filter patterns are in the Lambda hosting how-to |
 | Run the dream now | `aws lambda invoke --function-name ynm-<client> --payload '{"ynm":"dream"}' --cli-binary-format raw-in-base64-out /dev/stdout` |
 | Back up | the bucket is versioned; `ynm export` against the store for portable JSONL |
+
+### Alarms
+
+Two CloudWatch alarms notify the SNS topic (and `alarm_email`), both when they fire and when they
+clear. Each is judged over five-minute periods, and the thresholds are variables:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `alarm_5xx_rate_percent` | `5` | The API alarm counts a period in which more than this percentage of requests were answered `5xx` |
+| `alarm_5xx_min_requests` | `10` | A period with fewer requests never counts, so one failure on an idle store does not page |
+| `alarm_5xx_periods` | `3` | Periods the API alarm looks back over |
+| `alarm_5xx_datapoints` | `2` | Periods over the rate, out of `alarm_5xx_periods`, that raise it |
+| `alarm_error_periods` | `null` | Periods the function errors alarm looks back over; `null` means two dream intervals, at least 6 (30 minutes) |
+| `alarm_error_datapoints` | `2` | Periods with a function error that raise it |
+
+- **`ynm-<client>-api-5xx`** is API Gateway's `5xx` count as a percentage of its `Count`
+  (metric math). A burst of failing retries fills one period and clears; a real outage keeps the
+  rate up and raises the alarm within 10 to 15 minutes. A store with almost no traffic can fail
+  without reaching the request floor, so lower `alarm_5xx_min_requests` for one where every
+  request matters.
+- **`ynm-<client>-errors`** is Lambda's `Errors`: a scheduled run that failed (a dream throws on
+  purpose when it fails), a cold start that cannot start, or a timeout. A request that fails
+  inside ynm is answered `500` and counts towards the API alarm instead. With dream every 15
+  minutes the alarm looks back 30 minutes, so one transient dream failure does not page, a dream
+  that fails every run pages on its second failure, and a function that cannot start pages
+  within 10 minutes.
+
+To find what lay behind an alarm, search the log group for the same window: the Lambda hosting
+how-to lists filter patterns for `5xx` answers, slow requests and failed runs.
 
 ### Cost
 

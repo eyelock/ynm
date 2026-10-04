@@ -19,7 +19,7 @@ auth = {
 }
 
 # A release with HTTP sign-in is needed: the server refuses to start while it reports no auth.
-image_tag                      = "0.2.0"
+image_tag                      = "0.3.0"
 registry_credentials_parameter = "/ynm/registry/credentials"
 
 env = {

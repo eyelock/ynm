@@ -38,7 +38,11 @@ not a stable interface; use `--json` in scripts.
 ### recall
 
 An array of hits, best first. `explain` is present only with `--explain`; `subject` only when
-set.
+set. `data`, `dataSchema` and `source` are present when the memory has them: `data` is its
+structured payload as written, `dataSchema` the name of that payload's shape, and `source` the
+source reference it was written with. `content` also ends with data's string values, so a text
+search finds them. `author` is present when a signed-in person last wrote the memory on a hosted
+store.
 
 ```json
 [
@@ -63,6 +67,23 @@ set.
     "pinned": false,
     "importance": 0.5,
     "updatedAt": "2026-09-29T13:58:22.002Z"
+  },
+  {
+    "memoryId": "01M3PQB7K2V9X4D8RZ6N0CFJ1A",
+    "mount": "personal",
+    "score": 0.6,
+    "type": "episodic",
+    "level": "personal",
+    "namespace": "user/docs",
+    "tags": ["ci"],
+    "summary": "Build failed on the release lane",
+    "content": "Build failed on the release lane\ntimeout in step 3 release",
+    "pinned": false,
+    "importance": 0.5,
+    "updatedAt": "2026-09-29T14:02:10.415Z",
+    "data": { "signature": "timeout in step 3", "count": 2, "lane": "release" },
+    "dataSchema": "ci.failure.v1",
+    "source": "run:42"
   }
 ]
 ```
@@ -141,7 +162,11 @@ This one started on an empty store, so its `context.markdown` is empty; the huma
 ```json
 {
   "dryRun": true,
-  "passes": { "expire": { "candidates": 0, "changed": [] }, "...": {} },
+  "passes": {
+    "expire": { "candidates": 0, "changed": [] },
+    "retention": { "candidates": 0, "changed": [] },
+    "...": {}
+  },
   "full": {
     "dryRun": true,
     "judge": { "name": "heuristic", "calibrated": false },
@@ -169,7 +194,12 @@ This one started on an empty store, so its `context.markdown` is empty; the huma
 `fresh` counts the memories new or changed since a run with this judge last finished with them;
 `dreamed` counts the ones this run finished with and marked (always 0 for a dry run, or a run
 limited by `--passes` or `--namespace`). With `fresh` at 0 only `expire` runs, and the plain
-output adds the line `nothing new since the last run; only expiry ran`. Passes appear in the order `expire`, `promote`, `dedupe`, `contradict`, `reflect`, `normalise`.
+output adds the line `nothing new since the last run; only expiry ran`. Passes appear in the order `expire`, `retention`, `promote`, `dedupe`, `contradict`, `reflect`, `normalise`.
+
+`retention` is the second half of the expire pass: memories tagged `occurrence` tombstoned for
+being older than `dream.occurrenceRetention`. It has the same shape as the other passes, runs
+whenever `expire` does, and is left out when retention is turned off. `expire` counts only
+working memory past its TTL.
 
 ### sync
 

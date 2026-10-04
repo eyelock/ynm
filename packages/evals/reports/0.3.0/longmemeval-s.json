@@ -1,0 +1,244 @@
+{
+  "dataset": "longmemeval-s",
+  "datasetSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "datasetLicense": "MIT",
+  "ranAt": "2026-10-04T22:59:15.911Z",
+  "ynmVersion": "0.3.0",
+  "setup": {
+    "ingest": "turn-episodic",
+    "index": "sqlite-fts",
+    "k": 10,
+    "cases": 60,
+    "questions": 60,
+    "writer": "claude-cli",
+    "judge": "typesafe",
+    "judgeCalibrated": true
+  },
+  "retrieval": {
+    "evidenceRecallAtK": 0.9383,
+    "fullEvidenceAtK": 0.9074,
+    "byCategory": {
+      "single-session-assistant": {
+        "n": 8,
+        "evidenceRecall": 1
+      },
+      "multi-session": {
+        "n": 18,
+        "evidenceRecall": 0.9537
+      },
+      "temporal-reasoning": {
+        "n": 14,
+        "evidenceRecall": 0.8929
+      },
+      "knowledge-update": {
+        "n": 6,
+        "evidenceRecall": 1
+      },
+      "single-session-preference": {
+        "n": 5,
+        "evidenceRecall": 0.8
+      },
+      "single-session-user": {
+        "n": 3,
+        "evidenceRecall": 1
+      }
+    }
+  },
+  "timing": {
+    "ingestMs": 3745,
+    "memories": 29782,
+    "recallMs": 124
+  },
+  "answering": {
+    "n": 20,
+    "accuracy": 0.95,
+    "byCategory": {
+      "single-session-assistant": {
+        "n": 3,
+        "accuracy": 1
+      },
+      "multi-session": {
+        "n": 5,
+        "accuracy": 0.8
+      },
+      "temporal-reasoning": {
+        "n": 4,
+        "accuracy": 1
+      },
+      "abstention": {
+        "n": 4,
+        "accuracy": 1
+      },
+      "knowledge-update": {
+        "n": 3,
+        "accuracy": 1
+      },
+      "single-session-preference": {
+        "n": 1,
+        "accuracy": 1
+      }
+    },
+    "samples": [
+      {
+        "id": "3e321797",
+        "question": "I wanted to follow up on our previous conversation about natural remedies for dark circles under the eyes. You mentioned applying tomato juice mixed with lemon juice, how long did you say I should leave it on for?",
+        "gold": "10 minutes",
+        "hypothesis": "Leave it on for 10 minutes, then wash off with cold water.",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "7405e8b1",
+        "question": "Did I receive a higher percentage discount on my first order from HelloFresh, compared to my first UberEats order?",
+        "gold": "Yes.",
+        "hypothesis": "Yes — you got 40% off your first HelloFresh order versus 20% off your UberEats order last week (though the memories don't confirm that UberEats order was your first).",
+        "correct": true,
+        "p": 0.92
+      },
+      {
+        "id": "gpt4_59149c77",
+        "question": "How many days passed between my visit to the Museum of Modern Art (MoMA) and the 'Ancient Civilizations' exhibit at the Metropolitan Museum of Art?",
+        "gold": "7 days. 8 days (including the last day) is also acceptable.",
+        "hypothesis": "7 days (MoMA on 2023-01-08, the Met exhibit on 2023-01-15).",
+        "correct": true,
+        "p": 0.98
+      },
+      {
+        "id": "gpt4_fe651585_abs",
+        "question": "Who became a parent first, Tom or Alex?",
+        "gold": "The information provided is not enough. You mentioned Alex becoming a parent in January, but you didn't mention anything about Tom.",
+        "hypothesis": "I don't know.",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "5831f84d",
+        "question": "How many Crash Course videos have I watched in the past few weeks?",
+        "gold": "15",
+        "hypothesis": "15 Crash Course videos (as of 2023-09-30).",
+        "correct": true,
+        "p": 0.96
+      },
+      {
+        "id": "7401057b",
+        "question": "How many free night's stays can I redeem at any Hilton property with my accumulated points?",
+        "gold": "Two",
+        "hypothesis": "Two free night's stays (per your 2023-05-30 update, up from one on 2023-05-29).",
+        "correct": true,
+        "p": 0.95
+      },
+      {
+        "id": "eeda8a6d",
+        "question": "How many fish are there in total in both of my aquariums?",
+        "gold": "17",
+        "hypothesis": "I don't know.",
+        "correct": false,
+        "p": 0.02
+      },
+      {
+        "id": "gpt4_1d4ab0c9",
+        "question": "How many days passed between the day I started watering my herb garden and the day I harvested my first batch of fresh herbs?",
+        "gold": "24 days. 25 days (including the last day) is also acceptable.",
+        "hypothesis": "24 days (from 2023-03-22 to 2023-04-15).",
+        "correct": true,
+        "p": 0.98
+      },
+      {
+        "id": "gpt4_a2d1d1f6",
+        "question": "How many days ago did I harvest my first batch of fresh herbs from the herb garden kit?",
+        "gold": "3 days ago. 4 days (including the last day) is also acceptable.",
+        "hypothesis": "3 days ago (harvested on 2023-04-15).",
+        "correct": true,
+        "p": 0.98
+      },
+      {
+        "id": "6456829e_abs",
+        "question": "How many plants did I initially plant for tomatoes and chili peppers?",
+        "gold": "The information provided is not enough. You mentioned planting 5 plants for tomatoes but you did not mention chili peppers.",
+        "hypothesis": "You planted 5 tomato plants initially; the memories don't say how many chili pepper plants you planted.",
+        "correct": true,
+        "p": 0.53
+      },
+      {
+        "id": "e6041065",
+        "question": "What percentage of packed shoes did I wear on my last trip?",
+        "gold": "40%",
+        "hypothesis": "40% — you packed 5 pairs but only wore two (sneakers and sandals).",
+        "correct": true,
+        "p": 0.99
+      },
+      {
+        "id": "29f2956b_abs",
+        "question": "How much time do I dedicate to practicing violin every day?",
+        "gold": "You did not mention this information. You mentioned practing guitar everyday, but not violin.",
+        "hypothesis": "I don't know.",
+        "correct": true,
+        "p": 0.96
+      },
+      {
+        "id": "4f54b7c9",
+        "question": "How many antique items did I inherit or acquire from my family members?",
+        "gold": "5",
+        "hypothesis": "Five: your grandmother's vintage diamond necklace, your great-aunt's antique music box, your mom's depression-era glassware, the antique tea set from cousin Rachel, and your dad's vintage typewriter.",
+        "correct": true,
+        "p": 0.98
+      },
+      {
+        "id": "1b9b7252",
+        "question": "I wanted to follow up on our previous conversation about mindfulness techniques. You mentioned some great resources for guided imagery exercises, can you remind me of the website that had free exercises like 'The Mountain Meditation' and 'The Body Scan Meditation'?",
+        "gold": "Mindful.org.",
+        "hypothesis": "Mindful.org",
+        "correct": true,
+        "p": 0.98
+      },
+      {
+        "id": "dfde3500",
+        "question": "What day of the week did I meet with my previous language exchange tutor Juan?",
+        "gold": "Wednesday",
+        "hypothesis": "Wednesday evening",
+        "correct": true,
+        "p": 0.93
+      },
+      {
+        "id": "71017276",
+        "question": "How many weeks ago did I meet up with my aunt and receive the crystal chandelier?",
+        "gold": "4",
+        "hypothesis": "About 4 weeks ago (on 2023-03-04).",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "18dcd5a5",
+        "question": "I'm going back to our previous chat about the Lost Temple of the Djinn one-shot. Can you remind me how many mummies the party will face in the temple?",
+        "gold": "4",
+        "hypothesis": "The party will face 4 mummies in the temple.",
+        "correct": true,
+        "p": 0.98
+      },
+      {
+        "id": "e56a43b9",
+        "question": "How much discount will I get on my next purchase at FreshMart?",
+        "gold": "$5",
+        "hypothesis": "About $5 — you reached 500 FreshMart points, and every 100 points is worth a $1 discount.",
+        "correct": true,
+        "p": 0.97
+      },
+      {
+        "id": "15745da0_abs",
+        "question": "How long have I been collecting vintage films?",
+        "gold": "You did not mention this information. You mentioned collecting vintage cameras but not vintage films.",
+        "hypothesis": "I don't know.",
+        "correct": true,
+        "p": 0.96
+      },
+      {
+        "id": "fca70973",
+        "question": "I am planning another theme park weekend; do you have any suggestions?",
+        "gold": "The user would prefer theme park suggestions that cater to their interest in both thrill rides and special events, utilizing their previous experiences at Disneyland, Knott's Berry Farm, Six Flags Magic Mountain, and Universal Studios Hollywood as a reference point. They would also appreciate recommendations that highlight unique food experiences and nighttime shows. The user might not prefer suggestions that focus solely on one aspect of theme parks, such as only thrill rides or only family-friendly attractions, and may not be interested in parks that lack special events or unique dining options.",
+        "hypothesis": "Yes: you recently visited Disneyland, Knott's Berry Farm, Six Flags Magic Mountain and Universal Studios Hollywood, so consider their upcoming seasonal events, such as Disneyland's Halloween Time, Knott's Scary Farm, Six Flags Fright Fest or Universal's Halloween Horror Nights, with holiday events following from November.",
+        "correct": true,
+        "p": 0.83
+      }
+    ]
+  }
+}

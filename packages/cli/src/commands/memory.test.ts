@@ -69,14 +69,14 @@ describe("ynm memory commands, human output", () => {
     expect(dry.stdout).toMatch(/^expire: \d+\/\d+ would change$/m);
     const real = ynm(dir, "dream", "--passes", "expire");
     expect(real.status, real.stderr).toBe(0);
-    expect(real.stdout.trim()).toMatch(/^expire: \d+\/\d+ changed$/);
+    expect(real.stdout.trim()).toMatch(/^expire: \d+\/\d+ changed\nretention: \d+\/\d+ changed$/);
     // A full run finishes with every memory, so the next has nothing new to judge.
     const full = ynm(dir, "dream");
     expect(full.status, full.stderr).toBe(0);
     const again = ynm(dir, "dream");
     expect(again.status, again.stderr).toBe(0);
     expect(again.stdout.trim()).toMatch(
-      /^expire: \d+\/\d+ changed\nnothing new since the last run; only expiry ran$/
+      /^expire: \d+\/\d+ changed\nretention: \d+\/\d+ changed\nnothing new since the last run; only expiry ran$/
     );
   });
 

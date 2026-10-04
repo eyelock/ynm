@@ -102,3 +102,16 @@ None.
   every pass works in the same order, so a capped run leaves its owners fresh and the backlog
   shrinks. This implements the "records since last dream" trigger above in a form every clone
   shares.
+- 2026-10-04: a reserved `occurrence` tag, set by the writer like `promote`, marks a memory as
+  one occurrence of an event. Dedupe and contradict never pair it (it is neither owner nor
+  neighbour and spends no pair budget); reflect still counts it as an episode, and its
+  reflection drops the tag. It is marked dreamed like any other fresh memory. Chosen over a
+  dream-config list of skipped namespaces or tags so the record says what it is wherever it goes.
+- 2026-10-04: occurrence retention. The expire pass also tombstones memories tagged `occurrence`
+  whose `updatedAt` is older than `dream.occurrenceRetention` (ISO 8601 duration, default
+  `P90D`, `null` disables), with no model, reported as its own `retention` entry beside
+  `expire`. An occurrence the newest live reflective memory on its subject links to is kept, and
+  reflect now links only the newest twelve episodes it was written from, so a recurring subject's
+  evidence moves forward and old occurrences age out. Retention runs before reflect, so stale
+  occurrences no reflection rests on cannot add up to a new one. Tombstone rather than purge:
+  space reclamation stays with `ynm purge`.

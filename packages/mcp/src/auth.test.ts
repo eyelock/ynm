@@ -1,7 +1,9 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import {
   authFromEnv,
+  clientIdOf,
   IntrospectionVerifier,
+  isStaticToken,
   JwksVerifier,
   protectedResourceFor,
   StaticTokenVerifier,
@@ -11,7 +13,12 @@ import {
 describe("auth verifiers (ADR-009)", () => {
   it("static tokens", async () => {
     const v = new StaticTokenVerifier(["s3cret"], ["memory:write"]);
-    expect((await v.verifyAccessToken("s3cret")).scopes).toEqual(["memory:write"]);
+    const info = await v.verifyAccessToken("s3cret");
+    expect(info.scopes).toEqual(["memory:write"]);
+    // Marked as a static token, so its writes are recorded as the shared token.
+    expect(isStaticToken(info)).toBe(true);
+    expect(isStaticToken({ ...info, extra: { sub: "s", iss: "i" } })).toBe(false);
+    expect(isStaticToken(undefined)).toBe(false);
     await expect(v.verifyAccessToken("nope")).rejects.toThrow(/invalid token/);
   });
 
@@ -132,6 +139,18 @@ describe("auth verifiers reject what they should", () => {
     expect(bySub.expiresAt).toBeGreaterThanOrEqual(Math.floor(Date.now() / 1000) + 3599);
     const anon = await introspect({ active: true }).verifyAccessToken("t");
     expect(anon.clientId).toBe("unknown");
+    // Only a client the token names is kept as its client, never the sub or placeholder fallback.
+    expect(clientIdOf(bySub)).toBeUndefined();
+    expect(clientIdOf(anon)).toBeUndefined();
+  });
+
+  it("introspection keeps the client a token names, so a token with no sub can be its client", async () => {
+    const info = await introspect({ active: true, client_id: "ci-runner" }).verifyAccessToken("t");
+    expect(info.clientId).toBe("ci-runner");
+    expect(clientIdOf(info)).toBe("ci-runner");
+    expect(info.extra?.sub).toBeUndefined();
+    expect(clientIdOf(undefined)).toBeUndefined();
+    expect(clientIdOf({ ...info, extra: { client: "" } })).toBeUndefined();
   });
 
   it("introspection never serves a cached result past the token's expiry", async () => {
@@ -201,6 +220,17 @@ describe("auth verifiers reject what they should", () => {
       const bare = await v.verifyAccessToken(await sign({ scope: 42 }));
       expect(bare.scopes).toEqual([]);
       expect(bare.clientId).toBe("jwt");
+      expect(clientIdOf(bare)).toBeUndefined();
+      expect(clientIdOf(c)).toBeUndefined();
+      expect(clientIdOf(scp)).toBe("cid");
+    });
+
+    it("keeps the client a token names, azp before client_id", async () => {
+      const azp = await v.verifyAccessToken(await sign({ azp: "ci-runner", client_id: "other" }));
+      expect(azp.extra?.sub).toBeUndefined();
+      expect(clientIdOf(azp)).toBe("ci-runner");
+      const cid = await v.verifyAccessToken(await sign({ client_id: "worker" }));
+      expect(clientIdOf(cid)).toBe("worker");
     });
   });
 

@@ -1,11 +1,12 @@
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import type { Login } from "@ynm/model";
-import type { Ynm } from "@ynm/service";
+import { clientActor, STATIC_TOKEN_ACTOR, type Ynm } from "@ynm/service";
 import { Auditor, type AuditSink, auditSinkFromEnv } from "./audit.js";
+import { clientIdOf, isStaticToken } from "./auth.js";
 
 /**
  * The login a verified token vouches for (ADR-017): its issuer and subject. A shared static token
- * vouches for no one, so it has none and writes stay the server's own.
+ * vouches for no one, so it has none.
  */
 export function loginOf(info: AuthInfo | undefined): Login | undefined {
   const sub = info?.extra?.sub;
@@ -15,11 +16,26 @@ export function loginOf(info: AuthInfo | undefined): Login | undefined {
     : undefined;
 }
 
-/** The store as the request's signed-in person sees it, or as it is when nobody signed in. */
+/**
+ * Who a verified request that vouches for no person writes as (ADR-017): the shared static token,
+ * else the client an identity provider's token names, else nobody, so the server's own actor.
+ */
+export function sharedActorOf(info: AuthInfo | undefined): string | undefined {
+  if (isStaticToken(info)) return STATIC_TOKEN_ACTOR;
+  const client = clientIdOf(info);
+  return client ? clientActor(client) : undefined;
+}
+
+/**
+ * The store as the request's signed-in person sees it; as a caller who is no person sees it, whose
+ * writes are recorded as `token:static` or `client:<id>`; or as it is when nobody signed in
+ * (stdio, `--no-auth`) or a token names neither a subject nor a client.
+ */
 export async function storeFor(ynm: Ynm, info: AuthInfo | undefined): Promise<Ynm> {
   const login = loginOf(info);
-  if (!login) return ynm;
-  return ynm.as({ person: await ynm.personFor(login), client: info?.clientId, login });
+  if (login) return ynm.as({ person: await ynm.personFor(login), client: info?.clientId, login });
+  const shared = sharedActorOf(info);
+  return shared ? ynm.asShared(shared) : ynm;
 }
 
 /**

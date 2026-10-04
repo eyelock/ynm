@@ -15,6 +15,16 @@ import {
 } from "@modelcontextprotocol/server";
 import type { Auditor } from "../audit.js";
 import type { ProtectedResource } from "../auth.js";
+import {
+  formatRequestLine,
+  type LogSink,
+  levelFor,
+  type RequestSeen,
+  rpcFromBody,
+  rpcFromHeaders,
+  seenFor,
+  seenForAnswer,
+} from "./request-log.js";
 
 /** What sits in front of the MCP handler: health, CORS, host and origin checks, auth. */
 export interface FrontDoorOptions {
@@ -48,6 +58,8 @@ export interface WebHandlerOptions extends FrontDoorOptions {
 export interface HttpOptions extends WebHandlerOptions {
   port?: number;
   host?: string;
+  /** Where the one-line-per-request log goes; stderr by default, nowhere when quiet. */
+  log?: LogSink;
 }
 
 export interface HttpHandle {
@@ -165,8 +177,11 @@ export function createFrontDoor(
 }
 
 export interface WebHandler {
-  /** Serves one request: the front door, then a fresh MCP server for it. */
-  fetch: (request: Request) => Promise<Response>;
+  /**
+   * Serves one request: the front door, then a fresh MCP server for it. `seen`, when given, is
+   * filled in with how the front door treated the caller, for the request's log line.
+   */
+  fetch: (request: Request, seen?: RequestSeen) => Promise<Response>;
   /** The checks in front of the MCP handler. */
   frontDoor: (request: Request) => Promise<FrontDoorResult>;
   /** The MCP handler behind the front door (the Node server adapts it to node:http). */
@@ -202,15 +217,17 @@ export function createWebHandler(
     },
   });
   const door = createFrontDoor(options);
+  const verifies = Boolean(options.verifier || options.authToken);
   return {
     frontDoor: door,
     mcp,
     close: () => mcp.close(),
-    fetch: async (request) => {
+    fetch: async (request, seen) => {
       const { audit } = options;
       const verdict = await door(request);
       if ("response" in verdict) {
         const { response } = verdict;
+        if (seen) Object.assign(seen, seenForAnswer(response.status));
         // Health, discovery and preflight answers are not audited; refusals are.
         if (!audit || !isRefusal(response.status)) return response;
         return audit
@@ -221,6 +238,7 @@ export function createWebHandler(
           }))
           .then((r) => r.response);
       }
+      if (seen) Object.assign(seen, seenFor(verdict.authInfo, verifies));
       const serve = async () => {
         const res = await mcp.fetch(request, { authInfo: verdict.authInfo });
         const headers = new Headers(res.headers);
@@ -244,6 +262,13 @@ export function createWebHandler(
   };
 }
 
+/** A request's body as text, read from a copy so the request itself can still be served. */
+const copyOfBody = (request: Request) =>
+  request
+    .clone()
+    .text()
+    .catch(() => undefined);
+
 function toHeaders(raw: NodeJS.Dict<string | string[]>): Headers {
   const headers = new Headers();
   for (const [key, value] of Object.entries(raw)) {
@@ -264,16 +289,37 @@ export async function startHttp(
   const { port = 3000, host = "localhost", quiet = false } = options;
   const web = createWebHandler(factory, options);
   const door = web.frontDoor;
-  const mcp = toNodeHandler(web.mcp);
+  const verifies = Boolean(options.verifier || options.authToken);
+  const sink =
+    options.log ?? (quiet ? undefined : (_: unknown, line: string) => console.error(line));
 
   const httpServer: NodeServer = createHttpServer(async (req, res) => {
+    const started = performance.now();
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? host}`);
     const probe = new Request(url, { method: req.method, headers: toHeaders(req.headers) });
+    const seen: RequestSeen = {};
+    const rpc = rpcFromHeaders(probe.headers);
+    if (sink)
+      res.once("close", () => {
+        try {
+          const entry = {
+            method: req.method ?? "GET",
+            path: url.pathname,
+            status: res.statusCode,
+            ms: performance.now() - started,
+            ...rpc,
+            ...seen,
+            ...(res.writableFinished ? {} : { cut: "client" as const }),
+          };
+          sink(levelFor(entry), `[ynm-mcp] ${formatRequestLine(entry)}`);
+        } catch {}
+      });
     const verdict = await door(probe);
     const { audit } = options;
     const request = { method: req.method ?? "GET", url: url.href };
     if ("response" in verdict) {
       const { response } = verdict;
+      Object.assign(seen, seenForAnswer(response.status));
       const answer = async () => {
         res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
         res.end(await response.text());
@@ -283,8 +329,18 @@ export async function startHttp(
       else await answer();
       return;
     }
+    Object.assign(seen, seenFor(verdict.authInfo, verifies));
     for (const [k, v] of verdict.cors) res.setHeader(k, v);
     (req as typeof req & { auth?: AuthInfo }).auth = verdict.authInfo;
+    // Without the standard headers (a legacy client), the log line reads the method and tool
+    // from a copy of the body the adapter has already buffered.
+    const mcp = toNodeHandler({
+      fetch: async (request, opts) => {
+        if (sink && !rpc.rpc && request.method === "POST")
+          Object.assign(rpc, rpcFromBody(await copyOfBody(request)));
+        return web.mcp.fetch(request, opts);
+      },
+    });
     if (!audit) {
       await mcp(req, res);
       return;

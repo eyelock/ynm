@@ -65,7 +65,8 @@ superseding or annotating a memory makes it recent again.
 A pinned memory gets the pinned part of the score, which nudges it up in recall. Its real effect
 is on the context block: `memory_context` takes every pinned memory first, then fills the rest
 of its token budget with the best-ranked ones. That is the always-in-context tier, for the few
-things an agent should never start without. Pin sparingly; everything pinned spends budget in
+things an agent should never start without. A memory tagged `occurrence`, one event in a series,
+is left out of the block even when pinned; recall still finds it. Pin sparingly; everything pinned spends budget in
 every session.
 
 ## The reranker

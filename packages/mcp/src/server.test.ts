@@ -177,6 +177,34 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     await close();
   }, 60_000);
 
+  it("returns a memory's data, dataSchema and source in recall hits", async () => {
+    const repo = await createRepo(1);
+    await initProject({ cwd: repo, hooks: false });
+    const { client, close } = await connected(repo);
+    const call = (name: string, args: Record<string, unknown> = {}) =>
+      client.callTool({ name, arguments: args });
+    const payload = { signature: "timeout in step 3", count: 2 };
+    const typed = data<{ memoryId: string }>(
+      await call("memory_remember", {
+        type: "episodic",
+        content: "Build failed on the release lane",
+        data: payload,
+        dataSchema: "ynf.failure.v1",
+        source: "run:42",
+      })
+    );
+    const plain = data<{ memoryId: string }>(
+      await call("memory_remember", { type: "semantic", content: "A plain fact" })
+    );
+    const hits = data<Array<Record<string, unknown>>>(await call("memory_recall", {}));
+    const hit = hits.find((h) => h.memoryId === typed.memoryId);
+    expect(hit).toMatchObject({ data: payload, dataSchema: "ynf.failure.v1", source: "run:42" });
+    const bare = hits.find((h) => h.memoryId === plain.memoryId) ?? {};
+    expect(["data", "dataSchema", "source"].filter((k) => k in bare)).toEqual([]);
+    expect(bare.memoryId).toBe(plain.memoryId);
+    await close();
+  });
+
   it("serves a bare repo with no work tree (ADR-009)", async () => {
     const bare = await createBare();
     await initProject({ cwd: bare, hooks: false });

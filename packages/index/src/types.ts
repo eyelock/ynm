@@ -8,6 +8,8 @@ export interface IndexQuery {
   namespace?: string;
   subject?: string;
   tags?: string[];
+  /** Leave out memories carrying any of these tags. */
+  excludeTags?: string[];
   dataKey?: string;
   since?: string;
   until?: string;

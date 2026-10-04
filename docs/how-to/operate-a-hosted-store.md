@@ -57,8 +57,16 @@ Chosen from the environment, first match wins:
 |---|---|---|
 | `YNM_JWKS_URL`, optional `YNM_JWT_ISSUER`, `YNM_JWT_AUDIENCE` | JWT verified against a JWKS (jose) | Production with an identity provider; scopes from `scope` or `scp` |
 | `YNM_OAUTH_INTROSPECTION_URL`, `YNM_OAUTH_CLIENT_ID`, `YNM_OAUTH_CLIENT_SECRET` | RFC 7662 introspection, results cached 60 s | Opaque tokens from an authorisation server |
-| `YNM_MCP_TOKEN` (comma-separated list) | Static bearer | Development and demos |
+| `YNM_MCP_TOKEN` (comma-separated list) | Static bearer | Development and demos; everyone holding it is one shared identity, `token:static` |
 | none | Open | Local only; the server logs `auth: none` |
+
+**A static token is a shared secret.** It says that a caller holds the token, not who they are,
+so everyone using it gets the same identity: what they write is recorded as `token:static`, and the
+audit log shows client `static` with no person. There is no per-person audit trail. A static token
+lists several values only for rotation; they are the same identity. For per-person identity, use
+an identity provider (JWT or introspection mode); give workers and CI jobs their own machine tokens
+from the provider's client credentials grant, so each one is a person of its own in the records and
+the audit log.
 
 `YNM_REQUIRED_SCOPES=memory:read,memory:write` makes every request carry those scopes (403
 otherwise). Failures answer RFC 6750 challenges (`WWW-Authenticate: Bearer ...`).
@@ -86,13 +94,20 @@ authorisation server and restart with the new value.
 
 ## People
 
-With JWT or introspection auth, every request comes from a person, and what they write is theirs.
+With JWT or introspection auth, every request whose token carries a subject (`sub`) comes from a
+person, and what they write is theirs.
 
 - **Who.** Each sign-in resolves to a ynm person id such as `pq3x7k2mabcdwxyz`, derived from the
   identity provider's issuer and subject. A memory's `provenance.actor` is `user:<person id>`,
   and `provenance.client` is the client they wrote through. No email or other claim is read or
-  stored. A static token (`YNM_MCP_TOKEN`) vouches for no one, so its writes keep the server's
-  own actor.
+  stored. A static token (`YNM_MCP_TOKEN`) vouches for no one, so its writes are recorded as
+  `token:static`, the same for everyone who holds it, never as the server's own user, and a
+  memory written with it that names no namespace goes to `common`. An identity provider's token
+  that carries no subject but names the client it was issued to (a JWT's `azp` or `client_id`, an
+  introspection response's `client_id`) identifies no person either: its writes are recorded as
+  `client:<client id>`, and one that names no namespace also goes to `common`. Only a token with
+  neither a subject nor a client is recorded as the server's own actor. Writes the server makes
+  itself, such as a scheduled dream run, keep the server's own actor.
 - **Sharing is explicit.** A hosted store has no personal level, so a new memory is stored only
   when the call says `level: distributed`; one that names no level is refused with an explanation,
   and the server's instructions tell agents to ask the person before sharing. Editing, retiring
@@ -100,7 +115,8 @@ With JWT or introspection auth, every request comes from a person, and what they
 - **Where.** A shared memory that names no namespace goes to the writer's own `user/<person id>`.
   Name one, such as `common`, to file it with the team.
 - **Nicknames.** A person sets how they appear with the `memory_people` tool (ask the agent to
-  "set my ynm nickname to Sam"), or checks who they are with `memory_people` `whoami`. `ynm list`,
+  "set my ynm nickname to Sam"), or checks who they are with `memory_people` `whoami`. A caller
+  with no person, using a static token or a token with no subject, gets an explanation instead. `ynm list`,
   `ynm review list`, recall results and the wiki then show the nickname, else the person id. A
   nickname is visible to everyone who can read the store, so make it a nickname, not a legal name.
 - **Operators.** `ynm people list` shows everyone with a nickname or a linked login;
@@ -115,10 +131,28 @@ With JWT or introspection auth, every request comes from a person, and what they
 The nicknames and linked logins live in one small document beside the memories (`documents/people`
 in the store), not in any memory, so changing one never rewrites history.
 
+## Logs
+
+The server writes one line per request to stderr when the response ends:
+
+```text
+[ynm-mcp] request POST /mcp 200 143ms rpc=tools/call tool=memory_recall auth=signed-in client=claude-code
+```
+
+Method, path, HTTP status and duration, then the JSON-RPC method and tool, how the caller
+authenticated (`static`, `signed-in`, `token`, `none`, `refused`, or `public` for health and
+discovery), and the OAuth client id of an identity provider's token. A response the client
+abandoned before it ended is marked `cut=client`. A line never holds a token, a header's value,
+the query string, or anything from the request or response body beyond the method and tool name.
+The fields are the same as a Lambda function's request line, described in
+[Host ynm on AWS Lambda](host-on-aws-lambda.md#one-line-per-request).
+
 ## Audit
 
 Every request that reaches the MCP handler, and every refused one, produces one audit event:
-when, the person id and client, method, path, HTTP status, outcome (`ok`, `refused` or `error`),
+when, the person id and client (a static token has no person and client `static`; a token with no
+subject has no person and the client it names), method, path,
+HTTP status, outcome (`ok`, `refused` or `error`),
 a refusal's error code, the tools called with the memory ids they touched, the input size and
 result count, and how long it took. Events never hold tool inputs, queries or memory content.
 Health checks and sign-in discovery are not audited.

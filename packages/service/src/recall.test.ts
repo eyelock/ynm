@@ -52,6 +52,27 @@ describe("recall and context (ADR-005)", () => {
     expect(distributed.map((h) => h.mount)).toEqual(["project"]);
   });
 
+  it("returns a memory's data, dataSchema and source, and leaves the keys out when it has none", async () => {
+    const y = make();
+    const data = { signature: "timeout in step 3", count: 2, lane: "ci" };
+    const { memoryId } = await y.remember({
+      type: "episodic",
+      content: "Build failed on the release lane",
+      data,
+      dataSchema: "ynf.failure.v1",
+      source: "run:42",
+    });
+    const plain = await y.remember({ type: "semantic", content: "A plain fact about lanes" });
+    const hits = await y.recall({});
+    const hit = hits.find((h) => h.memoryId === memoryId);
+    expect(hit?.data).toEqual(data);
+    expect(hit?.dataSchema).toBe("ynf.failure.v1");
+    expect(hit?.source).toBe("run:42");
+    const bare = hits.find((h) => h.memoryId === plain.memoryId);
+    expect(bare).toBeDefined();
+    expect(bare && ["data", "dataSchema", "source"].filter((k) => k in bare)).toEqual([]);
+  });
+
   it("updates the index exactly after supersede, annotate and forget without a rebuild", async () => {
     const y = make();
     const { memoryId } = await y.remember({
