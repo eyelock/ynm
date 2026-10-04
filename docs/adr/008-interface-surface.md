@@ -87,3 +87,7 @@ None.
 - 2026-09-30: `hook` added to the CLI, a client-facing command with no tool (agent hooks read
   and write the client's JSON); see [ADR-016](016-agent-guidance-delivery.md).
 - 2026-09-29: correction: the third guidance prompt is registered as `memory-when-to-promote` (not `memory-when-to-promote-to-procedural`), and four resources are registered: `memory://status`, `memory://context`, the memory template and the wiki template.
+- 2026-10-04: a `memory_recall` hit carries the memory's `data`, `dataSchema` and `source` (the
+  current version's provenance source) whenever it has them, so a client that only speaks MCP
+  can read back the structured payload it wrote; the keys are left out when absent. Recall still
+  appends data's string values to `content`. Hits from a remote mount pass them through.

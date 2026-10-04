@@ -114,6 +114,22 @@ export interface RecallHit {
   updatedAt: string;
   /** Who last wrote it, when that was a signed-in person: their nickname, else their person id. */
   author?: string;
+  /** The structured payload of the current version, when it has one. */
+  data?: Record<string, unknown>;
+  /** The name of data's shape, when the writer gave one. */
+  dataSchema?: string;
+  /** The source reference the current version was written with, when it has one. */
+  source?: string;
+}
+
+/** A hit's structured fields from the folded state; a key is left out when the memory lacks it. */
+function structuredFields(m: IndexedMemory): Pick<RecallHit, "data" | "dataSchema" | "source"> {
+  const cur = m.state?.current;
+  return {
+    ...(cur?.data ? { data: cur.data } : {}),
+    ...(cur?.dataSchema ? { dataSchema: cur.dataSchema } : {}),
+    ...(cur?.provenance.source ? { source: cur.provenance.source } : {}),
+  };
 }
 
 export interface MemoryWithMount extends Memory {
@@ -338,6 +354,7 @@ export class Ynm {
           importance: m.importance,
           updatedAt: m.updatedAt,
           ...(await this.authorField(m.state?.current.provenance.actor)),
+          ...structuredFields(m),
         });
       }
     }
