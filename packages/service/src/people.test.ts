@@ -3,7 +3,7 @@ import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "./config.js";
 import { IndexManager } from "./indexing.js";
 import { toolSpec } from "./tools.js";
-import { Ynm } from "./ynm.js";
+import { STATIC_TOKEN_ACTOR, Ynm } from "./ynm.js";
 
 const auth0 = { issuer: "https://tenant.us.auth0.com/", subject: "auth0|6ac0" };
 const okta = { issuer: "https://login.example.com/", subject: "00u1abc" };
@@ -153,5 +153,31 @@ describe("people on a hosted store (ADR-017)", () => {
     await expect(run(base, "memory_people", { action: "whoami" })).rejects.toThrow(
       /signed-in caller/
     );
+  });
+
+  it("a static token's writes are token:static, in common, with no person to act on", async () => {
+    const base = hosted();
+    const shared = base.asStaticToken();
+    const w = await shared.remember({
+      type: "semantic",
+      level: "distributed",
+      content: "Workers share one token",
+    });
+    const memory = await base.find(w.memoryId);
+    expect(STATIC_TOKEN_ACTOR).toBe("token:static");
+    expect(memory?.current.provenance.actor).toBe("token:static");
+    expect(memory?.current.provenance.client).toBeUndefined();
+    expect(memory?.namespace).toBe("common");
+    await shared.annotate({ memoryId: w.memoryId, tags: ["ci"] });
+    expect((await base.find(w.memoryId))?.current.provenance.actor).toBe("token:static");
+    // Not a person: no author to show, and memory_people says why.
+    expect(await base.authorOf("token:static")).toBeUndefined();
+    await expect(run(shared, "memory_people", { action: "whoami" })).rejects.toThrow(
+      /static token.*token:static/
+    );
+    // The view changes nothing for the server's own writes.
+    expect(base.staticToken).toBeUndefined();
+    const own = await base.remember({ type: "semantic", level: "distributed", content: "Nightly" });
+    expect((await base.find(own.memoryId))?.current.provenance.actor).toBe("user:ynm-eyelock");
   });
 });

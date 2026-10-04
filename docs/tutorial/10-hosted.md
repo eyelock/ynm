@@ -35,8 +35,9 @@ checkout. Clients reach this store over HTTP instead, as below and in
 
 ## Part 1: a static token
 
-A static token is the quickest way to try the server, and fine for a demo: everyone who has the
-token is the same caller.
+A static token is the quickest way to try the server, and fine for a demo. It is a shared secret:
+everyone who has the token is the same caller, recorded as `token:static`, so the server can't tell
+them apart. Part 2 gives each person an identity of their own.
 
 ## Start the server
 
@@ -130,7 +131,7 @@ Expected: two lines of JSON. The first is the result of `memory_remember`: its
 `structuredContent` holds a new `memoryId`, `"mount":"project"` and a `revision` sha. The second
 is `memory_recall`, whose `structuredContent.data` is an array with one hit, the memory you just
 wrote, with `"level":"distributed"` and `"namespace":"common"`: a shared token vouches for no one,
-so there is no person to file it under. Any MCP client library, such as
+so there is no person to file it under, and the hit names no author. Any MCP client library, such as
 `@modelcontextprotocol/client` with its HTTP transport, does the same thing with the framing
 handled for you.
 
@@ -154,6 +155,22 @@ refs/notes/ynm/distributed/common/semantic/<yyyy-mm>
 
 A developer clone of this repository would fetch that ref with `ynm sync`, exactly as in
 tutorial 6. The agent that wrote it needed no git.
+
+Who does the record say wrote it? The raw record keeps the writer in `provenance.actor`:
+
+```bash
+ynm export --level distributed --cwd /tmp/ynm-tutorial/store.git | grep -o '"actor":"[^"]*"'
+```
+
+Expected:
+
+```text
+"actor":"token:static"
+```
+
+Not you, and not the server's own user (`tutorial` here): the static token. Everyone who writes
+with this token is recorded the same way, so there is no per-person audit trail. For that, the
+server needs an identity provider, as in part 2.
 
 ## Stop the server
 

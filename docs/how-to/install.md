@@ -136,6 +136,10 @@ docker run -d --name ynm -p 3000:3000 -v ynm-data:/data \
   -e YNM_MCP_TOKEN=change-me -e YNM_DREAM_EVERY=15m ghcr.io/eyelock/ynm
 ```
 
+`YNM_MCP_TOKEN` is a static token, a shared secret: everyone who uses it is the same caller,
+recorded as `token:static`. A team that wants to know who wrote what signs in through an identity
+provider instead.
+
 Tags are `latest` and each version, for `linux/amd64` and `linux/arm64`. Configuration, auth and
 backups are in [Operate a hosted store](operate-a-hosted-store.md); connecting clients to it is in
 [Connect a client over HTTP](connect-over-http.md).

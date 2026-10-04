@@ -107,7 +107,7 @@ export function personOfActor(actor: string | undefined): string | undefined {
 
 /**
  * How an actor is shown: a person's nickname, else their person id; any other actor (user:david,
- * agent:claude-code) as it was written, without the `user:` prefix.
+ * agent:claude-code, token:static) as it was written, without the `user:` prefix.
  */
 export function authorName(actor: string | undefined, doc: PeopleDoc): string | undefined {
   if (!actor) return undefined;

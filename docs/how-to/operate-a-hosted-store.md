@@ -57,8 +57,16 @@ Chosen from the environment, first match wins:
 |---|---|---|
 | `YNM_JWKS_URL`, optional `YNM_JWT_ISSUER`, `YNM_JWT_AUDIENCE` | JWT verified against a JWKS (jose) | Production with an identity provider; scopes from `scope` or `scp` |
 | `YNM_OAUTH_INTROSPECTION_URL`, `YNM_OAUTH_CLIENT_ID`, `YNM_OAUTH_CLIENT_SECRET` | RFC 7662 introspection, results cached 60 s | Opaque tokens from an authorisation server |
-| `YNM_MCP_TOKEN` (comma-separated list) | Static bearer | Development and demos |
+| `YNM_MCP_TOKEN` (comma-separated list) | Static bearer | Development and demos; everyone holding it is one shared identity, `token:static` |
 | none | Open | Local only; the server logs `auth: none` |
+
+**A static token is a shared secret.** It says that a caller holds the token, not who they are,
+so everyone using it gets the same identity: what they write is recorded as `token:static`, and the
+audit log shows client `static` with no person. There is no per-person audit trail. A static token
+lists several values only for rotation; they are the same identity. For per-person identity, use
+an identity provider (JWT or introspection mode); give workers and CI jobs their own machine tokens
+from the provider's client credentials grant, so each one is a person of its own in the records and
+the audit log.
 
 `YNM_REQUIRED_SCOPES=memory:read,memory:write` makes every request carry those scopes (403
 otherwise). Failures answer RFC 6750 challenges (`WWW-Authenticate: Bearer ...`).
@@ -91,8 +99,10 @@ With JWT or introspection auth, every request comes from a person, and what they
 - **Who.** Each sign-in resolves to a ynm person id such as `pq3x7k2mabcdwxyz`, derived from the
   identity provider's issuer and subject. A memory's `provenance.actor` is `user:<person id>`,
   and `provenance.client` is the client they wrote through. No email or other claim is read or
-  stored. A static token (`YNM_MCP_TOKEN`) vouches for no one, so its writes keep the server's
-  own actor.
+  stored. A static token (`YNM_MCP_TOKEN`) vouches for no one, so its writes are recorded as
+  `token:static`, the same for everyone who holds it, never as the server's own user, and a
+  memory written with it that names no namespace goes to `common`. Writes the server makes itself,
+  such as a scheduled dream run, keep the server's own actor.
 - **Sharing is explicit.** A hosted store has no personal level, so a new memory is stored only
   when the call says `level: distributed`; one that names no level is refused with an explanation,
   and the server's instructions tell agents to ask the person before sharing. Editing, retiring
@@ -118,7 +128,8 @@ in the store), not in any memory, so changing one never rewrites history.
 ## Audit
 
 Every request that reaches the MCP handler, and every refused one, produces one audit event:
-when, the person id and client, method, path, HTTP status, outcome (`ok`, `refused` or `error`),
+when, the person id and client (a static token has no person and client `static`), method, path,
+HTTP status, outcome (`ok`, `refused` or `error`),
 a refusal's error code, the tools called with the memory ids they touched, the input size and
 result count, and how long it took. Events never hold tool inputs, queries or memory content.
 Health checks and sign-in discovery are not audited.

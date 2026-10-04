@@ -12,7 +12,9 @@ import { personIdFor } from "@ynm/model";
 import { initProject } from "@ynm/service";
 import { createBare } from "@ynm/store/testing/git";
 import { type AuditEvent, Auditor } from "./audit.js";
-import { hostedAudit, loginOf } from "./identity.js";
+import { StaticTokenVerifier } from "./auth.js";
+import { hostedAudit, loginOf, storeFor } from "./identity.js";
+import { startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { startHttp } from "./transport/http.js";
 
@@ -33,7 +35,7 @@ const idp: OAuthTokenVerifier = {
   },
 };
 
-async function hosted(provider: "git-notes" | "sqlite") {
+async function hosted(provider: "git-notes" | "sqlite", verifier: OAuthTokenVerifier = idp) {
   const home = join(mkdtempSync(join(tmpdir(), "ynm-id-home-")), ".ynm");
   mkdirSync(home, { recursive: true });
   let cwd: string;
@@ -68,7 +70,7 @@ async function hosted(provider: "git-notes" | "sqlite") {
     port: 0,
     host: "127.0.0.1",
     quiet: true,
-    verifier: idp,
+    verifier,
     audit: new Auditor({ write: async (e) => void events.push(e) }),
     identify,
   });
@@ -204,6 +206,146 @@ describe.each(["git-notes", "sqlite"] as const)(
     });
   }
 );
+
+describe.each(["git-notes", "sqlite"] as const)("a static token over HTTP on %s", (provider) => {
+  it("records writes as token:static, never the server's user, and audits the shared client", async () => {
+    const { handle, getYnm, events } = await hosted(provider, new StaticTokenVerifier(["demo"]));
+    try {
+      const client = await connect(handle.url, "demo");
+      const written = data<{ memoryId: string }>(
+        await client.callTool({
+          name: "memory_remember",
+          arguments: { type: "semantic", level: "distributed", content: "Workers share one token" },
+        })
+      );
+      const ynm = await getYnm();
+      const memory = await ynm.find(written.memoryId);
+      expect(memory?.current.provenance.actor).toBe("token:static");
+      expect(memory?.current.provenance.client).toBeUndefined();
+      // A shared token is no one's own, so an unnamed write is the team's.
+      expect(memory?.namespace).toBe("common");
+
+      // Every other op records the same actor.
+      data(
+        await client.callTool({
+          name: "memory_annotate",
+          arguments: { memoryId: written.memoryId, tags: ["ci"] },
+        })
+      );
+      const other = data<{ memoryId: string }>(
+        await client.callTool({
+          name: "memory_remember",
+          arguments: { type: "semantic", level: "distributed", content: "Retired soon" },
+        })
+      );
+      data(
+        await client.callTool({
+          name: "memory_supersede",
+          arguments: { memoryId: other.memoryId, content: "Retired now" },
+        })
+      );
+      data(
+        await client.callTool({ name: "memory_forget", arguments: { memoryId: other.memoryId } })
+      );
+      const records = await ynm.records({ includeTombstoned: true });
+      expect(records.map((r) => r.op).sort()).toEqual(
+        ["annotate", "create", "create", "supersede", "tombstone"].sort()
+      );
+      expect(new Set(records.map((r) => r.provenance.actor))).toEqual(new Set(["token:static"]));
+
+      // Readers cope: no author to show, and memory_people says why it has no one to act on.
+      const hits = data<Array<{ memoryId: string; author?: string }>>(
+        await client.callTool({ name: "memory_recall", arguments: { text: "share one token" } })
+      );
+      const hit = hits.find((h) => h.memoryId === written.memoryId);
+      expect(hit).toBeDefined();
+      expect(hit?.author).toBeUndefined();
+      const people = await client.callTool({
+        name: "memory_people",
+        arguments: { action: "whoami" },
+      });
+      expect(people.isError).toBe(true);
+      expect(JSON.stringify(people.content)).toMatch(/static token.*token:static/);
+
+      // The audit event names the shared client and no person, matching the records.
+      const remember = events.find((e) => e.calls.some((c) => c.tool === "memory_remember"));
+      expect(remember).toMatchObject({ client: "static", outcome: "ok", status: 200 });
+      expect(remember?.person).toBeUndefined();
+      expect(remember?.calls.find((c) => c.tool === "memory_remember")?.memoryIds).toEqual([
+        written.memoryId,
+      ]);
+      await client.close();
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it("keeps the server's own actor for a scheduled dream run, which is no caller", async () => {
+    const { handle, getYnm } = await hosted(provider, new StaticTokenVerifier(["demo"]));
+    try {
+      const client = await connect(handle.url, "demo");
+      const written = data<{ memoryId: string }>(
+        await client.callTool({
+          name: "memory_remember",
+          arguments: {
+            type: "working",
+            level: "distributed",
+            content: "scratch for a moment",
+            ttl: "PT1S",
+            namespace: "session/s1",
+          },
+        })
+      );
+      await client.close();
+      await new Promise((r) => setTimeout(r, 1100));
+      const scheduler = startScheduler(getYnm, { quiet: true });
+      await scheduler.dreamNow();
+      scheduler.stop();
+      expect(scheduler.stats.lastDream?.expire?.changed).toBe(1);
+      const records = (await (await getYnm()).records({ includeTombstoned: true })).filter(
+        (r) => r.memoryId === written.memoryId
+      );
+      expect(records.map((r) => [r.op, r.provenance.actor])).toEqual([
+        ["create", "token:static"],
+        ["tombstone", "user:server"],
+      ]);
+    } finally {
+      await handle.close();
+    }
+  });
+});
+
+describe("storeFor", () => {
+  it("is the person for a login, token:static for a static token, else the store itself", async () => {
+    const opts = {
+      cwd: await createBare(),
+      env: {
+        ...process.env,
+        YNM_HOME: join(mkdtempSync(join(tmpdir(), "ynm-id-home-")), ".ynm"),
+        YNM_USER: "server",
+        YNM_NO_CLAUDE_CLI: "1",
+      },
+      noPersonal: true,
+    };
+    await initProject({ cwd: opts.cwd, hooks: false });
+    const ynm = await serviceCache(opts)();
+    const remember = async (store: typeof ynm) => {
+      const r = await store.remember({ type: "semantic", level: "distributed", content: "x" });
+      return (await ynm.find(r.memoryId))?.current.provenance.actor;
+    };
+    const staticInfo = await new StaticTokenVerifier(["demo"]).verifyAccessToken("demo");
+    expect(await remember(await storeFor(ynm, staticInfo))).toBe("token:static");
+    const jwt = await idp.verifyAccessToken("alice");
+    expect(await remember(await storeFor(ynm, jwt))).toBe(
+      `user:${personIdFor({ issuer: ISSUER, subject: "auth0|alice" })}`
+    );
+    // No auth (stdio, --no-auth), and a client merely named "static" by an identity provider.
+    expect(await remember(await storeFor(ynm, undefined))).toBe("user:server");
+    expect(
+      await remember(await storeFor(ynm, { token: "t", clientId: "static", scopes: [] }))
+    ).toBe("user:server");
+  });
+});
 
 describe("hostedAudit", () => {
   it("is off without auth or when set off, on (stdout) with auth, and reports a bad setting", async () => {
