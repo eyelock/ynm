@@ -36,7 +36,7 @@ jobs:
   # One runner per OS builds both of its architectures: the SEA blob is platform independent,
   # and postject injects it into the official Node binary for each target. Mach-O needs macOS
   # for codesign; ELF injection works across architectures. Only the runner's native binary can
-  # run, so only that one is smoke-tested here (darwin/arm64 on macos-14, linux/amd64 on
+  # run, so only that one is smoke-tested here (darwin/arm64 on macos-15, linux/amd64 on
   # ubuntu-24.04); darwin/amd64 and linux/arm64 are built, and build-standalone.mjs checks
   # that the blob was injected (the SEA fuse is flipped), but they are not run before release.
   build:
@@ -45,7 +45,7 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             os: darwin
             native: arm64
           - runner: ubuntu-24.04
