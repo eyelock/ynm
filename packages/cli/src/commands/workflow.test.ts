@@ -9,7 +9,11 @@ function hitsIdOf(hits: Array<{ memoryId?: string }>): string {
 }
 
 describe("ynm CLI workflow on real git repos", () => {
-  it("init, remember, list, supersede, annotate, forget, export, import, promote, doctor", async () => {
+  // Every step spawns its own `ynm` process, a dozen in a row, so this test is slow by design;
+  // under coverage on a loaded machine it outgrew the shared 60 s limit.
+  it("init, remember, list, supersede, annotate, forget, export, import, promote, doctor", {
+    timeout: 180_000,
+  }, async () => {
     const origin = await createBare();
     const repo = await createRepo(2);
     await fx(repo, "remote", "add", "origin", origin);
