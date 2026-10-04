@@ -12,6 +12,7 @@ import {
   type LambdaContext,
   type LambdaHandler,
   lambdaConfig,
+  responseBudget,
   toRequest,
   toResult,
 } from "./lambda.js";
@@ -598,6 +599,80 @@ describe("Lambda request and event log lines", () => {
         /^error \[ynm-mcp lambda\] request POST \/mcp 200 \d+ms rpc=tools\/call tool=memory_status auth=none cut=timeout cold id=slow-1$/
       ),
     ]);
+  });
+
+  it("cuts a response off before the gateway's timeout, counting the time before the handler ran", async () => {
+    const { lines, log } = capture();
+    const handler = createLambdaHandler({
+      env: lambdaEnv(),
+      quiet: true,
+      log,
+      getYnm: () => new Promise(() => {}),
+    });
+    // The function has its full 30 s, but the request reached the gateway 28.9 s ago (a slow cold
+    // start): only the gateway's clock can catch it before the client sees a 504.
+    const r = (await handler(
+      event({
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: "memory_status", arguments: {} },
+        }),
+        requestContext: {
+          http: { method: "POST" },
+          domainName: "abc123.lambda-url.eu-west-2.on.aws",
+          timeEpoch: Date.now() - 28_900,
+        },
+      }),
+      { awsRequestId: "cold-1", getRemainingTimeInMillis: () => 30_000 }
+    )) as FunctionUrlResult;
+    expect(r.statusCode).toBe(200);
+    expect(lines).toEqual([
+      expect.stringMatching(
+        /^error \[ynm-mcp lambda\] request POST \/mcp 200 \d+ms rpc=tools\/call tool=memory_status auth=none cut=gateway waited=289\d\dms cold id=cold-1$/
+      ),
+    ]);
+  });
+
+  it("budgets a response by whichever deadline comes first", () => {
+    // Function only, gateway only, neither, and each binding.
+    expect(responseBudget(1_000, 5_000, undefined)).toEqual({
+      timeoutMs: 4_000,
+      bound: "timeout",
+      waited: undefined,
+    });
+    expect(responseBudget(10_000, undefined, 4_000)).toEqual({
+      timeoutMs: 23_000,
+      bound: "gateway",
+      waited: 6_000,
+    });
+    expect(responseBudget(10_000, undefined, undefined)).toEqual({ waited: undefined });
+    expect(responseBudget(10_000, 30_000, 9_500)).toEqual({
+      timeoutMs: 28_500,
+      bound: "gateway",
+      waited: 500,
+    });
+    expect(responseBudget(10_000, 3_000, 9_500)).toEqual({
+      timeoutMs: 2_000,
+      bound: "timeout",
+      waited: 500,
+    });
+    // Past both deadlines, a clock skewed ahead of the gateway, and a custom gateway timeout.
+    expect(responseBudget(50_000, 500, 0).timeoutMs).toBe(0);
+    expect(responseBudget(1_000, 30_000, 2_000)).toMatchObject({
+      waited: 0,
+      timeoutMs: 29_000,
+    });
+    expect(responseBudget(10_000, 60_000, 10_000, 15_000)).toMatchObject({
+      timeoutMs: 14_000,
+      bound: "gateway",
+    });
   });
 
   it("logs each scheduled event's outcome and duration, and still fails a failed dream", async () => {

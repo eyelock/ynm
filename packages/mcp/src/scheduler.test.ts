@@ -41,9 +41,12 @@ describe("hosted scheduler (ADR-009)", () => {
       quiet: true,
       now: () => new Date(clock),
     });
-    await new Promise((r) => setTimeout(r, 120));
+    // Wait for two runs rather than a fixed time: a busy machine makes each run slower.
+    await vi.waitFor(() => expect(h.stats.dreamRuns).toBeGreaterThanOrEqual(2), {
+      timeout: 5_000,
+      interval: 10,
+    });
     h.stop();
-    expect(h.stats.dreamRuns).toBeGreaterThanOrEqual(2);
     expect(h.stats.lastDream?.expire?.changed).toBe(0);
     expect((await ynm.list({ type: "working" })).length).toBe(0);
     await h.dreamNow();

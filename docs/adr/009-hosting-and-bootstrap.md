@@ -138,3 +138,4 @@ Cases handled:
   or bodies (`packages/mcp/src/transport/request-log.ts`). The Lambda Terraform alarms on the API's
   5xx rate over its request count, with a request floor and 2 of 3 periods, and on function errors
   in 2 periods over two dream intervals, instead of on any single burst.
+- 2026-10-04: the Lambda handler cuts a response off before API Gateway's 30 s, counted from the request's arrival (`timeEpoch`), as well as before the function's own timeout; a cold start's init counts towards the first but not the second.
