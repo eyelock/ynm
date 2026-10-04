@@ -1,6 +1,6 @@
 {
   "name": "@ynm/store",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Record log interface, fold, and providers: git-notes, fs, sqlite, memory (ADR-003, ADR-004).",
   "license": "MIT",
@@ -36,9 +36,9 @@
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
     "@types/node": "^26.0.1",
-    "@vitest/coverage-v8": "^4.1.4",
+    "@vitest/coverage-v8": "^5.0.2",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.4"
+    "vitest": "^5.0.2"
   },
   "peerDependencies": {
     "vitest": ">=4"

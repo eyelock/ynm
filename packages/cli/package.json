@@ -1,6 +1,6 @@
 {
   "name": "@ynm/cli",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "The ynm command line (oclif); flags generated from the same Zod schemas as the MCP tools (ADR-008).",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "cli": "node bin/run.js"
   },
   "dependencies": {
-    "@oclif/core": "^4.10.5",
+    "@oclif/core": "^5.1.2",
     "@ynm/model": "workspace:*",
     "@ynm/service": "workspace:*",
     "@ynm/store": "workspace:*",
@@ -38,10 +38,10 @@
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
     "@types/node": "^26.0.1",
-    "@vitest/coverage-v8": "^4.1.4",
+    "@vitest/coverage-v8": "^5.0.2",
     "c8": "^12.0.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.4"
+    "vitest": "^5.0.2"
   },
   "bin": {
     "ynm": "./bin/run.js"

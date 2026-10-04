@@ -1,7 +1,7 @@
 {
   "$schema": "https://eyelock.github.io/ynh/schema/plugin.schema.json",
   "name": "ynm",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Your named memory: agent memory in git notes over MCP",
   "author": {
     "name": "eyelock",
