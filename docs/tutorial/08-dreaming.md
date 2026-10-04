@@ -62,6 +62,7 @@ change:
 
 ```text
 expire: 0/0 would change
+retention: 0/0 would change
 promote: 0/0 would change
 dedupe: 0/8 would change
 contradict: 0/1 would change
@@ -93,7 +94,7 @@ ynm dream
 ynm review list
 ```
 
-Expected: the same six pass lines with `changed` in place of `would change` and the same
+Expected: the same seven pass lines with `changed` in place of `would change` and the same
 counts (`0/8` and `0/1`), then a review queue of four memories, the two pairs, newest first:
 
 ```text

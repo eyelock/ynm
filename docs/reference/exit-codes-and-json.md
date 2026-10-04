@@ -162,7 +162,11 @@ This one started on an empty store, so its `context.markdown` is empty; the huma
 ```json
 {
   "dryRun": true,
-  "passes": { "expire": { "candidates": 0, "changed": [] }, "...": {} },
+  "passes": {
+    "expire": { "candidates": 0, "changed": [] },
+    "retention": { "candidates": 0, "changed": [] },
+    "...": {}
+  },
   "full": {
     "dryRun": true,
     "judge": { "name": "heuristic", "calibrated": false },
@@ -190,7 +194,12 @@ This one started on an empty store, so its `context.markdown` is empty; the huma
 `fresh` counts the memories new or changed since a run with this judge last finished with them;
 `dreamed` counts the ones this run finished with and marked (always 0 for a dry run, or a run
 limited by `--passes` or `--namespace`). With `fresh` at 0 only `expire` runs, and the plain
-output adds the line `nothing new since the last run; only expiry ran`. Passes appear in the order `expire`, `promote`, `dedupe`, `contradict`, `reflect`, `normalise`.
+output adds the line `nothing new since the last run; only expiry ran`. Passes appear in the order `expire`, `retention`, `promote`, `dedupe`, `contradict`, `reflect`, `normalise`.
+
+`retention` is the second half of the expire pass: memories tagged `occurrence` tombstoned for
+being older than `dream.occurrenceRetention`. It has the same shape as the other passes, runs
+whenever `expire` does, and is left out when retention is turned off. `expire` counts only
+working memory past its TTL.
 
 ### sync
 

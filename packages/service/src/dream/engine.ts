@@ -2,7 +2,7 @@ import type { ConsolidateInput, DreamConfig } from "@ynm/model";
 import { ConsolidateInputSchema } from "@ynm/model";
 import type { Judge, Writer } from "@ynm/models";
 import type { MemoryWithMount, Ynm } from "../ynm.js";
-import { contradict, dedupe, expire, normalise, promote, reflect } from "./passes.js";
+import { contradict, dedupe, expire, normalise, promote, reflect, retain } from "./passes.js";
 import {
   addUsage,
   type DreamContext,
@@ -24,7 +24,8 @@ export interface DreamOptions {
  *
  * A run judges only fresh memories: new, changed since a run with this judge last finished with
  * them (a `dreamed` mark on the memory), or never judged by it. With none fresh, only the expire
- * pass runs and no model is called; a working memory tagged `promote` is still promoted. A pair
+ * pass (TTL expiry, then occurrence retention, reported as `retention`) runs and no model is
+ * called; a working memory tagged `promote` is still promoted. A pair
  * is judged when at least one side is fresh, so two memories already compared are never compared
  * again; a memory with a judgment deferred by the pair cap stays fresh. Only a full run (every
  * pass, every namespace) marks: a partial one has not finished with anything.
@@ -78,6 +79,13 @@ export async function dream(
     switch (name) {
       case "expire":
         pr = await expire(ctx);
+        // Occurrence retention runs with expiry, before reflect: an occurrence it tombstones is
+        // one no current reflection rests on, and reflect then counts only what survives.
+        if (opts.config.occurrenceRetention) {
+          // Set expire first so the report lists it ahead of retention.
+          report.passes.expire = pr;
+          report.passes.retention = await retain(ctx);
+        }
         break;
       case "promote":
         pr = await promote(ctx);

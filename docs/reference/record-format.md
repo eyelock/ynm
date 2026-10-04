@@ -47,7 +47,7 @@ Two tags are reserved; ynm acts on them when it sees them, and every other tag i
 | Tag | Effect |
 |---|---|
 | `promote` | On a `working` memory: the dream promote pass turns it into an `episodic` memory without a judge, and the copy drops the tag |
-| `occurrence` | Marks one occurrence of an event, where repetition is the signal. Dream's dedupe and contradict passes never pair it, so it is never merged or superseded; the reflect pass still counts it as an episode of its subject, and the reflection it writes drops the tag. The session-start context block leaves it out, pinned or not; recall and list return it as usual |
+| `occurrence` | Marks one occurrence of an event, where repetition is the signal. Dream's dedupe and contradict passes never pair it, so it is never merged or superseded; the reflect pass still counts it as an episode of its subject, and the reflection it writes drops the tag. The session-start context block leaves it out, pinned or not; recall and list return it as usual. Dream's expire pass tombstones it once it is older than `dream.occurrenceRetention` (90 days by default), unless the newest reflection on its subject links to it |
 
 Unknown fields are rejected. `id` and `memoryId` are ULIDs: 26 characters, Crockford base 32,
 sortable by creation time. `recordedAt` is stamped by the writer in UTC. `ttl` is an ISO 8601

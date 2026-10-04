@@ -66,6 +66,48 @@ export async function expire(ctx: DreamContext): Promise<PassReport> {
 }
 
 /**
+ * Pass 1, second half: occurrence retention. Memories tagged `occurrence` are never merged, so
+ * without a window they accumulate forever. One unchanged for longer than
+ * `occurrenceRetention` is tombstoned, unless the newest live reflective memory on its subject
+ * links to it: a reflection always keeps its evidence. No model. Reported apart from TTL expiry.
+ */
+export async function retain(ctx: DreamContext): Promise<PassReport> {
+  const r = emptyReport();
+  const window = ctx.config.occurrenceRetention;
+  if (!window) return r;
+  const cutoff = ctx.now().getTime() - durationMs(window);
+  const live = await ctx.ynm.list({ includeTombstoned: false });
+  // The newest reflection per subject, from any namespace: it is written where its first
+  // episode lives, which a namespace-scoped run need not include.
+  const newest = new Map<string, MemoryWithMount>();
+  for (const m of live) {
+    if (m.type !== "reflective" || !m.subject) continue;
+    const key = `${m.mount}:${m.subject}`;
+    const prior = newest.get(key);
+    if (!prior || m.updatedAt > prior.updatedAt) newest.set(key, m);
+  }
+  const evidence = new Set([...newest.values()].flatMap((m) => m.links.map((l) => l.to)));
+  const occurrences = ctx.namespace
+    ? await ctx.ynm.list({ namespace: ctx.namespace, includeTombstoned: false })
+    : live;
+  let kept = 0;
+  for (const m of occurrences) {
+    if (!isOccurrence(m)) continue;
+    r.candidates += 1;
+    if (Date.parse(m.updatedAt) > cutoff) continue;
+    if (evidence.has(m.memoryId)) {
+      kept += 1;
+      continue;
+    }
+    if (!ctx.dryRun)
+      await ctx.ynm.forget({ memoryId: m.memoryId, reason: `occurrence retention (${window})` });
+    r.changed.push(m.memoryId);
+  }
+  if (kept) r.notes.push(`kept ${kept} past retention as evidence for a reflection`);
+  return r;
+}
+
+/**
  * Pass 2: working memory that should outlive the session. An explicit `promote` tag acts without
  * a model; otherwise the judge decides and only a calibrated judge may act. Only fresh memories
  * are judged; a tagged one is promoted whenever it is seen.
@@ -374,7 +416,8 @@ const ReflectionSchema = z.object({
 /**
  * Pass 5: one reflective memory per subject with enough episodes, verified before it is written.
  * A subject is reflected on again only when one of its episodes is fresh. Occurrences count as
- * episodes like any other; the reflection does not inherit their occurrence tag.
+ * episodes like any other; the reflection does not inherit their occurrence tag. It links the
+ * episodes it was written from, the newest twelve.
  */
 export async function reflect(ctx: DreamContext): Promise<PassReport> {
   const r = emptyReport();
@@ -400,14 +443,14 @@ export async function reflect(ctx: DreamContext): Promise<PassReport> {
       r.fallback = true;
       continue;
     }
-    const sample = list
-      .sort((x, y) => (x.updatedAt < y.updatedAt ? -1 : 1))
-      .slice(-12)
-      .map((m) => ({
-        date: m.updatedAt.slice(0, 10),
-        summary: m.current.summary ?? "",
-        content: (m.current.content ?? "").slice(0, 800),
-      }));
+    // The newest episodes are what the reflection is written from, and all it links to: its
+    // evidence, which occurrence retention keeps. Older ones it never saw are free to expire.
+    const evidence = list.sort((x, y) => (x.updatedAt < y.updatedAt ? -1 : 1)).slice(-12);
+    const sample = evidence.map((m) => ({
+      date: m.updatedAt.slice(0, 10),
+      summary: m.current.summary ?? "",
+      content: (m.current.content ?? "").slice(0, 800),
+    }));
     const subject = list[0]?.subject as string;
     let written: { summary: string; content: string };
     try {
@@ -458,7 +501,7 @@ export async function reflect(ctx: DreamContext): Promise<PassReport> {
           content: written.content,
           summary: written.summary,
           tags: [...new Set(list.flatMap((m) => m.tags))].filter((t) => t !== OCCURRENCE_TAG),
-          links: list.map((m) => ({ rel: "derives-from" as const, to: m.memoryId })),
+          links: evidence.map((m) => ({ rel: "derives-from" as const, to: m.memoryId })),
         },
         first.mount
       );
