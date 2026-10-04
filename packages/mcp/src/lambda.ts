@@ -38,7 +38,41 @@ export interface FunctionUrlEvent {
   cookies?: string[];
   body?: string;
   isBase64Encoded?: boolean;
-  requestContext: { http: { method: string }; domainName?: string; requestId?: string };
+  requestContext: {
+    http: { method: string };
+    domainName?: string;
+    requestId?: string;
+    /** When the gateway or Function URL received the request, in epoch milliseconds. */
+    timeEpoch?: number;
+  };
+}
+
+/**
+ * API Gateway's integration timeout (infra/aws/lambda/api.tf). Its clock starts when the request
+ * arrives, so it also counts a cold start's init, which the function's own remaining time does
+ * not: a cold request can reach the client as a 504 while the handler still has time left.
+ */
+export const GATEWAY_TIMEOUT_MS = 30_000;
+/** How long before a deadline the handler stops reading and answers with what it has. */
+const DEADLINE_MARGIN_MS = 1_000;
+
+/**
+ * How long the handler may spend on a request's body, and which limit binds: the function's
+ * remaining time, or the gateway's, measured from when the request arrived (`timeEpoch`).
+ */
+export function responseBudget(
+  now: number,
+  remainingMs: number | undefined,
+  timeEpoch: number | undefined,
+  gatewayTimeoutMs = GATEWAY_TIMEOUT_MS
+): { timeoutMs?: number; bound?: "timeout" | "gateway"; waited?: number } {
+  const fn = remainingMs === undefined ? undefined : remainingMs - DEADLINE_MARGIN_MS;
+  const waited = timeEpoch === undefined ? undefined : Math.max(0, now - timeEpoch);
+  const gw = waited === undefined ? undefined : gatewayTimeoutMs - waited - DEADLINE_MARGIN_MS;
+  if (fn === undefined && gw === undefined) return { waited };
+  const bound = gw !== undefined && (fn === undefined || gw < fn) ? "gateway" : "timeout";
+  const ms = bound === "gateway" ? (gw as number) : (fn as number);
+  return { timeoutMs: Math.max(0, ms), bound, waited };
 }
 
 /** A Function URL response, payload format 2.0. */
@@ -384,12 +418,17 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
         'unrecognised event: expected a Function URL request (payload format 2.0) or { "ynm": "dream" | "compact" | "health" }'
       );
     const started = performance.now();
-    const remaining = context?.getRemainingTimeInMillis?.();
+    const budget = responseBudget(
+      Date.now(),
+      context?.getRemainingTimeInMillis?.(),
+      event.requestContext.timeEpoch
+    );
     const entry: Partial<RequestLogEntry> = {
       method: event.requestContext.http.method,
       path: event.rawPath || "/",
       id: context?.awsRequestId,
       cold: firstUse(),
+      waited: budget.waited,
     };
     const seen: RequestSeen = {};
     let result: FunctionUrlResult;
@@ -399,11 +438,9 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
         Object.assign(entry, rpcOf(event, request));
       } catch {}
       const response = await web.fetch(request, seen);
-      const buffered = await bufferResult(response, {
-        timeoutMs: remaining === undefined ? undefined : Math.max(0, remaining - 1000),
-      });
+      const buffered = await bufferResult(response, { timeoutMs: budget.timeoutMs });
       result = buffered.result;
-      if (buffered.truncated) entry.cut = "timeout";
+      if (buffered.truncated) entry.cut = budget.bound ?? "timeout";
     } catch (err) {
       log(`request failed${idField(context)}: ${err instanceof Error ? err.message : String(err)}`);
       result = {

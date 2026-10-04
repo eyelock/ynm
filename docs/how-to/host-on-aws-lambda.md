@@ -134,7 +134,8 @@ appear only when they apply:
 | `tool=` | The tool a `tools/call` names |
 | `auth=` | `static` (the shared token), `signed-in` (a person's token), `token` (a verified token that names no person), `none` (auth is off), `refused` (no valid token: a `401`), or `public` (`/health`, sign-in discovery and preflight requests, answered before the token check) |
 | `client=` | The OAuth client id of a token from an identity provider |
-| `cut=timeout` | The response was cut off about a second before the function's timeout, with what it had sent so far. See below |
+| `cut=timeout`, `cut=gateway` | The response was cut off about a second before a deadline, with what it had so far: the function's timeout, or API Gateway's 30 seconds counted from when the request arrived. See below |
+| `waited=` | How long the request waited between reaching API Gateway and the handler starting on it, mostly a cold start's init |
 | `cold` | The first invocation this instance served (a request or a scheduled run), so it paid for opening the store and building the index |
 | `id=` | The Lambda request id, the same one on every line of the invocation |
 
@@ -162,17 +163,20 @@ The function also logs its auth mode at start and each compact run's summary.
 
 ### Timeouts and API Gateway errors
 
-The function stops reading a response about a second before its timeout and returns what it
-has, with the status the handler set (usually `200`), and the request line says `cut=timeout`.
-That happens when a tool call is still running near the timeout or a client holds a stream open.
+API Gateway gives up on a request 30 seconds after it arrived and answers `504` itself. Its clock
+starts before the function's: a cold start's init counts towards the 30 seconds but not towards
+the function's own timeout. So the function watches both deadlines. It stops reading a response
+about a second before whichever comes first, the function's timeout or API Gateway's 30 seconds
+from the request's arrival, and returns what it has with the status the handler set (usually
+`200`). The request line then says `cut=timeout` or `cut=gateway`, and `waited=` shows how long
+the request spent before the handler started. That happens when a tool call is still running near
+a deadline, a client holds a stream open, or a slow cold start used up most of the time.
 
-Some failures never reach ynm's log as a request line. API Gateway gives up on the function
-after 30 seconds and answers `504` itself, and it answers `502` or `500` itself when the function
-crashes or cannot start. A cold start counts towards the 30 seconds, so a `cold` request whose
-duration plus start-up comes close to 30 seconds can reach the client as a `504` even though
-its line says `200`. Lambda's own `Task timed out` and `Invoke Error` lines show a function that
-ran out of time or crashed. To match a `5xx` count in API Gateway's metrics with the log, look
-for those lines, `cut=timeout`, and request lines with a duration close to 30000 ms.
+Some failures still never reach ynm's log as a request line: API Gateway answers `502` or `500`
+itself when the function crashes or cannot start, and a cold start that alone outlasts the 30
+seconds is a `504` before the handler runs. Lambda's own `Task timed out` and `Invoke Error`
+lines show a function that ran out of time or crashed. To match a `5xx` count in API Gateway's
+metrics with the log, look for those lines, `cut=` lines, and large `waited=` values.
 
 ### Find requests in CloudWatch
 
@@ -181,7 +185,7 @@ Filter patterns for the console's log search or `aws logs filter-log-events --fi
 | To find | Filter pattern |
 |---|---|
 | Every request line | `"[ynm-mcp lambda] request "` |
-| Errors of any kind | `?"request failed" ?"cut=timeout" ?"scheduled dream failed" ?"Task timed out" ?"Invoke Error"` |
+| Errors of any kind | `?"request failed" ?"cut=" ?"scheduled dream failed" ?"Task timed out" ?"Invoke Error"` |
 | `5xx` and cut-off answers from ynm (logged at `ERROR`) | `"[ynm-mcp lambda] request " "ERROR"` |
 | One tool's calls | `"tool=memory_remember"` |
 | One invocation | `"id=8f1c2d9e-4b7a-4e0f-9a51-3c6d2b1e7f40"` |

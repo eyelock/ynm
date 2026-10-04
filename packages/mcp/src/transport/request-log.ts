@@ -39,8 +39,13 @@ export interface RequestLogEntry extends RequestSeen {
   id?: string;
   /** The first invocation this instance served (a request or a scheduled run). */
   cold?: boolean;
-  /** The response was not delivered whole: cut off near the timeout, or the client went away. */
-  cut?: "timeout" | "client";
+  /**
+   * The response was not delivered whole: cut off near the function's timeout, near the API
+   * gateway's (which also counts the time before the handler ran), or the client went away.
+   */
+  cut?: "timeout" | "gateway" | "client";
+  /** Milliseconds between the gateway receiving the request and the handler starting on it. */
+  waited?: number;
 }
 
 export type LogLevel = "info" | "error";
@@ -76,6 +81,7 @@ export function formatRequestLine(e: RequestLogEntry): string {
   if (e.auth) parts.push(`auth=${e.auth}`);
   if (e.client) parts.push(`client=${safeName(e.client) ?? "?"}`);
   if (e.cut) parts.push(`cut=${e.cut}`);
+  if (e.waited !== undefined) parts.push(`waited=${Math.max(0, Math.round(e.waited))}ms`);
   if (e.cold) parts.push("cold");
   if (e.id) parts.push(`id=${safeName(e.id) ?? "?"}`);
   return parts.join(" ");
