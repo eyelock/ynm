@@ -1,5 +1,26 @@
 # @ynm/models
 
+## 0.3.0
+
+### Minor Changes
+
+- Occurrences, structured recall and clearer identities. A memory tagged `occurrence` records one
+  event where repetition is the signal: dream never merges or supersedes it, still reflects on it,
+  and keeps it out of the session-start context; after `dream.occurrenceRetention` (default 90
+  days, `null` to keep them) dream retires old occurrences, except those the newest reflection on
+  their subject was written from (a reflection now links only the episodes it was written from).
+  Recall hits carry a memory's `data`, `dataSchema` and `source`. On a hosted store, a write made
+  with a static token is recorded as `token:static` and one from an identity-provider token with no
+  subject as `client:<id>`, never as the server's own user. The hosted function logs one line per
+  request (method, path, status, duration, MCP method and tool, auth kind), answers before API
+  Gateway's 30 seconds run out even after a slow cold start, and its alarms page on a sustained
+  error rate rather than a single burst. The release binaries for macOS build on macos-26.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @ynm/model@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

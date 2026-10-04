@@ -1,6 +1,6 @@
 {
   "name": "@ynm/store-s3",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "The s3 record log provider: append-only JSONL objects in an S3 bucket (ADR-004). Its own package so the AWS SDK stays out of the CLI bundles.",
   "license": "MIT",
