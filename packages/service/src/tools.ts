@@ -3,6 +3,7 @@ import {
   ConsolidateInputSchema,
   ContextQuerySchema,
   ForgetInputSchema,
+  PeopleInputSchema,
   PromoteInputSchema,
   RecallQuerySchema,
   RememberInputSchema,
@@ -13,6 +14,7 @@ import {
 } from "@ynm/model";
 import type { z } from "zod";
 import { z as zod } from "zod";
+import { emptyContextNote, REMEMBER_INTENT_EXAMPLES } from "./hooks/intent.js";
 import { Lifecycle } from "./lifecycle.js";
 import type { Ynm } from "./ynm.js";
 
@@ -56,13 +58,19 @@ function spec<S extends z.ZodObject>(s: ToolSpec<S>): ToolSpec<S> {
   return s;
 }
 
-/** The ten tools of ADR-008. MCP and CLI are thin adapters over these. */
+/** Which shared stores a read had to go without, so the agent knows the answer may be partial. */
+function skipped(ynm: Ynm): string | undefined {
+  if (!ynm.remoteIssues.size) return undefined;
+  // Each reason already names its mount.
+  return `Shared memory left out: ${[...ynm.remoteIssues.values()].join("; ")}.`;
+}
+
+/** The tools of ADR-008 (and ADR-017's people tool). MCP and CLI are thin adapters over these. */
 export const TOOL_SPECS = [
   spec({
     name: "memory_remember",
     command: "remember",
-    description:
-      "Record a memory. Choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch) and level (personal by default; distributed only for team-safe project facts). Never store secrets.",
+    description: `Save to the user's persistent memory. Call it whenever the user asks you to remember something or states a preference or standing instruction (${REMEMBER_INTENT_EXAMPLES}), instead of any built-in memory, memory directory or notes file. One fact per memory; choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch). Leave level out to keep it personal. Set level distributed only when the user chooses to share it with everyone on the store (team-safe project facts); a store with no personal level, such as a hosted one, stores nothing until you do, so ask the user first. Never store secrets.`,
     input: RememberInputSchema,
     readOnly: false,
     async run(ynm, input) {
@@ -87,28 +95,34 @@ export const TOOL_SPECS = [
     name: "memory_recall",
     command: "recall",
     description:
-      "Search memory: indexed and ranked by relevance, recency and importance. Use before answering questions about the project, the user or past decisions.",
+      "Search the user's persistent memory, ranked by relevance, recency and importance. Call it with the key terms before answering about the user's preferences, the project or past decisions.",
     input: RecallQuerySchema,
     readOnly: true,
     async run(ynm, input) {
       const hits = await ynm.recall(input);
-      return {
-        data: hits,
-        guidance: hits.length
+      const guidance = [
+        hits.length
           ? undefined
           : "No matches. Try broader terms, drop filters, or check memory_context for pinned memories.",
-      };
+        skipped(ynm),
+      ].filter(Boolean);
+      return { data: hits, guidance: guidance.length ? guidance.join(" ") : undefined };
     },
   }),
   spec({
     name: "memory_context",
     command: "context",
     description:
-      "The session-start memory block: pinned memories first, then the most relevant, packed to a token budget. Read it at the start of a task.",
+      "The user's memory for this session: pinned memories first, then the most relevant, packed to a token budget. Read it at the start of a task and before answering about the user's preferences, the project or past decisions.",
     input: ContextQuerySchema,
     readOnly: true,
     async run(ynm, input) {
-      return { data: await ynm.context(input) };
+      const block = await ynm.context(input);
+      const guidance = [
+        block.markdown ? undefined : emptyContextNote(block.truncated, true),
+        skipped(ynm),
+      ].filter(Boolean);
+      return { data: block, guidance: guidance.length ? guidance.join(" ") : undefined };
     },
   }),
   spec({
@@ -164,7 +178,12 @@ export const TOOL_SPECS = [
         );
         return {
           data: s,
-          guidance: `Write working memory to namespace ${s.namespace} with type working and ttl ${s.ttl}. Call memory_session end when done.`,
+          guidance: [
+            s.context.markdown ? undefined : emptyContextNote(s.context.truncated, true),
+            `Write working memory to namespace ${s.namespace} with type working and ttl ${s.ttl}. Call memory_session end when done.`,
+          ]
+            .filter(Boolean)
+            .join(" "),
         };
       }
       if (!input.sessionId) throw new Error("sessionId is required to end a session");
@@ -190,7 +209,7 @@ export const TOOL_SPECS = [
     name: "memory_sync",
     command: "sync",
     description:
-      "Fetch, merge and push shared memory with the configured remote. Personal memory is never synced by this tool.",
+      "Fetch, merge and push distributed memory with the configured remote. Personal memory is never synced by this tool.",
     input: SyncInputSchema,
     readOnly: false,
     async run(ynm, input) {
@@ -205,6 +224,41 @@ export const TOOL_SPECS = [
     readOnly: true,
     async run(ynm) {
       return { data: { ...(await ynm.status()), index: await ynm.indexStatus() } };
+    },
+  }),
+  spec({
+    name: "memory_people",
+    command: "people",
+    description:
+      "Who you are on this store, and how you appear to others: whoami shows your person id and login; nickname sets the name shown on what you write (a nickname, visible to everyone who can read the store); clear removes it. Needs a signed-in caller.",
+    input: PeopleInputSchema,
+    readOnly: false,
+    async run(ynm, input) {
+      const caller = ynm.caller;
+      if (!caller)
+        throw new Error(
+          "memory_people acts on the signed-in caller, and this request has none; use `ynm people` on the command line to manage anyone's entry"
+        );
+      if (input.action === "whoami") {
+        const doc = await ynm.people();
+        return {
+          data: {
+            person: caller.person,
+            nickname: doc.people[caller.person]?.nickname ?? null,
+            client: caller.client ?? null,
+            login: caller.login ?? null,
+          },
+        };
+      }
+      if (input.action === "nickname" && !input.nickname)
+        throw new Error("nickname needs a nickname: the name to show on what you write");
+      const doc = await ynm.setNickname(
+        caller.person,
+        input.action === "nickname" ? input.nickname : undefined
+      );
+      return {
+        data: { person: caller.person, nickname: doc.people[caller.person]?.nickname ?? null },
+      };
     },
   }),
 ] as const satisfies readonly ToolSpec[];

@@ -256,7 +256,7 @@ async function cliReference() {
 // MCP reference
 
 async function mcpReference() {
-  const { createYnmServer } = await load("packages/mcp/dist/server.js");
+  const { createYnmServer, serverInstructions } = await load("packages/mcp/dist/server.js");
   const { TOOL_SPECS } = await load("packages/service/dist/tools.js");
   const server = createYnmServer({ cwd: root }, async () => {
     throw new Error("the docs generator never opens a store");
@@ -280,9 +280,19 @@ async function mcpReference() {
     "",
     "## Server instructions",
     "",
-    "Sent to the client in the `initialize` result:",
+    "Sent to the client in the `initialize` result, and built from the levels the server",
+    "actually serves. A local server with a personal store sends:",
     "",
     ...instructions.split("\n").map((l) => `> ${l}`),
+    "",
+    "A hosted server (`--no-personal`) has only the distributed level, which is then the default",
+    "when a tool call names none, and its last line reads:",
+    "",
+    `> ${serverInstructions(["distributed"]).split("\n").at(-1)}`,
+    "",
+    "For a client connected by URL alone, with no hooks, skill or instruction-file block, these",
+    "instructions and the tool descriptions below are all the guidance it receives; see",
+    "[Connect a client over HTTP](../how-to/connect-over-http.md#what-a-url-only-client-gets).",
     "",
     "## Tools",
     "",

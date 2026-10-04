@@ -5,6 +5,7 @@ import {
   RecallQuerySchema,
   RememberInputSchema,
 } from "@ynm/model";
+import { z } from "zod";
 import { flagsFromSchema, InvalidInputError, inputFromFlags, toKebab } from "./flags.js";
 
 describe("flags from Zod (ADR-008)", () => {
@@ -30,7 +31,7 @@ describe("flags from Zod (ADR-008)", () => {
     expect(input.importance).toBe(0.7);
     expect(input.dataSchema).toBe("profile/1");
     expect(input.links[0]?.rel).toBe("about");
-    expect(input.level).toBe("personal");
+    expect(input.level).toBeUndefined();
   });
   it("splits comma-separated string-array values and says so in the description", () => {
     const flags = flagsFromSchema(RememberInputSchema);
@@ -53,7 +54,7 @@ describe("flags from Zod (ADR-008)", () => {
     const flags = flagsFromSchema(RememberInputSchema);
     const d = (name: string) => (flags[name] as { description?: string }).description;
     expect(d("importance")).toBe("0..1 (number) (default: 0.5)");
-    expect(d("namespace")).toContain("(default: common)");
+    expect(d("confidence")).toContain("(default: 1)");
     expect(d("data")).toBe("Structured payload (JSON object)");
     expect(d("tags")).not.toContain("default");
   });
@@ -71,6 +72,20 @@ describe("flags from Zod (ADR-008)", () => {
         expect(toKebab(desc), `${n}`).not.toBe(n);
       }
     }
+  });
+  it("unwraps a nullable field to its one type and keeps a real union as a string", () => {
+    const schema = z.object({
+      maybeCount: z.number().int().nullable().describe("A count or null"),
+      either: z.union([z.string(), z.number()]).optional(),
+    });
+    const flags = flagsFromSchema(schema);
+    expect((flags["maybe-count"] as { type?: string }).type).toBe("option");
+    expect((flags["maybe-count"] as { description?: string }).description).toBe("A count or null");
+    expect((flags.either as { description?: string }).description).toBe("either");
+    expect(inputFromFlags(schema, { "maybe-count": 3, either: "x" })).toEqual({
+      maybeCount: 3,
+      either: "x",
+    });
   });
   it("kebab-cases camelCase", () => {
     expect(toKebab("validFrom")).toBe("valid-from");

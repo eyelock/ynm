@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { McpServer } from "@modelcontextprotocol/server";
 import { initProject } from "@ynm/service";
 import { createBare } from "@ynm/store/testing/git";
 import { StaticTokenVerifier } from "../auth.js";
@@ -44,8 +46,11 @@ async function hosted(provider: Provider, http: Partial<HttpOptions> = {}) {
     noPersonal: true,
   };
   const getYnm = serviceCache(opts);
+  // 127.0.0.1, not localhost: a single address, so a client connecting while the same process is
+  // busy serving another request never hits Node's per-address connect timeout.
   const handle = await startHttp(() => createYnmServer(opts, getYnm), {
     port: 0,
+    host: "127.0.0.1",
     quiet: true,
     ...http,
   });
@@ -82,7 +87,7 @@ describe.each<Provider>(["git-notes", "sqlite"])(
       });
       expect(unauth.status).toBe(401);
       const client = await connect(handle.url, "secret");
-      expect((await client.listTools()).tools).toHaveLength(10);
+      expect((await client.listTools()).tools).toHaveLength(11);
       const r = data<{ mount: string }>(
         await client.callTool({
           name: "memory_remember",
@@ -171,6 +176,68 @@ describe("token verifiers on the transport (ADR-009)", () => {
     await scoped.handle.close();
   }, 30_000);
 
+  it("advertises where to sign in (RFC 9728) and points the challenge at it", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      quiet: true,
+      verifier: new StaticTokenVerifier(["good"]),
+      protectedResource: {
+        authorizationServers: ["http://localhost:8180/realms/ynm"],
+        scopesSupported: ["memory:read", "memory:write"],
+      },
+    });
+    const base = `http://localhost:${handle.port}`;
+    const missing = await fetch(handle.url, { method: "POST", body: "{}" });
+    expect(missing.status).toBe(401);
+    const metadataUrl = `${base}/.well-known/oauth-protected-resource/mcp`;
+    expect(missing.headers.get("www-authenticate")).toContain(`resource_metadata="${metadataUrl}"`);
+    for (const url of [metadataUrl, `${base}/.well-known/oauth-protected-resource`]) {
+      const res = await fetch(url);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("access-control-allow-origin")).toBe("*");
+      expect(await res.json()).toEqual({
+        resource: `${base}/mcp`,
+        authorization_servers: ["http://localhost:8180/realms/ynm"],
+        scopes_supported: ["memory:read", "memory:write"],
+        bearer_methods_supported: ["header"],
+      });
+    }
+    await handle.close();
+  });
+
+  it("advertises a configured resource, and nothing without a protected resource", async () => {
+    const configured = await startHttp(bare, {
+      port: 0,
+      quiet: true,
+      verifier: new StaticTokenVerifier(["good"]),
+      protectedResource: {
+        authorizationServers: ["https://idp.example.com"],
+        resource: "https://memory.example.com/mcp",
+      },
+    });
+    const missing = await fetch(configured.url, { method: "POST", body: "{}" });
+    expect(missing.headers.get("www-authenticate")).toContain(
+      'resource_metadata="https://memory.example.com/.well-known/oauth-protected-resource/mcp"'
+    );
+    const doc = await (
+      await fetch(`http://localhost:${configured.port}/.well-known/oauth-protected-resource/mcp`)
+    ).json();
+    expect(doc).toMatchObject({ resource: "https://memory.example.com/mcp" });
+    expect(doc).not.toHaveProperty("scopes_supported");
+    await configured.close();
+
+    const plain = await startHttp(bare, {
+      port: 0,
+      quiet: true,
+      verifier: new StaticTokenVerifier(["good"]),
+    });
+    const challenge = await fetch(plain.url, { method: "POST", body: "{}" });
+    expect(challenge.headers.get("www-authenticate")).not.toContain("resource_metadata");
+    const none = await fetch(`http://localhost:${plain.port}/.well-known/oauth-protected-resource`);
+    expect(none.status).not.toBe(200);
+    await plain.close();
+  });
+
   it("health carries the operator's extra fields outside auth", async () => {
     const { handle } = await hosted("sqlite", {
       authToken: "x",
@@ -180,6 +247,177 @@ describe("token verifiers on the transport (ADR-009)", () => {
       scheduler: { dreamRuns: number };
     };
     expect(h.scheduler.dreamRuns).toBe(3);
+    await handle.close();
+  });
+});
+
+/** A server with one tool and no store, for transport behaviour that never reaches memory. */
+function bare(): McpServer {
+  const server = new McpServer({ name: "bare", version: "0" }, { capabilities: { tools: {} } });
+  server.registerTool("ping", { description: "answers pong" }, async () => ({
+    content: [{ type: "text", text: "pong" }],
+  }));
+  return server;
+}
+
+/** fetch() forbids setting Host, so raw requests go through node:http. */
+function raw(
+  port: number,
+  opts: { method?: string; path?: string; headers?: Record<string, string | string[]> }
+): Promise<{ status: number; headers: Record<string, unknown>; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(
+      {
+        host: "127.0.0.1",
+        port,
+        method: opts.method ?? "GET",
+        path: opts.path ?? "/mcp",
+        headers: opts.headers,
+      },
+      (res) => {
+        let body = "";
+        res.on("data", (c) => {
+          body += c;
+        });
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body }));
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+describe("HTTP front door: CORS, host and origin checks", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("answers a preflight from an allowed origin with CORS headers and no auth", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      authToken: "secret",
+      allowedOrigins: ["https://app.example"],
+    });
+    const pre = await fetch(handle.url, {
+      method: "OPTIONS",
+      headers: { Origin: "https://app.example" },
+    });
+    expect(pre.status).toBe(204);
+    expect(pre.headers.get("access-control-allow-origin")).toBe("https://app.example");
+    expect(pre.headers.get("vary")).toBe("Origin");
+    expect(pre.headers.get("access-control-allow-headers")).toMatch(/Authorization/);
+    const other = await fetch(handle.url, {
+      method: "OPTIONS",
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(other.status).toBe(204);
+    expect(other.headers.get("access-control-allow-origin")).toBeNull();
+    await handle.close();
+  });
+
+  it("rejects a foreign origin and a foreign Host header before auth or the handler", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      authToken: "secret",
+    });
+    const origin = await fetch(handle.url, {
+      method: "POST",
+      headers: { Origin: "https://evil.example", Authorization: "Bearer secret" },
+      body: "{}",
+    });
+    expect(origin.status).toBe(403);
+    expect(origin.headers.get("content-type")).toBe("application/json");
+    const host = await raw(handle.port, {
+      method: "POST",
+      headers: { Host: "evil.example", Authorization: "Bearer secret" },
+    });
+    expect(host.status).toBe(403);
+    expect(host.body).toMatch(/host/i);
+    await handle.close();
+  });
+
+  it("a wildcard host list accepts any Host header", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      allowedHosts: ["*"],
+    });
+    const r = await raw(handle.port, {
+      method: "GET",
+      path: "/health",
+      headers: { Host: "memory.internal" },
+    });
+    expect(r.status).toBe(200);
+    expect(JSON.parse(r.body)).toEqual({ status: "ok", name: "ynm" });
+    const mcp = await raw(handle.port, {
+      method: "DELETE",
+      headers: { Host: "memory.internal" },
+    });
+    // Past the host check, the MCP handler itself answers (stateless: no DELETE).
+    expect(mcp.status).toBe(405);
+    expect(JSON.parse(mcp.body).error.message).toMatch(/Method not allowed/);
+    await handle.close();
+  });
+
+  it("refuses a non-Bearer Authorization with a realm challenge", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      authToken: "secret",
+      rejectLegacy: true,
+    });
+    const r = await fetch(handle.url, {
+      method: "POST",
+      headers: { Authorization: "Basic c2VjcmV0" },
+      body: "{}",
+    });
+    expect(r.status).toBe(401);
+    expect(r.headers.get("www-authenticate")).toBe('Bearer realm="ynm"');
+    expect(await r.json()).toEqual({ error: "Unauthorized" });
+    await handle.close();
+  });
+
+  it("passes repeated request headers through and serves a client with a static token", async () => {
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      authToken: "secret",
+    });
+    const r = await raw(handle.port, {
+      method: "POST",
+      headers: { "Set-Cookie": ["a=1", "b=2"] },
+    });
+    expect(r.status).toBe(401);
+    const client = await connect(handle.url, "secret");
+    const pong = await client.callTool({ name: "ping", arguments: {} });
+    expect((pong.content as Array<{ text: string }>)[0]?.text).toBe("pong");
+    await client.close();
+    await handle.close();
+  });
+
+  it("logs the listening address and serving errors to stderr unless quiet", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const handle = await startHttp(
+      () => {
+        throw new Error("factory broke");
+      },
+      { port: 0, host: "127.0.0.1" }
+    );
+    expect(err).toHaveBeenCalledWith(
+      `ynm-mcp listening on http://127.0.0.1:${handle.port}/mcp (health: http://127.0.0.1:${handle.port}/health)`
+    );
+    const client = new Client({ name: "http-test", version: "0" });
+    await expect(
+      client.connect(new StreamableHTTPClientTransport(new URL(handle.url)))
+    ).rejects.toThrow();
+    expect(err.mock.calls.some(([m]) => /^\[ynm-mcp\] .*factory broke/.test(String(m)))).toBe(true);
     await handle.close();
   });
 });

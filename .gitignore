@@ -19,6 +19,7 @@ coverage.json
 *.log
 tmp/
 .worktrees/
+.lambda-local/
 
 # ynm local state (index, wiki projection, local config)
 .ynm/index/

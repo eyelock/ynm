@@ -31,15 +31,48 @@ Leave `--token` off if the server is open (only sensible on localhost).
 
 The guidance block (in the instruction file the client reads, `AGENTS.md` when there is none) is written the same way as for stdio.
 
+## What a URL-only client gets
+
+A client can also be pointed at the server with nothing but its own command, for example
+
+```bash
+claude mcp add --transport http ynm https://memory.example.com/mcp --header "Authorization: Bearer $YNM_TOKEN"
+```
+
+on a machine without `ynm`. MCP cannot install anything in the client, so that client gets only
+what the server sends:
+
+- **Server instructions.** Claude Code puts them in the system prompt. They say that ynm is the
+  user's memory, that a request to remember something or a stated preference or standing
+  instruction ("call me ...", "from now on ...", "always ...") goes to `memory_remember` and not
+  to the client's own memory or a notes file, and that `memory_recall` or `memory_context` comes
+  before answering about the user, the project or past decisions. They also name the levels the
+  server serves: a hosted server has only `distributed`. The text is in the
+  [MCP reference](../reference/mcp.md#server-instructions).
+- **Tool descriptions.** `memory_remember`'s says the same at the moment the model picks a tool.
+- **Sharing is never the default.** A hosted server has no personal store, so a `memory_remember`
+  call that names no `level` stores nothing and answers that the store is shared, to ask the user,
+  and to set `level` to `distributed` to share. Anything stored there is shared with everyone who
+  uses the server. To keep personal memory alongside it, see
+  [Use personal memory with a hosted store](use-personal-and-hosted-memory.md).
+
+This is advisory: the client's built-in memory competes on equal terms, and a model can still
+pick it. That is why `ynm client install` also adds hooks wherever the client supports them, as
+below: a hook runs on every prompt, whatever the model thinks.
+
 ## Hooks with a hosted server
 
 Claude Code (and a ynh harness) also get the agent hooks, as they do for stdio: Claude Code's in
 `.claude/settings.local.json` (or `~/.claude/settings.json` with `--scope user`), the harness's in its
 manifest. The hooks run the local `ynm hook` command, so they need `ynm` on the machine and they
-read the local store, not the hosted one. The prompt hook, which steers "remember this" into
-`memory_remember`, works the same either way; the session-start hook shows only local memory,
-and with no local memory it adds a single line pointing at `memory_recall`. If the machine has
-no `ynm` at all, install with `--no-hooks`.
+read the local stores, not the server the client is connected to. The prompt hook, which steers
+"remember this" into `memory_remember`, works the same either way; the session-start hook shows
+only local memory, and with no local memory it adds a single line pointing at `memory_recall`. If
+the machine has no `ynm` at all, install with `--no-hooks`.
+
+To have the hooks, and everything else, see the hosted store too, connect the client to the local
+ynm and mount the hosted store in it rather than connecting the client to the server: see
+[Use personal memory with a hosted store](use-personal-and-hosted-memory.md).
 
 `ynm init` does not take `--http`: it registers the local stdio server, and only for clients the
 project already uses. For a hosted server, use `ynm client install` as above, and

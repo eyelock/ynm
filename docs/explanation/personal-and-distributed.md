@@ -3,8 +3,6 @@
 Every memory ynm stores has a `level`, and there are only two: `personal` and `distributed`.
 The level decides where a memory is written, who can ever see it, and whether sync moves it.
 This page explains why the boundary is binary, how it is enforced, and how a memory crosses it.
-[ADR-007](../adr/007-personal-vs-distributed.md) records the decision, and
-[ADR-001](../adr/001-memory-model.md) the level field itself.
 
 ## Two stores, not two flags
 
@@ -14,7 +12,7 @@ your corrections, what you learned about a codebase you are only visiting: all p
 default everything is.
 
 **Distributed memory** lives in the project: in the repository's own notes refs under
-`refs/notes/ynm/shared/`, or in a dedicated shared repository mounted alongside. It is what the
+`refs/notes/ynm/distributed/`, or in a dedicated repository for distributed memory mounted alongside. It is what the
 team should know: decisions and why, the procedure that works, the dashboard everyone needs.
 
 The important part is that these are two different places, not one place with a visibility
@@ -54,7 +52,7 @@ the shapes you know; the judge catches the ones you did not list.
 
 ## Sync respects the boundary
 
-`ynm init` adds a fetch refspec for `refs/notes/ynm/shared/*` only, and a pre-push hook that
+`ynm init` adds a fetch refspec for `refs/notes/ynm/distributed/*` only, and a pre-push hook that
 syncs them (the hook is the only thing that pushes notes). `ynm sync` fetches, merges and pushes distributed shards. It does not touch the
 personal store unless you name the personal mount and give an explicit remote, which is how you
 back your personal memory up to a private repository of your own.
@@ -69,7 +67,7 @@ left exactly as it was: promotion is a copy, not a move, so nothing about your o
 changes and the link records where the team's copy came from.
 
 There is no demotion. Once a fact has been shared it has been fetched by other clones; the
-honest way to withdraw it is to supersede or forget it in the shared store, which every clone
+honest way to withdraw it is to supersede or forget it in the distributed store, which every clone
 will see on its next sync.
 
 ## Recall spans both
@@ -86,4 +84,11 @@ which.
   distributed, if it contains nothing secret.
 - Not sure: personal. Promotion is one command later; un-sharing is not possible.
 
-The guidance agents receive says the same thing, and it is why personal is the default.
+The guidance agents receive says the same thing, and it is why personal is the default, everywhere.
+Sharing is chosen, never defaulted: a hosted server has no personal store, so there a memory that
+names no level is not stored at all. The agent is told the store is shared with everyone who uses
+it and to ask before sharing; only a call that says `distributed` is stored. Connecting to a
+hosted server is agreeing that what you share there is shared. To keep your own memory beside it,
+a local ynm mounts the hosted store: personal memory stays on your machine, and the hosted store
+is reached through it, signed in as you
+([Use personal memory with a hosted store](../how-to/use-personal-and-hosted-memory.md)).

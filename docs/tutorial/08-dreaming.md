@@ -8,7 +8,7 @@ team.
 ## Prerequisites
 
 `ynm` is on your PATH. Prepare the sandbox, a personal store, and a repository with ynm
-initialised in it (promotion needs a shared mount to promote into):
+initialised in it (promotion needs a distributed mount to promote into):
 
 ```bash
 rm -rf /tmp/ynm-tutorial
@@ -105,6 +105,22 @@ counts (`0/8` and `0/1`), then a review queue of four memories, the two pairs, n
 
 The database memory is not there. It was compared and found unremarkable.
 
+That run marked every memory as dreamed, so running it again has nothing new to judge:
+
+```bash
+ynm dream
+```
+
+Expected:
+
+```text
+expire: 0/0 changed
+nothing new since the last run; only expiry ran
+```
+
+Only memories that are new or have changed since are judged next time, so a scheduled dream on a
+quiet store calls no model at all.
+
 ## Decide, and clear the flag
 
 A human resolves the queue. Say the two API memories really are the same and you are content to
@@ -121,7 +137,7 @@ memories. The contradiction is still waiting for a decision.
 
 ## Promote to the team
 
-Personal memory never reaches the shared store on its own. `promote` is the deliberate step: it
+Personal memory never reaches the distributed store on its own. `promote` is the deliberate step: it
 copies a personal memory into the project mount as a new memory, linked back to the original.
 The Thursday rule is the one worth sharing:
 
@@ -178,7 +194,7 @@ database memory. `review list` still shows the Thursday memory: the heuristic ru
 earlier and nothing has cleared that flag, so clear it now with `ynm review clear <id>` if you
 like. Each judgment is stored on the memory it changed, with the questions asked, the
 probabilities, the model and its version, so you can see why. Judges advise; the code applies
-thresholds and does the writing (ADR-012).
+thresholds and does the writing.
 
 ## Cleanup
 

@@ -13,11 +13,12 @@ export default class Wiki extends YnmCommand {
   ];
   static override args = {
     action: Args.string({
+      ignoreStdin: true,
       required: true,
       options: ["build", "ingest"],
       description: "build or ingest",
     }),
-    file: Args.string({ description: "Edited memory page (for ingest)" }),
+    file: Args.string({ ignoreStdin: true, description: "Edited memory page (for ingest)" }),
   };
   static override flags = {
     ...YnmCommand.baseFlags,

@@ -67,10 +67,10 @@ personal project settings, never the team's tracked `.claude/settings.json`: a h
 of the three files, so a team that put them in the shared file on purpose still reads `hooks
 yes`. In a ynh harness (the directory holds `.ynh-plugin/plugin.json`) `ynm client install ynh`
 merges the server, the canonical hooks `on_session_start`, `before_prompt` and `on_stop`, and an
-include of the skill, `{ "git": "https://github.com/eyelock/ynm", "pick": ["skills/ynm-memory"] }`,
+include of the skill, `{ "git": "https://github.com/eyelock/ynm", "path": "integrations", "pick": ["skills/ynm-memory"] }`,
 into the manifest. Nothing is copied into the harness's `skills/`: ynh resolves the include and
 keeps it current, the way it does any other skill. ynm's own generated harness declares the same
-three hooks, so `ynh install github.com/eyelock/ynm` carries them. ynh translates the canonical
+three hooks, so `ynh install github.com/eyelock/ynm --path integrations/ynh` carries them. ynh translates the canonical
 names per vendor (`SessionStart`, `UserPromptSubmit`, `Stop` on Claude Code and Codex).
 
 Claude Code's guidance block goes into the instruction file Claude Code actually reads, by its
@@ -187,3 +187,11 @@ but guidance or hooks are missing.
 - 2026-09-30: before release, init narrowed to clients a project uses; harness install made
   explicit and by include; project hooks moved to settings.local.json (first real use, in the ynh
   repository)
+- 2026-09-30: ynm's shipped artefacts moved under `integrations/`; there is one client-neutral
+  `ynm-memory` skill at `integrations/skills/`, which harnesses include with
+  `path: integrations` (an older ynm include is replaced in place) and Pi installs.
+- 2026-10-01: the MCP channel made as strong as it can be for clients connected by URL alone:
+  server instructions built from the levels the server serves and naming the remember-intent
+  phrases, `memory_remember`, `memory_recall` and `memory_context` descriptions that claim the
+  job over built-in memory, and a level-less remember that is distributed when no personal mount
+  is open. Hooks remain the deterministic channel.

@@ -34,15 +34,16 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 2.1 | [Prerequisites](02-project-memory.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
 | 2.2 | [Initialise the repository](02-project-memory.md#initialise-the-repository) | `ynm init` |  |
 | 2.3 | [Initialise the repository (2)](02-project-memory.md#initialise-the-repository) | `cat .ynm/config.json` |  |
-| 2.4 | [Two mounts](02-project-memory.md#two-mounts) | `ynm status` |  |
-| 2.5 | [Write shared memory](02-project-memory.md#write-shared-memory) | `ynm remember --type procedural --level distributed --content "Run pnp...` |  |
-| 2.6 | [Namespaces](02-project-memory.md#namespaces) | `ynm remember --type semantic --level distributed --namespace org/eyel...` |  |
-| 2.7 | [Namespaces (2)](02-project-memory.md#namespaces) | `ynm recall --text "deploys" --namespace org/eyelock` |  |
-| 2.8 | [The redaction gate](02-project-memory.md#the-redaction-gate) | `ynm remember --type semantic --level distributed --content "Deploy to...` |  |
-| 2.9 | [Where it went](02-project-memory.md#where-it-went) | `git for-each-ref --format='%(refname)' refs/notes` |  |
-| 2.10 | [Where it went (2)](02-project-memory.md#where-it-went) | `ynm doctor` |  |
-| 2.11 | [The hook](02-project-memory.md#the-hook) | `cat .git/hooks/pre-push` |  |
-| 2.12 | [Cleanup](02-project-memory.md#cleanup) | `cd /tmp` |  |
+| 2.4 | [What to commit](02-project-memory.md#what-to-commit) | `git add .ynm` |  |
+| 2.5 | [Two mounts](02-project-memory.md#two-mounts) | `ynm status` |  |
+| 2.6 | [Write distributed memory](02-project-memory.md#write-distributed-memory) | `ynm remember --type procedural --level distributed --content "Run pnp...` |  |
+| 2.7 | [Namespaces](02-project-memory.md#namespaces) | `ynm remember --type semantic --level distributed --namespace org/eyel...` |  |
+| 2.8 | [Namespaces (2)](02-project-memory.md#namespaces) | `ynm recall --text "deploys" --namespace org/eyelock` |  |
+| 2.9 | [The redaction gate](02-project-memory.md#the-redaction-gate) | `ynm remember --type semantic --level distributed --content "Deploy to...` |  |
+| 2.10 | [Where it went](02-project-memory.md#where-it-went) | `git for-each-ref --format='%(refname)' refs/notes` |  |
+| 2.11 | [Where it went (2)](02-project-memory.md#where-it-went) | `ynm doctor` |  |
+| 2.12 | [The hook](02-project-memory.md#the-hook) | `cat .git/hooks/pre-push` |  |
+| 2.13 | [Cleanup](02-project-memory.md#cleanup) | `cd /tmp` |  |
 
 ## [Recall and Context](03-recall-and-context.md)
 
@@ -158,11 +159,12 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 8.3 | [A dry run](08-dreaming.md#a-dry-run) | `ynm dream --dry-run` |  |
 | 8.4 | [A dry run (2)](08-dreaming.md#a-dry-run) | `ynm dream --dry-run --json` |  |
 | 8.5 | [Flag for real](08-dreaming.md#flag-for-real) | `ynm dream` |  |
-| 8.6 | [Decide, and clear the flag](08-dreaming.md#decide-and-clear-the-flag) | `ynm review list \| grep "API" \| cut -d' ' -f1 \| while read -r id; do y...` |  |
-| 8.7 | [Promote to the team](08-dreaming.md#promote-to-the-team) | `THURSDAY=$(ynm review list \| head -1 \| cut -d' ' -f1)` |  |
-| 8.8 | [With a model: dedupe and contradict act](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `echo '{"dream":{"judge":"auto"}}' > /tmp/ynm-tutorial/home/config.json` | needs `TYPESAFE_API_KEY` |
-| 8.9 | [With a model: dedupe and contradict act (2)](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `ynm list` | needs `TYPESAFE_API_KEY` |
-| 8.10 | [Cleanup](08-dreaming.md#cleanup) | `cd /tmp` |  |
+| 8.6 | [Flag for real (2)](08-dreaming.md#flag-for-real) | `ynm dream` |  |
+| 8.7 | [Decide, and clear the flag](08-dreaming.md#decide-and-clear-the-flag) | `ynm review list \| grep "API" \| cut -d' ' -f1 \| while read -r id; do y...` |  |
+| 8.8 | [Promote to the team](08-dreaming.md#promote-to-the-team) | `THURSDAY=$(ynm review list \| head -1 \| cut -d' ' -f1)` |  |
+| 8.9 | [With a model: dedupe and contradict act](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `echo '{"dream":{"judge":"auto"}}' > /tmp/ynm-tutorial/home/config.json` | needs `TYPESAFE_API_KEY` |
+| 8.10 | [With a model: dedupe and contradict act (2)](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `ynm list` | needs `TYPESAFE_API_KEY` |
+| 8.11 | [Cleanup](08-dreaming.md#cleanup) | `cd /tmp` |  |
 
 ## [Wiki Projection](09-wiki.md)
 
@@ -190,10 +192,20 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 10.4 | [No token, no entry](10-hosted.md#no-token-no-entry) | `curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:399...` |  |
 | 10.5 | [Talk MCP with a token](10-hosted.md#talk-mcp-with-a-token) | `curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer d...` |  |
 | 10.6 | [Talk MCP with a token (2)](10-hosted.md#talk-mcp-with-a-token) | `curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer d...` |  |
-| 10.7 | [See it land in the repository](10-hosted.md#see-it-land-in-the-repository) | `ynm list --level distributed --cwd /tmp/ynm-tutorial/store.git` |  |
-| 10.8 | [Stop the server](10-hosted.md#stop-the-server) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` |  |
-| 10.9 | [The Docker demo](10-hosted.md#the-docker-demo) | `infra/docker/demo.sh` | needs `DOCKER_HOST_AVAILABLE` |
-| 10.10 | [Cleanup](10-hosted.md#cleanup) | `cd /tmp` |  |
+| 10.7 | [Talk MCP with a token (3)](10-hosted.md#talk-mcp-with-a-token) | `curl -s -X POST http://localhost:3999/mcp -H 'Authorization: Bearer d...` |  |
+| 10.8 | [See it land in the repository](10-hosted.md#see-it-land-in-the-repository) | `ynm list --level distributed --cwd /tmp/ynm-tutorial/store.git` |  |
+| 10.9 | [Stop the server](10-hosted.md#stop-the-server) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` |  |
+| 10.10 | [Start the identity provider](10-hosted.md#start-the-identity-provider) | `make -C "$YNM_REPO" keycloak` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.11 | [Start the server with sign-in](10-hosted.md#start-the-server-with-sign-in) | `YNM_JWKS_URL=http://localhost:8180/realms/ynm/protocol/openid-connect...` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.12 | [Where to sign in](10-hosted.md#where-to-sign-in) | `curl -s -i -X POST http://localhost:3000/mcp -H 'Content-Type: applic...` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.13 | [Write as alice](10-hosted.md#write-as-alice) | `ALICE=$(make -s -C "$YNM_REPO" keycloak-token U=alice)` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.14 | [Bob can read but not write](10-hosted.md#bob-can-read-but-not-write) | `BOB=$(make -s -C "$YNM_REPO" keycloak-token U=bob S=memory:read)` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.15 | [Sign in from Claude Code](10-hosted.md#sign-in-from-claude-code) | `claude mcp add --transport http --scope local ynm-signin http://local...` | needs `YNM_TUTORIAL_BROWSER` |
+| 10.16 | [Mount it from your own ynm](10-hosted.md#mount-it-from-your-own-ynm) | `mkdir -p /tmp/ynm-tutorial/home` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.17 | [Sign in to the mount](10-hosted.md#sign-in-to-the-mount) | `ynm login team` | needs `YNM_TUTORIAL_BROWSER` |
+| 10.18 | [Stop the server and the identity provider](10-hosted.md#stop-the-server-and-the-identity-provider) | `kill $(cat /tmp/ynm-tutorial/serve.pid)` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.19 | [The Docker demo](10-hosted.md#the-docker-demo) | `"$YNM_REPO"/infra/docker/demo.sh` | needs `DOCKER_HOST_AVAILABLE` |
+| 10.20 | [Cleanup](10-hosted.md#cleanup) | `cd /tmp` |  |
 
 ## [Doctor and Maintenance](11-doctor-and-maintenance.md)
 

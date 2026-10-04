@@ -1,0 +1,28 @@
+# A client's store as a server. Copy to clients/<client>.tfvars and example.s3.tfbackend.example
+# to clients/<client>.s3.tfbackend (both gitignored), fill them in, then with the ynm-provisioner
+# profile:
+#   terraform init -backend-config=clients/<client>.s3.tfbackend
+#   terraform apply -var-file=clients/<client>.tfvars
+client     = "example"
+account_id = "123456789012"
+region     = "us-east-1"
+owner      = "example"
+
+acme_email  = "certs@example.com"
+alarm_email = "alerts@example.com"
+
+# The store's entry in infra/auth0 (terraform output -json auth | jq .<store>).
+auth = {
+  provider = "oidc"
+  preset   = "auth0"
+  issuer   = "https://your-tenant.us.auth0.com/"
+}
+
+# A release with HTTP sign-in is needed: the server refuses to start while it reports no auth.
+image_tag                      = "0.2.0"
+registry_credentials_parameter = "/ynm/registry/credentials"
+
+env = {
+  YNM_DREAM_EVERY = "15m"
+}
+secret_env = ["TYPESAFE_API_KEY"]

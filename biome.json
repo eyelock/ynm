@@ -48,7 +48,8 @@
       "!**/.turbo",
       "!**/pnpm-lock.yaml",
       "!**/test/golden",
-      "!**/.claude"
+      "!**/.claude",
+      "!!**/.worktrees"
     ]
   }
 }

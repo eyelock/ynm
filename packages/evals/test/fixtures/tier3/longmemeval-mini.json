@@ -1,0 +1,36 @@
+[
+  {
+    "question_id": "q-orchid",
+    "question_type": "single-session-user",
+    "question": "What colour orchid did I buy?",
+    "question_date": "2023/05/30 (Tue) 10:00",
+    "answer": "purple",
+    "answer_session_ids": ["s-orchid"],
+    "haystack_dates": ["2023/05/20 (Sat) 02:21", "2023/05/22 (Mon) 18:45"],
+    "haystack_session_ids": ["s-orchid", "s-weather"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "I bought a purple orchid for the kitchen window.",
+          "has_answer": true
+        },
+        { "role": "assistant", "content": "Orchids like bright indirect light." }
+      ],
+      [{ "role": "user", "content": "Will it rain on Thursday?" }]
+    ]
+  },
+  {
+    "question_id": "q-bikes_abs",
+    "question_type": "multi-session",
+    "question": "How many bicycles do I own?",
+    "question_date": "2023/06/01 (Thu) 09:30",
+    "answer": 3,
+    "answer_session_ids": ["s-cycling"],
+    "haystack_dates": ["2023/05/25 (Thu) 07:00"],
+    "haystack_session_ids": ["s-cycling"],
+    "haystack_sessions": [
+      [{ "role": "user", "content": "I went cycling along the canal this morning." }]
+    ]
+  }
+]

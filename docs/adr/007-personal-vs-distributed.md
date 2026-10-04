@@ -52,3 +52,8 @@ None.
 
 - No addenda were recorded during the build; accepted as drafted on 2026-09-28.
 - 2026-09-29: correction: the command that pushes personal memory is `ynm sync --mount personal --remote <private-remote>`; there is no `--personal` flag on `sync`.
+- 2026-10-03: sharing is chosen, never defaulted. A new memory that names no level goes to the
+  personal level; on a store with no personal level (a hosted server) it is refused rather than
+  shared, and the server's instructions tell agents to ask before sharing. Edits to memories
+  already shared are unaffected. Connecting to a hosted store is the agreement that what is shared
+  there is shared; review before sharing is a local ynm's distributed mount and `ynm sync`.

@@ -267,7 +267,7 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
     const logB = new GitNotesLog("b", "distributed", { repo: b, anchor });
     return { origin, anchor, logA, logB };
   }
-  const shared = (over = {}) =>
+  const distributed = (over = {}) =>
     makeRecord({
       level: "distributed",
       namespace: "common",
@@ -277,14 +277,14 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
 
   it("syncs a `clone --mirror` store without explicit refspecs", async () => {
     const { origin, anchor, logA } = await pair();
-    const ra = shared();
+    const ra = distributed();
     await logA.append([ra]);
     await logA.sync();
     const mirror = await cloneMirror(origin);
     expect(await fx(mirror, "config", "--get", "remote.origin.mirror")).toBe("true");
     const logM = new GitNotesLog("m", "distributed", { repo: mirror, anchor });
     expect((await collect(logM)).map((r) => r.id)).toEqual([ra.id]);
-    const rm = shared();
+    const rm = distributed();
     await logM.append([rm]);
     const other = await clone(origin);
     await fx(other, "commit", "-q", "--allow-empty", "-m", "moved on");
@@ -303,14 +303,14 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
 
   it("moves records both ways with zero loss", async () => {
     const { logA, logB } = await pair();
-    const ra = shared();
+    const ra = distributed();
     await logA.append([ra]);
     const s1 = await logA.sync();
     expect(s1.pushed.length).toBe(1);
     const s2 = await logB.sync();
     expect(s2.merged.length).toBe(1);
     expect((await collect(logB)).map((r) => r.id)).toEqual([ra.id]);
-    const rb = shared();
+    const rb = distributed();
     await logB.append([rb]);
     await logB.sync();
     await logA.sync();
@@ -319,8 +319,8 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
 
   it("merges diverged shards with cat_sort_uniq and retries the rejected push", async () => {
     const { logA, logB } = await pair();
-    const ra = shared();
-    const rb = shared();
+    const ra = distributed();
+    const rb = distributed();
     await logA.append([ra]);
     await logB.append([rb]);
     await logA.sync();
@@ -336,38 +336,123 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
 
   it("never forces the fetch into working refs: an unpushed local record survives a sync", async () => {
     const { logA, logB } = await pair();
-    await logA.append([shared()]);
+    await logA.append([distributed()]);
     await logA.sync();
-    const local = shared();
+    const local = distributed();
     await logB.append([local]);
     await logB.sync({ push: false });
     expect((await collect(logB)).map((r) => r.id)).toContain(local.id);
   });
 
-  it("personal logs are never part of a shared sync", async () => {
+  it("personal logs are never part of a distributed sync", async () => {
     const { origin, anchor } = await pair();
     const a = await clone(origin);
     const personal = new GitNotesLog("p", "personal", { repo: a, anchor });
     await personal.append([makeRecord()]);
-    const sharedLog = new GitNotesLog("s", "distributed", { repo: a, anchor });
-    await sharedLog.sync();
+    const distributedLog = new GitNotesLog("s", "distributed", { repo: a, anchor });
+    await distributedLog.sync();
     const remoteRefs = await fx(origin, "for-each-ref", "--format=%(refname)", "refs/notes/");
     expect(remoteRefs).not.toMatch(/personal/);
   });
 
   it("dry run reports without changing anything", async () => {
     const { logA, logB } = await pair();
-    await logA.append([shared()]);
+    await logA.append([distributed()]);
     await logA.sync();
     const s = await logB.sync({ dryRun: true });
     expect(s.merged.length).toBe(1);
     expect(await collect(logB)).toEqual([]);
   });
 
+  describe("named documents", () => {
+    const union = (ours: string, theirs: string) =>
+      JSON.stringify([...new Set([...JSON.parse(ours), ...JSON.parse(theirs)])].sort());
+
+    it("stores a document as a commit outside refs/notes, never as records", async () => {
+      const { logA } = await pair();
+      const version = await logA.writeDocument("people", '["a"]', null);
+      expect(await fx(logA.repo, "rev-parse", "refs/ynm/distributed/documents/people")).toBe(
+        version
+      );
+      expect(await fx(logA.repo, "for-each-ref", "refs/notes/")).toBe("");
+      expect(await collect(logA)).toEqual([]);
+      expect(await logA.shards()).toEqual([]);
+    });
+
+    it("syncs a document created on one clone to the other", async () => {
+      const { logA, logB } = await pair();
+      await logA.writeDocument("people", '["a"]', null);
+      const s1 = await logA.sync();
+      expect(s1.pushed).toContain("refs/ynm/distributed/documents/people");
+      const s2 = await logB.sync();
+      expect(s2.merged).toContain("documents/people");
+      expect((await logB.readDocument("people"))?.text).toBe('["a"]');
+      expect(await collect(logB)).toEqual([]);
+    });
+
+    it("fast-forwards an edit made on the other clone", async () => {
+      const { logA, logB } = await pair();
+      const v1 = (await logA.writeDocument("people", '["a"]', null)) as string;
+      await logA.sync();
+      await logB.sync();
+      await logA.writeDocument("people", '["a","b"]', v1);
+      await logA.sync();
+      await logB.sync();
+      expect(await logB.readDocument("people")).toEqual(await logA.readDocument("people"));
+    });
+
+    it("merges a document edited on both clones with its merger", async () => {
+      const { logA, logB } = await pair();
+      const v1 = (await logA.writeDocument("people", '["a"]', null)) as string;
+      await logA.sync();
+      await logB.sync();
+      await logA.writeDocument("people", '["a","x"]', v1);
+      await logB.writeDocument("people", '["a","y"]', v1);
+      await logA.sync();
+      const s = await logB.sync({ mergeDocuments: { people: union } });
+      expect(s.conflicts).toEqual([]);
+      expect(s.merged).toContain("documents/people");
+      const merged = await logB.readDocument("people");
+      expect(merged?.text).toBe('["a","x","y"]');
+      const parents = await fx(
+        logB.repo,
+        "rev-list",
+        "--parents",
+        "-n",
+        "1",
+        merged?.version ?? ""
+      );
+      expect(parents.split(" ")).toHaveLength(3);
+      await logA.sync();
+      expect(await logA.readDocument("people")).toEqual(merged);
+    });
+
+    it("keeps the local copy and reports a conflict without a merger", async () => {
+      const { logA, logB } = await pair();
+      const v1 = (await logA.writeDocument("people", '["a"]', null)) as string;
+      await logA.sync();
+      await logB.sync();
+      await logA.writeDocument("people", '["a","x"]', v1);
+      const vb = await logB.writeDocument("people", '["a","y"]', v1);
+      await logA.append([distributed()]);
+      await logA.sync();
+      const rb = distributed();
+      await logB.append([rb]);
+      const s = await logB.sync();
+      expect(s.conflicts).toEqual(["documents/people"]);
+      expect(s.retries).toBe(0);
+      expect(await logB.readDocument("people")).toEqual({ text: '["a","y"]', version: vb });
+      // records still moved despite the document conflict
+      await logA.sync();
+      expect((await collect(logA)).map((r) => r.id)).toContain(rb.id);
+      expect((await logA.readDocument("people"))?.text).toBe('["a","x"]');
+    });
+  });
+
   it("supports a sync with ulid-ordered records across many shards", async () => {
     const { logA, logB } = await pair();
     const recs = Array.from({ length: 30 }, (_, i) =>
-      shared({ id: ulid(1_700_000_000_000 + i), type: i % 2 ? "episodic" : "semantic" })
+      distributed({ id: ulid(1_700_000_000_000 + i), type: i % 2 ? "episodic" : "semantic" })
     ).map((r) => ({ ...r, memoryId: r.id }));
     await logA.append(recs);
     await logA.sync();

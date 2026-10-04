@@ -31,5 +31,6 @@ export default class Recall extends YnmCommand {
             .join("\n")
         : "no matches"
     );
+    this.noteLeftOut(ynm);
   }
 }

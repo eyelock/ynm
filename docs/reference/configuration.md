@@ -1,7 +1,7 @@
 # Configuration reference
 
 Every configuration key, where it is read from, and every environment variable ynm reads. The
-key tables are generated from the configuration schemas by `pnpm docs:gen`; the prose around
+key tables are generated from the configuration schemas; the prose around
 them is not.
 
 ## Files and precedence
@@ -37,7 +37,7 @@ After merging, three keys get runtime defaults when still unset:
 <!-- gen:config-keys -->
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `anchor` | string |  | Anchor commit for this repository's shared notes |
+| `anchor` | string |  | Anchor commit for this repository's distributed notes |
 | `remote` | string | `origin` | Remote used by sync |
 | `provider` | `git-notes` \| `fs` \| `sqlite` \| `memory` | `git-notes` | Default provider |
 | `personalStore` | string |  | Path of the personal bare repo; default ~/.ynm/store.git |
@@ -47,12 +47,16 @@ After merging, three keys get runtime defaults when still unset:
 | `mounts` | array of object |  | Explicit extra mounts (org stores, hosted stores) |
 | `mounts[].id` | string |  | Mount id, shown on every hit and accepted by `--mount` |
 | `mounts[].level` | `personal` \| `distributed` |  | Which records the mount accepts |
-| `mounts[].provider` | `git-notes` \| `fs` \| `sqlite` \| `memory` | `git-notes` | Record store provider for this mount |
-| `mounts[].path` | string |  | Repository or directory path |
+| `mounts[].provider` | `git-notes` \| `fs` \| `sqlite` \| `memory` \| `s3` \| `mcp` | `git-notes` | Record store provider for this mount; `mcp` is a hosted ynm reached over MCP, signed in with `ynm login <id>` |
+| `mounts[].path` | string |  | Repository or directory path; required by every provider but `s3` and `mcp` |
+| `mounts[].url` | string |  | `mcp` only: the hosted store's MCP endpoint, ending in /mcp |
 | `mounts[].anchor` | string |  | Anchor commit for this mount's notes |
 | `mounts[].remote` | string |  | Remote used when syncing this mount |
+| `mounts[].bucket` | string |  | `s3` only: the bucket that holds the store |
+| `mounts[].prefix` | string |  | `s3` only: key prefix the store's objects sit under; default the bucket root |
+| `mounts[].region` | string |  | `s3` only: AWS region of the bucket; default from the AWS environment |
 | `hooks` | boolean | `true` | Install git hooks on init |
-| `index` | `sqlite-fts` \| `memory` | `sqlite-fts` | Index implementation (ADR-005) |
+| `index` | `sqlite-fts` \| `memory` | `sqlite-fts` | Index implementation |
 <!-- /gen:config-keys -->
 
 `anchor` is a full commit id (40 hex characters, or 64 for SHA-256 repositories).
@@ -66,7 +70,13 @@ After merging, three keys get runtime defaults when still unset:
 |---|---|---|---|
 | `personal` | always, unless the server runs with `--no-personal` | `personalStore` | `$YNM_HOME/store-<provider>` |
 | `project` | the repository has a `.ynm/config.json` | the repository | `<repo>/.ynm/store-<provider>` |
-| each `mounts[]` entry | always | `path` | `path` (`sqlite`: `path` if it ends in `.sqlite`, else `path/store.sqlite`) |
+| each `mounts[]` entry | always | `path` | `path` (`sqlite`: `path` if it ends in `.sqlite`, else `path/store.sqlite`; `s3`: `s3://<bucket>/<prefix>`) |
+
+An `s3` mount takes `bucket`, and optionally `prefix` and `region`, instead of `path`.
+Credentials come from the standard AWS chain. The provider is in the Docker image and a source
+checkout, not in the standalone binaries or the slim tarball; see
+[Choose the S3 provider](../how-to/choose-the-s3-provider.md). `s3` is a mount provider only,
+not a value for the top-level `provider`.
 
 A `mounts[]` entry with the `git-notes` provider must set `anchor`; opening it fails otherwise.
 
@@ -143,6 +153,7 @@ An uncalibrated judge (`heuristic`, `writer-emulated`) never reaches the act ban
 | `YNM_USER` | Overrides `userId` |
 | `YNM_ACTOR` | Overrides `actor` |
 | `YNM_INDEX` | Overrides `index` |
+| `YNM_MOUNTS` | Replaces `mounts` with this JSON array, for a server configured by environment alone (a container or a Lambda function) |
 
 ### Secrets and models
 
@@ -167,13 +178,15 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 | Variable | Effect |
 |---|---|
 | `YNM_JWKS_URL` | Verify bearer tokens as JWTs against this JWKS |
-| `YNM_JWT_ISSUER` | Required JWT issuer |
-| `YNM_JWT_AUDIENCE` | Required JWT audience |
+| `YNM_JWT_ISSUER` | Required JWT issuer. Also advertised to clients as where to sign in, at `/.well-known/oauth-protected-resource` |
+| `YNM_JWT_AUDIENCE` | Required JWT audience. When it is a URL and `YNM_PUBLIC_URL` is not set, it is the resource advertised to clients |
+| `YNM_PUBLIC_URL` | The URL clients use to reach the server, advertised as the resource tokens must be issued for |
 | `YNM_OAUTH_INTROSPECTION_URL` | Verify bearer tokens by RFC 7662 introspection at this URL |
 | `YNM_OAUTH_CLIENT_ID` | Client id for introspection |
 | `YNM_OAUTH_CLIENT_SECRET` | Client secret for introspection |
 | `YNM_MCP_TOKEN` | Static bearer tokens, comma-separated |
 | `YNM_REQUIRED_SCOPES` | Scopes every token must carry, comma-separated |
+| `YNM_AUDIT` | Where each request's audit event goes, as JSON: `{"sink":"stdout"}`, `{"sink":"file","path":"/var/log/ynm/audit.jsonl"}`, `{"sink":"s3"}` (optional `bucket`, `prefix`, `region`; on an S3 store the bucket defaults to the store's and the prefix to `audit/<store prefix>`), or `{"sink":"off"}`. Unset: stdout when the server checks tokens, else off. Events hold metadata only: when, who (person id and client), which tools, outcome, duration, memory ids and sizes, never content |
 | `YNM_HTTP_HOST` | Bind host when `--host` is not given. Default `localhost` |
 | `PORT` | Port when `--port` is not given. Default 3000 |
 | `YNM_ALLOWED_HOSTS` | Allowed `Host` headers when `--allow-host` is not given, comma-separated |
@@ -190,6 +203,21 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 
 The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_CLAUDE_CLI=1`.
 
+### AWS Lambda
+
+The function ([Host ynm on AWS Lambda](../how-to/host-on-aws-lambda.md)) reads the server's
+auth variables (`YNM_JWKS_URL` and the rest, `YNM_REQUIRED_SCOPES`) and the configuration
+variables above, `YNM_MOUNTS` for its store, plus:
+
+| Variable | Effect |
+|---|---|
+| `YNM_PUBLIC_URL` | Required. The URL clients use to reach the function, such as `https://memory.example.com/mcp`. Requests are served as if addressed to it, and it is the only allowed `Host`. With JWT auth and an issuer, it is also the resource advertised to clients for sign-in. The function refuses to start without it |
+| `YNM_LAMBDA_ALLOW_OPEN` | `1` lets the function start with no authentication configured. Without it, a function with none of the auth variables refuses to start, because a Function URL is public. For local tests only |
+| `YNM_SSM_ENV_PATH` | A Parameter Store path; at cold start each parameter under it named like an environment variable becomes that variable unless already set, so secrets stay out of the function's configuration. Values of `unset` are skipped |
+
+On Lambda, `YNM_HOME` defaults to `/tmp/ynm` and `YNM_NO_CLAUDE_CLI` to `1`. The port, bind host,
+allowed-host and interval variables do not apply.
+
 ### Internal
 
 | Variable | Effect |
@@ -202,9 +230,9 @@ The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_C
 | Variable | Effect |
 |---|---|
 | `YNM_EVAL_CALIBRATED` | `1` lets model-backed evals use a paid judge when its key is set |
-| `YNM_EVAL_CLAUDE_CLI` | `1` lets evals use the `claude` CLI as a writer, and runs the tutorial evals |
+| `YNM_EVAL_CLAUDE_CLI` | `1` lets evals use the `claude` CLI as a writer, and runs the tutorial and hosted-remember evals |
 | `YNM_EVAL_TOKEN_BUDGET` | Input-token cap per eval suite. Default 250,000 |
-| `YNM_EVAL_MODEL` | Model for the live guidance and tutorial evals. Default `claude-sonnet-4-5` |
+| `YNM_EVAL_MODEL` | Model for the live guidance, hosted-remember and tutorial evals. Default `claude-sonnet-4-5` |
 | `YNM_EVAL_SIZE` | Seeded memories in the model-backed dedupe eval. Default 60 |
 | `YNM_EVAL_CLEANUP_SIZE` | Seeded memories in the model-backed cleanup eval. Default 120 |
 | `YNM_BENCH_LARGE` | `1` adds the 100,000-record sizes to the latency benches |
@@ -214,7 +242,8 @@ The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_C
 | `YNM_BENCH_DIR` | Where public benchmark datasets are cached. Default `~/.ynm/bench` |
 | `YNM_BASELINE_VERSION` | Baseline file version under `packages/evals/baselines`. Default: the CLI package version |
 | `YNM_DEV_BUILD` | Set by the `make install` launcher to the checkout path; `ynm --version` then reports `<version>-dev.<sha>` |
+| `YNM_REPO` | Path of your ynm checkout, for the tutorial steps that run its `make` targets and scripts. The tutorial evals set it to the checkout under test |
 | `YNM_WRITE_BASELINE` | `1` rewrites the baseline file |
 | `YNM_WRITE_GOLDEN` | `1` rewrites golden files |
-| `YNM_GATE` | Set by `pnpm gate` to the gate being run |
+| `YNM_GATE` | Set by `make gate` to the gate being run |
 | `YNM_MILESTONE` | CI variable naming the gate CI runs |

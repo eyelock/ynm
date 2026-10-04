@@ -2,8 +2,9 @@ name: release
 
 # Tag v<version> (after `pnpm changeset version` has bumped the packages) to publish a GitHub
 # release with four standalone binaries (Node single-executable, git is the only dependency),
-# the slim tarball (the bundle for your own Node), manifest.json and checksums.txt; the two
-# Homebrew formulae in github.com/eyelock/homebrew-tap; and the hosted image on ghcr.io.
+# the slim tarball (the bundle for your own Node), the AWS Lambda package, manifest.json and
+# checksums.txt; the two Homebrew formulae in github.com/eyelock/homebrew-tap; and the hosted
+# image on ghcr.io.
 on:
   push:
     tags:
@@ -17,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -53,7 +54,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           # The blob must be made by the Node it is injected into: .nvmrc pins it exactly.
@@ -88,7 +89,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -104,6 +105,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/slim"
           tar -xzf "dist-release/ynm_${{ steps.meta.outputs.version }}_slim.tar.gz" -C "$RUNNER_TEMP/slim"
           node scripts/release/smoke.mjs "${{ steps.meta.outputs.version }}" "$RUNNER_TEMP/slim/bin/ynm"
+      - name: Build the Lambda package
+        run: node scripts/release/build-lambda.mjs --out "dist-release/ynm_${{ steps.meta.outputs.version }}_lambda.zip"
+      - name: Smoke the Lambda package
+        run: node scripts/release/smoke-lambda.mjs "dist-release/ynm_${{ steps.meta.outputs.version }}_lambda.zip"
       - uses: actions/download-artifact@v8
         with:
           pattern: standalone-*
@@ -121,6 +126,7 @@ jobs:
         with:
           files: |
             dist-release/ynm_${{ steps.meta.outputs.version }}_*.tar.gz
+            dist-release/ynm_${{ steps.meta.outputs.version }}_lambda.zip
             dist-release/manifest.json
             dist-release/checksums.txt
           body_path: dist-release/RELEASE_NOTES.md

@@ -1,5 +1,5 @@
 import { Args, Flags } from "@oclif/core";
-import { Lifecycle } from "@ynm/service";
+import { emptyContextNote, Lifecycle } from "@ynm/service";
 import { YnmCommand } from "../lib/base.js";
 
 export default class Session extends YnmCommand {
@@ -10,8 +10,13 @@ export default class Session extends YnmCommand {
     "<%= config.bin %> <%= command.id %> end <sessionId>",
   ];
   static override args = {
-    action: Args.string({ required: true, options: ["start", "end"], description: "start or end" }),
-    sessionId: Args.string({ description: "Session id (required for end)" }),
+    action: Args.string({
+      ignoreStdin: true,
+      required: true,
+      options: ["start", "end"],
+      description: "start or end",
+    }),
+    sessionId: Args.string({ ignoreStdin: true, description: "Session id (required for end)" }),
   };
   static override flags = {
     ...YnmCommand.baseFlags,
@@ -40,7 +45,7 @@ export default class Session extends YnmCommand {
         flags.json,
         s,
         () =>
-          `session ${s.sessionId}\nworking namespace ${s.namespace} (ttl ${s.ttl})\n\n${s.context.markdown}`
+          `session ${s.sessionId}\nworking namespace ${s.namespace} (ttl ${s.ttl})\n\n${s.context.markdown || emptyContextNote(s.context.truncated)}`
       );
       return;
     }

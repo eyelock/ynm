@@ -2,9 +2,15 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { initProject } from "@ynm/service";
+import { EMPTY_CONTEXT_GUIDANCE, initProject } from "@ynm/service";
 import { createBare, createRepo, fx } from "@ynm/store/testing/git";
-import { createYnmServer, MCP_TOOLS, parseArgs, serviceCache } from "./index.js";
+import {
+  createYnmServer,
+  MCP_TOOLS,
+  parseArgs,
+  serverInstructions,
+  serviceCache,
+} from "./index.js";
 
 async function connected(cwd: string, home = mkdtempSync(join(tmpdir(), "ynm-mcp-home-"))) {
   const env = {
@@ -35,7 +41,7 @@ function data<T>(r: { structuredContent?: unknown; content: unknown; isError?: b
 }
 
 describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
-  it("lists the ten tools, three resources and three prompts", async () => {
+  it("lists the eleven tools, three resources and three prompts", async () => {
     const { client, close } = await connected(await createRepo(1));
     const tools = await client.listTools();
     expect(tools.tools.map((t) => t.name).sort()).toEqual([...MCP_TOOLS].sort());
@@ -65,10 +71,22 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     const call = (name: string, args: Record<string, unknown> = {}) =>
       client.callTool({ name, arguments: args });
 
+    // An empty store: no bare heading, and a note that points at memory_remember.
+    const startedCall = await call("memory_session", { action: "start" });
     const started = data<{ sessionId: string; namespace: string; context: { markdown: string } }>(
-      await call("memory_session", { action: "start" })
+      startedCall
     );
-    expect(started.context.markdown).toMatch(/^## Memory/);
+    expect(started.context.markdown).toBe("");
+    expect((startedCall.structuredContent as { guidance: string }).guidance).toMatch(
+      /^No memory yet\. Use memory_remember .*Write working memory to namespace /
+    );
+    const emptyCall = await call("memory_context", {});
+    expect(data<{ markdown: string }>(emptyCall).markdown).toBe("");
+    expect((emptyCall.structuredContent as { guidance: string }).guidance).toBe(
+      EMPTY_CONTEXT_GUIDANCE
+    );
+    const emptyRes = await client.readResource({ uri: "memory://context" });
+    expect((emptyRes.contents[0] as { text: string }).text).toBe(EMPTY_CONTEXT_GUIDANCE);
 
     const r1 = data<{ memoryId: string; mount: string }>(
       await call("memory_remember", {
@@ -146,10 +164,12 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     expect(JSON.parse((res.contents[0] as { text: string }).text).mounts).toHaveLength(2);
     const ctx = await client.readResource({ uri: "memory://context" });
     expect((ctx.contents[0] as { text: string }).text).toMatch(/^## Memory/);
-    const shared = data<Array<{ memoryId: string }>>(
+    const distributed = data<Array<{ memoryId: string }>>(
       await call("memory_recall", { level: ["distributed"] })
     );
-    const one = await client.readResource({ uri: `memory://project/${shared[0]?.memoryId ?? ""}` });
+    const one = await client.readResource({
+      uri: `memory://project/${distributed[0]?.memoryId ?? ""}`,
+    });
     expect(JSON.parse((one.contents[0] as { text: string }).text).mount).toBe("project");
     const prompt = await client.getPrompt({ name: "memory-when-to-remember", arguments: {} });
     const first = prompt.messages[0]?.content as { text?: string } | undefined;
@@ -169,9 +189,120 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
     );
     expect(r.mount).toBe("project");
     expect(await fx(bare, "for-each-ref", "--format=%(refname)", "refs/notes/")).toMatch(
-      /ynm\/shared/
+      /ynm\/distributed/
     );
     await close();
+  });
+
+  it("reads wiki pages and refuses unknown memories, wrong mounts and missing pages", async () => {
+    const repo = await createRepo(1);
+    await initProject({ cwd: repo, hooks: false });
+    const { client, close } = await connected(repo);
+    const r = data<{ memoryId: string; mount: string }>(
+      await client.callTool({
+        name: "memory_remember",
+        arguments: { type: "semantic", level: "distributed", content: "Wiki pages project memory" },
+      })
+    );
+    expect(r.mount).toBe("project");
+
+    const index = await client.readResource({ uri: "memory://project/wiki/index.md" });
+    expect(index.contents[0]?.mimeType).toBe("text/markdown");
+    expect((index.contents[0] as { text: string }).text).toContain(r.memoryId);
+    const page = await client.readResource({
+      uri: `memory://project/wiki/memories/${r.memoryId}.md`,
+    });
+    expect((page.contents[0] as { text: string }).text).toMatch(/Wiki pages project memory/);
+
+    await expect(client.readResource({ uri: "memory://project/wiki/nope.md" })).rejects.toThrow(
+      /no wiki page nope\.md in mount project/
+    );
+    await expect(client.readResource({ uri: `memory://personal/${r.memoryId}` })).rejects.toThrow(
+      new RegExp(`no memory ${r.memoryId} in mount personal`)
+    );
+    await expect(client.readResource({ uri: "memory://project/01NOSUCHMEMORY" })).rejects.toThrow(
+      /no memory 01NOSUCHMEMORY/
+    );
+    await close();
+  });
+
+  it("builds the instructions from the levels it serves and claims remember intents", async () => {
+    const hosted = serverInstructions(["distributed"]);
+    expect(hosted).toMatch(/instead of any built-in memory, memory directory or notes file/);
+    expect(hosted).toMatch(/"call me".*memory_remember/);
+    expect(hosted).toMatch(/memory_recall/);
+    expect(hosted).toMatch(/distributed only/);
+    expect(hosted).not.toMatch(/personal by default/);
+    expect(serverInstructions(["personal", "distributed"])).toMatch(/personal by default/);
+    expect(serverInstructions(["personal"])).toMatch(/no distributed store is open/);
+    expect(serverInstructions([])).toMatch(/No store is open yet/);
+    expect(hosted).not.toMatch(/ADR|\bM\d\b/);
+
+    const server = createYnmServer({ cwd: "/nowhere", noPersonal: true }, async () => {
+      throw new Error("unused");
+    });
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverT);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientT);
+    expect(client.getInstructions()).toBe(hosted);
+    const remember = (await client.listTools()).tools.find((t) => t.name === "memory_remember");
+    expect(remember?.description).toMatch(/instead of any built-in memory/);
+    await client.close();
+    await server.close();
+  });
+
+  it("on a server with no personal mount, stores a memory only when it is shared on purpose", async () => {
+    const bare = await createBare();
+    await initProject({ cwd: bare, hooks: false });
+    const home = mkdtempSync(join(tmpdir(), "ynm-mcp-home-"));
+    const opts = {
+      cwd: bare,
+      noPersonal: true,
+      env: {
+        ...process.env,
+        YNM_HOME: join(home, ".ynm"),
+        YNM_USER: "proto",
+        YNM_NO_CLAUDE_CLI: "1",
+      },
+    };
+    const server = createYnmServer(opts, serviceCache(opts));
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverT);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientT);
+    const unnamed = await client.callTool({
+      name: "memory_remember",
+      arguments: { type: "semantic", content: "Call the user DC." },
+    });
+    expect(unnamed.isError).toBe(true);
+    expect(JSON.stringify(unnamed.content)).toMatch(/nothing stored: .*shared with everyone/);
+    const r = data<{ mount: string }>(
+      await client.callTool({
+        name: "memory_remember",
+        arguments: { type: "semantic", level: "distributed", content: "Call the user DC." },
+      })
+    );
+    expect(r.mount).toBe("project");
+    expect(client.getInstructions()).toMatch(/stores nothing unless level is distributed/);
+    await client.close();
+    await server.close();
+  });
+
+  it("turns a failure to open the service into a tool error, not a protocol error", async () => {
+    const server = createYnmServer({ cwd: "/nowhere", version: "9.9.9" }, async () => {
+      throw "store unavailable";
+    });
+    const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverT);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientT);
+    expect(client.getServerVersion()?.version).toBe("9.9.9");
+    const r = await client.callTool({ name: "memory_status" });
+    expect(r.isError).toBe(true);
+    expect(r.content).toEqual([{ type: "text", text: "store unavailable" }]);
+    await client.close();
+    await server.close();
   });
 
   it("parses CLI arguments", () => {

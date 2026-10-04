@@ -13,14 +13,55 @@ export const MountConfigSchema = z
     id: z.string().min(1).describe("Mount id, shown on every hit and accepted by `--mount`"),
     level: z.enum(["personal", "distributed"]).describe("Which records the mount accepts"),
     provider: z
-      .enum(["git-notes", "fs", "sqlite", "memory"])
+      .enum(["git-notes", "fs", "sqlite", "memory", "s3", "mcp"])
       .default("git-notes")
-      .describe("Record store provider for this mount"),
-    path: z.string().min(1).describe("Repository or directory path"),
+      .describe(
+        "Record store provider for this mount; `mcp` is a hosted ynm reached over MCP, signed in with `ynm login <id>`"
+      ),
+    path: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("Repository or directory path; required by every provider but `s3` and `mcp`"),
+    url: z
+      .string()
+      .url()
+      .optional()
+      .describe("`mcp` only: the hosted store's MCP endpoint, ending in /mcp"),
     anchor: ShaSchema.optional().describe("Anchor commit for this mount's notes"),
     remote: z.string().optional().describe("Remote used when syncing this mount"),
+    bucket: z.string().min(1).optional().describe("`s3` only: the bucket that holds the store"),
+    prefix: z
+      .string()
+      .optional()
+      .describe("`s3` only: key prefix the store's objects sit under; default the bucket root"),
+    region: z
+      .string()
+      .optional()
+      .describe("`s3` only: AWS region of the bucket; default from the AWS environment"),
   })
-  .strict();
+  .strict()
+  .superRefine((m, ctx) => {
+    if (m.provider === "s3" && !m.bucket)
+      ctx.addIssue({ code: "custom", path: ["bucket"], message: "an s3 mount needs a bucket" });
+    if (m.provider === "mcp") {
+      if (!m.url)
+        ctx.addIssue({ code: "custom", path: ["url"], message: "an mcp mount needs a url" });
+      if (m.level !== "distributed")
+        ctx.addIssue({
+          code: "custom",
+          path: ["level"],
+          message: "an mcp mount is distributed: a hosted store is shared",
+        });
+      return;
+    }
+    if (m.provider !== "s3" && !m.path)
+      ctx.addIssue({
+        code: "custom",
+        path: ["path"],
+        message: `a ${m.provider} mount needs a path`,
+      });
+  });
 export type MountConfig = z.infer<typeof MountConfigSchema>;
 
 /** Default redaction patterns applied before any distributed write (ADR-007). */
@@ -35,7 +76,7 @@ export const DEFAULT_REDACTION = [
 
 export const YnmConfigSchema = z
   .object({
-    anchor: ShaSchema.optional().describe("Anchor commit for this repository's shared notes"),
+    anchor: ShaSchema.optional().describe("Anchor commit for this repository's distributed notes"),
     remote: z.string().default("origin").describe("Remote used by sync"),
     provider: z
       .enum(["git-notes", "fs", "sqlite", "memory"])
@@ -56,10 +97,7 @@ export const YnmConfigSchema = z
       .optional()
       .describe("Explicit extra mounts (org stores, hosted stores)"),
     hooks: z.boolean().default(true).describe("Install git hooks on init"),
-    index: z
-      .enum(["sqlite-fts", "memory"])
-      .default("sqlite-fts")
-      .describe("Index implementation (ADR-005)"),
+    index: z.enum(["sqlite-fts", "memory"]).default("sqlite-fts").describe("Index implementation"),
     dream: DreamConfigSchema.prefault({}).describe("Judge, Writer and consolidation thresholds"),
   })
   .strict();
@@ -160,12 +198,30 @@ export function loadConfig(src: ConfigSources, env: NodeJS.ProcessEnv = process.
   if (env.YNM_USER) fromEnv.userId = env.YNM_USER;
   if (env.YNM_ACTOR) fromEnv.actor = env.YNM_ACTOR;
   if (env.YNM_INDEX) fromEnv.index = env.YNM_INDEX;
+  if (env.YNM_MOUNTS) fromEnv.mounts = mountsFromEnv(env.YNM_MOUNTS);
   merged = { ...merged, ...fromEnv };
   const config = YnmConfigSchema.parse(merged);
   config.userId ??= safeUsername();
   config.personalStore ??= join(src.home, "store.git");
   config.actor ??= `user:${config.userId}`;
   return { config, files, home: src.home };
+}
+
+/**
+ * `YNM_MOUNTS`: the `mounts` array as JSON, for hosts configured by environment alone (a
+ * container or a Lambda function with no config file). It replaces `mounts` from files.
+ */
+function mountsFromEnv(raw: string): unknown {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      `YNM_MOUNTS is not valid JSON: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+  if (!Array.isArray(parsed)) throw new Error("YNM_MOUNTS must be a JSON array of mounts");
+  return parsed;
 }
 
 function safeUsername(): string {

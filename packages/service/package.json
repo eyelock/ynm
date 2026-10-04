@@ -1,6 +1,6 @@
 {
   "name": "@ynm/service",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "The one business layer: mounts, remember, recall, consolidate, sync, doctor (ADR-008).",
   "license": "MIT",
@@ -26,19 +26,23 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@ynm/model": "workspace:*",
-    "@ynm/store": "workspace:*",
-    "zod": "^4.3.6",
+    "@modelcontextprotocol/client": "^2.2.0",
     "@ynm/index": "workspace:*",
+    "@ynm/model": "workspace:*",
     "@ynm/models": "workspace:*",
-    "@ynm/wiki": "workspace:*"
+    "@ynm/store": "workspace:*",
+    "@ynm/store-s3": "workspace:*",
+    "@ynm/wiki": "workspace:*",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@ynm/typescript-config": "workspace:*",
-    "@ynm/vitest-config": "workspace:*",
+    "@modelcontextprotocol/server": "^2.2.0",
     "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^5.0.2",
-    "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "@ynm/typescript-config": "workspace:*",
+    "@ynm/vitest-config": "workspace:*",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
   }
 }

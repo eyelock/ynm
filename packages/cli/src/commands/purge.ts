@@ -7,7 +7,9 @@ export default class Purge extends YnmCommand {
   static override examples = [
     '<%= config.bin %> <%= command.id %> 01J... --reason "contained personal data" --yes',
   ];
-  static override args = { memoryId: Args.string({ required: true, description: "Memory id" }) };
+  static override args = {
+    memoryId: Args.string({ ignoreStdin: true, required: true, description: "Memory id" }),
+  };
   static override flags = {
     ...YnmCommand.baseFlags,
     reason: Flags.string({ description: "Recorded in the purge marker", required: true }),

@@ -149,6 +149,8 @@ export function runRecordLogConformance(name: string, opts: ConformanceOptions):
       expect((await log.purge("nope")).removed).toBe(0);
     });
 
+    runDocumentCases(opts);
+
     if (opts.corrupt) {
       const corrupt = opts.corrupt;
       it("skips and reports a corrupt line, never fatal (NFR-7)", async () => {
@@ -173,5 +175,73 @@ export function runRecordLogConformance(name: string, opts: ConformanceOptions):
         expect((await collect(log)).length).toBe(90);
       }, 120_000);
     }
+  });
+}
+
+type DocumentLog = RecordLog & Required<Pick<RecordLog, "readDocument" | "writeDocument">>;
+
+/** A fresh log, or null for a provider without documents (the cases then pass vacuously). */
+async function documentLog(opts: ConformanceOptions): Promise<DocumentLog | null> {
+  const log = await opts.create("personal");
+  return log.readDocument && log.writeDocument ? (log as DocumentLog) : null;
+}
+
+/** Named documents beside the records: compare-and-swap writes, never part of any shard. */
+function runDocumentCases(opts: ConformanceOptions): void {
+  describe("named documents", () => {
+    it("reads a missing document as null and creates it only once", async () => {
+      const log = await documentLog(opts);
+      if (!log) return;
+      expect(await log.readDocument("people")).toBeNull();
+      const v1 = await log.writeDocument("people", '{"a":1}', null);
+      expect(typeof v1).toBe("string");
+      expect(await log.readDocument("people")).toEqual({ text: '{"a":1}', version: v1 });
+      expect(await log.writeDocument("people", '{"b":2}', null)).toBeNull();
+      expect((await log.readDocument("people"))?.text).toBe('{"a":1}');
+    });
+
+    it("writes with the current version and refuses a stale one", async () => {
+      const log = await documentLog(opts);
+      if (!log) return;
+      const v1 = (await log.writeDocument("people", '{"n":1}', null)) as string;
+      const v2 = await log.writeDocument("people", '{"n":2}', v1);
+      expect(v2).not.toBeNull();
+      expect(v2).not.toBe(v1);
+      expect(await log.readDocument("people")).toEqual({ text: '{"n":2}', version: v2 });
+      expect(await log.writeDocument("people", '{"n":3}', v1)).toBeNull();
+      expect((await log.readDocument("people"))?.text).toBe('{"n":2}');
+    });
+
+    it("keeps documents apart from each other", async () => {
+      const log = await documentLog(opts);
+      if (!log) return;
+      await log.writeDocument("people", "[]", null);
+      expect(await log.readDocument("other-doc")).toBeNull();
+    });
+
+    it("never shows a document in scans or shards, and purge leaves it alone", async () => {
+      const log = await documentLog(opts);
+      if (!log) return;
+      const r = makeRecord();
+      await log.append([r]);
+      const version = await log.writeDocument("people", `{"memory":"${r.memoryId}"}`, null);
+      expect((await collect(log)).map((x) => x.id)).toEqual([r.id]);
+      expect(await log.shards()).toHaveLength(1);
+      await log.purge(r.memoryId);
+      expect(await collect(log)).toEqual([]);
+      expect(await log.readDocument("people")).toEqual({
+        text: `{"memory":"${r.memoryId}"}`,
+        version,
+      });
+    });
+
+    it("rejects invalid document names", async () => {
+      const log = await documentLog(opts);
+      if (!log) return;
+      for (const bad of ["", "People", "../x", "a/b", "a.json", "a b"]) {
+        await expect(log.readDocument(bad)).rejects.toThrow(/invalid document name/);
+        await expect(log.writeDocument(bad, "{}", null)).rejects.toThrow(/invalid document name/);
+      }
+    });
   });
 }

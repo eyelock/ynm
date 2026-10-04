@@ -11,7 +11,7 @@ export default class Hook extends Command {
     "<%= config.bin %> <%= command.id %> stop < /dev/null",
   ];
   static override args = {
-    event: Args.string({ description: `Hook event: ${HOOK_EVENTS.join(", ")}` }),
+    event: Args.string({ ignoreStdin: true, description: `Hook event: ${HOOK_EVENTS.join(", ")}` }),
   };
   static override flags = {
     cwd: Flags.string({

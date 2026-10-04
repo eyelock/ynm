@@ -12,7 +12,7 @@ brew install eyelock/tap/ynm
 cd your-repo && ynm init
 ```
 
-`ynm init` creates the repository's shared memory mount and configures the agent clients the
+`ynm init` creates the repository's distributed memory mount and configures the agent clients the
 repository already uses; [Set up your agent clients](#set-up-your-agent-clients) says how it
 tells them apart and what each one gets. The rest of this page covers the other ways to install.
 
@@ -24,8 +24,9 @@ tells them apart and what each one gets. The rest of this page covers the other 
 | [Slim tarball with your own Node](#slim-tarball-with-your-own-node) | `ynm.mjs` and a `bin/ynm` launcher | about 1.4 MB download | Yes, 22.13 or later | Yes | You manage Node yourself (nvm, fnm, a base image) |
 | [From source](#from-source) | A checkout you can change | the repository plus `node_modules` | Yes, 22.13 or later, and pnpm | Yes | Working on ynm |
 | [Docker image](#docker-image) | The hosted service (`ynm serve --http`) in front of a bare repo | an Alpine image | No | No (inside the image) | Running a hosted store |
+| [AWS Lambda package](#aws-lambda-package) | The hosted service as a Lambda function, `index.mjs` exporting `handler` | about 0.25 MB download | No (the Lambda runtime has it) | No | A hosted store that costs close to nothing while idle |
 
-Every mechanism needs `git`: memory is stored as git notes. Node 22.13 is the first release with
+Every mechanism that keeps memory on the machine needs `git`: memory is stored as git notes. Node 22.13 is the first release with
 `node:sqlite` unflagged, which the index uses.
 
 Check any of them the same way:
@@ -139,6 +140,13 @@ Tags are `latest` and each version, for `linux/amd64` and `linux/arm64`. Configu
 backups are in [Operate a hosted store](operate-a-hosted-store.md); connecting clients to it is in
 [Connect a client over HTTP](connect-over-http.md).
 
+## AWS Lambda package
+
+Each release attaches `ynm_<version>_lambda.zip`: the hosted service bundled for the Node.js 24
+Lambda runtime, one `index.mjs` exporting `handler`. It serves the same MCP endpoint as the
+image, with its store in S3 rather than on a disk. Setting up the function, its URL and its
+schedules is in [Host ynm on AWS Lambda](host-on-aws-lambda.md).
+
 ## Set up your agent clients
 
 `ynm init` in a repository configures the agent clients that repository already uses. It looks
@@ -170,7 +178,7 @@ For each client the project uses, it writes, inside the repository only:
 | OpenCode | `opencode.json` | block in `AGENTS.md` | none |
 | Pi | `.pi/extensions/ynm.ts` (Pi has no MCP; the extension runs the CLI) | `.pi/skills/ynm-memory/SKILL.md` | none |
 | ynh, in a harness: via `ynm client install ynh`, not init | `mcp_servers.ynm` in `.ynh-plugin/plugin.json` | a skill include (`github.com/eyelock/ynm`, `skills/ynm-memory`) in the manifest; nothing is copied into the harness | `on_session_start`, `before_prompt`, `on_stop` in the manifest |
-| ynh, elsewhere | printed as `run: ynh install github.com/eyelock/ynm` | in that harness | in that harness |
+| ynh, elsewhere | printed as `run: ynh install github.com/eyelock/ynm --path integrations/ynh` | in that harness | in that harness |
 
 The hooks are what make an agent use ynm rather than its own memory: the session-start hook puts
 the memory context block in front of the agent, and the prompt hook, when the user asks it to
@@ -202,7 +210,7 @@ launch, so they follow you into every repository. Add ynm to the harness once, w
 `ynm client install` in the harness directory (the name can be left out there; `ynm client
 install ynh` is the same; `ynm init` refuses to install into a harness;
 a harness is not a project). Without `ynm init` in a repository, the agent's memory goes to your
-personal store. Run `ynm init --no-clients` in a repository only to add shared, team memory: the
+personal store. Run `ynm init --no-clients` in a repository only to add distributed, team memory: the
 flag keeps init from also writing `.mcp.json`, an instruction file and hooks that would duplicate what
 the harness already provides.
 

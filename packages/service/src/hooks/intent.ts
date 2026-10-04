@@ -33,6 +33,24 @@ export type HookOutput =
 export const SESSION_START_PREFIX =
   "ynm memory for this session (use memory_recall for more; use memory_remember to keep facts, not note files):";
 
+/** What a person sees from `ynm context` and `ynm session start` when there is no memory. */
+export const EMPTY_CONTEXT_NOTE = "no memory yet";
+
+/** What an agent is told when the context block is empty, so it knows where to go next. */
+export const EMPTY_CONTEXT_GUIDANCE =
+  "No memory yet. Use memory_remember to keep facts, not note files; memory_recall searches what is stored.";
+
+/**
+ * The line shown in place of an empty context block. `truncated` means there is memory but none
+ * of it fit the budget, which is a different thing from having none.
+ */
+export function emptyContextNote(truncated: boolean, forAgent = false): string {
+  if (!truncated) return forAgent ? EMPTY_CONTEXT_GUIDANCE : EMPTY_CONTEXT_NOTE;
+  return forAgent
+    ? "No memory fits the token budget. Raise budgetTokens, or use memory_recall to search."
+    : "no memory fits the token budget; raise --budget-tokens";
+}
+
 export const REMEMBER_NUDGE =
   "The user is asking you to remember something. Store it with memory_remember (ynm), not in a note file or memory directory. Prefer memory_supersede if a memory on this already exists.";
 
@@ -53,6 +71,9 @@ export const REMEMBER_INTENT_PHRASES = [
   "my preference",
   "note that",
 ] as const;
+
+/** The phrase list quoted for prose: server instructions and tool descriptions name these. */
+export const REMEMBER_INTENT_EXAMPLES = REMEMBER_INTENT_PHRASES.map((p) => `"${p}"`).join(", ");
 
 const phrases = REMEMBER_INTENT_PHRASES.map((p) =>
   p.replace(/'/g, "['’]").replace(/ /g, "\\s+")

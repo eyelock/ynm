@@ -110,6 +110,12 @@ content, in the [record format](record-format.md).
 }
 ```
 
+When nothing is stored, `markdown` is empty and `included` is `[]`; without `--json`,
+`ynm context` prints `no memory yet`. When there is memory but none of it fits `--budget-tokens`,
+`markdown` is empty too, `truncated` is `true`, and the human output says so. Over MCP,
+`memory_context` returns the same empty `markdown` with guidance that points the agent at
+`memory_remember` and `memory_recall`.
+
 ### session
 
 `session start`:
@@ -119,9 +125,12 @@ content, in the [record format](record-format.md).
   "sessionId": "01m3pqb8nhjrpr56ppbvvxk2n8",
   "namespace": "session/01m3pqb8nhjrpr56ppbvvxk2n8",
   "ttl": "PT8H",
-  "context": { "markdown": "## Memory\n\n", "included": [], "tokens": 3, "truncated": false }
+  "context": { "markdown": "", "included": [], "tokens": 0, "truncated": false }
 }
 ```
+
+This one started on an empty store, so its `context.markdown` is empty; the human output shows
+`no memory yet` in place of the context block.
 
 `session end <id>`: `{ "sessionId": "...", "expired": ["<memoryId>", ...] }`.
 
@@ -149,13 +158,18 @@ content, in the [record format](record-format.md).
         "notes": []
       }
     },
+    "fresh": 5,
+    "dreamed": 0,
     "usage": { "inputTokens": 0, "outputTokens": 0 },
     "estimatedCostUsd": 0
   }
 }
 ```
 
-Passes appear in the order `expire`, `promote`, `dedupe`, `contradict`, `reflect`, `normalise`.
+`fresh` counts the memories new or changed since a run with this judge last finished with them;
+`dreamed` counts the ones this run finished with and marked (always 0 for a dry run, or a run
+limited by `--passes` or `--namespace`). With `fresh` at 0 only `expire` runs, and the plain
+output adds the line `nothing new since the last run; only expiry ran`. Passes appear in the order `expire`, `promote`, `dedupe`, `contradict`, `reflect`, `normalise`.
 
 ### sync
 
@@ -167,7 +181,7 @@ One entry per synced mount:
     "fetched": 0,
     "merged": [],
     "pushed": [],
-    "conflicts": ["remote \"origin\" is not configured; add it and run `ynm init` again"],
+    "conflicts": ["remote \"origin\" is not configured; add it with `git remote add origin <url>` and sync again"],
     "skipped": "remote \"origin\" not configured; nothing to sync",
     "retries": 0
   }

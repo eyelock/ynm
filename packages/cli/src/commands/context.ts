@@ -1,4 +1,5 @@
 import { ContextQuerySchema } from "@ynm/model";
+import { emptyContextNote } from "@ynm/service";
 import { YnmCommand } from "../lib/base.js";
 import { flagsFromSchema, inputFromFlags } from "../lib/flags.js";
 
@@ -17,6 +18,7 @@ export default class Context extends YnmCommand {
     const q = inputFromFlags(ContextQuerySchema, rest);
     const { ynm } = await this.open({ cwd });
     const block = await ynm.context(q);
-    this.emit(json, block, () => block.markdown);
+    this.emit(json, block, () => block.markdown || emptyContextNote(block.truncated));
+    this.noteLeftOut(ynm);
   }
 }

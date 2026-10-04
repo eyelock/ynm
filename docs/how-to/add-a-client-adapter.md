@@ -1,8 +1,7 @@
 # Add a client adapter
 
 Goal: teach `ynm init` and `ynm client install` about a new agent client. An adapter is one file
-plus tests. Background: [ADR-013](../adr/013-client-integrations.md) and
-[ADR-016](../adr/016-agent-guidance-delivery.md).
+plus tests.
 
 ## The seam
 

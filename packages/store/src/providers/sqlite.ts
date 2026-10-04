@@ -13,6 +13,7 @@ import {
   type ShardFilter,
   type ShardInfo,
   type ShardKey,
+  type StoreDocument,
   shardId,
   shardMatches,
 } from "../log.js";
@@ -27,7 +28,14 @@ CREATE TABLE IF NOT EXISTS records (
 CREATE INDEX IF NOT EXISTS records_shard ON records(shard);
 CREATE INDEX IF NOT EXISTS records_memory ON records(memoryId);
 CREATE TABLE IF NOT EXISTS shards (shard TEXT PRIMARY KEY, level TEXT NOT NULL, namespace TEXT NOT NULL, type TEXT NOT NULL, bucket TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS documents (name TEXT PRIMARY KEY, text TEXT NOT NULL, version INTEGER NOT NULL);
 `;
+
+const DOCUMENT_NAME = /^[a-z0-9-]+$/;
+
+function assertDocumentName(name: string): void {
+  if (!DOCUMENT_NAME.test(name)) throw new Error(`invalid document name: ${JSON.stringify(name)}`);
+}
 
 /**
  * SQLite record log (ADR-004): the scale escape hatch for hosted stores and a git-free option.
@@ -158,6 +166,34 @@ export class SqliteLog implements RecordLog {
       problems,
       details: { file: this.file, records: n, shards: this.shardRows().length },
     };
+  }
+
+  async readDocument(name: string): Promise<StoreDocument | null> {
+    assertDocumentName(name);
+    const row = this.db.prepare("SELECT text, version FROM documents WHERE name = ?").get(name) as
+      | { text: string; version: number }
+      | undefined;
+    return row ? { text: row.text, version: String(row.version) } : null;
+  }
+
+  /** Compare-and-swap in one statement: the insert or update matches no row on a conflict. */
+  async writeDocument(name: string, text: string, expected: string | null): Promise<string | null> {
+    assertDocumentName(name);
+    if (expected !== null && !/^\d+$/.test(expected)) return null;
+    const row = (
+      expected === null
+        ? this.db
+            .prepare(
+              "INSERT INTO documents (name, text, version) VALUES (?, ?, 1) ON CONFLICT(name) DO NOTHING RETURNING version"
+            )
+            .get(name, text)
+        : this.db
+            .prepare(
+              "UPDATE documents SET text = ?, version = version + 1 WHERE name = ? AND version = ? RETURNING version"
+            )
+            .get(text, name, Number(expected))
+    ) as { version: number } | undefined;
+    return row ? String(row.version) : null;
   }
 
   async purge(memoryId: string): Promise<PurgeResult> {

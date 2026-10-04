@@ -128,3 +128,7 @@ Cases handled:
 - 2026-09-30: `ynm init` also configures every detected agent client, which can edit client
   files in the work tree; `--no-clients` restores the memory-only retrofit. See
   [ADR-016](016-agent-guidance-delivery.md).
+- 2026-10-01: the hosted topology also runs as an AWS Lambda function (`packages/mcp/src/lambda.ts`,
+  the same front door and handler, a fresh server per request; `YNM_PUBLIC_URL` names the public
+  host; EventBridge Scheduler invokes dream and compaction). The single-writer rule is about git
+  refs: a store with no shared ref, such as `s3`, may take writes from many instances.

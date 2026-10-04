@@ -25,10 +25,13 @@
   * [Retrofit an existing repo](/how-to/retrofit-an-existing-repo.md)
   * [Share an org store](/how-to/share-an-org-store.md)
   * [Choose the SQLite provider](/how-to/choose-the-sqlite-provider.md)
+  * [Choose the S3 provider](/how-to/choose-the-s3-provider.md)
   * [Configure the judge and writer](/how-to/configure-judge-and-writer.md)
   * [Connect over HTTP](/how-to/connect-over-http.md)
+  * [Personal memory with a hosted store](/how-to/use-personal-and-hosted-memory.md)
   * [Add a client adapter](/how-to/add-a-client-adapter.md)
   * [Operate a hosted store](/how-to/operate-a-hosted-store.md)
+  * [Host on AWS Lambda](/how-to/host-on-aws-lambda.md)
   * [Back up and restore](/how-to/back-up-and-restore.md)
   * [Cut a release](/how-to/cut-a-release.md)
 
@@ -39,7 +42,6 @@
   * [Personal and distributed memory](/explanation/personal-and-distributed.md)
   * [How recall ranks](/explanation/how-recall-ranks.md)
   * [Dreaming](/explanation/dreaming.md)
-  * [Decision records (ADRs)](/adr/README.md)
 
 * **Reference**
   * [Reference overview](/reference/README.md)
@@ -49,4 +51,3 @@
   * [Record format](/reference/record-format.md)
   * [Memory types](/reference/memory-types.md)
   * [Exit codes and JSON output](/reference/exit-codes-and-json.md)
-  * [Requirements (ADR-000)](/adr/000-requirements.md)

@@ -1,9 +1,8 @@
 # Memory types reference
 
 The six values of `type`, the rules each one carries, and the ranker constants that depend on
-it. The half-life and weight tables are generated from the ranker by `pnpm docs:gen`. For what
-each type is for and when to use it, read [The six memory types](../explanation/memory-types.md);
-[ADR-001](../adr/001-memory-model.md) records the decision.
+it. The half-life and weight tables are generated from the ranker. For what
+each type is for and when to use it, read [The six memory types](../explanation/memory-types.md).
 
 ## Types
 
@@ -68,4 +67,7 @@ follow, is explained in [How recall ranks](../explanation/how-recall-ranks.md).
 | Level | Default namespace | Lives in | Synced by `ynm sync` |
 |---|---|---|---|
 | `personal` (default) | `user/<userId>` | the personal store, `~/.ynm/store.git` | only with `--mount personal` and an explicit `--remote` |
-| `distributed` | `common` | the project repository's `shared` refs, or a configured mount | yes |
+| `distributed` | `common` | the project repository's `distributed` refs, or a configured mount | yes |
+
+`personal` is the default only where a personal store is open. A hosted server
+(`ynm serve --no-personal`) has none, so a write that names no level is `distributed` there.

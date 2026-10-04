@@ -44,14 +44,14 @@ describe("gate M5: hosted", () => {
     for (const name of ["copilot-cli adapter", "opencode adapter", "pi adapter"])
       expect(r.out).toContain(name);
     expect(r.out).toMatch(/extension's tools run the ynm CLI/);
-    expect(existsSync(join(repoRoot, "clients", "pi", "ynm.ts"))).toBe(true);
+    expect(existsSync(join(repoRoot, "integrations", "pi", "ynm.ts"))).toBe(true);
   }, 300_000);
 
   it("NFR-6: hosted suite passes against a bare repo on a Gitea container", () => {
     expect(dockerAvailable(), "Docker daemon must be running for this gate").toBe(true);
     const r = vitest(evals, "src/tier1/hosted/gitea.integration.test.ts");
     expect(r.status, r.out).toBe(0);
-    expect(r.out).toMatch(/✓.*two clones sync shared memory through the forge/);
+    expect(r.out).toMatch(/✓.*two clones sync distributed memory through the forge/);
   }, 900_000);
 
   it("Exit: docker compose demo with one hosted store, one HTTP agent client, one syncing clone", () => {

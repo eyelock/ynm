@@ -2,7 +2,9 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, 'hotfix/*']
+  # No branch filter: CI runs on every pull request, including one based on another feature
+  # branch, so a stacked PR is gated like any other.
   pull_request:
 
 permissions:
@@ -13,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -23,3 +25,41 @@ jobs:
       - run: make verify
       - name: Milestone gate
         run: make gate M=${{ vars.YNM_MILESTONE || 'M0' }}
+
+  # A pull request into main is a release or hotfix: it must pass the release gate the tag would
+  # run, including the check that the frozen evals did not regress against the previous release.
+  # Required on main (infra/github/branches.tf), so a release cannot merge with a regression.
+  release-gate:
+    name: release gate
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: make deps
+      - run: make build
+      - name: Release gate
+        run: make gate M=M6
+
+  # Gates on the lines a pull request adds or modifies, not on overall totals.
+  coverage:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: make deps
+      - run: make build
+      - run: make coverage
+      - name: Coverage of changed lines
+        run: make coverage-diff BASE=origin/${{ github.base_ref }}

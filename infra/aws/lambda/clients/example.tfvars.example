@@ -1,0 +1,26 @@
+# A client's store as a Lambda. Copy to clients/<client>.tfvars and example.s3.tfbackend.example
+# to clients/<client>.s3.tfbackend (both gitignored), fill them in, then with the ynm-provisioner
+# profile, after `make lambda` at the repository root:
+#   terraform init -backend-config=clients/<client>.s3.tfbackend
+#   terraform apply -var-file=clients/<client>.tfvars
+client     = "example"
+account_id = "123456789012"
+region     = "us-east-1"
+owner      = "example"
+
+alarm_email = "alerts@example.com"
+
+package_path    = "../../../dist/lambda.zip"
+package_version = "0.2.0"
+
+# The store's entry in infra/auth0 (terraform output -json auth | jq .<store>).
+auth = {
+  provider = "oidc"
+  preset   = "auth0"
+  issuer   = "https://your-tenant.us.auth0.com/"
+  resource = "https://example.ynm.example.com/mcp"
+  scopes   = { read = "memory:read", write = "memory:write" }
+}
+
+# The dream judge's key, set in Parameter Store after apply (see secret_parameters).
+secret_env = ["TYPESAFE_API_KEY"]

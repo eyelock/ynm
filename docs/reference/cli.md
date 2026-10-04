@@ -31,6 +31,9 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`import`](#ynm-import) | Import JSONL records (from a file or stdin), routed by level |
 | [`init`](#ynm-init) | Set up memory for this repository, your personal store, or a dedicated bare repo |
 | [`list`](#ynm-list) | List memories (folded, newest first) across mounts |
+| [`login`](#ynm-login) | Sign in to a hosted store mounted on this machine: opens the browser at its identity provider and keeps the sign-in for this mount |
+| [`logout`](#ynm-logout) | Sign out of a hosted store: forgets this machine's sign-in and client registration for the mount |
+| [`people`](#ynm-people) | Who writes to this store: list people and their nicknames, set or clear a nickname, or link a login from another identity provider to an existing person |
 | [`pin`](#ynm-pin) | Pin a memory so it is always in the context block (or unpin it) |
 | [`promote`](#ynm-promote) | Copy a personal memory into a distributed mount as a new, linked memory |
 | [`purge`](#ynm-purge) | Physically remove a memory's records (leaves an audited purge marker) |
@@ -42,7 +45,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`session`](#ynm-session) | Start a session (prints the context block) or end one (expires working memory) |
 | [`status`](#ynm-status) | Mounts, shard counts and index freshness. |
 | [`supersede`](#ynm-supersede) | Record a new version of an existing memory |
-| [`sync`](#ynm-sync) | Fetch, merge and push shared memory (never personal unless --mount personal) |
+| [`sync`](#ynm-sync) | Fetch, merge and push distributed memory (never personal unless --mount personal) |
 | [`validate`](#ynm-validate) | Check ynm's setup for the agent clients in a directory and print every check: a ynh harness, or the clients a project uses |
 | [`wiki`](#ynm-wiki) | Build the markdown projection (index, log, memories, entities, topics) or ingest an edited page |
 
@@ -194,7 +197,7 @@ ynm export [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--level <value>` | `personal` \| `distributed` |  |  | Only records at this level |
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type (ADR-001) |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type |
 | `--namespace <value>` | string |  |  | Namespace prefix |
 | `--since <value>` | date-time |  |  | Updated at or after |
 | `--until <value>` | date-time |  |  | Updated at or before |
@@ -295,7 +298,7 @@ ynm init [flags]
 |---|---|---|---|---|
 | `--personal` | boolean |  | `false` | Create the personal store only |
 | `--bare <value>` | string |  |  | Create or adopt a dedicated bare memory repo at this path |
-| `--remote <value>` | string |  | `origin` | Remote for the shared fetch refspec |
+| `--remote <value>` | string |  | `origin` | Remote for the distributed fetch refspec |
 | `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
 | `--[no-]clients` | boolean |  | `true` | Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; --no-clients skips it |
@@ -324,7 +327,7 @@ ynm list [flags]
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `--level <value>` | `personal` \| `distributed` |  |  | personal never leaves the user's store by default |
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type (ADR-001) |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` |  |  | Memory type |
 | `--namespace <value>` | string |  |  | Namespace prefix |
 | `--since <value>` | date-time |  |  | Updated at or after |
 | `--until <value>` | date-time |  |  | Updated at or before |
@@ -340,6 +343,78 @@ Examples:
 ```bash
 ynm list
 ynm list --type procedural --level distributed --json
+```
+
+## ynm login
+
+Sign in to a hosted store mounted on this machine: opens the browser at its identity provider and keeps the sign-in for this mount
+
+```text
+ynm login <mount> [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `mount` | yes |  | Mount id |
+
+Common flags: `--json`, `--cwd`.
+
+Examples:
+
+```bash
+ynm login team
+```
+
+## ynm logout
+
+Sign out of a hosted store: forgets this machine's sign-in and client registration for the mount
+
+```text
+ynm logout <mount> [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `mount` | yes |  | Mount id |
+
+Common flags: `--json`, `--cwd`.
+
+Examples:
+
+```bash
+ynm logout team
+```
+
+## ynm people
+
+Who writes to this store: list people and their nicknames, set or clear a nickname, or link a login from another identity provider to an existing person
+
+```text
+ynm people <action> [person] [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `action` | yes | `list`, `whoami`, `nickname`, `clear`, `link` | list, whoami, nickname, clear or link |
+| `person` | no |  | Person id (nickname, clear, link) |
+
+| Flag | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `--nickname <value>` | string (max 64) |  |  | For nickname: how the person appears to everyone who can read the store |
+| `--issuer <value>` | string |  |  | For link: the login's issuer, as its tokens state it |
+| `--subject <value>` | string |  |  | For link: the login's subject at that issuer |
+
+Common flags: `--json`, `--cwd`.
+
+MCP tool: [`memory_people`](mcp.md#memory_people).
+
+Examples:
+
+```bash
+ynm people list
+ynm people nickname pabcdefghijklmnop --nickname David
+ynm people clear pabcdefghijklmnop
+ynm people link pabcdefghijklmnop --issuer https://login.example.com/ --subject 00u1abc
 ```
 
 ## ynm pin
@@ -485,9 +560,9 @@ ynm remember [flags]
 
 | Flag | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type (ADR-001) |
-| `--level <value>` | `personal` \| `distributed` |  | `personal` | personal never leaves the user's store by default |
-| `--namespace <value>` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
+| `--type <value>` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
+| `--level <value>` | `personal` \| `distributed` |  |  | personal (private; the default) or distributed (shared with everyone on the store; only when the user chose to share). A store with no personal level stores nothing unless this is distributed |
+| `--namespace <value>` | string (max 512) |  |  | Where it lives; omit for your own: user/<you> (on a hosted store, your person id), else common |
 | `--content <value>` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `--summary <value>` | string (max 280) |  |  | One line summary; derived from content if omitted |
 | `--subject <value>` | string (max 200) |  |  | Entity or topic key |
@@ -659,7 +734,7 @@ ynm supersede --memory-id 01J... --content "Updated text"
 
 ## ynm sync
 
-Fetch, merge and push shared memory (never personal unless --mount personal)
+Fetch, merge and push distributed memory (never personal unless --mount personal)
 
 ```text
 ynm sync [flags]

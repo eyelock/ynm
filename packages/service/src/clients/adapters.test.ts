@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import ts from "typescript";
+import { transformSync } from "esbuild";
 import { TOOL_SPECS } from "../tools.js";
 import {
   AGENTS_MD_MARKER,
@@ -102,8 +102,10 @@ describe("pi adapter (ADR-013)", () => {
     const src = piExtensionSource();
     for (const spec of TOOL_SPECS) expect(src).toContain(`name: ${JSON.stringify(spec.name)},`);
     expect(src).not.toContain("Type.Any(");
-    expect(readFileSync(join(repoRoot, "clients", "pi", "ynm.ts"), "utf8")).toBe(src);
-    expect(readFileSync(join(repoRoot, "clients", "pi", "SKILL.md"), "utf8")).toBe(piSkill());
+    expect(readFileSync(join(repoRoot, "integrations", "pi", "ynm.ts"), "utf8")).toBe(src);
+    expect(
+      readFileSync(join(repoRoot, "integrations", "skills", "ynm-memory", "SKILL.md"), "utf8")
+    ).toBe(piSkill());
     expectGolden("pi-extension.ts.txt", src);
   });
 
@@ -146,12 +148,12 @@ describe("pi adapter (ADR-013)", () => {
   it("the extension's tools run the ynm CLI and return its JSON as details", async () => {
     // Compile the generated TypeScript, stub TypeBox, load it with a fake Pi API.
     const dir = mkdtempSync(join(tmpdir(), "ynm-pi-ext-"));
-    const js = ts.transpileModule(
+    // esbuild strips the types; the TypeScript package's in-process API is not relied on
+    // (TypeScript 7's native compiler does not expose it).
+    const js = transformSync(
       piExtensionSource().replace('from "@earendil-works/pi-ai"', 'from "./typebox.mjs"'),
-      {
-        compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-      }
-    ).outputText;
+      { loader: "ts", format: "esm", target: "es2022" }
+    ).code;
     writeFileSync(
       join(dir, "typebox.mjs"),
       "export const Type = new Proxy({}, { get: (_, k) => (...a) => ({ kind: k, args: a }) });\n"

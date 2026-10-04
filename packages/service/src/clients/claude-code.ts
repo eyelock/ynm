@@ -169,7 +169,7 @@ export const claudeCode: ClientAdapter = {
   async status({ cwd, home }): Promise<ClientStatus> {
     // Any instruction file Claude Code loads here at launch, by its own lookup rules.
     const guided = claudeHasGuidance(cwd, home, CLAUDE_MD_MARKER);
-    // A team may also have put them in the shared settings on purpose; any of the three counts.
+    // A team may also have put them in the team's settings on purpose; any of the three counts.
     const hookFiles = [
       claudeSettingsPath({ cwd, home, scope: "project" }),
       join(cwd, ".claude", "settings.json"),
@@ -182,6 +182,7 @@ export const claudeCode: ClientAdapter = {
       readFileSync(f, "utf8").includes(CLAUDE_MD_MARKER)
     );
     const hookFile = hookFiles.find((f) => Object.values(claudeHooksPresent(f)).some(Boolean));
+    const files = [guidanceFile, hookFile].filter((f): f is string => !!f);
     const checkedWith = (server: string) => [
       `server    ${server}`,
       `guidance  ${guidanceFile ?? "missing (no file Claude Code loads here has the block)"}`,
@@ -204,6 +205,7 @@ export const claudeCode: ClientAdapter = {
         guidance: guided,
         hooks: hooked,
         checked: checkedWith(`mcpServers.ynm in ${file}`),
+        files: [file, ...files],
       };
     const userFile = join(home, ".claude.json");
     if (existsSync(userFile) && /"ynm"\s*:/.test(readFileSync(userFile, "utf8")))
@@ -214,6 +216,7 @@ export const claudeCode: ClientAdapter = {
         guidance: guided,
         hooks: hooked,
         checked: checkedWith(`ynm registered at user scope in ${userFile}`),
+        files,
       };
     return {
       client: "claude-code",

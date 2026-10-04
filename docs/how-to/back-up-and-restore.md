@@ -1,10 +1,10 @@
 # Back up and restore
 
 Goal: keep a copy of your memory you can restore from. A git-notes store is a git repository, so
-a backup is a bundle; a SQLite store is a file. The index is derived data and never needs
-backing up: delete it and the next request rebuilds it. Tutorial 11 walks through a restore.
+a backup is a bundle; a SQLite store is a file; an S3 store is the objects under a prefix. The
+index is derived data and never needs backing up: delete it and the next request rebuilds it. Tutorial 11 walks through a restore.
 
-## A project's shared memory
+## A project's distributed memory
 
 Everything is under `refs/notes/ynm/` in the project repository:
 
@@ -51,6 +51,14 @@ Copy `store.sqlite` while nothing writes to it, or checkpoint first so the write
 folded in: run `PRAGMA wal_checkpoint(TRUNCATE)` against the file, or copy `store.sqlite` together
 with its `-wal` file. Restore by putting the file back at the same path.
 
+## An S3 store
+
+Turn on versioning for the bucket, so an object deleted or rewritten by mistake can be
+recovered, and replicate it to another bucket or region for a copy outside it. A point-in-time
+copy is a copy of the prefix (`aws s3 sync s3://acme-ynm/stores/team ./team-backup`); restore by
+copying the objects back under the same prefix. Copying while ynm writes is safe: each write is
+a new object, and a record that shows up twice in the copy is read once.
+
 ## As portable JSONL
 
 Independent of the provider, `ynm export` writes every record, history and tombstones included,
@@ -59,6 +67,13 @@ and `ynm import` reads it back into any store with ids preserved:
 ```bash
 ynm export > memory.jsonl
 ynm import memory.jsonl
+```
+
+With no file, `ynm import` reads standard input, so one store can be copied straight into another
+without a file in between:
+
+```bash
+ynm export | YNM_HOME=/path/to/other/home ynm import
 ```
 
 Use it to move between providers or machines. It backs up one store at a time; pass `--mount`

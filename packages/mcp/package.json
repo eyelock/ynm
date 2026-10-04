@@ -1,6 +1,6 @@
 {
   "name": "@ynm/mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "MCP server: tools, resources, prompts, stdio and Streamable HTTP transports (ADR-008, ADR-009).",
   "license": "MIT",
@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./lambda": {
+      "types": "./dist/lambda.d.ts",
+      "import": "./dist/lambda.js"
     }
   },
   "files": [
@@ -38,8 +42,8 @@
     "@ynm/vitest-config": "workspace:*",
     "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^5.0.2",
-    "typescript": "^6.0.2",
-    "vitest": "^4.1.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2",
     "@modelcontextprotocol/client": "^2.2.0"
   },
   "bin": {

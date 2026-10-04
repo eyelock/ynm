@@ -52,6 +52,17 @@ export interface SyncOptions {
   push?: boolean;
   pull?: boolean;
   dryRun?: boolean;
+  /**
+   * How to combine a named document (see `RecordLog.readDocument`) that changed on both sides,
+   * by name. A document with no merger keeps the local copy and is reported as a conflict.
+   */
+  mergeDocuments?: Record<string, (ours: string, theirs: string) => string>;
+}
+
+/** A small named JSON document kept beside the records; `version` is opaque to callers. */
+export interface StoreDocument {
+  text: string;
+  version: string;
 }
 
 export interface SyncResult {
@@ -62,6 +73,8 @@ export interface SyncResult {
   retries: number;
   /** Set when the sync could not run at all (no such remote); a report, not a failure. */
   skipped?: string;
+  /** The fetch refspec sync added to the remote's config because it was missing. */
+  refspecAdded?: string;
 }
 
 /**
@@ -80,6 +93,16 @@ export interface RecordLog {
   health(): Promise<HealthReport>;
   /** Present only on replicating providers. */
   sync?(options?: SyncOptions): Promise<SyncResult>;
+  /**
+   * A named document beside the records (e.g. "people"), outside every shard: never scanned,
+   * folded or purged. Whole-document reads and writes; null when it does not exist.
+   */
+  readDocument?(name: string): Promise<StoreDocument | null>;
+  /**
+   * Writes a named document when its stored version is still `expected` (null: it must not
+   * exist yet). Returns the new version, or null when someone else wrote it first.
+   */
+  writeDocument?(name: string, text: string, expected: string | null): Promise<string | null>;
   /**
    * Physically removes every line of a memory (ADR-002 purge). Rewrites the affected shards;
    * with `forgetHistory` the shard's revision history is dropped too where the provider has one.
@@ -129,7 +152,7 @@ export function shardMatches(key: ShardKey, filter: ShardFilter | undefined): bo
 
 export class LevelMismatchError extends Error {
   constructor(logId: string, logLevel: Level, recordLevel: Level) {
-    super(`log "${logId}" is ${logLevel}; refusing a ${recordLevel} record (ADR-001, ADR-007)`);
+    super(`log "${logId}" is ${logLevel}; refusing a ${recordLevel} record`);
     this.name = "LevelMismatchError";
   }
 }

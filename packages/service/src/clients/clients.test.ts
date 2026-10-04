@@ -7,6 +7,8 @@ import {
   CLAUDE_MD_MARKER,
   claudeCode,
   clientAdapter,
+  onPath,
+  stdioServerEntry,
   ynh,
   ynhPlugin,
   ynhSkill,
@@ -66,13 +68,13 @@ describe("client adapters (ADR-013)", () => {
   it("ynh plugin generation matches the checked-in manifest and skill", () => {
     const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
     const checked = JSON.parse(
-      readFileSync(join(repoRoot, ".ynh-plugin", "plugin.json"), "utf8")
+      readFileSync(join(repoRoot, "integrations", "ynh", ".ynh-plugin", "plugin.json"), "utf8")
     ) as Record<string, unknown>;
     const generated = ynhPlugin({ version: String(checked.version), transport: stdio });
     expect(generated).toEqual(checked);
-    expect(readFileSync(join(repoRoot, "skills", "ynm-memory", "SKILL.md"), "utf8")).toBe(
-      ynhSkill()
-    );
+    expect(
+      readFileSync(join(repoRoot, "integrations", "skills", "ynm-memory", "SKILL.md"), "utf8")
+    ).toBe(ynhSkill());
   });
 
   it("ynh install is a command and status finds an installed harness", async () => {
@@ -81,7 +83,7 @@ describe("client adapters (ADR-013)", () => {
     const plan = await ynh.plan({ cwd: "/x", home, scope: "user", transport: stdio });
     expect(plan[0]).toMatchObject({
       kind: "command",
-      argv: ["ynh", "install", "github.com/eyelock/ynm"],
+      argv: ["ynh", "install", "github.com/eyelock/ynm", "--path", "integrations/ynh"],
     });
     const dir = join(home, ".ynh", "harnesses", "eyelock", "ynm", ".ynh-plugin");
     await applyChanges([
@@ -129,7 +131,11 @@ describe("client adapters (ADR-013)", () => {
     });
     // the skill arrives by include, resolved by ynh; nothing is copied into the harness
     expect((m as unknown as { includes: unknown[] }).includes).toEqual([
-      { git: "https://github.com/eyelock/ynm", pick: ["skills/ynm-memory"] },
+      {
+        git: "https://github.com/eyelock/ynm",
+        path: "integrations",
+        pick: ["skills/ynm-memory"],
+      },
     ]);
     expect(existsSync(join(cwd, "skills"))).toBe(false);
     expect(await ynh.plan({ cwd, home, scope: "project", transport: stdio })).toEqual([]);
@@ -175,5 +181,154 @@ describe("client adapters (ADR-013)", () => {
 
   it("registry rejects unknown clients", () => {
     expect(() => clientAdapter("cursor")).toThrow(/unknown client/);
+  });
+});
+
+describe("ynh include from before the skill moved to integrations/", () => {
+  it("is replaced in place, not duplicated", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
+    mkdirSync(join(cwd, ".ynh-plugin"));
+    const file = join(cwd, ".ynh-plugin", "plugin.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        name: "h",
+        version: "0.1.0",
+        includes: [
+          { git: "https://github.com/eyelock/assistants", path: "skills/dev" },
+          { git: "https://github.com/eyelock/ynm", pick: ["skills/ynm-memory"] },
+        ],
+      })
+    );
+    const plan = await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio });
+    expect(plan[0]?.reason).toMatch(/updated to integrations\)/);
+    await applyChanges(plan);
+    const m = JSON.parse(readFileSync(file, "utf8")) as { includes: unknown[] };
+    expect(m.includes).toEqual([
+      { git: "https://github.com/eyelock/assistants", path: "skills/dev" },
+      {
+        git: "https://github.com/eyelock/ynm",
+        path: "integrations",
+        pick: ["skills/ynm-memory"],
+      },
+    ]);
+  });
+});
+
+describe("ynh harness edges", () => {
+  function harness(manifest: unknown): string {
+    const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
+    mkdirSync(join(cwd, ".ynh-plugin"));
+    writeFileSync(
+      join(cwd, ".ynh-plugin", "plugin.json"),
+      typeof manifest === "string" ? manifest : JSON.stringify(manifest)
+    );
+    return cwd;
+  }
+  const http = { kind: "http" as const, url: "https://mem.example/mcp", bearer: "tok" };
+
+  it("declares an http server in the plugin, with a bearer header only when one is set", () => {
+    expect(ynhPlugin({ version: "1.0.0", transport: http }).mcp_servers).toEqual({
+      ynm: { url: http.url, headers: { Authorization: "Bearer tok" } },
+    });
+    expect(
+      ynhPlugin({ version: "1.0.0", transport: { kind: "http", url: http.url } }).mcp_servers
+    ).toEqual({ ynm: { url: http.url } });
+  });
+
+  it("refuses to merge into a manifest that is not a JSON object", async () => {
+    for (const bad of ["[1, 2]", "{ not json"]) {
+      const cwd = harness(bad);
+      const plan = await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio });
+      expect(plan).toEqual([
+        expect.objectContaining({ kind: "note", reason: "harness manifest unreadable" }),
+      ]);
+      expect((await ynh.status({ cwd, home: cwd })).configured).toBe(false);
+    }
+  });
+
+  it("switches a stdio server to http, keeping its env, and adds only the missing hook", async () => {
+    const cwd = harness({
+      $schema: "https://eyelock.github.io/ynh/schema/plugin.schema.json",
+      name: "h",
+      mcp_servers: { ynm: { command: "ynm", args: ["serve"], env: { A: "1" } } },
+      includes: [{ git: "https://github.com/eyelock/ynm.git", path: "integrations", pick: "all" }],
+      hooks: {
+        on_session_start: [{ command: "ynm hook session-start" }],
+        before_prompt: [{ command: " ynm hook prompt " }],
+      },
+    });
+    const plan = await ynh.plan({ cwd, home: cwd, scope: "project", transport: http });
+    expect(plan[0]).toMatchObject({
+      kind: "write",
+      reason: "harness manifest: mcp_servers.ynm; hooks on_stop",
+      label: "harness manifest, 1 hook",
+    });
+    await applyChanges(plan);
+    const m = JSON.parse(readFileSync(join(cwd, ".ynh-plugin", "plugin.json"), "utf8")) as {
+      mcp_servers: Record<string, unknown>;
+    };
+    expect(m.mcp_servers.ynm).toEqual({
+      url: http.url,
+      headers: { Authorization: "Bearer tok" },
+      env: { A: "1" },
+    });
+    const status = await ynh.status({ cwd, home: cwd });
+    expect(status.checked?.[1]).toBe(`server    mcp_servers.ynm runs \`${http.url}\``);
+    expect(await ynh.plan({ cwd, home: cwd, scope: "project", transport: http })).toEqual([]);
+  });
+
+  it("reports a harness that does not declare ynm, with a copied skill as its guidance", async () => {
+    const cwd = harness({ name: "h" });
+    mkdirSync(join(cwd, "skills", "ynm-memory"), { recursive: true });
+    writeFileSync(join(cwd, "skills", "ynm-memory", "SKILL.md"), "skill");
+    const status = await ynh.status({ cwd, home: cwd });
+    expect(status).toMatchObject({
+      configured: false,
+      guidance: true,
+      hooks: false,
+      detail: "harness here; ynm not declared; run `ynm client install ynh`",
+    });
+    expect(status.checked?.slice(1)).toEqual([
+      "server    missing",
+      `guidance  ${join(cwd, "skills", "ynm-memory", "SKILL.md")}`,
+      "hooks     missing",
+    ]);
+  });
+
+  it("finds an installed ynm harness among others and says when its hooks are missing", async () => {
+    const home = mkdtempSync(join(tmpdir(), "ynm-ynh-home-"));
+    mkdirSync(join(home, ".ynh"));
+    expect((await ynh.status({ cwd: "/x", home })).detail).toMatch(/^run `ynh install/);
+    const put = (dir: string, content: string) => {
+      mkdirSync(join(home, ".ynh", dir, ".ynh-plugin"), { recursive: true });
+      writeFileSync(join(home, ".ynh", dir, ".ynh-plugin", "plugin.json"), content);
+    };
+    put("broken", "{ not json");
+    put("other", JSON.stringify({ name: "other" }));
+    put("ynm", JSON.stringify({ name: "ynm", includes: [] }));
+    const status = await ynh.status({ cwd: "/x", home });
+    expect(status).toMatchObject({ configured: true, guidance: false, hooks: false });
+    expect(status.detail).toMatch(/hooks missing \(an older release: run `ynh update ynm`\)/);
+  });
+});
+
+describe("client helpers", () => {
+  it("finds nothing on an empty or missing PATH", () => {
+    expect(onPath("sh", {})).toBe(false);
+    expect(onPath("sh", { PATH: "" })).toBe(false);
+  });
+
+  it("writes http server entries with an optional bearer", () => {
+    expect(stdioServerEntry(stdio)).toEqual({ command: "ynm", args: ["serve"] });
+    expect(stdioServerEntry({ kind: "http", url: "http://h/mcp" })).toEqual({
+      type: "http",
+      url: "http://h/mcp",
+    });
+    expect(stdioServerEntry({ kind: "http", url: "http://h/mcp", bearer: "b" })).toEqual({
+      type: "http",
+      url: "http://h/mcp",
+      headers: { Authorization: "Bearer b" },
+    });
   });
 });

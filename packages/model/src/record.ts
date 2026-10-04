@@ -12,7 +12,7 @@ export const MEMORY_TYPES = [
   "reflective",
   "reference",
 ] as const;
-export const MemoryTypeSchema = z.enum(MEMORY_TYPES).describe("Memory type (ADR-001)");
+export const MemoryTypeSchema = z.enum(MEMORY_TYPES).describe("Memory type");
 export type MemoryType = z.infer<typeof MemoryTypeSchema>;
 
 /** The privacy boundary is binary (ADR-001, ADR-007). */
@@ -101,12 +101,18 @@ export type Link = z.infer<typeof LinkSchema>;
 
 export const ProvenanceSchema = z
   .object({
-    actor: z.string().min(1).describe("Who wrote it, e.g. agent:claude-code or user:david"),
+    actor: z
+      .string()
+      .min(1)
+      .describe(
+        "Who wrote it: user:<person id> for a signed-in person on a hosted store, else e.g. user:david or agent:claude-code"
+      ),
+    client: z.string().optional().describe("The OAuth client a signed-in person wrote through"),
     session: z.string().optional().describe("Session id"),
     source: z.string().optional().describe("Source reference: URL, file, ticket, tool call"),
     tool: z.string().optional().describe("Tool or command that produced the record"),
   })
-  .describe("Where the record came from (ADR-002)");
+  .describe("Where the record came from");
 export type Provenance = z.infer<typeof ProvenanceSchema>;
 
 export const JsonObjectSchema = z.record(z.string(), z.unknown());
@@ -186,8 +192,12 @@ export const DEFAULT_WORKING_TTL = "PT8H";
 const RememberFieldsSchema = z
   .object({
     type: MemoryTypeSchema,
-    level: LevelSchema.default("personal"),
-    namespace: NamespaceSchema.default(COMMON_NAMESPACE),
+    level: LevelSchema.optional().describe(
+      "personal (private; the default) or distributed (shared with everyone on the store; only when the user chose to share). A store with no personal level stores nothing unless this is distributed"
+    ),
+    namespace: NamespaceSchema.optional().describe(
+      "Where it lives; omit for your own: user/<you> (on a hosted store, your person id), else common"
+    ),
     content: z.string().min(1).max(65_536).describe("Markdown; the memory itself"),
     summary: z
       .string()

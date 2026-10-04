@@ -1,8 +1,6 @@
 # Explanation
 
-Why things are the way they are. These pages are short and link to the
-[decision records](../adr/README.md), which hold the full reasoning and the alternatives that
-were rejected.
+Why things are the way they are. Each page is short and answers one question.
 
 | Page | Question it answers |
 |---|---|
@@ -11,4 +9,3 @@ were rejected.
 | [Personal and distributed memory](personal-and-distributed.md) | Where the privacy boundary is, how it is enforced, and how memory crosses it |
 | [How recall ranks](how-recall-ranks.md) | Why a recall result comes back in the order it does |
 | [Dreaming](dreaming.md) | What consolidation does, why judges are separate from writers, and when a human is asked |
-| [Decision records](../adr/README.md) | The accepted architecture decisions, ADR-000 to ADR-014 |

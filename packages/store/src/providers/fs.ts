@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -23,9 +24,20 @@ import {
   type ShardFilter,
   type ShardInfo,
   type ShardKey,
+  type StoreDocument,
   shardMatches,
 } from "../log.js";
 import { parseJsonl, serializeJsonl } from "../parse.js";
+
+const DOCUMENT_NAME = /^[a-z0-9-]+$/;
+
+function assertDocumentName(name: string): void {
+  if (!DOCUMENT_NAME.test(name)) throw new Error(`invalid document name: ${JSON.stringify(name)}`);
+}
+
+function hashText(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
 
 /**
  * JSONL files on disk: <dir>/<level>/<namespace...>/<type>/<yyyy-mm>.jsonl, atomic
@@ -42,6 +54,12 @@ export class FsLog implements RecordLog {
 
   private shardPath(key: ShardKey): string {
     return join(this.dir, key.level, ...key.namespace.split("/"), key.type, `${key.bucket}.jsonl`);
+  }
+
+  /** <dir>/documents/<name>.json: outside every level directory, so `walk()` never sees it. */
+  private documentPath(name: string): string {
+    assertDocumentName(name);
+    return join(this.dir, "documents", `${name}.json`);
   }
 
   async append(records: readonly MemoryRecord[]): Promise<AppendResult> {
@@ -127,6 +145,27 @@ export class FsLog implements RecordLog {
         );
     }
     return { ok: problems.length === 0, problems, details: { dir: this.dir, shards } };
+  }
+
+  async readDocument(name: string): Promise<StoreDocument | null> {
+    const file = this.documentPath(name);
+    if (!existsSync(file)) return null;
+    const text = readFileSync(file, "utf8");
+    return { text, version: hashText(text) };
+  }
+
+  /** Compare-and-swap under the file's lock; the version is the content hash. */
+  async writeDocument(name: string, text: string, expected: string | null): Promise<string | null> {
+    const file = this.documentPath(name);
+    mkdirSync(join(file, ".."), { recursive: true });
+    return withLock(`${file}.lock`, async () => {
+      const current = existsSync(file) ? hashText(readFileSync(file, "utf8")) : null;
+      if (current !== expected) return null;
+      const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+      writeFileSync(tmp, text);
+      renameSync(tmp, file);
+      return hashText(text);
+    });
   }
 
   async purge(memoryId: string): Promise<PurgeResult> {

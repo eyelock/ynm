@@ -92,3 +92,23 @@ None.
 
 - 2026-09-29 (M5): `SqliteLog` shipped on `node:sqlite`, passed the shared conformance suite, and
   became selectable as default or per-mount provider without sync.
+- 2026-10-01: `S3Log` joined the providers as `s3`, per mount: append-only JSONL objects under
+  unique ULID keys written with `If-None-Match`, so any number of writers append with no lock;
+  revision is the greatest key plus a digest of the shard's keys and ETags, so purge's in-place
+  `If-Match` rewrite moves it too; non-replicating for now (`sync` later, as a union of lines).
+  It lives in `@ynm/store-s3`, loaded on demand, so the AWS SDK stays out of the CLI bundles. It
+  passes the conformance suite against an in-memory double and against MinIO.
+- 2026-10-03: named documents beside the records (`readDocument`, `writeDocument`): a small JSON
+  document per store, outside every shard, never scanned, folded or purged, written whole with a
+  compare-and-swap on its version. Every provider keeps one: memory, fs (`documents/<name>.json`),
+  sqlite (a `documents` table), s3 (`<prefix>/documents/<name>.json`, `If-Match`), git-notes (a
+  commit on `refs/ynm/<level>/documents/<name>`, synced with the notes and merged by a per-name
+  merger). The first is ADR-017's `people`.
+- 2026-10-03: remote mounts. A mount with `provider: "mcp"` and a `url` is a hosted ynm reached
+  over MCP rather than a record log: it holds nothing locally, is always distributed, and is signed
+  in as the person (`ynm login <id>`, OAuth with PKCE, credentials under `~/.ynm/auth/`), so
+  attribution and audit stay on the hosted store (ADR-017). Recall fuses its hits with the local
+  ones by reciprocal rank; context gives it a section within part of the budget and a three-second
+  wait; a distributed write with no local distributed mount, an edit of an id no local mount holds,
+  and `promote` go to it. A remote that cannot be reached is left out of reads and named in the
+  tool's guidance. Listing, review, dreaming and the wiki stay local.

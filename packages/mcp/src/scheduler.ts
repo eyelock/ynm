@@ -73,7 +73,8 @@ export function startScheduler(
             { candidates: v.candidates, changed: v.changed.length },
           ])
         );
-        log(`dream #${stats.dreamRuns}: ${JSON.stringify(stats.lastDream)}`);
+        const fresh = report.full ? ` (${report.full.fresh} fresh)` : "";
+        log(`dream #${stats.dreamRuns}${fresh}: ${JSON.stringify(stats.lastDream)}`);
       } catch (err) {
         stats.lastError = `dream: ${err instanceof Error ? err.message : String(err)}`;
         log(stats.lastError);

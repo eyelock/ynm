@@ -14,11 +14,45 @@ export interface Mount {
   location: string;
 }
 
-function openLog(
+interface LogConfig {
+  provider: string;
+  path?: string;
+  anchor?: string;
+  remote?: string;
+  bucket?: string;
+  prefix?: string;
+  region?: string;
+}
+
+type StoreS3 = typeof import("@ynm/store-s3");
+
+/**
+ * The s3 provider lives in its own package so the AWS SDK stays out of the CLI bundles; it is
+ * loaded only when a mount asks for it. `load` is injectable for tests.
+ */
+export async function loadStoreS3(
   id: string,
-  level: Level,
-  cfg: { provider: string; path: string; anchor?: string; remote?: string }
-): RecordLog {
+  load: () => Promise<StoreS3> = () => import("@ynm/store-s3")
+): Promise<StoreS3> {
+  try {
+    return await load();
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND")
+      throw new Error(
+        `mount ${id}: this build of ynm does not include the s3 provider; run ynm from the Docker image or a source checkout to mount an s3 store`
+      );
+    throw err;
+  }
+}
+
+async function openLog(id: string, level: Level, cfg: LogConfig): Promise<RecordLog> {
+  if (cfg.provider === "s3") {
+    if (!cfg.bucket) throw new Error(`mount ${id}: the s3 provider needs a bucket`);
+    const { openS3Log } = await loadStoreS3(id);
+    return openS3Log(id, level, { bucket: cfg.bucket, prefix: cfg.prefix, region: cfg.region });
+  }
+  if (!cfg.path) throw new Error(`mount ${id}: the ${cfg.provider} provider needs a path`);
   switch (cfg.provider) {
     case "fs":
       return new FsLog(id, level, cfg.path);
@@ -49,7 +83,7 @@ export function projectInitialised(worktree: WorktreeInfo): boolean {
 }
 
 /**
- * Mount table (ADR-004): personal store always (unless disabled), the project's shared refs when
+ * Mount table (ADR-004): personal store always (unless disabled), the project's distributed refs when
  * the repo has been initialised, then any explicit mounts from config.
  */
 export async function openMounts(opts: OpenMountsOptions): Promise<Mount[]> {
@@ -62,7 +96,7 @@ export async function openMounts(opts: OpenMountsOptions): Promise<Mount[]> {
         id: "personal",
         level: "personal",
         location: store.repo,
-        log: openLog("personal", "personal", {
+        log: await openLog("personal", "personal", {
           provider: "git-notes",
           path: store.repo,
           anchor: store.anchor,
@@ -74,7 +108,7 @@ export async function openMounts(opts: OpenMountsOptions): Promise<Mount[]> {
         id: "personal",
         level: "personal",
         location: path,
-        log: openLog("personal", "personal", { provider: config.provider, path }),
+        log: await openLog("personal", "personal", { provider: config.provider, path }),
       });
     }
   }
@@ -86,7 +120,7 @@ export async function openMounts(opts: OpenMountsOptions): Promise<Mount[]> {
         id: "project",
         level: "distributed",
         location: repo,
-        log: openLog("project", "distributed", {
+        log: await openLog("project", "distributed", {
           provider: "git-notes",
           path: repo,
           anchor,
@@ -99,22 +133,21 @@ export async function openMounts(opts: OpenMountsOptions): Promise<Mount[]> {
         id: "project",
         level: "distributed",
         location: path,
-        log: openLog("project", "distributed", { provider: config.provider, path }),
+        log: await openLog("project", "distributed", { provider: config.provider, path }),
       });
     }
   }
-  for (const m of config.mounts ?? []) mounts.push(await openConfiguredMount(m));
+  // An mcp mount holds no records here; openYnm opens it as a remote store.
+  for (const m of config.mounts ?? [])
+    if (m.provider !== "mcp") mounts.push(await openConfiguredMount(m));
   return mounts;
 }
 
 /** An explicit mount from config; a git-notes mount without an `anchor` computes it, as the project mount does. */
 export async function openConfiguredMount(m: MountConfig): Promise<Mount> {
   const anchor =
-    m.provider === "git-notes" && !m.anchor ? (await selectAnchor(m.path)).sha : m.anchor;
-  return {
-    id: m.id,
-    level: m.level,
-    location: m.path,
-    log: openLog(m.id, m.level, { ...m, anchor }),
-  };
+    m.provider === "git-notes" && !m.anchor && m.path ? (await selectAnchor(m.path)).sha : m.anchor;
+  const log = await openLog(m.id, m.level, { ...m, anchor });
+  const location = m.provider === "s3" ? `s3://${m.bucket}/${m.prefix ?? ""}` : (m.path as string);
+  return { id: m.id, level: m.level, location, log };
 }

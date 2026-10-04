@@ -4,8 +4,7 @@ Writing a memory is fast and dumb on purpose: ynm stores what the agent gives it
 happens later, in a separate step called dreaming, which merges duplicates, notices
 contradictions, turns episodes into lessons and throws away scratch state. This page explains the
 passes, how a model's confidence decides what happens, and why the models that judge are kept
-apart from the models that write. [ADR-006](../adr/006-consolidation-lifecycle.md) records the
-lifecycle and [ADR-012](../adr/012-model-seams-judge-and-writer.md) the model seams.
+apart from the models that write.
 
 ## Why not tidy on write
 
@@ -45,6 +44,34 @@ A dream runs these in order over one namespace, or over everything:
 
 Candidate pairs come from the index and are capped per run, so a dream over a large store costs
 a bounded number of judgments.
+
+## Only what changed
+
+A dream judges only what is new. When a full run has finished with a memory, it marks the memory
+with the version it judged: its current content, its subject and the judge that looked. The next
+run treats a memory as fresh only if it is new, its content or subject has changed, or a
+different judge is now configured. Tags, links, review flags and dream's own annotations do not
+count as changes.
+
+- **Nothing fresh, nothing judged.** If no memory is fresh, the run expires due working memory
+  and stops: no searches, no model calls. A scheduled dream on a quiet store costs nothing but
+  the run itself. A working memory tagged `promote` is still promoted, since that needs no model.
+- **Pairs are judged once.** Dedupe and contradict only judge a pair with at least one fresh
+  side, so two memories already compared are not compared again. Adding one memory to a large
+  store costs that memory's pairs, not the whole store's.
+- **Switching judges looks again.** Each memory is judged afresh once by a new judge, for
+  example when you add a key so a calibrated model replaces the heuristic.
+- **A capped run catches up.** When the pair cap stops a run early, the memories it did not
+  finish stay fresh and the next run carries on from them. Every pass works through fresh
+  memories in the same order, newest first, so each run finishes some and the backlog shrinks.
+  A pair is judged at the turn of whichever memory comes first, so the newest memories, the
+  likeliest to repeat an older one, are compared with the rest before the cap runs out.
+
+The mark is an ordinary `annotate` record, so it syncs like any other and every clone and every
+instance of a hosted store agrees on what has been dreamed. It does not change `updatedAt`, so
+it neither extends a working memory's TTL nor moves a memory up a newest-first list. Only a full
+run marks: a run limited with `--passes` or `--namespace` judges only fresh memories but leaves
+them fresh, because it has not run every pass over them.
 
 ## Bands: act, review, ignore
 
@@ -103,4 +130,4 @@ again without asking the model twice.
 You can run `ynm dream` yourself, or an agent can call `memory_consolidate`. Ending a session
 runs the expire pass for that session. A hosted store runs dreams on a schedule. The dream report
 lists, per pass, what was considered, judged, changed, flagged and skipped, the tokens used and
-an estimated cost.
+an estimated cost, and how many memories were fresh and how many the run marked as finished.

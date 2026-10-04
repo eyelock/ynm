@@ -37,7 +37,7 @@ you should see. A model can read a tutorial, run it and check it, exactly as you
 
 | Tutorial | What you will learn |
 |---|---|
-| [10. Hosted service](10-hosted.md) | `serve --http` with a token, health, the Docker demo, a clone syncing through it |
+| [10. Hosted service](10-hosted.md) | `serve --http` with a token, then with sign-in through an identity provider; health, the Docker demo, a clone syncing through it |
 | [11. Doctor and maintenance](11-doctor-and-maintenance.md) | Doctor, reindex, the sqlite provider, backup and restore |
 | [12. Evals and benchmarks](12-evals-and-benchmarks.md) | `make bench`, milestone gates, `bench:public` |
 
@@ -76,7 +76,7 @@ you are running the checkout, not a release.
 
 <!-- tabs:end -->
 
-After installing, `ynm init` in a repository is the one setup command: it creates the shared
+After installing, `ynm init` in a repository is the one setup command: it creates the distributed
 memory mount and configures the agent clients the repository already uses; clients found only on
 the machine get a one-line suggestion. Tutorial 2 shows what it does to the repository, tutorial 7
 what it does for each client, and how a ynh harness gets ynm with `ynm client install ynh`.

@@ -67,11 +67,18 @@ export function withSandbox(text: string, root: string): string {
   return text.split(TUTORIAL_SANDBOX).join(root);
 }
 
-/** Environment for a tutorial run: PATH with `ynm`, and the home pinned inside the sandbox. */
+/**
+ * Environment for a tutorial run: PATH with `ynm`, the home pinned inside the sandbox, and
+ * `YNM_REPO` naming this checkout, which steps that need the repository (`make -C "$YNM_REPO"
+ * keycloak`, the Docker demo) use while their shell sits in the sandbox. It is only exported to
+ * the steps: whether a `skip unless YNM_REPO` step runs is still decided by the caller's own
+ * environment, so tutorial 12 stays skipped unless the person running the evals asks for it.
+ */
 export function sandboxEnv(root: string): NodeJS.ProcessEnv {
   return {
     ...process.env,
     PATH: `${sandboxBin()}:${process.env.PATH ?? ""}`,
+    YNM_REPO: repoRoot,
     YNM_NO_CLAUDE_CLI: "1",
     YNM_HOME: join(root, "home"),
     YNM_USER: "tutorial",

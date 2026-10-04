@@ -1,0 +1,10 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+# Per-account and per-client settings are yours to keep: only the *.example files are committed.
+*.tfvars
+*.s3.tfbackend
+!*.example
+crash.log
+backend_override.tf
+tfplan

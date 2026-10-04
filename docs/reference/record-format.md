@@ -2,9 +2,7 @@
 
 The on-disk format: one JSON object per line, one line per change, never edited. A memory is
 the fold of every record that shares its `memoryId`. The field table and the lists of ops and
-relations are generated from the record schema by `pnpm docs:gen`.
-[ADR-002](../adr/002-record-format.md) and [ADR-003](../adr/003-git-notes-layout.md) record the
-decisions.
+relations are generated from the record schema, so they always match the code.
 
 ## Record fields
 
@@ -15,7 +13,7 @@ decisions.
 | `id` | string | yes | Record id; sortable by time |
 | `memoryId` | string | yes | Memory this record belongs to; equals id for the first record |
 | `op` | `create` \| `supersede` \| `annotate` \| `tombstone` \| `purge-marker` \| `snapshot` | yes | What the record does to its memory (see the list below) |
-| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes | Memory type (ADR-001) |
+| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes | Memory type |
 | `level` | `personal` \| `distributed` | yes | personal never leaves the user's store by default |
 | `namespace` | string (max 512) | yes | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
 | `subject` | string (max 200) |  | Entity or topic key, e.g. entity:git-notes |
@@ -32,8 +30,9 @@ decisions.
 | `validFrom` | date-time |  | Event time the memory became true |
 | `validTo` | date-time or null |  | Event time it stopped being true |
 | `ttl` | string |  | Working memory only |
-| `provenance` | object | yes | Where the record came from (ADR-002) |
-| `provenance.actor` | string | yes | Who wrote it, e.g. agent:claude-code or user:david |
+| `provenance` | object | yes | Where the record came from |
+| `provenance.actor` | string | yes | Who wrote it: user:<person id> for a signed-in person on a hosted store, else e.g. user:david or agent:claude-code |
+| `provenance.client` | string |  | The OAuth client a signed-in person wrote through |
 | `provenance.session` | string |  | Session id |
 | `provenance.source` | string |  | Source reference: URL, file, ticket, tool call |
 | `provenance.tool` | string |  | Tool or command that produced the record |
@@ -89,6 +88,10 @@ all is an orphan: kept, reported, not shown.
 The folded memory carries `createdAt` (first record), `updatedAt` (latest record), `versions`
 (records folded), `tombstoned` and `current` (the record that holds the current content).
 
+An `annotate` whose `data` holds a string `dreamed` sets the memory's `dreamed`: the version a
+dream run last finished judging. An annotate that carries only that (no tags, links or other
+fields) is bookkeeping and leaves `updatedAt` where it was; it still counts in `versions`.
+
 ## Relations
 
 <!-- gen:relations -->
@@ -112,26 +115,26 @@ The folded memory carries `createdAt` (first record), `updatedAt` (latest record
 Each record is appended to one shard, chosen from the record itself:
 
 ```text
-refs/notes/ynm/<personal|shared>/<namespace>/<type>/<yyyy-mm>
+refs/notes/ynm/<personal|distributed>/<namespace>/<type>/<yyyy-mm>
 ```
 
 | Part | Value |
 |---|---|
-| `personal` or `shared` | the record's `level`: `personal` for personal, `shared` for distributed |
+| `personal` or `distributed` | the record's `level` |
 | `<namespace>` | the namespace, each `/`-separated segment a ref path component |
 | `<type>` | the memory type |
 | `<yyyy-mm>` | the UTC month of the record's `recordedAt` |
 
 So a memory created in September and superseded in October has records in two shards; the fold
 spans them. Personal refs exist only in the personal store (`~/.ynm/store.git`); project and
-shared stores hold only `shared` refs.
+organisation stores hold only `distributed` refs.
 
 Each shard ref points at a notes commit whose tree holds one note blob, the shard's JSONL, at
 the anchor's path. Every append is a new commit whose parent is the previous one, so
 `git log <ref>` is the write history of the shard. Commit messages have the form
 `ynm: <n> record(s) <level>/<namespace>/<type>/<yyyy-mm>`.
 
-Sync fetches remote shards into `refs/notes/ynm-remote/<remote>/shared/...` and merges them with
+Sync fetches remote shards into `refs/notes/ynm-remote/<remote>/distributed/...` and merges them with
 `git notes merge -s cat_sort_uniq`. It never fetches into `refs/notes/ynm/*` directly.
 
 ## The anchor
@@ -148,12 +151,14 @@ only its id is used.
 
 `/`-separated segments. Each segment starts with `[a-z0-9]` and contains only `[a-z0-9._-]`;
 no segment may contain `..` or end in `.lock`. At most 512 characters. Well-known namespaces:
-`common` (the default for distributed memory), `user/<id>` (the default for personal memory)
+`common` (where distributed memory goes when no signed-in person wrote it and none is named),
+`user/<id>` (the default for personal memory, and on a hosted store for a signed-in person, by
+person id)
 and `session/<id>` (required for working memory). Session ids are lowercased and every run of
 characters outside `[a-z0-9._-]` becomes `-`.
 
 ## Export format
 
 `ynm export` writes records in this format, one per line, including history and tombstones.
-`ynm import` reads the same format and routes each record to a mount by its `level`; ids are
-kept.
+`ynm import` reads the same format, from a file or from standard input, and routes each record
+to a mount by its `level`; ids are kept.

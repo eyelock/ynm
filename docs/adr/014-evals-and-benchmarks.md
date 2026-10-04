@@ -104,6 +104,13 @@ answering models, and are not directly comparable.
   `@ynm/evals`; vitest for every tier.
 - Baselines live in `packages/evals/baselines/<version>.json`; a PR that moves a gated number
   must update the baseline explicitly in the same PR, which makes regressions a review decision.
+- A baseline-writing run compares with nothing, so the release gate (M6) also compares the new
+  version's frozen baseline and public benchmark reports with the previous release's. Each
+  metric carries the tolerance its suite allows (`null` for informational ones such as cost);
+  timings fail past the same 3x p95 limit; benchmark retrieval allows 0.02 and the 20-question
+  answering sample 0.15. A regression passes only when `baselines/<version>.accepted.json`
+  names its key with a reason. The gate runs on every pull request into `main` and is a
+  required check there, so a release cannot merge with an unexplained regression.
 - Entry points: `pnpm test` (tier 1 without latency and hosted), `pnpm bench` (latency),
   `pnpm test:hosted`, the tier 2 suites by path, `pnpm bench:public` (tier 3), `pnpm gate M<n>`.
 
@@ -141,3 +148,6 @@ answering models, and are not directly comparable.
 - 2026-09-29 (M5): hosted integration tests (Docker, Gitea, compose demo) as a tier 1 suite.
 - 2026-09-29 (M6): tier 3 driver for LoCoMo and LongMemEval-S with evidence recall and opt-in
   bounded answering; reports committed per release.
+- 2026-10-03: the release gate compares frozen baselines and benchmark reports with the previous
+  release on every pull request into `main`, after a dedupe recall regression in a first dream
+  run passed unnoticed while a new baseline was being written.

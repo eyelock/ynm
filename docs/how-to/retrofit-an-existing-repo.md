@@ -1,7 +1,7 @@
 # Retrofit an existing repository
 
-Goal: give a repository that already has history, branches and a team a shared ynm memory,
-without disturbing any of it. Background: [ADR-009](../adr/009-hosting-and-bootstrap.md).
+Goal: give a repository that already has history, branches and a team a distributed ynm memory,
+without disturbing any of it.
 
 ## Run init
 
@@ -15,9 +15,9 @@ For memory, `ynm init` changes no branch, tag, commit or tracked file. It does f
 
 - writes `.ynm/config.json`, which records the anchor (the repository's root commit) and is the
   one file worth committing, so teammates share the anchor and any mounts or redaction settings;
-- adds a fetch refspec for `refs/notes/ynm/shared/*` to `remote.origin` in
-  `.git/config` (pass `--remote <name>` to use another remote; without the remote it prints a
-  note and you re-run `init` after adding it);
+- adds a fetch refspec for `refs/notes/ynm/distributed/*` to `remote.origin` in
+  `.git/config` (pass `--remote <name>` to use another remote; if the remote does not exist yet,
+  the first `ynm sync` after you add it sets this up, so there is nothing to re-run);
 - installs a `pre-push` hook that runs `ynm sync --quiet`, unless you pass `--no-hooks` or set
   `"hooks": false` in your config;
 - adds `.ynm/wiki/` and `.ynm/index/` to `.git/info/exclude` (git's per-clone ignore file, never
@@ -46,12 +46,14 @@ alone, run `ynm init --no-clients`.
 
 If you work through a ynh harness, the repository needs nothing for the agent to have ynm: ynh
 assembles ynm's server, hooks and skill at every launch, and memory goes to your personal store.
-Run `ynm init --no-clients` here only to add shared, team memory, so that init does not also
+Run `ynm init --no-clients` here only to add distributed, team memory, so that init does not also
 write `.mcp.json`, an instruction file and hooks that duplicate the harness.
 
 ## What to commit
 
-Commit `.ynm/config.json`. The client files are your team's choice: committing `.mcp.json` and
+`ynm init` ends with the answer: its `commit` line lists the files the team shares that are not
+committed yet, and its `local` line lists the files that are one person's own, which it has
+already excluded from git. Commit `.ynm/config.json`. The client files are your team's choice: committing `.mcp.json` and
 the guidance blocks gives every teammate the same setup when they open the repository, and
 `ynm init` in their clone reports them `unchanged`. The Claude Code hooks are the exception:
 init puts them in `.claude/settings.local.json`, Claude Code's personal project settings, and

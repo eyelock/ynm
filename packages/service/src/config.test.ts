@@ -14,6 +14,34 @@ describe("config schema descriptions", () => {
       .map(([k]) => k);
     expect(missing).toEqual([]);
   });
+
+  it("an s3 mount needs a bucket and no path; every other provider needs a path", () => {
+    const s3 = { id: "h", level: "distributed", provider: "s3" };
+    expect(MountConfigSchema.safeParse({ ...s3, bucket: "b", prefix: "p" }).success).toBe(true);
+    expect(MountConfigSchema.safeParse(s3).error?.issues[0]).toMatchObject({
+      path: ["bucket"],
+      message: "an s3 mount needs a bucket",
+    });
+    expect(
+      MountConfigSchema.safeParse({ id: "f", level: "personal", provider: "fs" }).error?.issues[0]
+        ?.message
+    ).toBe("a fs mount needs a path");
+  });
+
+  it("an mcp mount needs a url, no path, and is distributed", () => {
+    const mcp = { id: "team", level: "distributed", provider: "mcp" };
+    expect(MountConfigSchema.safeParse({ ...mcp, url: "https://m.example.com/mcp" }).success).toBe(
+      true
+    );
+    expect(MountConfigSchema.safeParse(mcp).error?.issues[0]).toMatchObject({
+      path: ["url"],
+      message: "an mcp mount needs a url",
+    });
+    expect(
+      MountConfigSchema.safeParse({ ...mcp, level: "personal", url: "https://m.example.com/mcp" })
+        .error?.issues[0]?.message
+    ).toMatch(/is distributed/);
+  });
 });
 
 describe("loadConfig (ADR-009)", () => {
@@ -63,6 +91,22 @@ describe("loadConfig (ADR-009)", () => {
     expect(env.TYPESAFE_API_KEY).toBe("abc");
     expect(env.OTHER).toBe("keep");
     expect(loadEnvFile(mkdtempSync(join(tmpdir(), "ynm-noenv-")), env)).toEqual([]);
+  });
+
+  it("takes mounts from YNM_MOUNTS, replacing those from files, and says what is wrong with it", () => {
+    const h = mkdtempSync(join(tmpdir(), "ynm-mounts-"));
+    writeFileSync(
+      join(h, "config.json"),
+      JSON.stringify({ mounts: [{ id: "file", level: "distributed", provider: "fs", path: "/a" }] })
+    );
+    const mounts = [{ id: "team", level: "distributed", provider: "sqlite", path: "/b.sqlite" }];
+    const { config } = loadConfig({ home: h }, { YNM_MOUNTS: JSON.stringify(mounts) });
+    expect(config.mounts).toEqual(mounts);
+    expect(() => loadConfig({ home: h }, { YNM_MOUNTS: "[{" })).toThrow(
+      /YNM_MOUNTS is not valid JSON/
+    );
+    expect(() => loadConfig({ home: h }, { YNM_MOUNTS: "{}" })).toThrow(/JSON array/);
+    expect(() => loadConfig({ home: h }, { YNM_MOUNTS: '[{"id":"x"}]' })).toThrow();
   });
 
   it("carries dream defaults", () => {

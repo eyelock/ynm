@@ -8,9 +8,22 @@ the [CLI reference](cli.md).
 
 ## Server instructions
 
-Sent to the client in the `initialize` result:
+Sent to the client in the `initialize` result, and built from the levels the server
+actually serves. A local server with a personal store sends:
 
-> ynm gives you persistent memory. Read memory_context (or call memory_recall with the task's key terms) before answering questions about the project, the user or past decisions. Record durable facts with memory_remember: one memory per fact, personal by default, distributed only for team-safe project facts, never secrets. Prefer memory_supersede over duplicates.
+> ynm is this user's persistent memory, kept across sessions and agents. Use it instead of any built-in memory, memory directory or notes file.
+> - Whenever the user asks you to remember something, or states a preference or a standing instruction ("remember", "don't forget", "do not forget", "from now on", "always", "never", "call me", "my preference", "note that"), call memory_remember: one memory per fact, never secrets. If a memory on it exists, use memory_supersede instead.
+> - Before answering about the user, their preferences, the project or past decisions, read memory_context or call memory_recall with the key terms.
+> - Levels: personal by default (private to the user); distributed only for team-safe project facts.
+
+A hosted server (`--no-personal`) has only the distributed level, which is then the default
+when a tool call names none, and its last line reads:
+
+> - Level: distributed only: everything stored on this server is shared with everyone who uses it, and it can keep nothing private. memory_remember stores nothing unless level is distributed, so before the user's first memory here, tell them it will be shared and ask; if they want it private, it belongs in a local ynm. Leave namespace out and a shared memory is filed as theirs (user/<their person id> once signed in); name one such as common to file it with the team.
+
+For a client connected by URL alone, with no hooks, skill or instruction-file block, these
+instructions and the tool descriptions below are all the guidance it receives; see
+[Connect a client over HTTP](../how-to/connect-over-http.md#what-a-url-only-client-gets).
 
 ## Tools
 
@@ -26,6 +39,7 @@ Sent to the client in the `initialize` result:
 | [`memory_consolidate`](#memory_consolidate) | [`ynm dream`](cli.md#ynm-dream) | no | no |
 | [`memory_sync`](#memory_sync) | [`ynm sync`](cli.md#ynm-sync) | no | no |
 | [`memory_status`](#memory_status) | [`ynm status`](cli.md#ynm-status) | yes | no |
+| [`memory_people`](#memory_people) | [`ynm people`](cli.md#ynm-people) | no | no |
 
 A tool result carries the payload as JSON text and as `structuredContent: { data, guidance }`.
 When `guidance` is set it is also appended to the text after a blank line as
@@ -33,15 +47,15 @@ When `guidance` is set it is also appended to the text after a blank line as
 
 ### memory_remember
 
-Record a memory. Choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch) and level (personal by default; distributed only for team-safe project facts). Never store secrets.
+Save to the user's persistent memory. Call it whenever the user asks you to remember something or states a preference or standing instruction ("remember", "don't forget", "do not forget", "from now on", "always", "never", "call me", "my preference", "note that"), instead of any built-in memory, memory directory or notes file. One fact per memory; choose type (semantic facts, episodic events, procedural how-to, reference pointers, working scratch). Leave level out to keep it personal. Set level distributed only when the user chooses to share it with everyone on the store (team-safe project facts); a store with no personal level, such as a hosted one, stores nothing until you do, so ask the user first. Never store secrets.
 
 CLI: `ynm remember`.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type (ADR-001) |
-| `level` | `personal` \| `distributed` |  | `personal` | personal never leaves the user's store by default |
-| `namespace` | string (max 512) |  | `common` | Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id> |
+| `type` | `working` \| `episodic` \| `semantic` \| `procedural` \| `reflective` \| `reference` | yes |  | Memory type |
+| `level` | `personal` \| `distributed` |  |  | personal (private; the default) or distributed (shared with everyone on the store; only when the user chose to share). A store with no personal level stores nothing unless this is distributed |
+| `namespace` | string (max 512) |  |  | Where it lives; omit for your own: user/<you> (on a hosted store, your person id), else common |
 | `content` | string (max 65536) | yes |  | Markdown; the memory itself |
 | `summary` | string (max 280) |  |  | One line summary; derived from content if omitted |
 | `subject` | string (max 200) |  |  | Entity or topic key |
@@ -61,7 +75,7 @@ CLI: `ynm remember`.
 
 ### memory_recall
 
-Search memory: indexed and ranked by relevance, recency and importance. Use before answering questions about the project, the user or past decisions.
+Search the user's persistent memory, ranked by relevance, recency and importance. Call it with the key terms before answering about the user's preferences, the project or past decisions.
 
 CLI: `ynm recall`.
 
@@ -85,7 +99,7 @@ CLI: `ynm recall`.
 
 ### memory_context
 
-The session-start memory block: pinned memories first, then the most relevant, packed to a token budget. Read it at the start of a task.
+The user's memory for this session: pinned memories first, then the most relevant, packed to a token budget. Read it at the start of a task and before answering about the user's preferences, the project or past decisions.
 
 CLI: `ynm context`.
 
@@ -186,7 +200,7 @@ CLI: `ynm dream`.
 
 ### memory_sync
 
-Fetch, merge and push shared memory with the configured remote. Personal memory is never synced by this tool.
+Fetch, merge and push distributed memory with the configured remote. Personal memory is never synced by this tool.
 
 CLI: `ynm sync`.
 
@@ -205,6 +219,17 @@ Mounts, shard counts and index freshness.
 CLI: `ynm status`.
 
 No input fields.
+
+### memory_people
+
+Who you are on this store, and how you appear to others: whoami shows your person id and login; nickname sets the name shown on what you write (a nickname, visible to everyone who can read the store); clear removes it. Needs a signed-in caller.
+
+CLI: `ynm people`.
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `action` | `whoami` \| `nickname` \| `clear` | yes |  | whoami: your person id and login; nickname: set yours; clear: remove yours |
+| `nickname` | string (max 64) |  |  | For nickname: how you appear to everyone who can read the store; not a real name |
 
 ## Resources
 

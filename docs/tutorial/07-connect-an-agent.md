@@ -58,9 +58,10 @@ a client configured, `--client` forces one, and the output is the same everywher
 ynm init --client claude-code
 ```
 
-Expected: the `initialised` report from tutorial 2, including the note that remote `origin` was
-not found, then one `client` line saying what was written for Claude Code: its server entry,
-the guidance block and three hooks.
+Expected: the `initialised` report from tutorial 2, including the note that there is no remote
+`origin` yet, then one `client` line saying what was written for Claude Code: its server entry,
+the guidance block and three hooks. The `commit` line now lists the client files the team
+shares, and a `local` line names the hooks file, which is yours alone and excluded from git.
 
 ```text
 initialised <project path>
@@ -68,8 +69,12 @@ initialised <project path>
   config    <project path>/.ynm/config.json
   hooks     <project path>/.git/hooks/pre-push
   note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
-  note      remote "origin" not found; refspecs not configured (re-run init after adding it)
+  note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
   client    claude-code: .mcp.json, AGENTS.md, 3 hooks
+  commit    .ynm/config.json .mcp.json AGENTS.md
+            the team shares these; commit them so every clone gets the same setup
+  local     .claude/settings.local.json (yours only; excluded from git)
+  memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
@@ -81,15 +86,20 @@ ynm init
 ```
 
 Expected: the same report, now with the config marked `(unchanged)`, `client    claude-code:
-unchanged`, and, for clients found only on your machine, one `also` line:
+unchanged`, and, for clients found only on your machine, one `also` line. The `commit` and
+`local` lines repeat until you commit, so a second run still tells you what is left:
 
 ```text
 initialised <project path>
   anchor    <40-hex sha> (root-commit)
   config    <project path>/.ynm/config.json (unchanged)
-  note      remote "origin" not found; refspecs not configured (re-run init after adding it)
+  note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
   client    claude-code: unchanged
   also      copilot-cli, pi on this machine but not used here; add one with `ynm client install <name>`
+  commit    .ynm/config.json .mcp.json AGENTS.md
+            the team shares these; commit them so every clone gets the same setup
+  local     .claude/settings.local.json (yours only; excluded from git)
+  memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
@@ -191,7 +201,7 @@ Expected: three events, each running a `ynm hook` subcommand:
 If the file already had hooks or other settings, ynm adds its three entries beside them and
 never adds one twice, and it keeps the file's indentation and trailing newline. `ynm client
 status` counts hooks found in any of `.claude/settings.local.json`, `.claude/settings.json` or
-`~/.claude/settings.json`, so a team that put them in the shared file on purpose still shows
+`~/.claude/settings.json`, so a team that put them in the team's settings file on purpose still shows
 `hooks yes`.
 
 ## What the hooks do
@@ -343,7 +353,7 @@ memory_* tools over the ynm CLI`, `ynm-memory skill`), then the two files:
 .pi/skills/ynm-memory/SKILL.md
 ```
 
-`ynm.ts` is generated; its first line says so and names `pnpm gen:clients`. Every `memory_*`
+`ynm.ts` is generated; its first line says so. Every `memory_*`
 tool in it shells out to `ynm <command> --json`, so `ynm` must be on the PATH Pi runs with. The
 skill carries the same guidance text as the `AGENTS.md` block.
 
@@ -396,7 +406,7 @@ find . -type f | sort
 Expected: the manifest gained the schema reference, the server, an include of ynm's memory
 skill, and three hooks under ynh's canonical event names, which ynh translates per vendor (for
 Claude Code: `SessionStart`, `UserPromptSubmit`, `Stop`). The skill is an include, not a copy:
-ynh fetches `skills/ynm-memory` from ynm's repository and keeps it current, so nothing is
+ynh fetches `skills/ynm-memory` from `integrations/` in ynm's repository and keeps it current, so nothing is
 written into the harness's own `skills/`, and the manifest is the only file:
 
 ```text
@@ -415,6 +425,7 @@ written into the harness's own `skills/`, and the manifest is the only file:
   "includes": [
     {
       "git": "https://github.com/eyelock/ynm",
+      "path": "integrations",
       "pick": [
         "skills/ynm-memory"
       ]
@@ -455,7 +466,7 @@ include, the hooks, and `ynm` itself on the PATH:
 ynh: valid
   ok    manifest  /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
   ok    server    mcp_servers.ynm runs `ynm serve`
-  ok    guidance  includes https://github.com/eyelock/ynm skills/ynm-memory
+  ok    guidance  includes https://github.com/eyelock/ynm path integrations pick skills/ynm-memory
   ok    hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
   ok    ynm       on PATH
 ```
@@ -477,18 +488,18 @@ ynh:
 already in place, nothing changed:
   manifest  /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
   server    mcp_servers.ynm runs `ynm serve`
-  guidance  includes https://github.com/eyelock/ynm skills/ynm-memory
+  guidance  includes https://github.com/eyelock/ynm path integrations pick skills/ynm-memory
   hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
 ```
 
 The merge keeps whatever indentation and trailing newline the manifest
 already had, so it does not rewrite the rest of the file. Outside a harness,
-`ynm client install ynh` prints `run: ynh install github.com/eyelock/ynm`, which installs ynm's
+`ynm client install ynh` prints `run: ynh install github.com/eyelock/ynm --path integrations/ynh`, which installs ynm's
 own harness with the same hooks.
 
 Once a harness carries ynm, the repositories you work on need nothing for the agent to have it:
 ynh assembles the server, the hooks and the skill at every launch, and memory goes to your
-personal store. Run `ynm init --no-clients` in a repository only to add shared, team memory; the
+personal store. Run `ynm init --no-clients` in a repository only to add distributed, team memory; the
 flag keeps init from also writing `.mcp.json`, an instruction file and hooks that duplicate the harness.
 
 Back to the project for the rest of the tutorial:

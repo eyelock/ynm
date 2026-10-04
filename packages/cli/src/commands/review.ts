@@ -9,11 +9,12 @@ export default class Review extends YnmCommand {
   ];
   static override args = {
     action: Args.string({
+      ignoreStdin: true,
       required: true,
       options: ["list", "clear"],
       description: "list or clear",
     }),
-    memoryId: Args.string({ description: "Memory id (for clear)" }),
+    memoryId: Args.string({ ignoreStdin: true, description: "Memory id (for clear)" }),
   };
   static override flags = {
     ...YnmCommand.baseFlags,
@@ -34,12 +35,13 @@ export default class Review extends YnmCommand {
       return;
     }
     const q = await ynm.reviewQueue(flags.mount);
+    const authors = await Promise.all(q.map((m) => ynm.authorOf(m.current.provenance.actor)));
     this.emit(flags.json, q, () =>
       q.length
         ? q
             .map(
-              (m) =>
-                `${m.memoryId}  ${m.type.padEnd(10)} ${m.mount.padEnd(9)} ${m.current.summary ?? ""}`
+              (m, i) =>
+                `${m.memoryId}  ${m.type.padEnd(10)} ${m.mount.padEnd(9)} ${m.current.summary ?? ""}${authors[i] ? `  (${authors[i]})` : ""}`
             )
             .join("\n")
         : "nothing to review"

@@ -1,8 +1,8 @@
 # Configure the judge and writer
 
 Goal: choose which model does the judging in `ynm dream` and on recall, and which one writes
-merged or reflective text. Background: [ADR-012](../adr/012-model-seams-judge-and-writer.md) and
-tutorial 8.
+merged or reflective text. [Tutorial 8](../tutorial/08-dreaming.md) shows both at work, and
+[Dreaming](../explanation/dreaming.md) explains why they are separate.
 
 Two seams, kept apart on purpose. A **judge** answers typed questions (are these two memories the
 same fact, does this one contradict that one) with probabilities; it never writes text. A
@@ -99,5 +99,6 @@ the judge to reorder the top `rerankTopK` recall hits.
 ## Cost
 
 Calls are metered against a token budget, `YNM_TOKEN_BUDGET` (input tokens per process, default 2
-million); crossing it stops the run instead of spending. A pair judgment is about 700 input
-tokens. Try `ynm dream --dry-run --max-pairs 20` first.
+million); crossing it stops the run instead of spending. When a provider's reply leaves out the
+input-token count, the call is charged at ynm's own estimate of the request size. A pair
+judgment is about 700 input tokens. Try `ynm dream --dry-run --max-pairs 20` first.

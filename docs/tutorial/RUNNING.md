@@ -41,7 +41,14 @@ make test-tutorials
 Both layers run each tutorial in a private copy of the sandbox: the literal `/tmp/ynm-tutorial`
 in the tutorial text is rewritten to a fresh temporary directory per run, and `YNM_HOME` and
 `YNM_USER` are pinned inside it in the process environment. Runs can overlap, and a step that
-loses its shell exports still lands in the sandbox and never in a real store.
+loses its shell exports still lands in the sandbox and never in a real store. `YNM_REPO` is set
+to the checkout under test, so a step that needs the repository, such as tutorial 10's
+`make -C "$YNM_REPO" keycloak`, works from the sandbox. Steps marked `skip unless YNM_REPO`
+(tutorial 12) still run only when you set it yourself.
+
+Steps that need Docker run when `DOCKER_HOST_AVAILABLE=1` is set, so with Docker running,
+`DOCKER_HOST_AVAILABLE=1 make test-tutorials` runs tutorial 10 end to end against a local
+Keycloak and the Docker demo.
 
 ## Writing a tutorial so both layers work
 

@@ -1,0 +1,13 @@
+# One Auth0 tenant. Copy to tenants/<tenant>.tfvars and example.s3.tfbackend.example to
+# tenants/<tenant>.s3.tfbackend (both gitignored). Credentials come from AUTH0_CLIENT_ID and
+# AUTH0_CLIENT_SECRET:
+#   terraform init -backend-config=tenants/<tenant>.s3.tfbackend
+#   terraform apply -var-file=tenants/<tenant>.tfvars
+domain = "your-tenant.us.auth0.com"
+
+stores = {
+  example = {
+    url     = "https://example.ynm.example.com/mcp"
+    members = [] # Auth0 user ids (auth0|…), once the people exist in the tenant
+  }
+}
