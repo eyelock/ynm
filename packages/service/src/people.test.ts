@@ -3,7 +3,7 @@ import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "./config.js";
 import { IndexManager } from "./indexing.js";
 import { toolSpec } from "./tools.js";
-import { STATIC_TOKEN_ACTOR, Ynm } from "./ynm.js";
+import { clientActor, STATIC_TOKEN_ACTOR, Ynm } from "./ynm.js";
 
 const auth0 = { issuer: "https://tenant.us.auth0.com/", subject: "auth0|6ac0" };
 const okta = { issuer: "https://login.example.com/", subject: "00u1abc" };
@@ -157,7 +157,7 @@ describe("people on a hosted store (ADR-017)", () => {
 
   it("a static token's writes are token:static, in common, with no person to act on", async () => {
     const base = hosted();
-    const shared = base.asStaticToken();
+    const shared = base.asShared(STATIC_TOKEN_ACTOR);
     const w = await shared.remember({
       type: "semantic",
       level: "distributed",
@@ -176,8 +176,27 @@ describe("people on a hosted store (ADR-017)", () => {
       /static token.*token:static/
     );
     // The view changes nothing for the server's own writes.
-    expect(base.staticToken).toBeUndefined();
+    expect(base.sharedActor).toBeUndefined();
     const own = await base.remember({ type: "semantic", level: "distributed", content: "Nightly" });
     expect((await base.find(own.memoryId))?.current.provenance.actor).toBe("user:ynm-eyelock");
+  });
+
+  it("a token's client, when it names no subject, writes as client:<id>, in common, with no person to act on", async () => {
+    const base = hosted();
+    expect(clientActor("ci-runner")).toBe("client:ci-runner");
+    const shared = base.asShared(clientActor("ci-runner"));
+    const w = await shared.remember({
+      type: "semantic",
+      level: "distributed",
+      content: "Built by the runner",
+    });
+    const memory = await base.find(w.memoryId);
+    expect(memory?.current.provenance.actor).toBe("client:ci-runner");
+    expect(memory?.current.provenance.client).toBeUndefined();
+    expect(memory?.namespace).toBe("common");
+    expect(await base.authorOf("client:ci-runner")).toBeUndefined();
+    await expect(run(shared, "memory_people", { action: "whoami" })).rejects.toThrow(
+      /no subject to identify a person.*client:ci-runner/
+    );
   });
 });

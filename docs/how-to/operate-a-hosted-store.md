@@ -94,15 +94,20 @@ authorisation server and restart with the new value.
 
 ## People
 
-With JWT or introspection auth, every request comes from a person, and what they write is theirs.
+With JWT or introspection auth, every request whose token carries a subject (`sub`) comes from a
+person, and what they write is theirs.
 
 - **Who.** Each sign-in resolves to a ynm person id such as `pq3x7k2mabcdwxyz`, derived from the
   identity provider's issuer and subject. A memory's `provenance.actor` is `user:<person id>`,
   and `provenance.client` is the client they wrote through. No email or other claim is read or
   stored. A static token (`YNM_MCP_TOKEN`) vouches for no one, so its writes are recorded as
   `token:static`, the same for everyone who holds it, never as the server's own user, and a
-  memory written with it that names no namespace goes to `common`. Writes the server makes itself,
-  such as a scheduled dream run, keep the server's own actor.
+  memory written with it that names no namespace goes to `common`. An identity provider's token
+  that carries no subject but names the client it was issued to (a JWT's `azp` or `client_id`, an
+  introspection response's `client_id`) identifies no person either: its writes are recorded as
+  `client:<client id>`, and one that names no namespace also goes to `common`. Only a token with
+  neither a subject nor a client is recorded as the server's own actor. Writes the server makes
+  itself, such as a scheduled dream run, keep the server's own actor.
 - **Sharing is explicit.** A hosted store has no personal level, so a new memory is stored only
   when the call says `level: distributed`; one that names no level is refused with an explanation,
   and the server's instructions tell agents to ask the person before sharing. Editing, retiring
@@ -110,7 +115,8 @@ With JWT or introspection auth, every request comes from a person, and what they
 - **Where.** A shared memory that names no namespace goes to the writer's own `user/<person id>`.
   Name one, such as `common`, to file it with the team.
 - **Nicknames.** A person sets how they appear with the `memory_people` tool (ask the agent to
-  "set my ynm nickname to Sam"), or checks who they are with `memory_people` `whoami`. `ynm list`,
+  "set my ynm nickname to Sam"), or checks who they are with `memory_people` `whoami`. A caller
+  with no person, using a static token or a token with no subject, gets an explanation instead. `ynm list`,
   `ynm review list`, recall results and the wiki then show the nickname, else the person id. A
   nickname is visible to everyone who can read the store, so make it a nickname, not a legal name.
 - **Operators.** `ynm people list` shows everyone with a nickname or a linked login;
@@ -128,7 +134,8 @@ in the store), not in any memory, so changing one never rewrites history.
 ## Audit
 
 Every request that reaches the MCP handler, and every refused one, produces one audit event:
-when, the person id and client (a static token has no person and client `static`), method, path,
+when, the person id and client (a static token has no person and client `static`; a token with no
+subject has no person and the client it names), method, path,
 HTTP status, outcome (`ok`, `refused` or `error`),
 a refusal's error code, the tools called with the memory ids they touched, the input size and
 result count, and how long it took. Events never hold tool inputs, queries or memory content.
