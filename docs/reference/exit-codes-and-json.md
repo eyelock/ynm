@@ -38,7 +38,11 @@ not a stable interface; use `--json` in scripts.
 ### recall
 
 An array of hits, best first. `explain` is present only with `--explain`; `subject` only when
-set.
+set. `data`, `dataSchema` and `source` are present when the memory has them: `data` is its
+structured payload as written, `dataSchema` the name of that payload's shape, and `source` the
+source reference it was written with. `content` also ends with data's string values, so a text
+search finds them. `author` is present when a signed-in person last wrote the memory on a hosted
+store.
 
 ```json
 [
@@ -63,6 +67,23 @@ set.
     "pinned": false,
     "importance": 0.5,
     "updatedAt": "2026-09-29T13:58:22.002Z"
+  },
+  {
+    "memoryId": "01M3PQB7K2V9X4D8RZ6N0CFJ1A",
+    "mount": "personal",
+    "score": 0.6,
+    "type": "episodic",
+    "level": "personal",
+    "namespace": "user/docs",
+    "tags": ["ci"],
+    "summary": "Build failed on the release lane",
+    "content": "Build failed on the release lane\ntimeout in step 3 release",
+    "pinned": false,
+    "importance": 0.5,
+    "updatedAt": "2026-09-29T14:02:10.415Z",
+    "data": { "signature": "timeout in step 3", "count": 2, "lane": "release" },
+    "dataSchema": "ci.failure.v1",
+    "source": "run:42"
   }
 ]
 ```

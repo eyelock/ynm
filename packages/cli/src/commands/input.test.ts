@@ -39,6 +39,35 @@ describe("input validation exit codes", () => {
     const rows = JSON.parse(r.stdout) as Array<{ tags: string[]; current: { content: string } }>;
     expect(rows.find((m) => m.current.content === "tagged twice")?.tags).toEqual(["a", "b"]);
   });
+
+  it("recall --json returns a memory's data, dataSchema and source", () => {
+    const r = ynm(
+      dir,
+      "remember",
+      "--type",
+      "episodic",
+      "--content",
+      "Build failed on the release lane",
+      "--data",
+      '{"signature":"timeout in step 3","count":2}',
+      "--data-schema",
+      "ynf.failure.v1",
+      "--source",
+      "run:42",
+      "--json"
+    );
+    expect(r.status, r.stderr).toBe(0);
+    const { memoryId } = JSON.parse(r.stdout) as { memoryId: string };
+    const hits = JSON.parse(ynm(dir, "recall", "--json").stdout) as Array<Record<string, unknown>>;
+    expect(hits.find((h) => h.memoryId === memoryId)).toMatchObject({
+      data: { signature: "timeout in step 3", count: 2 },
+      dataSchema: "ynf.failure.v1",
+      source: "run:42",
+    });
+    const plain = hits.find((h) => h.content === "tagged twice") ?? {};
+    expect(plain.memoryId).toBeDefined();
+    expect(["data", "dataSchema", "source"].filter((k) => k in plain)).toEqual([]);
+  });
 });
 
 describe("ynm validate", () => {

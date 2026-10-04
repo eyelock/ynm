@@ -114,6 +114,38 @@ describe("remote mounts in the service (ADR-004)", () => {
     ).toBe(true);
   });
 
+  it("passes a shared memory's data, dataSchema and source through recall", async () => {
+    const hosted = hostedYnm();
+    const y = local(remote(hosted));
+    const payload = { signature: "timeout in step 3", count: 2, lane: "release" };
+    const typed = await y.remember({
+      type: "episodic",
+      level: "distributed",
+      namespace: "common",
+      content: "Build failed on the release lane",
+      data: payload,
+      dataSchema: "ynf.failure.v1",
+      source: "run:42",
+    });
+    const plain = await y.remember({
+      type: "semantic",
+      level: "distributed",
+      namespace: "common",
+      content: "Releases run on Thursdays",
+    });
+    const hits = await y.recall({ mount: "team" });
+    const hit = hits.find((h) => h.memoryId === typed.memoryId);
+    expect(hit).toMatchObject({
+      mount: "team",
+      data: payload,
+      dataSchema: "ynf.failure.v1",
+      source: "run:42",
+    });
+    const bare = hits.find((h) => h.memoryId === plain.memoryId);
+    expect(bare?.mount).toBe("team");
+    expect(bare && ["data", "dataSchema", "source"].filter((k) => k in bare)).toEqual([]);
+  });
+
   it("adds a shared section to the context block, within its share of the budget", async () => {
     const hosted = hostedYnm();
     const y = local(remote(hosted));

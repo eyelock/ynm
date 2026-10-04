@@ -95,7 +95,7 @@ export const TOOL_SPECS = [
     name: "memory_recall",
     command: "recall",
     description:
-      "Search the user's persistent memory, ranked by relevance, recency and importance. Call it with the key terms before answering about the user's preferences, the project or past decisions.",
+      "Search the user's persistent memory, ranked by relevance, recency and importance. Call it with the key terms before answering about the user's preferences, the project or past decisions. A hit carries the memory's data, dataSchema and source when it has them.",
     input: RecallQuerySchema,
     readOnly: true,
     async run(ynm, input) {
