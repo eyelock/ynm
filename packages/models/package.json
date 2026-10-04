@@ -1,6 +1,6 @@
 {
   "name": "@ynm/models",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Judge (decision model) and Writer (generative, structured output) seams and implementations (ADR-012).",
   "license": "MIT",

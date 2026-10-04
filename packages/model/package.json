@@ -1,6 +1,6 @@
 {
   "name": "@ynm/model",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Zod schemas for ynm memory records, queries, config and judgments (ADR-000 to ADR-002).",
   "license": "MIT",
