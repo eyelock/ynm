@@ -5,9 +5,11 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { DEFAULT_REDACTION, IndexManager, Ynm } from "@ynm/service";
 import { MemoryLog, type ShardKey } from "@ynm/store";
 import {
+  bufferResult,
   createLambdaHandler,
   type FunctionUrlEvent,
   type FunctionUrlResult,
+  type LambdaContext,
   type LambdaHandler,
   lambdaConfig,
   toRequest,
@@ -30,7 +32,10 @@ function event(over: Partial<FunctionUrlEvent> & { method?: string } = {}): Func
 }
 
 /** A fetch that goes through the Lambda handler as a Function URL would call it. */
-function viaLambda(handler: LambdaHandler, { base64 = false } = {}): typeof fetch {
+function viaLambda(
+  handler: LambdaHandler,
+  { base64 = false, context }: { base64?: boolean; context?: () => LambdaContext } = {}
+): typeof fetch {
   return async (input, init) => {
     const req = new Request(input, init);
     const headers: Record<string, string> = {};
@@ -50,7 +55,8 @@ function viaLambda(handler: LambdaHandler, { base64 = false } = {}): typeof fetc
         cookies,
         body: text === undefined ? undefined : base64 ? Buffer.from(text).toString("base64") : text,
         isBase64Encoded: base64 && text !== undefined,
-      })
+      }),
+      context?.()
     )) as FunctionUrlResult;
     const out = new Headers(result.headers);
     for (const c of result.cookies ?? []) out.append("set-cookie", c);
@@ -157,7 +163,7 @@ describe("Response to Function URL result", () => {
     expect(sse.isBase64Encoded).toBe(false);
   });
 
-  it("cuts off a stream that never ends with what it had sent", async () => {
+  it("cuts off a stream that never ends with what it had sent, and says so", async () => {
     const stream = new ReadableStream<Uint8Array>({
       start(c) {
         c.enqueue(new TextEncoder().encode("data: first\n\n"));
@@ -168,6 +174,11 @@ describe("Response to Function URL result", () => {
       { timeoutMs: 50 }
     );
     expect(r.body).toBe("data: first\n\n");
+    const whole = await bufferResult(new Response("done"), { timeoutMs: 1_000 });
+    expect(whole.truncated).toBe(false);
+    const never = new ReadableStream<Uint8Array>({ start() {} });
+    const cut = await bufferResult(new Response(never), { timeoutMs: 20 });
+    expect(cut).toMatchObject({ truncated: true, result: { statusCode: 200, body: "" } });
   });
 });
 
@@ -448,5 +459,192 @@ describe("Lambda handler over scheduled events", () => {
     expect(r.mounts[0]?.results).toEqual([{ merged: 3 }, { merged: 3 }]);
     expect(calls.map((s) => s.namespace).sort()).toEqual(["a", "b"]);
     expect(Object.keys(calls[0] ?? {}).sort()).toEqual(["bucket", "level", "namespace", "type"]);
+  });
+});
+
+/** A log sink that keeps every line, with its level. */
+function capture() {
+  const lines: string[] = [];
+  return { lines, log: (level: string, line: string) => lines.push(`${level} ${line}`) };
+}
+
+describe("Lambda request and event log lines", () => {
+  const TOKEN = "tok-Zq81-never-logged";
+
+  it("logs one line per request with method, path, status, duration, rpc, tool, auth and id, and nothing secret", async () => {
+    const { lines, log } = capture();
+    const handler = createLambdaHandler({
+      env: lambdaEnv({ YNM_MCP_TOKEN: TOKEN, YNM_AUDIT: '{"sink":"off"}' }),
+      quiet: true,
+      log,
+    });
+    let n = 0;
+    const client = new Client({ name: "lambda-test", version: "0" });
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(PUBLIC), {
+        fetch: viaLambda(handler, {
+          context: () => ({ awsRequestId: `req-${++n}`, getRemainingTimeInMillis: () => 30_000 }),
+        }),
+        requestInit: { headers: { Authorization: `Bearer ${TOKEN}` } },
+      })
+    );
+    data(
+      await client.callTool({
+        name: "memory_remember",
+        arguments: { type: "semantic", level: "distributed", content: "a private plum fact" },
+      })
+    );
+    await client.callTool({ name: "memory_recall", arguments: { text: "plum query words" } });
+    await client.close();
+    const requests = lines.filter((l) => l.includes("[ynm-mcp lambda] request "));
+    expect(requests).toHaveLength(n);
+    for (const l of requests)
+      expect(l).toMatch(
+        /^info \[ynm-mcp lambda\] request (POST|GET|DELETE) \/mcp \d{3} \d+ms .*auth=static.* id=req-\d+$/
+      );
+    expect(requests[0]).toMatch(/ cold /);
+    expect(requests.filter((l) => / cold /.test(l))).toHaveLength(1);
+    expect(
+      requests.some((l) =>
+        /request POST \/mcp 200 \d+ms rpc=tools\/call tool=memory_remember auth=static id=req-\d+$/.test(
+          l
+        )
+      )
+    ).toBe(true);
+    expect(requests.some((l) => / rpc=tools\/call tool=memory_recall /.test(l))).toBe(true);
+    const all = lines.join("\n");
+    for (const secret of [TOKEN, "Bearer", "plum", "query words", "authorization"])
+      expect(all).not.toContain(secret);
+  }, 30_000);
+
+  it("reads the rpc method and tool from a body without the standard headers, never the arguments", async () => {
+    const { lines, log } = capture();
+    const handler = createLambdaHandler({
+      env: lambdaEnv({ YNM_MCP_TOKEN: TOKEN, YNM_AUDIT: '{"sink":"off"}' }),
+      quiet: true,
+      log,
+    });
+    const body = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "memory_recall", arguments: { text: "the hidden query" } },
+    });
+    await handler(
+      event({
+        method: "POST",
+        rawQueryString: "q=search-term",
+        headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}` },
+        body: Buffer.from(body).toString("base64"),
+        isBase64Encoded: true,
+      }),
+      { awsRequestId: "b-1" }
+    );
+    await handler(event({ method: "POST", body: "{}" }), { awsRequestId: "b-2" });
+    await handler(event({ rawPath: "/health" }), { awsRequestId: "b-3" });
+    expect(lines[0]).toMatch(
+      /request POST \/mcp \d{3} \d+ms rpc=tools\/call tool=memory_recall auth=static cold id=b-1$/
+    );
+    expect(lines[1]).toMatch(
+      /^info \[ynm-mcp lambda\] request POST \/mcp 401 \d+ms auth=refused id=b-2$/
+    );
+    expect(lines[2]).toMatch(/request GET \/health 200 \d+ms auth=public id=b-3$/);
+    expect(lines.join("\n")).not.toMatch(/hidden|search-term|tok-/);
+  });
+
+  it("logs a failed request's error and its 500 with the same id", async () => {
+    const { lines, log } = capture();
+    const handler = createLambdaHandler({ env: lambdaEnv(), quiet: true, log });
+    const r = (await handler(event({ headers: { "bad header": "x" } }), {
+      awsRequestId: "fail-7",
+      getRemainingTimeInMillis: () => 5_000,
+    })) as FunctionUrlResult;
+    expect(r.statusCode).toBe(500);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^error \[ynm-mcp lambda\] request failed id=fail-7: /);
+    expect(lines[1]).toMatch(
+      /^error \[ynm-mcp lambda\] request GET \/mcp 500 \d+ms cold id=fail-7$/
+    );
+  });
+
+  it("marks a response cut off near the function's timeout", async () => {
+    const { lines, log } = capture();
+    // A store that never opens: the tool call never answers, and its stream is cut at the deadline.
+    const handler = createLambdaHandler({
+      env: lambdaEnv(),
+      quiet: true,
+      log,
+      getYnm: () => new Promise(() => {}),
+    });
+    const r = (await handler(
+      event({
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: "memory_status", arguments: {} },
+        }),
+      }),
+      { awsRequestId: "slow-1", getRemainingTimeInMillis: () => 1_100 }
+    )) as FunctionUrlResult;
+    expect(r.statusCode).toBe(200);
+    expect(lines).toEqual([
+      expect.stringMatching(
+        /^error \[ynm-mcp lambda\] request POST \/mcp 200 \d+ms rpc=tools\/call tool=memory_status auth=none cut=timeout cold id=slow-1$/
+      ),
+    ]);
+  });
+
+  it("logs each scheduled event's outcome and duration, and still fails a failed dream", async () => {
+    const { lines, log } = capture();
+    const ynm = memoryYnm();
+    const handler = createLambdaHandler({
+      env: lambdaEnv(),
+      quiet: true,
+      log,
+      getYnm: async () => ynm,
+    });
+    await handler({ ynm: "dream" }, { awsRequestId: "d-1" });
+    await handler({ ynm: "health" }, { awsRequestId: "h-1" });
+    expect(lines.filter((l) => l.includes("scheduled"))).toEqual([
+      expect.stringMatching(/^info \[ynm-mcp lambda\] scheduled dream ok \d+ms cold id=d-1$/),
+      expect.stringMatching(/^info \[ynm-mcp lambda\] scheduled health ok \d+ms id=h-1$/),
+    ]);
+    const failed = capture();
+    const failing = createLambdaHandler({
+      env: lambdaEnv(),
+      quiet: true,
+      log: failed.log,
+      getYnm: async () => {
+        throw new Error("store offline");
+      },
+    });
+    await expect(failing({ ynm: "dream" }, { awsRequestId: "d-2" })).rejects.toThrow(
+      /store offline/
+    );
+    expect(failed.lines.filter((l) => l.includes("scheduled"))).toEqual([
+      expect.stringMatching(
+        /^error \[ynm-mcp lambda\] scheduled dream failed \d+ms cold id=d-2: dream: store offline$/
+      ),
+    ]);
+  });
+
+  it("a log sink that throws never fails a request or an event", async () => {
+    const handler = createLambdaHandler({
+      env: lambdaEnv(),
+      getYnm: async () => memoryYnm(),
+      quiet: true,
+      log: () => {
+        throw new Error("sink broke");
+      },
+    });
+    const health = (await handler(event({ rawPath: "/health" }))) as FunctionUrlResult;
+    expect(health.statusCode).toBe(200);
+    expect(await handler({ ynm: "health" })).toMatchObject({ status: "ok" });
   });
 });

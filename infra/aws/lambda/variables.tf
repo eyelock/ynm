@@ -127,6 +127,64 @@ variable "alarm_email" {
   default     = null
 }
 
+# Alarms
+
+variable "alarm_5xx_rate_percent" {
+  description = "The API alarm fires when more than this percentage of requests are answered 5xx in a five-minute period"
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.alarm_5xx_rate_percent >= 0 && var.alarm_5xx_rate_percent < 100
+    error_message = "alarm_5xx_rate_percent is at least 0 and below 100."
+  }
+}
+
+variable "alarm_5xx_min_requests" {
+  description = "A five-minute period with fewer requests than this never counts towards the API alarm, so one failure on an idle store does not page"
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = var.alarm_5xx_min_requests >= 1
+    error_message = "alarm_5xx_min_requests is at least 1."
+  }
+}
+
+variable "alarm_5xx_periods" {
+  description = "Five-minute periods the API alarm looks back over"
+  type        = number
+  default     = 3
+}
+
+variable "alarm_5xx_datapoints" {
+  description = "Periods over the rate, out of alarm_5xx_periods, that raise the API alarm"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.alarm_5xx_datapoints >= 1 && var.alarm_5xx_datapoints <= var.alarm_5xx_periods
+    error_message = "alarm_5xx_datapoints is between 1 and alarm_5xx_periods."
+  }
+}
+
+variable "alarm_error_periods" {
+  description = "Five-minute periods the function errors alarm looks back over; null for two dream intervals, at least 6 (30 minutes)"
+  type        = number
+  default     = null
+}
+
+variable "alarm_error_datapoints" {
+  description = "Periods with a function error, out of the errors alarm's periods, that raise it"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.alarm_error_datapoints >= 1
+    error_message = "alarm_error_datapoints is at least 1."
+  }
+}
+
 variable "throttle" {
   description = "API rate limit (requests per second) and burst, a ceiling on cost if the URL is abused"
   type        = object({ rate = number, burst = number })

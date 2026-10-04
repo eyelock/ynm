@@ -125,6 +125,22 @@ With JWT or introspection auth, every request comes from a person, and what they
 The nicknames and linked logins live in one small document beside the memories (`documents/people`
 in the store), not in any memory, so changing one never rewrites history.
 
+## Logs
+
+The server writes one line per request to stderr when the response ends:
+
+```text
+[ynm-mcp] request POST /mcp 200 143ms rpc=tools/call tool=memory_recall auth=signed-in client=claude-code
+```
+
+Method, path, HTTP status and duration, then the JSON-RPC method and tool, how the caller
+authenticated (`static`, `signed-in`, `token`, `none`, `refused`, or `public` for health and
+discovery), and the OAuth client id of an identity provider's token. A response the client
+abandoned before it ended is marked `cut=client`. A line never holds a token, a header's value,
+the query string, or anything from the request or response body beyond the method and tool name.
+The fields are the same as a Lambda function's request line, described in
+[Host ynm on AWS Lambda](host-on-aws-lambda.md#one-line-per-request).
+
 ## Audit
 
 Every request that reaches the MCP handler, and every refused one, produces one audit event:

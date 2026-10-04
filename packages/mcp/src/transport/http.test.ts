@@ -402,6 +402,33 @@ describe("HTTP front door: CORS, host and origin checks", () => {
     await handle.close();
   });
 
+  it("logs one line per request, with no token, query or body content", async () => {
+    const lines: string[] = [];
+    const handle = await startHttp(bare, {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      authToken: "tok-never-logged",
+      log: (level, line) => lines.push(`${level} ${line}`),
+    });
+    await fetch(`http://127.0.0.1:${handle.port}/health?secret=1`);
+    await raw(handle.port, { method: "POST", headers: { Authorization: "Bearer wrong-token" } });
+    const client = await connect(handle.url, "tok-never-logged");
+    await client.callTool({ name: "ping", arguments: { note: "private words" } });
+    await client.close();
+    await handle.close();
+    expect(lines[0]).toMatch(/^info \[ynm-mcp\] request GET \/health 200 \d+ms auth=public$/);
+    expect(lines[1]).toMatch(/^info \[ynm-mcp\] request POST \/mcp 401 \d+ms auth=refused$/);
+    expect(
+      lines.some((l) =>
+        /^info \[ynm-mcp\] request POST \/mcp 200 \d+ms rpc=tools\/call tool=ping auth=static$/.test(
+          l
+        )
+      )
+    ).toBe(true);
+    expect(lines.join("\n")).not.toMatch(/tok-|wrong-token|secret|private words|Bearer/);
+  });
+
   it("logs the listening address and serving errors to stderr unless quiet", async () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const handle = await startHttp(
