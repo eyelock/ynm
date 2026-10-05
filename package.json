@@ -23,7 +23,8 @@
     "docs:gen": "node scripts/gen-docs.mjs",
     "docs:links": "node scripts/gen-docs.mjs --check-links",
     "release:slim": "node scripts/release/build-slim.mjs",
-    "bench:public": "pnpm --filter @ynm/evals bench:public"
+    "bench:public": "pnpm --filter @ynm/evals bench:public",
+    "gen:telemetry": "node scripts/gen-telemetry.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-ssm": "^3.1144.0",
@@ -33,7 +34,8 @@
     "esbuild": "^0.28.2",
     "postject": "1.0.0-alpha.6",
     "turbo": "^2.9.6",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "yaml": "2.9.1"
   },
   "engines": {
     "node": ">=22.13.0"

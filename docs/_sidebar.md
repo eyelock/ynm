@@ -32,6 +32,7 @@
   * [Add a client adapter](/how-to/add-a-client-adapter.md)
   * [Operate a hosted store](/how-to/operate-a-hosted-store.md)
   * [Host on AWS Lambda](/how-to/host-on-aws-lambda.md)
+  * [Send telemetry](/how-to/send-telemetry.md)
   * [Back up and restore](/how-to/back-up-and-restore.md)
   * [Cut a release](/how-to/cut-a-release.md)
 

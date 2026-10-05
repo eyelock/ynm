@@ -224,6 +224,30 @@ project's backups are not: personal memory is private, and the two should never 
 destination that other people can read. For a SQLite store, copy the file once nothing is
 writing to it. The index is derived, so leave it out.
 
+## Telemetry
+
+ynm can describe its own work to an OpenTelemetry collector: a span for each command, store call
+and dream pass, with counts and outcomes and never any memory content. It stays off, loading
+nothing, until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The names it would send are its registry:
+
+```bash
+ynm telemetry registry --format json > /tmp/ynm-tutorial/registry.json
+head -n 4 /tmp/ynm-tutorial/registry.json
+```
+
+Expected: the registry, identified by the tool and its version (your version in place of
+`<version>`):
+
+```text
+{
+  "tool": "ynm",
+  "version": "<version>",
+  "registry": {
+```
+
+Sending it to a collector is in
+[Send telemetry to an OpenTelemetry collector](../how-to/send-telemetry.md).
+
 ## Cleanup
 
 ```bash

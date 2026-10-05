@@ -1,0 +1,12 @@
+# ynm's telemetry registry, in OpenTelemetry Weaver's format: every `ynm.*` attribute, event,
+# span and metric ynm emits, and the upstream names it uses, pinned to one semantic-conventions
+# release. scripts/gen-telemetry.mjs checks it and generates
+# packages/telemetry/src/registry.gen.ts from it (`make gen`); `ynm telemetry registry --format
+# json` prints it, identified by the tool's name and version.
+name: ynm
+description: Telemetry names emitted by ynm, persistent memory for coding agents.
+semconv_version: v1.43.0
+schema_base_url: https://github.com/eyelock/ynm/tree/develop/telemetry/registry
+dependencies:
+  - name: otel
+    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.43.0.zip[model]

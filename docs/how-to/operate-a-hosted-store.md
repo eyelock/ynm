@@ -160,8 +160,10 @@ Health checks and sign-in discovery are not audited.
 `YNM_AUDIT` picks where events go ([configuration reference](../reference/configuration.md)):
 stdout (one JSON line per event, the default when the server checks tokens), a JSONL file rotated
 at 10 MiB, or S3 (one object per event at `audit/<store prefix>/<yyyy>/<mm>/<dd>/<id>.json`,
-outside the store's own prefix, so a retention rule on `audit/` can never expire memory). A sink
-that fails is reported on stderr and never fails the request.
+outside the store's own prefix, so a retention rule on `audit/` can never expire memory), or
+OpenTelemetry (`{"sink":"otel"}`: each event goes to your collector with the rest of ynm's
+telemetry; see [Send telemetry to an OpenTelemetry collector](send-telemetry.md#send-audit-events-too)).
+A sink that fails is reported on stderr and never fails the request.
 
 ## Backups
 

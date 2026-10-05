@@ -7,6 +7,7 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { build } from "esbuild";
+import { checkTelemetryIsLazy } from "./lazy-telemetry.mjs";
 
 const root = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
 const out = join(root, "dist-release");
@@ -36,9 +37,11 @@ const common = {
   // only when a mount asks for it, and here that import gets a stub that reports it missing.
   alias: { "@ynm/store-s3": join(root, "scripts/release/no-store-s3.mjs") },
   logLevel: "warning",
+  // Read to prove the OpenTelemetry SDK is loaded only when telemetry starts.
+  metafile: true,
 };
 
-await build({
+const esm = await build({
   ...common,
   format: "esm",
   outfile: join(out, "ynm.mjs"),
@@ -53,7 +56,7 @@ await build({
   },
 });
 
-await build({
+const cjs = await build({
   ...common,
   format: "cjs",
   outfile: join(out, "ynm.cjs"),
@@ -70,5 +73,7 @@ await build({
     ].join("\n"),
   },
 });
+
+for (const { metafile } of [esm, cjs]) checkTelemetryIsLazy(metafile, "scripts/release/entry.mjs");
 
 console.log(`${join(out, "ynm.mjs")}\n${join(out, "ynm.cjs")}`);
