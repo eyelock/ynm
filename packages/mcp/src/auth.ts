@@ -14,7 +14,6 @@ function invalid(message: string): OAuthError {
   return new OAuthError(OAuthErrorCode.InvalidToken, message);
 }
 
-import { tracedFetch } from "@ynm/telemetry";
 import { createRemoteJWKSet, type JWTPayload, jwtVerify } from "jose";
 
 /**
@@ -101,7 +100,7 @@ export class IntrospectionVerifier implements OAuthTokenVerifier {
     const key = createHash("sha256").update(token).digest("hex");
     const hit = this.cache.get(key);
     if (hit && hit.until > Date.now()) return hit.info;
-    const f = tracedFetch(this.opts.fetch);
+    const f = this.opts.fetch ?? fetch;
     const res = await f(this.opts.url, {
       method: "POST",
       headers: {

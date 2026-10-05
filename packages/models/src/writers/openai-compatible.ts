@@ -1,4 +1,3 @@
-import { tracedFetch } from "@ynm/telemetry";
 import { defaultSpendGuard, type SpendGuard } from "../budget.js";
 import { ModelUnavailableError } from "../types.js";
 import { type RawCompletion, ValidatingWriter } from "./base.js";
@@ -34,8 +33,7 @@ export class OpenAICompatibleWriter extends ValidatingWriter {
     const guard = this.opts.apiKey ? (this.opts.guard ?? defaultSpendGuard()) : undefined;
     const estimate = Math.ceil(prompt.length / 4) + 200;
     guard?.reserve(estimate);
-    // Carries the trace headers of the model call's span when telemetry is on.
-    const f = tracedFetch(this.opts.fetch);
+    const f = this.opts.fetch ?? fetch;
     const body: Record<string, unknown> = {
       model: this.opts.model,
       messages: [{ role: "user", content: prompt }],

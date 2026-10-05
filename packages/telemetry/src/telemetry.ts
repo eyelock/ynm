@@ -355,14 +355,17 @@ export function traceEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEn
 
 /**
  * A fetch that adds the active span's `traceparent` and `tracestate` headers to each request it
- * sends, decided per call, so telemetry starting later is picked up. With telemetry off or no
- * active span it calls `f` (default, the global fetch) with exactly the arguments it was given.
+ * sends to `origin`, decided per call, so telemetry starting later is picked up. Trace context
+ * goes only to our own tools, such as a hosted ynm, never to a third party, so a request to any
+ * other origin (an identity provider the transport refreshes a token with, say) is sent as is.
+ * With telemetry off or no active span it calls `f` (default, the global fetch) with exactly the
+ * arguments it was given.
  */
-export function tracedFetch(f?: typeof fetch): typeof fetch {
+export function tracedFetch(origin: string, f?: typeof fetch): typeof fetch {
   return (input, init) => {
     const send = f ?? fetch;
     const tc = traceContext();
-    if (!tc) return send(input, init);
+    if (!tc || originOf(input) !== origin) return send(input, init);
     const headers = new Headers(
       init?.headers ?? (input instanceof Request ? input.headers : undefined)
     );
@@ -371,6 +374,14 @@ export function tracedFetch(f?: typeof fetch): typeof fetch {
     else headers.delete("tracestate");
     return send(input, { ...init, headers });
   };
+}
+
+function originOf(input: string | URL | Request): string | undefined {
+  try {
+    return new URL(input instanceof Request ? input.url : input).origin;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Resolves when `p` settles or `ms` passes, whichever is first; never rejects. */

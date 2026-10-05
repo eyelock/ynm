@@ -557,7 +557,7 @@ describe("passing the trace on", () => {
     expect(traceEnv(env)).toBe(env);
     await withSpan("off", {}, async () => expect(traceEnv(env)).toBe(env));
     const seen: unknown[][] = [];
-    const f = tracedFetch((async (...args: unknown[]) => {
+    const f = tracedFetch("http://example.invalid", (async (...args: unknown[]) => {
       seen.push(args);
       return new Response("{}");
     }) as typeof fetch);
@@ -605,12 +605,15 @@ describe("passing the trace on", () => {
   it("adds the W3C headers to a request sent inside a span, keeping the caller's own", async () => {
     const server = await echoServer();
     try {
-      const plain = await (await tracedFetch()(server.url, { headers: { "x-kept": "1" } })).json();
+      const origin = new URL(server.url).origin;
+      const plain = await (
+        await tracedFetch(origin)(server.url, { headers: { "x-kept": "1" } })
+      ).json();
       expect(plain).toEqual({ tp: null, ts: null, other: "1" });
       const t = await startMemoryTelemetry();
       const echoed = await withSpan("tools/call memory_recall", { kind: "client" }, async () => {
-        const viaInit = await tracedFetch()(server.url, { headers: { "x-kept": "1" } });
-        const viaRequest = await tracedFetch()(
+        const viaInit = await tracedFetch(origin)(server.url, { headers: { "x-kept": "1" } });
+        const viaRequest = await tracedFetch(origin)(
           new Request(server.url, { headers: { "x-kept": "2", tracestate: "stale=1" } })
         );
         return [await viaInit.json(), await viaRequest.json()];
@@ -621,6 +624,25 @@ describe("passing the trace on", () => {
       expect(echoed).toEqual([
         { tp, ts: null, other: "1" },
         { tp, ts: null, other: "2" },
+      ]);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("sends no trace headers to any other origin, such as a third party", async () => {
+    const server = await echoServer();
+    try {
+      await startMemoryTelemetry();
+      const echoed = await withSpan("tools/call memory_recall", { kind: "client" }, async () => {
+        const f = tracedFetch("https://ynm.example.com");
+        const viaInit = await f(server.url, { headers: { "x-kept": "1" } });
+        const viaRequest = await f(new Request(server.url, { headers: { "x-kept": "2" } }));
+        return [await viaInit.json(), await viaRequest.json()];
+      });
+      expect(echoed).toEqual([
+        { tp: null, ts: null, other: "1" },
+        { tp: null, ts: null, other: "2" },
       ]);
     } finally {
       await server.close();

@@ -1,4 +1,3 @@
-import { tracedFetch } from "@ynm/telemetry";
 import { defaultSpendGuard, type SpendGuard } from "../budget.js";
 import { modelCall } from "../telemetry.js";
 import {
@@ -56,7 +55,7 @@ export class TypeSafeJudge implements Judge {
       );
     const estimate = estimateTokens(state) + estimateTokens(questions as unknown as JsonValue);
     this.guard.reserve(estimate);
-    const f = tracedFetch(this.opts.fetch);
+    const f = this.opts.fetch ?? fetch;
     const model = this.opts.model ?? "jev-latest";
     let res: Response;
     try {

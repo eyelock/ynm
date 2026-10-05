@@ -82,9 +82,10 @@ export class RemoteStore {
         ? await this.opts.transport()
         : new StreamableHTTPClientTransport(new URL(this.url), {
             authProvider: this.opts.authProvider,
-            // Every request carries the active span's trace headers when telemetry is on, so
-            // the hosted server's spans join this trace; otherwise it is sent as before.
-            fetch: tracedFetch(this.opts.fetch),
+            // Every request to the hosted ynm carries the active span's trace headers when
+            // telemetry is on, so its spans join this trace; anything else, such as a token
+            // refresh at an identity provider, is sent as before.
+            fetch: tracedFetch(new URL(this.url).origin, this.opts.fetch),
           });
       await client.connect(transport);
       return client;
