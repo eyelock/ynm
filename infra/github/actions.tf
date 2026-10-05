@@ -59,6 +59,27 @@ resource "github_actions_secret" "release_token" {
   }
 }
 
+# A classic token with read:packages only, for installing @eyelock/otel-spool-exporter from GitHub
+# Packages in CI, release and the Docker build. Like RELEASE_TOKEN, Terraform owns that the secret
+# exists and writes the value only when it creates it. Set or rotate the value with
+# `gh secret set YNR_READ_PACKAGES`; ignore_changes keeps that from showing as drift.
+resource "github_actions_secret" "ynr_read_packages" {
+  repository  = github_repository.ynm.name
+  secret_name = "YNR_READ_PACKAGES"
+  # The placeholder is never written: the precondition stops a create without a real value, and
+  # ignore_changes stops an update.
+  value = coalesce(var.ynr_read_packages, "unset")
+
+  lifecycle {
+    ignore_changes = [value]
+
+    precondition {
+      condition     = var.ynr_read_packages != null || contains(data.github_actions_secrets.ynm.secrets[*].name, "YNR_READ_PACKAGES")
+      error_message = "YNR_READ_PACKAGES does not exist yet: set TF_VAR_ynr_read_packages to a classic GitHub token with only the read:packages scope."
+    }
+  }
+}
+
 # The environment GitHub Pages deploys through: only main and gh-pages may deploy to it.
 resource "github_repository_environment" "github_pages" {
   repository  = github_repository.ynm.name

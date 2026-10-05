@@ -10,15 +10,16 @@ on:
 permissions:
   contents: read
 
-# Each job that installs sets NODE_AUTH_TOKEN: @eyelock/otel-spool-exporter comes from GitHub
-# Packages, which needs a token with read:packages even to read (.npmrc). Dependabot and fork
-# pull requests cannot read Actions secrets, so their installs fail until RELEASE_TOKEN is also a
-# Dependabot secret.
+# Each job that installs sets YNR_READ_PACKAGES and points the runner's ~/.npmrc at it:
+# @eyelock/otel-spool-exporter comes from GitHub Packages, which needs a token with read:packages
+# even to read. The project .npmrc names only the registry, so a contributor's token in their own
+# ~/.npmrc works too. Dependabot and fork pull requests cannot read Actions secrets, so their
+# installs fail until YNR_READ_PACKAGES is also a Dependabot secret.
 jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      YNR_READ_PACKAGES: ${{ secrets.YNR_READ_PACKAGES }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -26,6 +27,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${YNR_READ_PACKAGES}' >> ~/.npmrc
       - run: make deps
       - run: make build
       - run: make verify
@@ -40,7 +43,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-latest
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      YNR_READ_PACKAGES: ${{ secrets.YNR_READ_PACKAGES }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -48,6 +51,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${YNR_READ_PACKAGES}' >> ~/.npmrc
       - run: make deps
       - run: make build
       - name: Release gate
@@ -58,7 +63,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      YNR_READ_PACKAGES: ${{ secrets.YNR_READ_PACKAGES }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -68,6 +73,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${YNR_READ_PACKAGES}' >> ~/.npmrc
       - run: make deps
       - run: make build
       - run: make coverage

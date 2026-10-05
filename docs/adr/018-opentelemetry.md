@@ -255,9 +255,12 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
 - With an endpoint set, a command that finishes while the collector is down exits up to 2 seconds
   later than it would have.
 - `@eyelock/otel-spool-exporter` is published on GitHub Packages, which needs a token with
-  `read:packages` even to read. Contributors and CI set `NODE_AUTH_TOKEN` to install, and the
-  Docker build takes it as a BuildKit secret; Dependabot cannot install until it has the token as
-  a Dependabot secret. Users never need it: every release artefact inlines the exporter.
+  `read:packages` even to read. The project `.npmrc` names only the registry; contributors keep
+  the token in their own `~/.npmrc`, CI and release jobs write a line reading the
+  `YNR_READ_PACKAGES` secret (a token with only `read:packages`) into the runner's, and the
+  Docker build does the same inside a BuildKit secret mount. Dependabot cannot install until it
+  has the token as a Dependabot secret. Users never need it: every release artefact inlines the
+  exporter.
 - On a laptop where `ynr serve` has made its spool, every ynm command and server writes telemetry
   with nothing set; `OTEL_SDK_DISABLED=true` stops it.
 

@@ -37,12 +37,17 @@ describe.skipIf(!available)("hosted service in Docker (ADR-009)", () => {
   let gitPort = 0;
 
   beforeAll(() => {
-    // The install reads @eyelock/otel-spool-exporter with NODE_AUTH_TOKEN, passed as a secret.
+    // The install reads @eyelock/otel-spool-exporter from GitHub Packages with a token passed as
+    // a BuildKit secret: YNR_READ_PACKAGES, else the GitHub CLI's own token.
+    if (!process.env.YNR_READ_PACKAGES) {
+      const gh = spawnSync("gh", ["auth", "token"], { encoding: "utf8" });
+      if (gh.status === 0 && gh.stdout.trim()) process.env.YNR_READ_PACKAGES = gh.stdout.trim();
+    }
     docker(
       "build",
       "-q",
       "--secret",
-      "id=node_auth_token,env=NODE_AUTH_TOKEN",
+      "id=ynr_read_packages,env=YNR_READ_PACKAGES",
       "-t",
       IMAGE,
       repoRoot
