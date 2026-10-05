@@ -39,14 +39,3 @@ variable "release_token" {
   sensitive   = true
   default     = null
 }
-
-variable "ynr_read_packages" {
-  description = <<-EOT
-    YNR_READ_PACKAGES for CI, release and the Docker build: a classic token with only the
-    read:packages scope. Needed only when the secret is created from nothing; set or rotate it
-    with `gh secret set YNR_READ_PACKAGES`. An existing value is never read back.
-  EOT
-  type        = string
-  sensitive   = true
-  default     = null
-}
