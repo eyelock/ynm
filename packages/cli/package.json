@@ -32,7 +32,8 @@
     "@ynm/index": "workspace:*",
     "@ynm/wiki": "workspace:*",
     "@ynm/models": "workspace:*",
-    "@ynm/mcp": "workspace:*"
+    "@ynm/mcp": "workspace:*",
+    "@ynm/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

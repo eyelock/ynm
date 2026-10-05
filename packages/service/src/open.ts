@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { resolveModels } from "@ynm/models";
-import { loadConfig, loadEnvFile, ynmHome } from "./config.js";
+import { addRedaction } from "@ynm/telemetry";
+import { DEFAULT_REDACTION, loadConfig, loadEnvFile, ynmHome } from "./config.js";
 import { defaultIndexLocator, IndexManager } from "./indexing.js";
 import { openMounts } from "./mounts.js";
 import { FileOAuthProvider } from "./remote/auth.js";
@@ -31,6 +32,8 @@ export async function openYnm(opts: OpenOptions = {}) {
     },
     env
   );
+  // Telemetry redacts with the store's patterns as well as the defaults (ADR-018).
+  addRedaction([...DEFAULT_REDACTION, ...loaded.config.redaction]);
   const mounts = await openMounts({ loaded, worktree, noPersonal: opts.noPersonal });
   const index = new IndexManager(
     loaded.config.index,

@@ -1,0 +1,557 @@
+# ynm's names. Nothing here carries memory content: no record bodies or summaries, no query text
+# or tool arguments, and no subjects or tags. Namespaces can name a person, so `ynm.namespace` is
+# sent only when an operator turns it on. Metric attributes declare their cardinality under
+# `annotations.ynm`; a metric's limit is enforced by the SDK and checked against the product of its
+# attributes' cardinalities by the generator.
+groups:
+  # ---------------------------------------------------------------------------------------------
+  # Attributes
+
+  - id: registry.ynm
+    type: attribute_group
+    display_name: ynm attributes
+    brief: Attributes owned by ynm.
+    attributes:
+      - id: ynm.outcome
+        type:
+          members:
+            - id: ok
+              value: ok
+              brief: The unit of work did what was asked.
+              stability: development
+            - id: error
+              value: error
+              brief: The unit of work failed.
+              stability: development
+            - id: refused
+              value: refused
+              brief: The request was refused before any work, for want of a valid token or scope.
+              stability: development
+        brief: How a unit of work ended, in ynm's own vocabulary. Span status is set from it.
+        stability: development
+        annotations:
+          ynm:
+            cardinality: 3
+      - id: ynm.command.name
+        type: string
+        brief: The CLI command that ran, such as `recall` or `dream`.
+        examples: ["recall", "dream"]
+        stability: development
+        annotations:
+          ynm:
+            cardinality: 32
+      - id: ynm.store.operation
+        type:
+          members:
+            - id: append
+              value: append
+              brief: Records appended to a log.
+              stability: development
+            - id: scan
+              value: scan
+              brief: Records read from a log's shards.
+              stability: development
+            - id: purge
+              value: purge
+              brief: Every line of one memory removed.
+              stability: development
+            - id: sync
+              value: sync
+              brief: The log replicated with its remote.
+              stability: development
+            - id: read_document
+              value: read_document
+              brief: A named document beside the records read.
+              stability: development
+            - id: write_document
+              value: write_document
+              brief: A named document beside the records written.
+              stability: development
+        brief: What a call to a record store did.
+        stability: development
+        annotations:
+          ynm:
+            cardinality: 6
+      - id: ynm.store.provider
+        type: string
+        brief: The record store provider behind a mount.
+        examples: ["git-notes", "sqlite", "s3"]
+        stability: development
+        annotations:
+          ynm:
+            cardinality: 8
+      - id: ynm.mount
+        type: string
+        brief: The mount a store call went to, by its configured id. Never on a metric.
+        examples: ["personal", "project"]
+        stability: development
+      - id: ynm.level
+        type:
+          members:
+            - id: personal
+              value: personal
+              brief: Private to one user.
+              stability: development
+            - id: distributed
+              value: distributed
+              brief: Shared with everyone who can read the store.
+              stability: development
+        brief: The level of the mount a store call went to.
+        stability: development
+      - id: ynm.namespace
+        type: string
+        brief: >
+          The namespace a store call was limited to. Namespaces can name a person, so this is sent
+          only when the operator sets YNM_TELEMETRY_NAMESPACES=1. Never on a metric.
+        examples: ["common", "org/acme"]
+        stability: development
+      - id: ynm.record.count
+        type: int
+        brief: Records appended, read or removed by a store call.
+        examples: [3]
+        stability: development
+      - id: ynm.result.count
+        type: int
+        brief: Results a tool call returned, such as recall hits.
+        examples: [5]
+        stability: development
+      - id: ynm.input.bytes
+        type: int
+        brief: Size of a tool call's arguments as JSON, never the arguments themselves.
+        examples: [212]
+        stability: development
+      - id: ynm.memory.ids
+        type: string[]
+        brief: Ids of the memories a request wrote or returned.
+        examples: [["01K6Z9X3T2V8Q4M5N6P7R8S9TA"]]
+        stability: development
+      - id: ynm.dream.pass
+        type:
+          members:
+            - id: expire
+              value: expire
+              brief: Expires memories past their time to live.
+              stability: development
+            - id: retention
+              value: retention
+              brief: Retires old occurrences.
+              stability: development
+            - id: promote
+              value: promote
+              brief: Promotes working memories tagged for it.
+              stability: development
+            - id: dedupe
+              value: dedupe
+              brief: Merges restatements.
+              stability: development
+            - id: contradict
+              value: contradict
+              brief: Supersedes or flags contradictions.
+              stability: development
+            - id: reflect
+              value: reflect
+              brief: Writes reflections from episodes.
+              stability: development
+            - id: normalise
+              value: normalise
+              brief: Makes relative times absolute.
+              stability: development
+        brief: One consolidation pass of a dream run.
+        stability: development
+        annotations:
+          ynm:
+            cardinality: 7
+      - id: ynm.dream.dry_run
+        type: boolean
+        brief: The dream run reported what it would do and changed nothing.
+        stability: development
+      - id: ynm.dream.judge
+        type: string
+        brief: The judge a dream run used, by name.
+        examples: ["heuristic", "typesafe"]
+        stability: development
+      - id: ynm.dream.fresh
+        type: int
+        brief: Memories new or changed since a run last finished with them.
+        examples: [12]
+        stability: development
+      - id: ynm.dream.dreamed
+        type: int
+        brief: Memories the run finished with and marked.
+        examples: [12]
+        stability: development
+      - id: ynm.dream.candidates
+        type: int
+        brief: Memories or pairs a pass considered.
+        examples: [40]
+        stability: development
+      - id: ynm.dream.judged
+        type: int
+        brief: Decisions a pass asked of the judge.
+        examples: [8]
+        stability: development
+      - id: ynm.dream.changed
+        type: int
+        brief: Memories a pass changed.
+        examples: [2]
+        stability: development
+      - id: ynm.dream.flagged
+        type: int
+        brief: Memories a pass flagged for review.
+        examples: [1]
+        stability: development
+      - id: ynm.actor.kind
+        type:
+          members:
+            - id: human
+              value: human
+              brief: A signed-in person, named by their handle in `user.name`.
+              stability: development
+            - id: bot
+              value: bot
+              brief: A shared static token, or a client acting with no person behind its token.
+              stability: development
+        brief: Who made an audited request.
+        stability: development
+      - id: ynm.client.id
+        type: string
+        brief: The OAuth client that made a request, or `static` for a shared token.
+        examples: ["claude-code", "static"]
+        stability: development
+      - id: ynm.audit.id
+        type: string
+        brief: The audit event's id, the same id ynm's own audit sinks would record.
+        examples: ["01K6Z9X3T2V8Q4M5N6P7R8S9TA"]
+        stability: development
+      - id: ynm.audit.reason
+        type: string
+        brief: For a refusal, the OAuth error code. Never the token.
+        examples: ["invalid_token", "insufficient_scope"]
+        stability: development
+      - id: ynm.audit.tools
+        type: string[]
+        brief: The tools a request called, in order.
+        examples: [["memory_recall"]]
+        stability: development
+      - id: ynm.audit.call.count
+        type: int
+        brief: Tool calls and resource reads a request made.
+        examples: [1]
+        stability: development
+      - id: ynm.audit.error.count
+        type: int
+        brief: Of those, how many failed.
+        examples: [0]
+        stability: development
+      - id: ynm.audit.duration_ms
+        type: int
+        brief: How long the request took, in milliseconds.
+        examples: [23]
+        stability: development
+      - id: ynm.telemetry.signal
+        type:
+          members:
+            - id: traces
+              value: traces
+              brief: Spans.
+              stability: development
+            - id: logs
+              value: logs
+              brief: Log records and events.
+              stability: development
+            - id: metrics
+              value: metrics
+              brief: Metric points.
+              stability: development
+        brief: Which telemetry signal an export carried.
+        stability: development
+        annotations:
+          ynm:
+            cardinality: 3
+
+  # ---------------------------------------------------------------------------------------------
+  # Spans: one per unit of ynm's own work, and one per call out to a record store.
+
+  - id: span.ynm.http.request
+    type: span
+    span_kind: server
+    stability: development
+    brief: >
+      One HTTP request to `ynm serve --http` or the Lambda function. Named
+      `{http.request.method} {http.route}`, or the method alone for a path outside the routes.
+    attributes:
+      - ref: http.request.method
+      - ref: http.route
+      - ref: http.response.status_code
+      - ref: ynm.outcome
+    events:
+      - ynm.request.started
+
+  - id: span.ynm.tool.call
+    type: span
+    span_kind: server
+    stability: development
+    brief: One MCP tool call, named `tools/call {gen_ai.tool.name}`.
+    attributes:
+      - ref: mcp.method.name
+      - ref: gen_ai.operation.name
+      - ref: gen_ai.tool.name
+      - ref: ynm.input.bytes
+      - ref: ynm.result.count
+      - ref: ynm.outcome
+      - ref: error.type
+    events:
+      - ynm.tool.started
+
+  - id: span.ynm.command
+    type: span
+    span_kind: internal
+    stability: development
+    brief: One CLI command, named `ynm {ynm.command.name}`. `ynm serve` and `ynm hook` have none.
+    attributes:
+      - ref: ynm.command.name
+      - ref: ynm.outcome
+      - ref: error.type
+    events:
+      - ynm.command.started
+
+  - id: span.ynm.store.operation
+    type: span
+    span_kind: client
+    stability: development
+    brief: One call to a mount's record store, named `store {ynm.store.operation}`.
+    attributes:
+      - ref: ynm.store.operation
+      - ref: ynm.store.provider
+      - ref: ynm.mount
+      - ref: ynm.level
+      - ref: ynm.namespace
+      - ref: ynm.record.count
+      - ref: ynm.outcome
+      - ref: error.type
+    events:
+      - ynm.store.started
+
+  - id: span.ynm.dream.run
+    type: span
+    span_kind: internal
+    stability: development
+    brief: One dream run, named `dream`, with a child span per pass.
+    attributes:
+      - ref: ynm.dream.dry_run
+      - ref: ynm.dream.judge
+      - ref: ynm.dream.fresh
+      - ref: ynm.dream.dreamed
+      - ref: ynm.outcome
+      - ref: error.type
+    events:
+      - ynm.dream.started
+
+  - id: span.ynm.dream.pass
+    type: span
+    span_kind: internal
+    stability: development
+    brief: One consolidation pass, named `dream {ynm.dream.pass}`.
+    attributes:
+      - ref: ynm.dream.pass
+      - ref: ynm.dream.candidates
+      - ref: ynm.dream.judged
+      - ref: ynm.dream.changed
+      - ref: ynm.dream.flagged
+      - ref: ynm.outcome
+      - ref: error.type
+    events:
+      - ynm.dream.pass.started
+
+  # ---------------------------------------------------------------------------------------------
+  # Events: a `started` event as each unit of work begins, so a crash shows as a start with no
+  # finish, and one event per audited request from the `otel` audit sink.
+
+  - id: event.ynm.request.started
+    type: event
+    name: ynm.request.started
+    stability: development
+    brief: An HTTP request began.
+    attributes:
+      - ref: http.request.method
+      - ref: http.route
+
+  - id: event.ynm.tool.started
+    type: event
+    name: ynm.tool.started
+    stability: development
+    brief: An MCP tool call began.
+    attributes:
+      - ref: gen_ai.tool.name
+
+  - id: event.ynm.command.started
+    type: event
+    name: ynm.command.started
+    stability: development
+    brief: A CLI command began.
+    attributes:
+      - ref: ynm.command.name
+
+  - id: event.ynm.store.started
+    type: event
+    name: ynm.store.started
+    stability: development
+    brief: A call to a record store began.
+    attributes:
+      - ref: ynm.store.operation
+      - ref: ynm.store.provider
+      - ref: ynm.mount
+
+  - id: event.ynm.dream.started
+    type: event
+    name: ynm.dream.started
+    stability: development
+    brief: A dream run began.
+    attributes:
+      - ref: ynm.dream.dry_run
+
+  - id: event.ynm.dream.pass.started
+    type: event
+    name: ynm.dream.pass.started
+    stability: development
+    brief: A consolidation pass began.
+    attributes:
+      - ref: ynm.dream.pass
+
+  - id: event.ynm.audit.request
+    type: event
+    name: ynm.audit.request
+    stability: development
+    brief: >
+      One audited request, from the `otel` audit sink: metadata only, after the redaction patterns
+      run. The person appears only by their handle, the sign-in id qualified by the identity
+      provider's host, never by name or email.
+    attributes:
+      - ref: ynm.audit.id
+      - ref: user.name
+      - ref: ynm.actor.kind
+      - ref: ynm.client.id
+      - ref: http.request.method
+      - ref: url.path
+      - ref: http.response.status_code
+      - ref: ynm.outcome
+      - ref: ynm.audit.reason
+      - ref: ynm.audit.tools
+      - ref: ynm.audit.call.count
+      - ref: ynm.audit.error.count
+      - ref: ynm.memory.ids
+      - ref: ynm.input.bytes
+      - ref: ynm.result.count
+      - ref: ynm.audit.duration_ms
+
+  # ---------------------------------------------------------------------------------------------
+  # Metrics: durations by low-cardinality attributes only. Never a mount, namespace, memory id,
+  # request id or trace id.
+
+  - id: metric.ynm.http.request.duration
+    type: metric
+    metric_name: ynm.http.request.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: Duration of HTTP requests.
+    attributes:
+      - ref: http.request.method
+      - ref: http.route
+      - ref: http.response.status_code
+      - ref: ynm.outcome
+    annotations:
+      ynm:
+        cardinality_limit: 1920
+        attribute_cardinality:
+          http.request.method: 10
+          http.route: 4
+          http.response.status_code: 16
+          ynm.outcome: 3
+
+  - id: metric.ynm.tool.call.duration
+    type: metric
+    metric_name: ynm.tool.call.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: Duration of MCP tool calls.
+    attributes:
+      - ref: gen_ai.tool.name
+      - ref: ynm.outcome
+    annotations:
+      ynm:
+        cardinality_limit: 48
+        attribute_cardinality:
+          gen_ai.tool.name: 16
+          ynm.outcome: 3
+
+  - id: metric.ynm.command.duration
+    type: metric
+    metric_name: ynm.command.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: Duration of CLI commands.
+    attributes:
+      - ref: ynm.command.name
+      - ref: ynm.outcome
+    annotations:
+      ynm:
+        cardinality_limit: 96
+        attribute_cardinality:
+          ynm.command.name: 32
+          ynm.outcome: 3
+
+  - id: metric.ynm.store.operation.duration
+    type: metric
+    metric_name: ynm.store.operation.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: Duration of calls to record stores.
+    attributes:
+      - ref: ynm.store.operation
+      - ref: ynm.store.provider
+      - ref: ynm.outcome
+    annotations:
+      ynm:
+        cardinality_limit: 144
+        attribute_cardinality:
+          ynm.store.operation: 6
+          ynm.store.provider: 8
+          ynm.outcome: 3
+
+  - id: metric.ynm.dream.pass.duration
+    type: metric
+    metric_name: ynm.dream.pass.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: Duration of consolidation passes.
+    attributes:
+      - ref: ynm.dream.pass
+      - ref: ynm.outcome
+    annotations:
+      ynm:
+        cardinality_limit: 21
+        attribute_cardinality:
+          ynm.dream.pass: 7
+          ynm.outcome: 3
+
+  - id: metric.ynm.telemetry.export.failures
+    type: metric
+    metric_name: ynm.telemetry.export.failures
+    instrument: counter
+    unit: "{export}"
+    stability: development
+    brief: >
+      Exports that failed and were dropped. Telemetry never blocks or fails ynm, so failures are
+      counted here instead of reported.
+    attributes:
+      - ref: ynm.telemetry.signal
+    annotations:
+      ynm:
+        cardinality_limit: 3
+        attribute_cardinality:
+          ynm.telemetry.signal: 3

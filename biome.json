@@ -47,6 +47,7 @@
       "!**/*.d.ts",
       "!**/.turbo",
       "!**/pnpm-lock.yaml",
+      "!**/*.gen.ts",
       "!**/test/golden",
       "!**/.claude",
       "!!**/.worktrees"

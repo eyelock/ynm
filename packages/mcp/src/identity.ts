@@ -17,6 +17,21 @@ export function loginOf(info: AuthInfo | undefined): Login | undefined {
 }
 
 /**
+ * A signed-in person's handle in telemetry (ADR-018): their sign-in id, the token's subject,
+ * qualified by the identity provider's host, as in `idp.example.com/alice`. Never a name or an
+ * email: a subject that is an email address gives no handle, and no other claim is read.
+ */
+export function handleOf(info: AuthInfo | undefined): string | undefined {
+  const login = loginOf(info);
+  if (!login || login.subject.includes("@")) return undefined;
+  let host = login.issuer;
+  try {
+    host = new URL(login.issuer).host || login.issuer;
+  } catch {}
+  return `${host}/${login.subject}`;
+}
+
+/**
  * Who a verified request that vouches for no person writes as (ADR-017): the shared static token,
  * else the client an identity provider's token names, else nobody, so the server's own actor.
  */
@@ -66,7 +81,9 @@ export function hostedAudit(
     console.error(`[ynm-mcp audit] off: ${err instanceof Error ? err.message : String(err)}`);
     return undefined;
   });
-  const sink: AuditSink = { write: async (event) => (await resolved)?.write(event) };
+  const sink: AuditSink = {
+    write: async (event, context) => (await resolved)?.write(event, context),
+  };
   return { audit: new Auditor(sink), identify };
 }
 

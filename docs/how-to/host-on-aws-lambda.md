@@ -207,6 +207,15 @@ JSON line on stdout, so the log group holds them too; set `YNM_AUDIT` to `{"sink
 them under `audit/` in the store's bucket instead, with their own retention. See
 [People and Audit](operate-a-hosted-store.md#people) in Operating a hosted store.
 
+### Telemetry
+
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` (and `OTEL_EXPORTER_OTLP_HEADERS` if your backend needs a key)
+to send a span per request, tool call and store call to an OpenTelemetry collector. A request
+carrying a `traceparent` header joins the caller's trace. Each invocation sends what it buffered
+before it returns, within the time it has left and never more than 2 seconds, so a slow collector
+cannot make a request late. See
+[Send telemetry to an OpenTelemetry collector](send-telemetry.md).
+
 ## Alarms
 
 The Terraform in `infra/aws/lambda` raises two alarms, both mailed to `alarm_email`:

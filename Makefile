@@ -134,9 +134,11 @@ golden:
 	YNM_WRITE_GOLDEN=1 pnpm --filter @ynm/service test
 	YNM_WRITE_GOLDEN=1 pnpm --filter @ynm/wiki test
 
-# Everything generated and checked in: client artefacts, reference docs, manual test plan
+# Everything generated and checked in: client artefacts, telemetry constants, reference docs,
+# manual test plan
 gen: build
 	pnpm gen:clients
+	pnpm gen:telemetry
 	pnpm docs:gen
 	pnpm docs:links
 

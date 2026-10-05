@@ -1,4 +1,10 @@
-import { type CallToolResult, McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
+import {
+  type CallToolResult,
+  McpServer,
+  ResourceTemplate,
+  TRACEPARENT_META_KEY,
+  TRACESTATE_META_KEY,
+} from "@modelcontextprotocol/server";
 import { guidance, guidanceNames, type Level } from "@ynm/model";
 import {
   emptyContextNote,
@@ -9,6 +15,16 @@ import {
   wikiPages,
   type Ynm,
 } from "@ynm/service";
+import {
+  ATTR_GEN_AI_OPERATION_NAME,
+  ATTR_GEN_AI_TOOL_NAME,
+  ATTR_MCP_METHOD_NAME,
+  ATTR_YNM_INPUT_BYTES,
+  ATTR_YNM_RESULT_COUNT,
+  EVENT_YNM_TOOL_STARTED,
+  METRIC_YNM_TOOL_CALL_DURATION,
+  withSpan,
+} from "@ynm/telemetry";
 import { z } from "zod";
 import { jsonBytes, recordCall } from "./audit.js";
 import { storeFor } from "./identity.js";
@@ -126,15 +142,42 @@ export function createYnmServer(
       },
       async (args, ctx) => {
         const inputBytes = jsonBytes(args ?? {});
-        try {
-          const ynm = await storeFor(await getYnm(), ctx?.http?.authInfo);
-          const r = await spec.run(ynm, spec.input.parse(args ?? {}));
-          recordCall({ tool: spec.name, status: "ok", inputBytes, ...touched(r.data) });
-          return toolResult(r.data, r.guidance);
-        } catch (err) {
-          recordCall({ tool: spec.name, status: "error", inputBytes });
-          return errorResult(err);
-        }
+        // One span per call (ADR-018): the tool's name, sizes and outcome, never its arguments. A
+        // client can carry trace context in the request's _meta, as over stdio.
+        const meta = ctx?.mcpReq?._meta as Record<string, unknown> | undefined;
+        const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+        return withSpan(
+          `tools/call ${spec.name}`,
+          {
+            kind: "server",
+            started: EVENT_YNM_TOOL_STARTED,
+            metric: METRIC_YNM_TOOL_CALL_DURATION,
+            carrier: {
+              traceparent: str(meta?.[TRACEPARENT_META_KEY]),
+              tracestate: str(meta?.[TRACESTATE_META_KEY]),
+            },
+            attributes: {
+              [ATTR_MCP_METHOD_NAME]: "tools/call",
+              [ATTR_GEN_AI_OPERATION_NAME]: "execute_tool",
+              [ATTR_GEN_AI_TOOL_NAME]: spec.name,
+              [ATTR_YNM_INPUT_BYTES]: inputBytes,
+            },
+          },
+          async (span) => {
+            try {
+              const ynm = await storeFor(await getYnm(), ctx?.http?.authInfo);
+              const r = await spec.run(ynm, spec.input.parse(args ?? {}));
+              const ids = touched(r.data);
+              recordCall({ tool: spec.name, status: "ok", inputBytes, ...ids });
+              span.set({ [ATTR_YNM_RESULT_COUNT]: ids.resultCount });
+              return toolResult(r.data, r.guidance);
+            } catch (err) {
+              recordCall({ tool: spec.name, status: "error", inputBytes });
+              span.outcome("error", err instanceof Error ? err.name || "Error" : typeof err);
+              return errorResult(err);
+            }
+          }
+        );
       }
     );
   }

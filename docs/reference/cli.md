@@ -46,6 +46,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`status`](#ynm-status) | Mounts, shard counts and index freshness. |
 | [`supersede`](#ynm-supersede) | Record a new version of an existing memory |
 | [`sync`](#ynm-sync) | Fetch, merge and push distributed memory (never personal unless --mount personal) |
+| [`telemetry`](#ynm-telemetry) | Print the telemetry registry: every attribute, event, span and metric ynm emits |
 | [`validate`](#ynm-validate) | Check ynm's setup for the agent clients in a directory and print every check: a ynh harness, or the clients a project uses |
 | [`wiki`](#ynm-wiki) | Build the markdown projection (index, log, memories, entities, topics) or ingest an edited page |
 
@@ -759,6 +760,30 @@ Examples:
 ynm sync
 ynm sync --dry-run
 ynm sync --mount personal --remote backup
+```
+
+## ynm telemetry
+
+Print the telemetry registry: every attribute, event, span and metric ynm emits
+
+```text
+ynm telemetry <action> [flags]
+```
+
+| Argument | Required | Values | Description |
+|---|---|---|---|
+| `action` | yes | `registry` | registry: print the registry |
+
+| Flag | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `--format <value>` | `json` |  | `json` | Output format |
+
+Common flags: `--json`, `--cwd`.
+
+Examples:
+
+```bash
+ynm telemetry registry --format json
 ```
 
 ## ynm validate

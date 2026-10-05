@@ -16,5 +16,6 @@ Recipes for a goal you already have. Each assumes you know the basics from the
 | [Add a client adapter](add-a-client-adapter.md) | Teach `ynm init` and `ynm client install` about a new agent client |
 | [Operate a hosted store](operate-a-hosted-store.md) | Run the HTTP service: server or Lambda, auth modes, key rotation, the scheduler, scaling |
 | [Host ynm on AWS Lambda](host-on-aws-lambda.md) | Run a hosted store as a Lambda function behind a Function URL, with scheduled dream and compaction |
+| [Send telemetry to an OpenTelemetry collector](send-telemetry.md) | See ynm's requests, tool calls, commands, store calls and dream passes as traces and metrics in your own backend, without memory content |
 | [Back up and restore](back-up-and-restore.md) | Keep a copy of memory you can restore from |
 | [Cut a release](cut-a-release.md) | Version, freeze the evals, tag, and publish the binaries, slim tarball, Lambda package, formulae and image |

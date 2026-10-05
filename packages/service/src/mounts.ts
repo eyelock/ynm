@@ -4,6 +4,7 @@ import type { Level } from "@ynm/model";
 import { FsLog, GitNotesLog, MemoryLog, type RecordLog, SqliteLog, selectAnchor } from "@ynm/store";
 import type { LoadedConfig, MountConfig } from "./config.js";
 import { ensurePersonalStore } from "./personal-store.js";
+import { instrumentLog } from "./telemetry.js";
 import type { WorktreeInfo } from "./worktree.js";
 
 export interface Mount {
@@ -46,7 +47,12 @@ export async function loadStoreS3(
   }
 }
 
+/** A mount's log, with a span per store call when telemetry is on (ADR-018). */
 async function openLog(id: string, level: Level, cfg: LogConfig): Promise<RecordLog> {
+  return instrumentLog(await openProviderLog(id, level, cfg));
+}
+
+async function openProviderLog(id: string, level: Level, cfg: LogConfig): Promise<RecordLog> {
   if (cfg.provider === "s3") {
     if (!cfg.bucket) throw new Error(`mount ${id}: the s3 provider needs a bucket`);
     const { openS3Log } = await loadStoreS3(id);
