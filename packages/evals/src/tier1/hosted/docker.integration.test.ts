@@ -37,7 +37,16 @@ describe.skipIf(!available)("hosted service in Docker (ADR-009)", () => {
   let gitPort = 0;
 
   beforeAll(() => {
-    docker("build", "-q", "-t", IMAGE, repoRoot);
+    // The install reads @eyelock/otel-spool-exporter with NODE_AUTH_TOKEN, passed as a secret.
+    docker(
+      "build",
+      "-q",
+      "--secret",
+      "id=node_auth_token,env=NODE_AUTH_TOKEN",
+      "-t",
+      IMAGE,
+      repoRoot
+    );
     container = docker(
       "run",
       "-d",

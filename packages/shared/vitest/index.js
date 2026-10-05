@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defineConfig } from "vitest/config";
 
 /**
@@ -12,6 +14,10 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["src/**/*.test.ts", "test/**/*.test.ts"],
+    // A developer running ynr has a spool at ~/.local/state/ynr/spool/local, which would turn
+    // telemetry on in every test; point it somewhere that does not exist. Tests that want a
+    // spool set YNR_SPOOL themselves.
+    env: { YNR_SPOOL: "", XDG_STATE_HOME: join(tmpdir(), "ynm-test-no-xdg-state") },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],

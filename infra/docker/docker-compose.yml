@@ -4,6 +4,8 @@ services:
   store:
     build:
       context: ../..
+      # A GitHub token with read:packages, for @eyelock/otel-spool-exporter (CONTRIBUTING.md).
+      secrets: [node_auth_token]
     image: ynm:local
     environment:
       YNM_MCP_TOKEN: demo-token
@@ -47,3 +49,7 @@ services:
 
 volumes:
   store:
+
+secrets:
+  node_auth_token:
+    environment: NODE_AUTH_TOKEN

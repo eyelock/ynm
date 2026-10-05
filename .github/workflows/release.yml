@@ -13,9 +13,14 @@ on:
 permissions:
   contents: read
 
+# Each job that installs sets NODE_AUTH_TOKEN: @eyelock/otel-spool-exporter comes from GitHub
+# Packages, which needs a token with read:packages even to read (.npmrc). The bundles, binaries,
+# Lambda package and image carry it inside them, so no one installing a release needs the token.
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -52,6 +57,8 @@ jobs:
             os: linux
             native: amd64
     runs-on: ${{ matrix.runner }}
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -83,6 +90,8 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
     permissions:
       contents: write
     outputs:
@@ -176,6 +185,9 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
+          # A BuildKit secret, so the token is in no layer of the image.
+          secrets: |
+            node_auth_token=${{ secrets.RELEASE_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

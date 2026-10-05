@@ -223,8 +223,9 @@ allowed-host and interval variables do not apply.
 ### Telemetry
 
 Read by every command and server. Telemetry is off, and no OpenTelemetry code is loaded, until an
-endpoint is set; see [Send telemetry to an OpenTelemetry collector](../how-to/send-telemetry.md).
-`ynm hook` never sends telemetry.
+endpoint is set or a ynr spool is found; see
+[Send telemetry to an OpenTelemetry collector](../how-to/send-telemetry.md). An endpoint wins over
+a spool. `ynm hook` never sends telemetry.
 
 | Variable | Effect |
 |---|---|
@@ -238,6 +239,8 @@ endpoint is set; see [Send telemetry to an OpenTelemetry collector](../how-to/se
 | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | Resource attributes; they win over ynm's `service.name`, `service.version` and `service.instance.id` |
 | `OTEL_SDK_DISABLED` | `true` turns telemetry off whatever else is set |
 | `TRACEPARENT`, `TRACESTATE` | The W3C trace a command or stdio server joins |
+| `YNR_SPOOL` | With no OTLP endpoint, turns telemetry on and writes OTLP JSON lines into this folder: ynm's own folder in a ynr spool (hosted, `<spool root>/services/ynm`). Created if missing |
+| `XDG_STATE_HOME` | With no endpoint and no `YNR_SPOOL`, telemetry is written to `$XDG_STATE_HOME/ynr/spool/local` when that folder exists. Default `~/.local/state`. A server that found no spool looks again once a minute |
 | `YNM_TELEMETRY_NAMESPACES` | `1` adds the namespace a store call was limited to (`ynm.namespace`) to its span. Off by default, because a namespace can name a person |
 
 ### Internal

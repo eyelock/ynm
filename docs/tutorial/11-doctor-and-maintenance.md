@@ -228,7 +228,8 @@ writing to it. The index is derived, so leave it out.
 
 ynm can describe its own work to an OpenTelemetry collector: a span for each command, store call
 and dream pass, with counts and outcomes and never any memory content. It stays off, loading
-nothing, until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The names it would send are its registry:
+nothing, until `OTEL_EXPORTER_OTLP_ENDPOINT` is set or it finds a ynr spool. The names it would
+send are its registry:
 
 ```bash
 ynm telemetry registry --format json > /tmp/ynm-tutorial/registry.json

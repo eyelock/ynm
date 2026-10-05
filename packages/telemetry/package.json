@@ -26,6 +26,7 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
+    "@eyelock/otel-spool-exporter": "0.1.0",
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/api-logs": "0.222.0",
     "@opentelemetry/context-async-hooks": "2.11.0",

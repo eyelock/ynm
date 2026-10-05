@@ -1,11 +1,21 @@
 # Send telemetry to an OpenTelemetry collector
 
 Goal: see what ynm does, and how long it takes, in your own tracing and metrics backend. ynm
-speaks OpenTelemetry (OTLP over HTTP) and describes its own work: requests, tool calls, commands,
-store calls and dream passes. It never sends memory content.
+speaks OpenTelemetry (OTLP over HTTP, or OTLP JSON lines into a [ynr](#write-to-a-ynr-spool)
+spool folder) and describes its own work: requests, tool calls, commands, store calls and dream
+passes. It never sends memory content.
 
-Telemetry is off until you name an endpoint. With it off, ynm loads none of the OpenTelemetry
-SDK, so commands, hooks and servers start and run exactly as they would without it.
+Telemetry is off until you name an endpoint or a ynr spool is found. With it off, ynm loads none
+of the OpenTelemetry SDK, so commands, hooks and servers start and run exactly as they would
+without it.
+
+ynm picks where to write once, as it starts, in this order:
+
+1. `OTEL_EXPORTER_OTLP_ENDPOINT` (or a per-signal endpoint) is set: it sends there.
+2. Otherwise, `YNR_SPOOL` names a folder, or ynr's laptop spool,
+   `$XDG_STATE_HOME/ynr/spool/local` (`~/.local/state/ynr/spool/local` by default), exists: it
+   writes there.
+3. Otherwise: nothing.
 
 ## Turn it on
 
@@ -34,6 +44,46 @@ an OpenTelemetry Collector instead.
 
 For an agent client that launches ynm over stdio, put the variable in that server's environment,
 for example `claude mcp add ynm -e OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 -- ynm serve`.
+
+## Write to a ynr spool
+
+ynr collects the telemetry of the YN* tools from a spool: a folder where each tool writes OTLP
+JSON lines, one export per line, and `ynr serve` reads them and ships them on. Writing to disk
+instead of a network endpoint means a batch already written survives ynm being killed, and there
+is no endpoint to reach.
+
+On a laptop there is nothing to set. Once `ynr serve` has created its spool, every `ynm` command
+and server finds `~/.local/state/ynr/spool/local` and writes there:
+
+```bash
+ynm status
+ls ~/.local/state/ynr/spool/local
+```
+
+Each process writes its own files, named `ynm-<instance id>-<n>.jsonl`; the one it is still
+writing ends `.open.jsonl` and is renamed when the process exits. ynm only writes to the spool. It
+never starts `ynr`.
+
+To write somewhere else, set `YNR_SPOOL` to the folder ynm should write in: the folder for ynm's
+own files, not the spool's root. ynm creates it if it does not exist. A tool that runs ynm and
+gives it a folder of its own, such as ynf for an agent run, sets it for you.
+
+An `OTEL_EXPORTER_OTLP_ENDPOINT` in the environment wins over the spool: if you have one set
+globally for other tooling, ynm sends there and the spool receives nothing from it.
+
+A server, `ynm serve` over stdio or HTTP, that starts before the spool exists looks for it again
+once a minute and starts writing when it appears. Work already in progress at that moment has no
+spans, and a store the server opened before then has no store spans until it restarts. A command
+and the Lambda function decide once, as they start.
+
+### When hosted
+
+A hosted server writes to a spool when its deployment gives it one: set `YNR_SPOOL` to the
+`services/ynm` folder under the spool's root, for example
+`YNR_SPOOL=/var/lib/ynr/spool/services/ynm`, on a volume that a `ynr serve` beside the server
+also reads. Running that `ynr serve` is the deployment's job; ynm never starts it. With no
+`YNR_SPOOL` and no endpoint, a hosted server sends nothing, so use an OTLP endpoint if there is no
+`ynr` beside it.
 
 ## What ynm sends
 
@@ -113,6 +163,13 @@ ynm honours the standard OpenTelemetry variables:
 | `OTEL_SDK_DISABLED` | `true` turns telemetry off whatever else is set |
 | `TRACEPARENT`, `TRACESTATE` | The trace a command or stdio server joins |
 
+And ynr's:
+
+| Variable | Effect |
+|---|---|
+| `YNR_SPOOL` | The folder to write OTLP JSON lines in, when no OTLP endpoint is set. Created if missing |
+| `XDG_STATE_HOME` | Where ynr's laptop spool lives: ynm writes to `$XDG_STATE_HOME/ynr/spool/local` when it exists and nothing else is set. Default `~/.local/state` |
+
 These and `YNM_TELEMETRY_NAMESPACES` are also in the
 [configuration reference](../reference/configuration.md#telemetry).
 
@@ -125,6 +182,14 @@ buffered before it returns, within what is left of its time and never more than 
 that fail are dropped and counted in the `ynm.telemetry.export.failures` metric; they are never
 retried past their timeout or reported as errors.
 
+Writing to a spool is the same. Batches are written about once a second, and each command, stdio
+session and function invocation flushes its file to disk as it ends, giving up after 2 seconds on
+a slow disk. Each process's files are capped (8 MiB a file, 64 MiB in all); past the cap, and when
+the folder cannot be written at all, records are dropped and counted in
+`ynm.telemetry.spool.dropped` and `ynm.telemetry.spool.errors`, and ynm carries on with its
+output and exit code unchanged.
+
 ## Turn it off
 
-Unset `OTEL_EXPORTER_OTLP_ENDPOINT` (and any per-signal endpoint), or set `OTEL_SDK_DISABLED=true`.
+Unset `OTEL_EXPORTER_OTLP_ENDPOINT` (and any per-signal endpoint) and `YNR_SPOOL`, or set
+`OTEL_SDK_DISABLED=true`, which also keeps ynm from writing to a laptop spool.

@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import { shutdownTelemetry, telemetryEnabled } from "@ynm/telemetry";
+import { shutdownTelemetry } from "@ynm/telemetry";
 
 export interface StdioOptions {
   /** Refuse 2025-era clients instead of serving them. */
@@ -26,7 +26,8 @@ export function startStdio(
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
-  // When the client closes stdin the process runs out of work; export what is buffered first.
-  if (telemetryEnabled()) process.once("beforeExit", () => void shutdownTelemetry());
+  // When the client closes stdin the process runs out of work; export what is buffered first,
+  // and close the spool file. Telemetry may have started after this, on the spool recheck.
+  process.once("beforeExit", () => void shutdownTelemetry());
   return { close: () => handle.close() };
 }

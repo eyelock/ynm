@@ -81,6 +81,8 @@ function lambdaEnv(
     YNM_LAMBDA_ALLOW_OPEN: "1",
     YNM_HOME: join(root, "home"),
     YNM_USER: "lambda",
+    // No ynr spool from the developer's home: the test config points this nowhere.
+    XDG_STATE_HOME: process.env.XDG_STATE_HOME,
     YNM_MOUNTS: JSON.stringify([
       { id: "team", level: "distributed", provider, path: join(root, "store") },
     ]),

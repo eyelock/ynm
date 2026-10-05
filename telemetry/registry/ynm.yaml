@@ -555,3 +555,33 @@ groups:
         cardinality_limit: 3
         attribute_cardinality:
           ynm.telemetry.signal: 3
+
+  - id: metric.ynm.telemetry.spool.dropped
+    type: metric
+    metric_name: ynm.telemetry.spool.dropped
+    instrument: counter
+    unit: "{record}"
+    stability: development
+    brief: >
+      Spans, log records and metric points the ynr spool writer did not write: its files reached
+      their cap, one export was over the line limit, or the writer had closed. Reported only when
+      writing to the spool.
+    attributes: []
+    annotations:
+      ynm:
+        cardinality_limit: 1
+
+  - id: metric.ynm.telemetry.spool.errors
+    type: metric
+    metric_name: ynm.telemetry.spool.errors
+    instrument: counter
+    unit: "{operation}"
+    stability: development
+    brief: >
+      Filesystem operations on the ynr spool that failed or ran past their time bound (a write, a
+      flush to disk, a rotation). They are counted here, never reported. Reported only when
+      writing to the spool.
+    attributes: []
+    annotations:
+      ynm:
+        cardinality_limit: 1

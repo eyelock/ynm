@@ -39,12 +39,37 @@ ADR-017 anticipated this: "The same seam takes an OpenTelemetry or SIEM sink lat
 
 ynm writes over OTLP/HTTP, with the official OpenTelemetry JS SDK configured by the standard
 variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, the per-signal endpoints, `_PROTOCOL`, `_HEADERS`,
-`_TIMEOUT`, `OTEL_<SIGNAL>_EXPORTER=none`, `OTEL_SDK_DISABLED`). The choice is made once at
-process start, in one function (`telemetryTarget` in `@ynm/telemetry`), in the contract's order:
+`_TIMEOUT`, `OTEL_<SIGNAL>_EXPORTER=none`, `OTEL_SDK_DISABLED`), or as OTLP JSON lines into a ynr
+spool with ynr's `@eyelock/otel-spool-exporter`. The choice is made once at process start, in one
+function (`telemetryTarget` in `@ynm/telemetry`), in the contract's order (ynr ADR-004):
 
 1. An OTLP endpoint is set: export there, for each signal that has an endpoint.
-2. *(the ynr spool, not yet: see Open questions)*
+2. Otherwise, `YNR_SPOOL` is set, or the laptop default `$XDG_STATE_HOME/ynr/spool/local`
+   (`XDG_STATE_HOME` defaulting to `~/.local/state`; a relative one is ignored) is a folder:
+   write every signal not set to `none` to that folder.
 3. Otherwise: off.
+
+`telemetryTarget` stays synchronous and costs at most one `stat`, of the laptop default.
+`OTEL_SDK_DISABLED=true` turns the spool off too.
+
+**`YNR_SPOOL` names a writer folder, not the spool root.** ynr ADR-004 defines it that way: a tool
+writes its own files, `<service>-<instance id>-<seq>.jsonl`, into the one folder it is given, and
+the tool that gives a child its own folder (ynf, `runs/<run id>/`) sets `YNR_SPOOL` to it. ynm
+does not append a subfolder of its own. The exporter names the files from the resource's
+`service.name` and `service.instance.id`, so `OTEL_SERVICE_NAME` renames them as it renames the
+service. The folder is created on the first write.
+
+**Hosted.** A hosted ynm writes to the spool's `services/ynm/` folder by the same rule: the
+deployment sets `YNR_SPOOL=<spool root>/services/ynm`, on a volume a `ynr serve` beside the server
+reads. ynm has no setting for the spool root, and never derives `services/ynm` itself, because
+ADR-004's detection order has a single variable for the folder to write in, and a second one that
+means a root only on servers would make the same variable mean two things. With no `YNR_SPOOL`, a
+hosted server checks the laptop default like any other process; in a container it does not
+exist, so telemetry is off unless an endpoint is set.
+
+**Lambda.** A function's only disk is `/tmp`, which is lost with the instance and read by nothing,
+so a spool there would be written and never collected. The Lambda's path is OTLP until ynr has a
+relay a function can send to; `YNR_SPOOL` works there but is documented as not useful.
 
 `http/protobuf` is the default and `http/json` is supported. `grpc` is not: the gRPC exporters pull
 in a gRPC stack the bundles do not need, and with only `grpc` asked for, telemetry stays off with
@@ -58,21 +83,33 @@ module. `startTelemetry` loads the SDK with a dynamic `import()` only when the t
 Until then, and in every process where it never is, `withSpan(name, opts, fn)` is `fn(noop)`, and
 the store is not wrapped at all (below).
 
+- **The spool exporter loads with the SDK.** `sdk.ts`, the module behind the dynamic import,
+  imports `@eyelock/otel-spool-exporter`; nothing else does. With no endpoint and no spool, neither
+  loads.
 - **Proof, unbundled:** a test runs the built CLI under a Node module hook that records every
-  module resolved from an `@opentelemetry` package: `--version`, `status`, `remember`, `recall`,
-  `hook session-start` and `serve` over stdio load none; the same `status` with an endpoint set
-  loads the SDK, and exit codes and output are unchanged.
-- **Proof, bundled:** esbuild inlines the SDK into the slim, standalone and Lambda bundles behind
-  lazily initialised wrappers. The bundle scripts read esbuild's metafile and fail the build if
-  any `@opentelemetry` module is reachable from the entry without crossing a dynamic import, or
-  if the SDK is missing. The release smoke test runs one command with an endpoint set and checks
-  that spans arrive. The SDK adds about 0.3 MB to the 2.1 MB minified bundle; `ynm --version`
+  module resolved from an `@opentelemetry` package or the spool exporter: `--version`, `status`,
+  `remember`, `recall`, `hook session-start` and `serve` over stdio load none; the same `status`
+  with an endpoint set, or `remember` with `YNR_SPOOL` set, loads them, and exit codes and output
+  are unchanged.
+- **Proof, bundled:** esbuild inlines the SDK and the spool exporter into the slim, standalone and
+  Lambda bundles behind lazily initialised wrappers. The bundle scripts read esbuild's metafile
+  and fail the build if any `@opentelemetry` or spool-exporter module is reachable from the entry
+  without crossing a dynamic import, or if either is missing. The release smoke test runs one
+  command with an endpoint set and checks that spans arrive, and one with `YNR_SPOOL` set and
+  checks that spans are written. The SDK adds about 0.3 MB to the 2.1 MB minified bundle; `ynm --version`
   still takes about 0.14 s.
 - **Process start.** The CLI starts telemetry in `YnmCommand` before a command runs, the server
   entry before it opens the store, and the function at initialisation, with the store waiting for
   it. `ynm hook` never starts it: it runs every turn and must stay fast. `ynm serve` starts its own.
-- **No recheck yet.** A long-lived server that started with telemetry off stays off. The contract
-  has such a server look for the spool once a minute; that belongs with the spool.
+- **The once-a-minute recheck.** `ynm serve`, over stdio or HTTP, starts telemetry with
+  `recheck`: when it finds neither an endpoint nor a spool, it sets an unref'd one-minute interval
+  that calls `telemetryTarget` again (one `stat`) and starts telemetry when the laptop spool
+  appears, then stops. Nothing else runs, and the timer never keeps a process alive. It is not set
+  when telemetry is off for a reason (`OTEL_SDK_DISABLED`, `grpc` only), and a command or the
+  Lambda function never sets it: they decide once. Spans for work already in flight when telemetry
+  starts are absent, and a store the server opened before then stays uninstrumented (the store
+  proxy is applied only when telemetry is on at open), so a late start gives request, tool and
+  dream spans but no store spans until the server restarts.
 
 ### What is a span
 
@@ -170,6 +207,19 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
   periodic reader (60 s by default, `OTEL_METRIC_EXPORT_INTERVAL`).
 - Every exporter is wrapped: a failed or throwing export is counted in
   `ynm.telemetry.export.failures` and swallowed. The SDK's diagnostics stay silent.
+- The spool writer never reports a failure to the SDK. Each line is one synchronous append, so a
+  batch written survives the process dying; its files are capped (8 MiB a file, 64 MiB a writer);
+  what it drops and the filesystem operations that fail or time out are counted in
+  `ynm.telemetry.spool.dropped` and `ynm.telemetry.spool.errors`, two registry metrics beside
+  the export failures, observed from the writer's `stats()`.
+- **Flushing to disk.** `flushTelemetry` forces the providers to export and then calls the
+  writer's `sync()`, which puts the open file on disk (ynr ADR-004's per-unit-of-work flush);
+  `shutdownTelemetry` shuts the providers down and then calls `close()`, which syncs and renames
+  the file to `.jsonl`. Both stay inside the facade's 2-second bound, and the writer's own flush
+  is bounded by the same time (`syncTimeoutMs`), so a slow network filesystem cannot hold a process.
+  A command and a stdio session (on stdin closing) shut down; a Lambda invocation flushes. An
+  HTTP server syncs only as it shuts down: between, batches are written once a second and survive
+  the process dying, but not the host.
 - A command flushes on exit for at most 2 seconds, and its exports, retries included, are capped
   at 2 seconds, so a collector that is down cannot hold the process open longer than that. A
   stdio server does the same when its client closes stdin. Output and exit codes are unchanged.
@@ -204,15 +254,20 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
   telemetry before opening a store.
 - With an endpoint set, a command that finishes while the collector is down exits up to 2 seconds
   later than it would have.
+- `@eyelock/otel-spool-exporter` is published on GitHub Packages, which needs a token with
+  `read:packages` even to read. Contributors and CI set `NODE_AUTH_TOKEN` to install, and the
+  Docker build takes it as a BuildKit secret; Dependabot cannot install until it has the token as
+  a Dependabot secret. Users never need it: every release artefact inlines the exporter.
+- On a laptop where `ynr serve` has made its spool, every ynm command and server writes telemetry
+  with nothing set; `OTEL_SDK_DISABLED=true` stops it.
 
 ## Open questions
 
-- **The ynr spool.** Writing OTLP JSON lines to `YNR_SPOOL`, or to
-  `$XDG_STATE_HOME/ynr/spool/local` when it exists, needs `@eyelock/otel-spool-exporter`, which is
-  not published yet. It is one more step in `telemetryTarget`, between the endpoint and off, and
-  the once-a-minute recheck for a long-lived server comes with it.
-- **Hosted wiring.** Writing to `services/ynm/` with a `ynr serve` beside the server, configured
-  by the deployment.
+- **Hosted wiring.** Running a `ynr serve` beside the server, configured by the deployment (the
+  Docker image, the compose demo, the Terraform). ynm already writes to `services/ynm/` when
+  `YNR_SPOOL` says so.
+- **A relay for the Lambda.** A function's spool is lost with its instance; until ynr has a relay
+  a function can send to, the function's telemetry goes over OTLP.
 - **Conformance.** `.ynr/conformance.yaml` scenarios and `ynr conformance` as a required CI check.
   The canary and store-unchanged test above is the in-repo version of the check the scenarios
   will run.
@@ -224,3 +279,7 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
 
 - 2026-10-05: proposed for eyelock/ynm#62, on the OTLP path only; the spool, hosted wiring and
   conformance are deferred.
+- 2026-10-05: the ynr spool is decided: `YNR_SPOOL` or the laptop default after the OTLP endpoint,
+  written with `@eyelock/otel-spool-exporter` 0.1.0, the once-a-minute recheck for servers, the
+  spool's dropped and error counts, and hosted ynm writing to `services/ynm/` through `YNR_SPOOL`.
+  Running `ynr serve` beside a deployment, the Lambda relay and conformance stay open.

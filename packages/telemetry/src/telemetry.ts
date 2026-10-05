@@ -1,14 +1,18 @@
 /**
  * OpenTelemetry for ynm (ADR-018), behind a facade that costs nothing when telemetry is off.
- * Nothing in this module imports an @opentelemetry package: `startTelemetry` loads the SDK through
- * a dynamic import, and only when the environment names an OTLP endpoint. Until then, and in every
- * process where it never does, each call below runs the caller's function unchanged.
+ * Nothing in this module imports an @opentelemetry package: `startTelemetry` loads the SDK, and
+ * the ynr spool exporter with it, through a dynamic import, and only when the environment names an
+ * OTLP endpoint or a spool. Until then, and in every process where it never does, each call below
+ * runs the caller's function unchanged.
  *
  * Telemetry describes ynm's work, never its memory: callers pass ids, counts, tool names and
  * outcomes, never record content, query text or tool arguments, and every string value is put
  * through the redaction patterns before it is exported. It never blocks and never fails: the SDK
  * batches, flushes are bounded in time, and export errors are counted and swallowed.
  */
+import { statSync } from "node:fs";
+import { homedir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import { format } from "node:util";
 import { compilePatterns, logBody, redactText } from "./redact.js";
 import type { Runtime } from "./sdk.js";
@@ -59,6 +63,8 @@ export type Signal = "traces" | "logs" | "metrics";
 /** Where this process writes telemetry, chosen once at start. */
 export type Target =
   | { kind: "otlp"; signals: Partial<Record<Signal, Protocol>> }
+  /** OTLP JSON lines in a ynr spool writer folder; `dir` is that folder. */
+  | { kind: "spool"; dir: string; signals: Signal[] }
   | { kind: "off"; reason?: string };
 
 const SIGNALS: ReadonlyArray<[Signal, string]> = [
@@ -70,10 +76,32 @@ const SIGNALS: ReadonlyArray<[Signal, string]> = [
 const set = (v: string | undefined): v is string => typeof v === "string" && v.trim() !== "";
 
 /**
+ * The ynr spool's laptop writer folder, `$XDG_STATE_HOME/ynr/spool/local`, with XDG_STATE_HOME
+ * defaulting to `~/.local/state` (a relative XDG_STATE_HOME is ignored, as the XDG spec says).
+ */
+export function defaultSpoolDir(env: NodeJS.ProcessEnv = process.env): string {
+  const state = env.XDG_STATE_HOME?.trim();
+  const base =
+    state && isAbsolute(state) ? state : join(env.HOME?.trim() || homedir(), ".local", "state");
+  return join(base, "ynr", "spool", "local");
+}
+
+/** One stat: whether `dir` is a folder. Never throws. */
+function isFolder(dir: string): boolean {
+  try {
+    return statSync(dir, { throwIfNoEntry: false })?.isDirectory() ?? false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Where to write, in the order the ynr contract gives: the operator's `OTEL_EXPORTER_OTLP_*`
  * endpoint, then the ynr spool, then nothing. A signal is exported when the generic endpoint or
  * its own is set and its `OTEL_<SIGNAL>_EXPORTER` is not `none`; `OTEL_SDK_DISABLED=true` turns
- * everything off.
+ * everything off. With no endpoint, `YNR_SPOOL` names the writer folder to write to (created on
+ * the first write), or the laptop default is used when it exists. Synchronous, and at most one
+ * stat.
  */
 export function telemetryTarget(env: NodeJS.ProcessEnv = process.env): Target {
   if (env.OTEL_SDK_DISABLED?.trim().toLowerCase() === "true")
@@ -98,8 +126,14 @@ export function telemetryTarget(env: NodeJS.ProcessEnv = process.env): Target {
       kind: "off",
       reason: `OTLP ${unsupported.join(", ")} is not supported; use http/protobuf or http/json`,
     };
-  // The ynr spool goes here, between the operator's endpoint and nothing: YNR_SPOOL naming a
-  // folder, or $XDG_STATE_HOME/ynr/spool/local existing, once its exporter package is published.
+  const spooled = SIGNALS.filter(
+    ([, key]) => env[`OTEL_${key}_EXPORTER`]?.trim().toLowerCase() !== "none"
+  ).map(([signal]) => signal);
+  if (!spooled.length) return { kind: "off" };
+  if (set(env.YNR_SPOOL))
+    return { kind: "spool", dir: resolve(env.YNR_SPOOL.trim()), signals: spooled };
+  const laptop = defaultSpoolDir(env);
+  if (isFolder(laptop)) return { kind: "spool", dir: laptop, signals: spooled };
   return { kind: "off" };
 }
 
@@ -111,6 +145,11 @@ export interface StartOptions {
   redaction?: readonly string[];
   /** Forward the server's `[ynm-mcp …]` stderr lines as log records, leaving them unchanged. */
   bridgeConsole?: boolean;
+  /**
+   * A long-lived server: when there is nothing to write to, look again once a minute, and start
+   * when a spool appears. The timer is unref'd and does nothing else.
+   */
+  recheck?: boolean;
   /**
    * The longest one export may take, retries included. A short-lived process sets it to its exit
    * bound, so a collector that is down cannot hold the process open after its work is done.
@@ -125,6 +164,9 @@ export interface StartOptions {
 
 let runtime: Runtime | undefined;
 let starting: Promise<boolean> | undefined;
+let rechecking: ReturnType<typeof setInterval> | undefined;
+/** How often a long-lived server with telemetry off looks for a spool again. */
+export const RECHECK_MS = 60_000;
 let namespaces = false;
 const patternSources: string[] = [];
 let patterns: RegExp[] = [];
@@ -164,15 +206,17 @@ export function startTelemetry(opts: StartOptions): Promise<boolean> {
   const target: Target = opts.exporters ? { kind: "otlp", signals: {} } : telemetryTarget(env);
   if (target.kind === "off") {
     if (target.reason) warn(target.reason);
+    else if (opts.recheck) recheckLater(opts);
     return Promise.resolve(false);
   }
+  stopRechecking();
   namespaces = env.YNM_TELEMETRY_NAMESPACES === "1";
   starting = import("./sdk.js")
     .then((sdk) =>
       sdk.createRuntime({
         version: opts.version,
         env,
-        signals: target.signals,
+        target,
         exporters: opts.exporters,
         exportTimeoutMs: opts.exportTimeoutMs,
         clean,
@@ -189,6 +233,29 @@ export function startTelemetry(opts: StartOptions): Promise<boolean> {
       return false;
     });
   return starting;
+}
+
+/**
+ * Looks for a spool again once a minute, and starts telemetry when there is one. Work already
+ * in flight when it starts has no spans.
+ */
+function recheckLater(opts: StartOptions): void {
+  if (rechecking) return;
+  rechecking = setInterval(() => {
+    try {
+      if (telemetryTarget(opts.env ?? process.env).kind === "off") return;
+    } catch {
+      return;
+    }
+    stopRechecking();
+    void startTelemetry({ ...opts, recheck: false });
+  }, RECHECK_MS);
+  rechecking.unref?.();
+}
+
+function stopRechecking(): void {
+  if (rechecking) clearInterval(rechecking);
+  rechecking = undefined;
 }
 
 function warn(why: string): void {
@@ -264,7 +331,10 @@ function bounded(p: Promise<unknown>, ms: number): Promise<void> {
   });
 }
 
-/** Exports what is buffered, giving up after `ms` (default 2 seconds). */
+/**
+ * Exports what is buffered, and flushes the spool's open file to disk, giving up after `ms`
+ * (default 2 seconds). Called at the end of a unit of work, such as a Lambda invocation.
+ */
 export async function flushTelemetry(ms = 2000): Promise<void> {
   if (runtime && ms > 0) await bounded(runtime.flush(), ms);
 }
@@ -274,6 +344,7 @@ export async function flushTelemetry(ms = 2000): Promise<void> {
  * unchanged. Afterwards everything is a no-op again until the next `startTelemetry`.
  */
 export async function shutdownTelemetry(ms = 2000): Promise<void> {
+  stopRechecking();
   if (starting) await bounded(starting, ms);
   const r = runtime;
   runtime = undefined;

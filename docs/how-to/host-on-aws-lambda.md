@@ -216,6 +216,12 @@ before it returns, within the time it has left and never more than 2 seconds, so
 cannot make a request late. See
 [Send telemetry to an OpenTelemetry collector](send-telemetry.md).
 
+On Lambda, use an OTLP endpoint. A function can also write to a ynr spool with `YNR_SPOOL`, but its
+only local disk is `/tmp`, which goes when the instance does, and nothing beside the function
+reads it, so what it wrote would be lost. Until ynr offers a relay a function can send to, the
+endpoint is the way to get a function's telemetry out. The function does not look for a spool
+again after it starts.
+
 ## Alarms
 
 The Terraform in `infra/aws/lambda` raises two alarms, both mailed to `alarm_email`:
