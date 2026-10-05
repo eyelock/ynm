@@ -29,6 +29,7 @@ import {
   type StoredOAuthClientInformation,
   type StoredOAuthTokens,
 } from "@modelcontextprotocol/client";
+import { tracedFetch } from "@ynm/telemetry";
 
 /** Where a remote mount's credentials live: <ynmHome>/auth/<mountId>.json, mode 0600, dir 0700. */
 export function remoteAuthPath(home: string, mountId: string): string {
@@ -265,7 +266,8 @@ export async function loginRemote(opts: LoginRemoteOptions): Promise<{ scopes?: 
     },
   });
   const signedIn = () => ({ scopes: provider.tokens()?.scope });
-  const authOpts = { serverUrl: opts.url, fetchFn: opts.fetchFn };
+  // Discovery, registration and the token exchange carry the command's trace headers.
+  const authOpts = { serverUrl: opts.url, fetchFn: tracedFetch(opts.fetchFn) };
   let timer: NodeJS.Timeout | undefined;
   try {
     const callback = awaitCallback(server, () => provider.lastState);

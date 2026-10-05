@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { traceEnv } from "@ynm/telemetry";
 
 const TIMEOUT_MS = 30_000;
 const MAX_BUFFER = 256 * 1024 * 1024;
@@ -26,14 +27,16 @@ export const gitStats = { spawned: 0 };
 /**
  * Runs git with an argv array (no shell) and optional stdin content, which is closed after
  * writing so stdin-reading plumbing (mktree, hash-object, cat-file --batch) terminates.
- * Copied in spirit from ACME's hardened plumbing, made async.
+ * Copied in spirit from ACME's hardened plumbing, made async. A git process has no span of its
+ * own: it runs inside the store call's span (ADR-018), whose trace context it is given.
  */
 export function git(args: readonly string[], opts: GitOptions): Promise<string> {
   gitStats.spawned += 1;
   return new Promise((resolve, reject) => {
     const child = spawn("git", [...args], {
       cwd: opts.cwd,
-      env: { ...process.env, ...opts.env },
+      // The active span's trace context, so a hook git runs (ynm's pre-push) joins the trace.
+      env: traceEnv({ ...process.env, ...opts.env }),
       stdio: ["pipe", "pipe", "pipe"],
     });
     const out: Buffer[] = [];

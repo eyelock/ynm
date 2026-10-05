@@ -79,6 +79,12 @@ describe("claudeCliEnv", () => {
     expect(env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC).toBe("1");
   });
 
+  it("drops Claude Code's content logging, so no prompt reaches its telemetry", () => {
+    const env = claudeCliEnv({ ...base, OTEL_LOG_USER_PROMPTS: "1", OTEL_LOG_TOOL_DETAILS: "1" });
+    expect("OTEL_LOG_USER_PROMPTS" in env).toBe(false);
+    expect("OTEL_LOG_TOOL_DETAILS" in env).toBe(false);
+  });
+
   it("does not mutate the input", () => {
     claudeCliEnv(base);
     expect(base.ANTHROPIC_API_KEY).toBe("test-key");

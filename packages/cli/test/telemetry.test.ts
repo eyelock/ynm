@@ -59,6 +59,25 @@ describe("telemetry off loads nothing", () => {
     expect(r.modules).toEqual([]);
   });
 
+  it("ynm remember in a git repository, which runs git, loads no @opentelemetry module", () => {
+    const repo = mkdtempSync(join(tmpdir(), "ynm-otel-git-"));
+    const g = (...args: string[]) =>
+      spawnSync("git", [
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@example.com",
+        "-C",
+        repo,
+        ...args,
+      ]);
+    g("init", "-q", "-b", "main");
+    g("commit", "-q", "--allow-empty", "-m", "first");
+    const r = traced(repo, off, ["remember", "--type", "semantic", "--content", "no spans here"]);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.modules).toEqual([]);
+  });
+
   it("ynm hook loads no @opentelemetry module", () => {
     const input = JSON.stringify({ session_id: "s", cwd, hook_event_name: "SessionStart" });
     const r = traced(cwd, off, ["hook", "session-start"], input);

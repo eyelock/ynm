@@ -188,7 +188,7 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 | `YNM_OAUTH_CLIENT_SECRET` | Client secret for introspection |
 | `YNM_MCP_TOKEN` | Static bearer tokens, comma-separated. A shared secret: every caller using one is the same identity, and what they write is recorded as `token:static` |
 | `YNM_REQUIRED_SCOPES` | Scopes every token must carry, comma-separated |
-| `YNM_AUDIT` | Where each request's audit event goes, as JSON: `{"sink":"stdout"}`, `{"sink":"file","path":"/var/log/ynm/audit.jsonl"}`, `{"sink":"s3"}` (optional `bucket`, `prefix`, `region`; on an S3 store the bucket defaults to the store's and the prefix to `audit/<store prefix>`), `{"sink":"otel"}` (each event an OpenTelemetry event sent with ynm's telemetry, which must be on; the person appears as their sign-in id qualified by the identity provider's host), or `{"sink":"off"}`. Unset: stdout when the server checks tokens, else off. Events hold metadata only: when, who (person id and client; a static token has no person and client `static`, and a token with no subject has no person and the client it names), which tools, outcome, duration, memory ids and sizes, never content |
+| `YNM_AUDIT` | Where each request's audit event goes, as JSON: `{"sink":"stdout"}`, `{"sink":"file","path":"/var/log/ynm/audit.jsonl"}`, `{"sink":"s3"}` (optional `bucket`, `prefix`, `region`; on an S3 store the bucket defaults to the store's and the prefix to `audit/<store prefix>`), `{"sink":"otel"}` (each event an OpenTelemetry event sent with ynm's telemetry, which must be on; the person appears as their login name, the token's `preferred_username` or else its subject, qualified by the identity provider's host, and never as an email), or `{"sink":"off"}`. Unset: stdout when the server checks tokens, else off. Events hold metadata only: when, who (person id and client; a static token has no person and client `static`, and a token with no subject has no person and the client it names), which tools, outcome, duration, memory ids and sizes, never content |
 | `YNM_HTTP_HOST` | Bind host when `--host` is not given. Default `localhost` |
 | `PORT` | Port when `--port` is not given. Default 3000 |
 | `YNM_ALLOWED_HOSTS` | Allowed `Host` headers when `--allow-host` is not given, comma-separated |
@@ -238,7 +238,7 @@ a spool. `ynm hook` never sends telemetry.
 | `OTEL_METRIC_EXPORT_INTERVAL` | Milliseconds between metric exports. Default 60000 |
 | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | Resource attributes; they win over ynm's `service.name`, `service.version` and `service.instance.id` |
 | `OTEL_SDK_DISABLED` | `true` turns telemetry off whatever else is set |
-| `TRACEPARENT`, `TRACESTATE` | The W3C trace a command or stdio server joins |
+| `TRACEPARENT`, `TRACESTATE` | The W3C trace a command or stdio server joins. With telemetry on, ynm sets them for each process it starts, to the span it runs in |
 | `YNR_SPOOL` | With no OTLP endpoint, turns telemetry on and writes OTLP JSON lines into this folder: ynm's own folder in a ynr spool (hosted, `<spool root>/services/ynm`). Created if missing |
 | `XDG_STATE_HOME` | With no endpoint and no `YNR_SPOOL`, telemetry is written to `$XDG_STATE_HOME/ynr/spool/local` when that folder exists. Default `~/.local/state`. A server that found no spool looks again once a minute |
 | `YNM_TELEMETRY_NAMESPACES` | `1` adds the namespace a store call was limited to (`ynm.namespace`) to its span. Off by default, because a namespace can name a person |

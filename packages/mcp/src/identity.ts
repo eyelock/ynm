@@ -2,7 +2,7 @@ import type { AuthInfo } from "@modelcontextprotocol/server";
 import type { Login } from "@ynm/model";
 import { clientActor, STATIC_TOKEN_ACTOR, type Ynm } from "@ynm/service";
 import { Auditor, type AuditSink, auditSinkFromEnv } from "./audit.js";
-import { clientIdOf, isStaticToken } from "./auth.js";
+import { clientIdOf, isStaticToken, usernameOf } from "./auth.js";
 
 /**
  * The login a verified token vouches for (ADR-017): its issuer and subject. A shared static token
@@ -17,18 +17,25 @@ export function loginOf(info: AuthInfo | undefined): Login | undefined {
 }
 
 /**
- * A signed-in person's handle in telemetry (ADR-018): their sign-in id, the token's subject,
- * qualified by the identity provider's host, as in `idp.example.com/alice`. Never a name or an
- * email: a subject that is an email address gives no handle, and no other claim is read.
+ * A signed-in person's handle in telemetry (ADR-018): their sign-in name, the token's
+ * `preferred_username`, qualified by the identity provider's host, as in `idp.example.com/alice`.
+ * A token with no sign-in name falls back to its subject. Never a name or an email: a value with
+ * an `@` is not used, so an email sign-in name falls back to the subject, and when the subject is
+ * an email too there is no handle. Only a signed-in person (an issuer and a subject) has one.
+ *
+ * This is the one place `preferred_username` is read. The person id, actors, provenance and ynm's
+ * own audit sinks read the issuer and subject alone (ADR-017).
  */
 export function handleOf(info: AuthInfo | undefined): string | undefined {
   const login = loginOf(info);
-  if (!login || login.subject.includes("@")) return undefined;
+  if (!login) return undefined;
+  const name = [usernameOf(info), login.subject].find((n) => n && !n.includes("@"));
+  if (!name) return undefined;
   let host = login.issuer;
   try {
     host = new URL(login.issuer).host || login.issuer;
   } catch {}
-  return `${host}/${login.subject}`;
+  return `${host}/${name}`;
 }
 
 /**

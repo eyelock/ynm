@@ -14,6 +14,7 @@ import {
   type Context,
   context,
   defaultTextMapGetter,
+  defaultTextMapSetter,
   type Histogram,
   ROOT_CONTEXT,
   type Span,
@@ -66,6 +67,7 @@ import type {
   SpanHandle,
   SpanOptions,
   Target,
+  TraceContext,
 } from "./telemetry.js";
 
 /** What the facade calls once the SDK is running. */
@@ -74,6 +76,8 @@ export interface Runtime {
   begin(name: string, opts: SpanOptions): OpenSpan;
   event(name: string, attributes: Attributes): void;
   log(level: LogLevel, body: string): void;
+  /** The active span's W3C trace context, to pass on to a call out; none outside a span. */
+  traceContext(): TraceContext | undefined;
   flush(): Promise<void>;
   shutdown(): Promise<void>;
 }
@@ -412,6 +416,16 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
         body,
         context: context.active(),
       });
+    },
+    traceContext() {
+      const active = context.active();
+      if (!trace.getSpan(active)) return undefined;
+      const carrier: Record<string, string> = {};
+      propagator.inject(active, carrier, defaultTextMapSetter);
+      if (!carrier.traceparent) return undefined;
+      return carrier.tracestate
+        ? { traceparent: carrier.traceparent, tracestate: carrier.tracestate }
+        : { traceparent: carrier.traceparent };
     },
     // The end of a unit of work: export what is buffered, then put the spool file on disk.
     async flush() {

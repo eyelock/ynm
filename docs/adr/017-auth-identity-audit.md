@@ -282,3 +282,8 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   view became one general view carrying a fixed shared actor, so the store still chooses a write's
   actor in one place. Refusing such writes was rejected because client-credentials tokens without
   `sub` are legitimate, and documenting the gap alone left the records misleading. Still proposed.
+- 2026-10-05: one exception to "no claim beyond `iss` and `sub` is read", for telemetry only.
+  The verifiers also carry the token's `preferred_username` (or introspection's `username`), and
+  the OpenTelemetry handle reads it (ADR-018), because a provider's `sub` can be an opaque id.
+  Nothing in this ADR's identity reads it: the person id, actors, provenance, `memory_people` and
+  the stdout, file and s3 audit sinks are still keyed by issuer and subject alone. Still proposed.

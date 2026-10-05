@@ -319,6 +319,60 @@ export function emitLog(level: LogLevel, line: string): void {
   } catch {}
 }
 
+/** W3C trace context, as passed to a call out: `traceparent`, and `tracestate` when there is one. */
+export interface TraceContext {
+  traceparent: string;
+  tracestate?: string;
+}
+
+/**
+ * The active span's trace context, to pass on to a process or a request ynm makes (the ynr
+ * contract's "pass the trace on"). Undefined when telemetry is off or no span is active, so a call
+ * out then carries whatever it would have carried without telemetry.
+ */
+export function traceContext(): TraceContext | undefined {
+  try {
+    return runtime?.traceContext();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The environment for a process ynm spawns: `env` with `TRACEPARENT` (and `TRACESTATE`, or none)
+ * set to the active span, so the child nests under it, replacing any ynm inherited. With
+ * telemetry off or no active span, `env` itself is returned, so the child inherits exactly what it
+ * did before. Costs one branch when off.
+ */
+export function traceEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const tc = traceContext();
+  if (!tc) return env;
+  const out: NodeJS.ProcessEnv = { ...env, TRACEPARENT: tc.traceparent };
+  if (tc.tracestate) out.TRACESTATE = tc.tracestate;
+  else delete out.TRACESTATE;
+  return out;
+}
+
+/**
+ * A fetch that adds the active span's `traceparent` and `tracestate` headers to each request it
+ * sends, decided per call, so telemetry starting later is picked up. With telemetry off or no
+ * active span it calls `f` (default, the global fetch) with exactly the arguments it was given.
+ */
+export function tracedFetch(f?: typeof fetch): typeof fetch {
+  return (input, init) => {
+    const send = f ?? fetch;
+    const tc = traceContext();
+    if (!tc) return send(input, init);
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined)
+    );
+    headers.set("traceparent", tc.traceparent);
+    if (tc.tracestate) headers.set("tracestate", tc.tracestate);
+    else headers.delete("tracestate");
+    return send(input, { ...init, headers });
+  };
+}
+
 /** Resolves when `p` settles or `ms` passes, whichever is first; never rejects. */
 function bounded(p: Promise<unknown>, ms: number): Promise<void> {
   return new Promise<void>((resolve) => {
