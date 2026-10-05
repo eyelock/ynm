@@ -138,7 +138,7 @@ describe("OpenAICompatibleWriter options and error paths (fetch mocked)", () => 
 });
 
 describe("OpenAICompatibleWriter with telemetry on", () => {
-  it("is one client span per request, whose trace headers the request carries", async () => {
+  it("is one client span per request, and sends the third party no trace headers", async () => {
     const t = await startMemoryTelemetry();
     try {
       const headers: Headers[] = [];
@@ -157,7 +157,9 @@ describe("OpenAICompatibleWriter with telemetry on", () => {
         "ynm.model.provider": "openai-compatible",
         "gen_ai.request.model": "local",
       });
-      expect(headers[0]?.get("traceparent")).toBe(`00-${span?.traceId}-${span?.spanId}-01`);
+      expect(span).toBeDefined();
+      expect(headers[0]?.has("traceparent")).toBe(false);
+      expect(headers[0]?.has("tracestate")).toBe(false);
       expect(headers[0]?.get("content-type")).toBe("application/json");
     } finally {
       await t.stop();

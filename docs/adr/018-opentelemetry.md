@@ -145,8 +145,10 @@ runs, which happen inside the command's span.
 
 ### Passing the trace on
 
-ynm passes the active span's W3C trace context to everything it calls (ynr ADR-006, item 4),
-computed through the facade:
+ynm passes the active span's W3C trace context to the processes it spawns and to our own tools,
+which for ynm means a hosted ynm (ynr ADR-006, item 4), computed through the facade. A third party,
+such as an identity provider or a model API, is never sent trace context: its request is sent
+exactly as it would be without telemetry, though the call is still a client span of ynm's own.
 
 - **Processes.** `traceEnv(env)` returns `env` with `TRACEPARENT`, and `TRACESTATE` or none, set
   to the active span, replacing whatever ynm itself inherited, because the child belongs under
@@ -155,10 +157,12 @@ computed through the facade:
   --version` check, and `ynm client install`'s CLIs. With telemetry off, or outside any span, it
   returns `env` itself, so a child inherits exactly what it did before, including a `TRACEPARENT`
   ynm was given.
-- **HTTP.** `tracedFetch(f)` wraps a fetch so each request carries `traceparent` and `tracestate`
-  for the span it is sent in, decided per request, and passes its arguments through untouched
-  when there is nothing to add. It wraps the remote mount's MCP transport, the remote sign-in
-  (`ynm login`), token introspection, the OpenAI-compatible writer and the TypeSafe judge.
+- **HTTP.** `tracedFetch(origin, f)` wraps a fetch so each request to `origin` carries
+  `traceparent` and `tracestate` for the span it is sent in, decided per request, and passes its
+  arguments through untouched when there is nothing to add or the request goes anywhere else. It
+  wraps only the remote mount's MCP transport, with the hosted ynm's origin, so a token refresh
+  the transport makes at an identity provider carries nothing. The remote sign-in (`ynm login`),
+  token introspection, the OpenAI-compatible writer and the TypeSafe judge send no trace headers.
 - **MCP `_meta`.** A remote mount's tool call also carries `traceparent` and `tracestate` in its
   `_meta`, which is where ynm's own server reads them for the tool span, so the hosted tool span
   is a child of the caller's client span rather than of its own HTTP request span.
@@ -353,3 +357,7 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
   with their own events and metrics; a git command is not, the store call being the boundary.
   The handle reads `preferred_username`, falling back to `sub`, never a value with an `@`; ynm's
   own identity still reads only `iss` and `sub`. Still proposed.
+- 2026-10-05: trace context goes only to processes ynm spawns and to our own tools, following the
+  refined ynr ADR-006 item 4. Requests to a hosted ynm keep the W3C headers and `_meta`; requests
+  to an identity provider or a model API carry none, while their client spans stay. Still
+  proposed.

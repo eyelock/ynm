@@ -149,9 +149,10 @@ ynm passes its trace on to what it calls, so work it starts appears inside its s
   runs `ynm`, such as the pre-push hook, joins the same trace.
 - Every request to a hosted ynm through a remote mount carries the W3C `traceparent` and
   `tracestate` headers, and each tool call carries them in its MCP `_meta` too, so the hosted
-  server's spans join the caller's trace. Sign-in for a remote mount (`ynm login`), token
-  introspection on a hosted server, and requests to an OpenAI-compatible endpoint or TypeSafe carry
-  the headers as well.
+  server's spans join the caller's trace.
+- Nothing ynm sends to a third party carries the trace: sign-in for a remote mount (`ynm login`),
+  token introspection on a hosted server, a token refresh at your identity provider, and requests
+  to an OpenAI-compatible endpoint or TypeSafe are sent exactly as they are with telemetry off.
 
 A tool call to a hosted ynm, and each call to a model, is a client span of its own. A git command
 is not: it runs inside the store call's span, `store sync` or `store append`, and is given that
