@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { extractJson } from "../json.js";
+import { modelCall } from "../telemetry.js";
 import {
   StructuredOutputError,
   type Usage,
@@ -20,6 +21,10 @@ export interface RawCompletion {
  */
 export abstract class ValidatingWriter implements Writer {
   abstract readonly name: string;
+  /** The model asked for, when the writer is configured with one; never part of a prompt. */
+  protected model(): string | undefined {
+    return undefined;
+  }
   protected abstract complete(
     prompt: string,
     jsonSchema: Record<string, unknown>,
@@ -52,7 +57,11 @@ export abstract class ValidatingWriter implements Writer {
     let usage: Usage | undefined;
     let model = this.name;
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const raw = await this.complete(this.prompt(req, jsonSchema, issues), jsonSchema, name);
+      const prompt = this.prompt(req, jsonSchema, issues);
+      // One client span per call out to the model (ADR-018); never the prompt or the answer.
+      const raw = await modelCall(this.name, this.model(), "chat", () =>
+        this.complete(prompt, jsonSchema, name)
+      );
       model = raw.model;
       if (raw.usage)
         usage = {

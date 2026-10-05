@@ -3,7 +3,7 @@
 Goal: see what ynm does, and how long it takes, in your own tracing and metrics backend. ynm
 speaks OpenTelemetry (OTLP over HTTP, or OTLP JSON lines into a [ynr](#write-to-a-ynr-spool)
 spool folder) and describes its own work: requests, tool calls, commands, store calls and dream
-passes. It never sends memory content.
+passes, and its calls to a hosted ynm and to models. It never sends memory content.
 
 Telemetry is off until you name an endpoint or a ynr spool is found. With it off, ynm loads none
 of the OpenTelemetry SDK, so commands, hooks and servers start and run exactly as they would
@@ -94,6 +94,8 @@ also reads. Running that `ynr serve` is the deployment's job; ynm never starts i
 | A CLI command | `ynm recall` | `ynm.command.started` | `ynm.command.duration` |
 | A call to a record store | `store append`, `store scan`, … (client) | `ynm.store.started` | `ynm.store.operation.duration` |
 | A dream run, and each of its passes | `dream`, `dream dedupe`, … | `ynm.dream.started`, `ynm.dream.pass.started` | `ynm.dream.pass.duration` |
+| A tool call to a hosted ynm, through a remote mount | `tools/call memory_recall` (client) | `ynm.remote.started` | `ynm.remote.call.duration` |
+| A call to a model: the Claude CLI, an OpenAI-compatible endpoint or TypeSafe | `model claude-cli`, `model openai-compatible`, `model typesafe` (client) | `ynm.model.started` | `ynm.model.call.duration` |
 
 Each unit sends a `started` event as it begins and its span when it ends, so a crash shows as a
 start with no finish. Every span ends with `ynm.outcome` (`ok`, `error` or `refused`) and its
@@ -136,15 +138,47 @@ ynm joins the trace it is given, so its spans appear inside the work that called
 
 With none of these, each request or command starts a trace of its own.
 
+## Pass the trace on
+
+ynm passes its trace on to what it calls, so work it starts appears inside its spans:
+
+- Every process ynm starts gets `TRACEPARENT`, and `TRACESTATE` when there is one, naming the span
+  it runs in. That replaces any `TRACEPARENT` ynm itself was given, so the child nests under ynm's
+  span rather than beside it. This covers git, the Claude CLI that writes for dream passes, the
+  `claude --version` check, and the agent CLIs that `ynm client install` runs. A git hook that
+  runs `ynm`, such as the pre-push hook, joins the same trace.
+- Every request to a hosted ynm through a remote mount carries the W3C `traceparent` and
+  `tracestate` headers, and each tool call carries them in its MCP `_meta` too, so the hosted
+  server's spans join the caller's trace. Sign-in for a remote mount (`ynm login`), token
+  introspection on a hosted server, and requests to an OpenAI-compatible endpoint or TypeSafe carry
+  the headers as well.
+
+A tool call to a hosted ynm, and each call to a model, is a client span of its own. A git command
+is not: it runs inside the store call's span, `store sync` or `store append`, and is given that
+span's trace. The command line of a process ynm starts is never exported.
+
+With telemetry off, nothing changes: a process gets exactly the environment it got before, and a
+request carries no trace headers.
+
 ## Send audit events too
 
 A hosted server's audit events can go to the collector instead of stdout, a file or S3: set
 `YNM_AUDIT` to `{"sink":"otel"}` (see [Audit](operate-a-hosted-store.md#audit)). Each becomes a
 `ynm.audit.request` event holding the same metadata, after the redaction patterns run. The person
-appears by their handle: their sign-in id, the token's subject, qualified by the identity
-provider's host, such as `idp.example.com/alice`, in `user.name`. Never their name or email; a
-subject that is an email address is left out. The `otel` sink needs telemetry on, and audit stays
-off, with a message on stderr, if it is not.
+appears by their handle in `user.name`: their login name at the identity provider, qualified by
+its host, such as `idp.example.com/alice`.
+
+- The login name is the token's `preferred_username` (or, from token introspection, `username`).
+  Providers such as Keycloak make the token's subject an opaque id, so the login name is what a
+  person would recognise.
+- A token with no login name falls back to its subject.
+- Never a name or an email. A value containing `@` is not used: an email login name falls back to
+  the subject, and when the subject is an email too, the event has no `user.name`.
+
+Only the handle reads the login name. Which person a token is, the author recorded on memories,
+and the stdout, file and S3 audit events still come from the token's issuer and subject alone, so
+a person who changes their login name stays the same person. The `otel` sink needs telemetry on,
+and audit stays off, with a message on stderr, if it is not.
 
 ## Settings
 
@@ -161,7 +195,7 @@ ynm honours the standard OpenTelemetry variables:
 | `OTEL_METRIC_EXPORT_INTERVAL` | Milliseconds between metric exports in a long-running server. Default 60000 |
 | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | Resource attributes, which win over ynm's own |
 | `OTEL_SDK_DISABLED` | `true` turns telemetry off whatever else is set |
-| `TRACEPARENT`, `TRACESTATE` | The trace a command or stdio server joins |
+| `TRACEPARENT`, `TRACESTATE` | The trace a command or stdio server joins. ynm sets them for each process it starts (see [Pass the trace on](#pass-the-trace-on)) |
 
 And ynr's:
 

@@ -3,9 +3,23 @@ import {
   Client,
   type OAuthClientProvider,
   StreamableHTTPClientTransport,
+  TRACEPARENT_META_KEY,
+  TRACESTATE_META_KEY,
   type Transport,
 } from "@modelcontextprotocol/client";
 import type { ContextBlock } from "@ynm/index";
+import {
+  ATTR_GEN_AI_OPERATION_NAME,
+  ATTR_GEN_AI_TOOL_NAME,
+  ATTR_MCP_METHOD_NAME,
+  ATTR_SERVER_ADDRESS,
+  ATTR_YNM_MOUNT,
+  EVENT_YNM_REMOTE_STARTED,
+  METRIC_YNM_REMOTE_CALL_DURATION,
+  traceContext,
+  tracedFetch,
+  withSpan,
+} from "@ynm/telemetry";
 
 /**
  * A remote mount (ADR-004): a hosted ynm reached over MCP, signed in as the person (ADR-017).
@@ -68,7 +82,9 @@ export class RemoteStore {
         ? await this.opts.transport()
         : new StreamableHTTPClientTransport(new URL(this.url), {
             authProvider: this.opts.authProvider,
-            ...(this.opts.fetch ? { fetch: this.opts.fetch } : {}),
+            // Every request carries the active span's trace headers when telemetry is on, so
+            // the hosted server's spans join this trace; otherwise it is sent as before.
+            fetch: tracedFetch(this.opts.fetch),
           });
       await client.connect(transport);
       return client;
@@ -79,8 +95,35 @@ export class RemoteStore {
     return this.client;
   }
 
-  /** One tool call, bounded by a timeout; returns the tool's `data`. */
-  async call<T>(tool: string, args: Record<string, unknown>, timeoutMs?: number): Promise<T> {
+  /**
+   * One tool call, bounded by a timeout; returns the tool's `data`. With telemetry on it is a
+   * client span (ADR-018) whose trace context the call carries in its MCP `_meta` as well as in
+   * the HTTP headers. The span names the tool, never its arguments.
+   */
+  call<T>(tool: string, args: Record<string, unknown>, timeoutMs?: number): Promise<T> {
+    return withSpan(
+      `tools/call ${tool}`,
+      {
+        kind: "client",
+        started: EVENT_YNM_REMOTE_STARTED,
+        metric: METRIC_YNM_REMOTE_CALL_DURATION,
+        attributes: {
+          [ATTR_MCP_METHOD_NAME]: "tools/call",
+          [ATTR_GEN_AI_OPERATION_NAME]: "execute_tool",
+          [ATTR_GEN_AI_TOOL_NAME]: tool,
+          [ATTR_YNM_MOUNT]: this.id,
+          [ATTR_SERVER_ADDRESS]: hostOf(this.url),
+        },
+      },
+      () => this.send<T>(tool, args, timeoutMs)
+    );
+  }
+
+  private async send<T>(
+    tool: string,
+    args: Record<string, unknown>,
+    timeoutMs?: number
+  ): Promise<T> {
     const limit = timeoutMs ?? this.opts.timeoutMs ?? 15_000;
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<never>((_, reject) => {
@@ -89,9 +132,18 @@ export class RemoteStore {
         limit
       );
     });
+    const tc = traceContext();
+    const meta = tc
+      ? {
+          _meta: {
+            [TRACEPARENT_META_KEY]: tc.traceparent,
+            ...(tc.tracestate ? { [TRACESTATE_META_KEY]: tc.tracestate } : {}),
+          },
+        }
+      : {};
     try {
       const result = (await Promise.race([
-        this.connect().then((c) => c.callTool({ name: tool, arguments: args })),
+        this.connect().then((c) => c.callTool({ name: tool, arguments: args, ...meta })),
         timeout,
       ])) as { isError?: boolean; content?: Array<{ text?: string }>; structuredContent?: unknown };
       if (result.isError)
@@ -116,6 +168,15 @@ export class RemoteStore {
     const c = await this.client?.catch(() => undefined);
     this.client = undefined;
     await c?.close();
+  }
+}
+
+/** The host a mount's URL names, for `server.address`; never its path or query. */
+function hostOf(url: string): string | undefined {
+  try {
+    return new URL(url).hostname || undefined;
+  } catch {
+    return undefined;
   }
 }
 

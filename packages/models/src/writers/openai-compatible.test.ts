@@ -1,3 +1,4 @@
+import { startMemoryTelemetry } from "@ynm/telemetry/testing";
 import { z } from "zod";
 import { BudgetExceededError, defaultSpendGuard, SpendGuard } from "../budget.js";
 import { ModelUnavailableError } from "../types.js";
@@ -133,5 +134,33 @@ describe("OpenAICompatibleWriter options and error paths (fetch mocked)", () => 
     });
     await expect(w.write(req)).rejects.toThrow(/after 2 attempts: no JSON in output/);
     expect(seen).toHaveLength(2);
+  });
+});
+
+describe("OpenAICompatibleWriter with telemetry on", () => {
+  it("is one client span per request, whose trace headers the request carries", async () => {
+    const t = await startMemoryTelemetry();
+    try {
+      const headers: Headers[] = [];
+      const w = new OpenAICompatibleWriter({
+        baseUrl: "http://localhost:11434/v1",
+        model: "local",
+        fetch: (async (_url: string | URL, init?: RequestInit) => {
+          headers.push(new Headers(init?.headers));
+          return okReply();
+        }) as unknown as typeof fetch,
+      });
+      await w.write(req);
+      const { spans } = await t.exported();
+      const span = spans.find((s) => s.name === "model openai-compatible");
+      expect(span?.attributes).toMatchObject({
+        "ynm.model.provider": "openai-compatible",
+        "gen_ai.request.model": "local",
+      });
+      expect(headers[0]?.get("traceparent")).toBe(`00-${span?.traceId}-${span?.spanId}-01`);
+      expect(headers[0]?.get("content-type")).toBe("application/json");
+    } finally {
+      await t.stop();
+    }
   });
 });

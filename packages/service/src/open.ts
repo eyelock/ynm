@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { resolveModels } from "@ynm/models";
-import { addRedaction } from "@ynm/telemetry";
+import { addRedaction, traceEnv } from "@ynm/telemetry";
 import { DEFAULT_REDACTION, loadConfig, loadEnvFile, ynmHome } from "./config.js";
 import { defaultIndexLocator, IndexManager } from "./indexing.js";
 import { openMounts } from "./mounts.js";
@@ -44,7 +44,11 @@ export async function openYnm(opts: OpenOptions = {}) {
     dreamCfg.writer === "auto" && !env[dreamCfg.openai.apiKeyEnv] && !env.YNM_OPENAI_BASE_URL;
   const claudeCli =
     needsProbe && env.YNM_NO_CLAUDE_CLI !== "1"
-      ? spawnSync("claude", ["--version"], { encoding: "utf8", timeout: 10_000 }).status === 0
+      ? spawnSync("claude", ["--version"], {
+          encoding: "utf8",
+          timeout: 10_000,
+          env: traceEnv(process.env),
+        }).status === 0
       : false;
   const models = resolveModels(
     {

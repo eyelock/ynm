@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -28,6 +29,9 @@ import {
   startTelemetry,
   telemetryEnabled,
   telemetryTarget,
+  traceContext,
+  tracedFetch,
+  traceEnv,
   withSpan,
 } from "./telemetry.js";
 import { readSpool, startMemoryTelemetry } from "./testing.js";
@@ -513,5 +517,113 @@ describe("beginSpan", () => {
       parentSpanId: outer?.spanId,
       attributes: { "ynm.record.count": 4, "ynm.outcome": "error", "error.type": "TypeError" },
     });
+  });
+});
+
+describe("passing the trace on", () => {
+  /** A child process that prints its trace context, as any program ynm spawns would see it. */
+  const child = (env: NodeJS.ProcessEnv) => {
+    const r = spawnSync(
+      process.execPath,
+      [
+        "-e",
+        "process.stdout.write(JSON.stringify({ tp: process.env.TRACEPARENT ?? null, ts: process.env.TRACESTATE ?? null }))",
+      ],
+      { env, encoding: "utf8" }
+    );
+    return JSON.parse(r.stdout) as { tp: string | null; ts: string | null };
+  };
+
+  /** A local server that answers with the trace headers it received. */
+  async function echoServer() {
+    const server = createServer((req, res) => {
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          tp: req.headers.traceparent ?? null,
+          ts: req.headers.tracestate ?? null,
+          other: req.headers["x-kept"] ?? null,
+        })
+      );
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
+    return { url, close: () => new Promise<void>((r) => server.close(() => r())) };
+  }
+
+  it("changes nothing when off: the same env object, the same fetch arguments", async () => {
+    const env = { PATH: process.env.PATH, TRACEPARENT: traceparent, KEPT: "1" };
+    expect(traceContext()).toBeUndefined();
+    expect(traceEnv(env)).toBe(env);
+    await withSpan("off", {}, async () => expect(traceEnv(env)).toBe(env));
+    const seen: unknown[][] = [];
+    const f = tracedFetch((async (...args: unknown[]) => {
+      seen.push(args);
+      return new Response("{}");
+    }) as typeof fetch);
+    const init = { method: "POST", headers: { "x-kept": "1" } };
+    await f("http://example.invalid/", init);
+    expect(seen).toEqual([["http://example.invalid/", init]]);
+    expect(seen[0]?.[1]).toBe(init);
+  });
+
+  it("gives a spawned process TRACEPARENT for the active span, replacing an inherited one", async () => {
+    const t = await startMemoryTelemetry();
+    // Outside any span there is nothing to pass on: the child inherits what ynm was given.
+    const inherited = { PATH: process.env.PATH, TRACEPARENT: traceparent, TRACESTATE: "a=1" };
+    expect(traceEnv(inherited)).toBe(inherited);
+    const seen = await withSpan("ynm remember", { carrier: { traceparent } }, async () =>
+      child(traceEnv(inherited))
+    );
+    const { spans } = await t.exported();
+    const span = spans.find((s) => s.name === "ynm remember");
+    expect(span?.traceId).toBe(TRACE);
+    const [version, traceId, parentId, flags] = (seen.tp ?? "").split("-");
+    expect({ version, traceId, parentId, flags }).toEqual({
+      version: "00",
+      traceId: span?.traceId,
+      parentId: span?.spanId,
+      flags: "01",
+    });
+    // The incoming trace had no tracestate in its carrier, so the inherited one is dropped.
+    expect(seen.ts).toBeNull();
+  });
+
+  it("passes tracestate on with the trace, and nests a client span's child under it", async () => {
+    const t = await startMemoryTelemetry();
+    const seen = await withSpan(
+      "outer",
+      { carrier: { traceparent, tracestate: "ynr=1" } },
+      async () => withSpan("model claude-cli", { kind: "client" }, async () => child(traceEnv()))
+    );
+    const { spans } = await t.exported();
+    const client = spans.find((s) => s.name === "model claude-cli");
+    expect(seen.tp).toBe(`00-${TRACE}-${client?.spanId}-01`);
+    expect(seen.ts).toBe("ynr=1");
+  });
+
+  it("adds the W3C headers to a request sent inside a span, keeping the caller's own", async () => {
+    const server = await echoServer();
+    try {
+      const plain = await (await tracedFetch()(server.url, { headers: { "x-kept": "1" } })).json();
+      expect(plain).toEqual({ tp: null, ts: null, other: "1" });
+      const t = await startMemoryTelemetry();
+      const echoed = await withSpan("tools/call memory_recall", { kind: "client" }, async () => {
+        const viaInit = await tracedFetch()(server.url, { headers: { "x-kept": "1" } });
+        const viaRequest = await tracedFetch()(
+          new Request(server.url, { headers: { "x-kept": "2", tracestate: "stale=1" } })
+        );
+        return [await viaInit.json(), await viaRequest.json()];
+      });
+      const { spans } = await t.exported();
+      const span = spans.find((s) => s.name === "tools/call memory_recall");
+      const tp = `00-${span?.traceId}-${span?.spanId}-01`;
+      expect(echoed).toEqual([
+        { tp, ts: null, other: "1" },
+        { tp, ts: null, other: "2" },
+      ]);
+    } finally {
+      await server.close();
+    }
   });
 });

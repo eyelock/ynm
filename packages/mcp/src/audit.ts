@@ -72,7 +72,7 @@ export interface AuditEvent {
  * file, stdout and s3 sinks write exactly what they always have.
  */
 export interface AuditContext {
-  /** The person's handle for telemetry: the sign-in id qualified by the identity provider's host. */
+  /** The person's telemetry handle: login name (else subject) qualified by the IdP's host. */
   handle?: string;
 }
 

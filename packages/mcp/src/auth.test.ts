@@ -7,6 +7,7 @@ import {
   JwksVerifier,
   protectedResourceFor,
   StaticTokenVerifier,
+  usernameOf,
   verifierFor,
 } from "./auth.js";
 
@@ -82,6 +83,18 @@ describe("auth verifiers (ADR-009)", () => {
     const info = await v.verifyAccessToken(jwt);
     expect(info.clientId).toBe("agent-2");
     expect(info.scopes).toEqual(["memory:read"]);
+    expect(usernameOf(info)).toBeUndefined();
+    // The sign-in name is carried beside the subject, for the telemetry handle only.
+    const named = await new SignJWT({ preferred_username: "alice" })
+      .setProtectedHeader({ alg: "RS256", kid: "k1" })
+      .setIssuer("https://issuer")
+      .setSubject("0b7c")
+      .setAudience("ynm")
+      .setExpirationTime("1h")
+      .sign(privateKey);
+    const namedInfo = await v.verifyAccessToken(named);
+    expect(namedInfo.extra).toMatchObject({ sub: "0b7c", iss: "https://issuer" });
+    expect(usernameOf(namedInfo)).toBe("alice");
     const bad = await new SignJWT({})
       .setProtectedHeader({ alg: "RS256", kid: "k1" })
       .setIssuer("https://other")
@@ -128,6 +141,23 @@ describe("auth verifiers reject what they should", () => {
       message: expect.stringMatching(/introspection failed: 503/),
     });
     await expect(introspect({}).verifyAccessToken("t")).rejects.toThrow(/token inactive/);
+  });
+
+  it("introspection carries preferred_username, else RFC 7662's username, as the sign-in name", async () => {
+    const preferred = await introspect({
+      active: true,
+      sub: "0b7c",
+      preferred_username: "alice",
+      username: "other",
+    }).verifyAccessToken("t");
+    expect(usernameOf(preferred)).toBe("alice");
+    const plain = await introspect({
+      active: true,
+      sub: "0b7c",
+      username: "bob",
+    }).verifyAccessToken("t");
+    expect(usernameOf(plain)).toBe("bob");
+    expect(usernameOf(undefined)).toBeUndefined();
   });
 
   it("introspection falls back to sub, then unknown, for the client id and to no scopes", async () => {

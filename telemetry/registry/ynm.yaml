@@ -248,6 +248,16 @@ groups:
         brief: How long the request took, in milliseconds.
         examples: [23]
         stability: development
+      - id: ynm.model.provider
+        type: string
+        brief: >
+          The model a call went to, by ynm's name for its kind: a writer (`claude-cli`,
+          `openai-compatible`) or a judge (`typesafe`). Never the prompt or the answer.
+        examples: ["claude-cli", "openai-compatible", "typesafe"]
+        stability: development
+        annotations:
+          ynm:
+            cardinality: 4
       - id: ynm.telemetry.signal
         type:
           members:
@@ -270,7 +280,9 @@ groups:
             cardinality: 3
 
   # ---------------------------------------------------------------------------------------------
-  # Spans: one per unit of ynm's own work, and one per call out to a record store.
+  # Spans: one per unit of ynm's own work, and one per call out: to a record store, a hosted ynm
+  # or a model. Each call out passes the trace on (TRACEPARENT to a process, the W3C headers and
+  # the MCP `_meta` to a hosted ynm).
 
   - id: span.ynm.http.request
     type: span
@@ -331,6 +343,42 @@ groups:
       - ref: error.type
     events:
       - ynm.store.started
+
+  - id: span.ynm.remote.call
+    type: span
+    span_kind: client
+    stability: development
+    brief: >
+      One tool call to a hosted ynm behind a remote mount, named `tools/call {gen_ai.tool.name}`.
+      Its HTTP requests carry the W3C `traceparent` and `tracestate` headers, and the call its MCP
+      `_meta`, so the hosted server's spans join this trace.
+    attributes:
+      - ref: mcp.method.name
+      - ref: gen_ai.operation.name
+      - ref: gen_ai.tool.name
+      - ref: ynm.mount
+      - ref: server.address
+      - ref: ynm.outcome
+      - ref: error.type
+    events:
+      - ynm.remote.started
+
+  - id: span.ynm.model.call
+    type: span
+    span_kind: client
+    stability: development
+    brief: >
+      One call to a model: an invocation of the Claude CLI, or a request to an OpenAI-compatible
+      endpoint or TypeSafe, named `model {ynm.model.provider}`. A spawned CLI gets `TRACEPARENT`
+      for this span. The prompt and the answer are never exported.
+    attributes:
+      - ref: ynm.model.provider
+      - ref: gen_ai.operation.name
+      - ref: gen_ai.request.model
+      - ref: ynm.outcome
+      - ref: error.type
+    events:
+      - ynm.model.started
 
   - id: span.ynm.dream.run
     type: span
@@ -402,6 +450,23 @@ groups:
       - ref: ynm.store.provider
       - ref: ynm.mount
 
+  - id: event.ynm.remote.started
+    type: event
+    name: ynm.remote.started
+    stability: development
+    brief: A tool call to a hosted ynm began.
+    attributes:
+      - ref: gen_ai.tool.name
+      - ref: ynm.mount
+
+  - id: event.ynm.model.started
+    type: event
+    name: ynm.model.started
+    stability: development
+    brief: A call to a model began.
+    attributes:
+      - ref: ynm.model.provider
+
   - id: event.ynm.dream.started
     type: event
     name: ynm.dream.started
@@ -424,8 +489,8 @@ groups:
     stability: development
     brief: >
       One audited request, from the `otel` audit sink: metadata only, after the redaction patterns
-      run. The person appears only by their handle, the sign-in id qualified by the identity
-      provider's host, never by name or email.
+      run. The person appears only by their handle: their login name at the identity provider
+      (`preferred_username`, else the subject), qualified by its host, never a name or an email.
     attributes:
       - ref: ynm.audit.id
       - ref: user.name
@@ -520,6 +585,40 @@ groups:
         attribute_cardinality:
           ynm.store.operation: 6
           ynm.store.provider: 8
+          ynm.outcome: 3
+
+  - id: metric.ynm.remote.call.duration
+    type: metric
+    metric_name: ynm.remote.call.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: Duration of tool calls to a hosted ynm, as the caller saw them.
+    attributes:
+      - ref: gen_ai.tool.name
+      - ref: ynm.outcome
+    annotations:
+      ynm:
+        cardinality_limit: 48
+        attribute_cardinality:
+          gen_ai.tool.name: 16
+          ynm.outcome: 3
+
+  - id: metric.ynm.model.call.duration
+    type: metric
+    metric_name: ynm.model.call.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: Duration of calls to models.
+    attributes:
+      - ref: ynm.model.provider
+      - ref: ynm.outcome
+    annotations:
+      ynm:
+        cardinality_limit: 12
+        attribute_cardinality:
+          ynm.model.provider: 4
           ynm.outcome: 3
 
   - id: metric.ynm.dream.pass.duration

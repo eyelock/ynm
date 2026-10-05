@@ -4,11 +4,13 @@ import { join } from "node:path";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import type { AuthInfo, OAuthTokenVerifier } from "@modelcontextprotocol/server";
 import { type MemoryRecord, ulid } from "@ynm/model";
+import { RemoteStore } from "@ynm/service";
 import { FsLog } from "@ynm/store";
-import { shutdownTelemetry, startTelemetry } from "@ynm/telemetry";
+import { shutdownTelemetry, startTelemetry, withSpan } from "@ynm/telemetry";
 import { type MemoryTelemetry, readSpool, startMemoryTelemetry } from "@ynm/telemetry/testing";
 import { type AuditEvent, Auditor, type AuditSink, auditSinkFromEnv, otelSink } from "./audit.js";
-import { handleOf, hostedAudit } from "./identity.js";
+import { USERNAME_EXTRA } from "./auth.js";
+import { handleOf, hostedAudit, loginOf } from "./identity.js";
 import { createLambdaHandler, type FunctionUrlEvent, type LambdaHandler } from "./lambda.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { startHttp } from "./transport/http.js";
@@ -182,6 +184,102 @@ describe("trace context", () => {
     expect(requests.map((s) => s.attributes["ynm.outcome"])).toContain("refused");
     const tool = spans.find((s) => s.name === "tools/call memory_status");
     expect(requests.map((s) => s.spanId)).toContain(tool?.parentSpanId);
+  }, 30_000);
+});
+
+describe("passing the trace on to a remote mount", () => {
+  /** A hosted ynm on a local port, behind a token, as a remote mount reaches it. */
+  async function hosted() {
+    const home = join(mkdtempSync(join(tmpdir(), "ynm-otel-remote-")), ".ynm");
+    mkdirSync(home, { recursive: true });
+    writeFileSync(
+      join(home, "config.json"),
+      JSON.stringify({
+        mounts: [
+          { id: "project", level: "distributed", provider: "sqlite", path: join(home, "s") },
+        ],
+      })
+    );
+    const opts = {
+      cwd: home,
+      env: { ...process.env, YNM_HOME: home, YNM_USER: "hosted", YNM_NO_CLAUDE_CLI: "1" },
+      noPersonal: true,
+    };
+    const getYnm = serviceCache(opts);
+    return startHttp(() => createYnmServer(opts, getYnm), {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+      authToken: "secret",
+    });
+  }
+
+  /** A remote mount whose requests are recorded as they leave, headers and all. */
+  function mount(url: string, sent: Headers[]) {
+    return new RemoteStore({
+      id: "team",
+      url,
+      authProvider: { token: async () => "secret" },
+      timeoutMs: 10_000,
+      fetch: (async (input: string | URL | Request, init?: RequestInit) => {
+        sent.push(new Headers(init?.headers));
+        return fetch(input, init);
+      }) as typeof fetch,
+    });
+  }
+
+  it("is a client span, and the hosted server's spans join it through the headers and _meta", async () => {
+    telemetry = await startMemoryTelemetry();
+    const handle = await hosted();
+    const sent: Headers[] = [];
+    const remote = mount(handle.url, sent);
+    try {
+      await withSpan("ynm status", {}, () => remote.call("memory_status", {}));
+    } finally {
+      await remote.close();
+      await handle.close();
+    }
+    const { spans, logs } = await telemetry.exported();
+    const command = spans.find((s) => s.name === "ynm status");
+    const client = spans.find((s) => s.name === "tools/call memory_status" && s.kind === 2);
+    expect(client).toMatchObject({
+      traceId: command?.traceId,
+      parentSpanId: command?.spanId,
+      attributes: {
+        "mcp.method.name": "tools/call",
+        "gen_ai.tool.name": "memory_status",
+        "ynm.mount": "team",
+        "server.address": "127.0.0.1",
+        "ynm.outcome": "ok",
+      },
+    });
+    expect(logs.find((l) => l.eventName === "ynm.remote.started")?.spanId).toBe(client?.spanId);
+    // Every request the call made carried the client span's context.
+    const tp = `00-${client?.traceId}-${client?.spanId}-01`;
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.map((h) => h.get("traceparent"))).toEqual(sent.map(() => tp));
+    expect(sent.every((h) => h.get("authorization") === "Bearer secret")).toBe(true);
+    // The hosted server joined it: its request spans through the headers, its tool span through
+    // the call's _meta (otherwise it would be a child of its request span).
+    const requests = spans.filter((s) => s.name === "POST /mcp");
+    expect(requests.length).toBeGreaterThan(0);
+    expect(requests.every((s) => s.parentSpanId === client?.spanId)).toBe(true);
+    const served = spans.find((s) => s.name === "tools/call memory_status" && s.kind === 1);
+    expect(served).toMatchObject({ traceId: client?.traceId, parentSpanId: client?.spanId });
+  }, 30_000);
+
+  it("sends exactly what it did before when telemetry is off", async () => {
+    const handle = await hosted();
+    const sent: Headers[] = [];
+    const remote = mount(handle.url, sent);
+    try {
+      await withSpan("ynm status", {}, () => remote.call("memory_status", {}));
+    } finally {
+      await remote.close();
+      await handle.close();
+    }
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.some((h) => h.has("traceparent") || h.has("tracestate"))).toBe(false);
   }, 30_000);
 });
 
@@ -397,18 +495,63 @@ describe("the otel audit sink", () => {
     expect(Object.keys(seen[0]?.[0] ?? {})).not.toContain("handle");
   });
 
-  it("names a signed-in person by sign-in id and issuer host, never by email", () => {
+  it("names a signed-in person by sign-in name and issuer host, never by email", () => {
     const info = (extra: Record<string, unknown>): AuthInfo => ({
       token: "t",
       clientId: "c",
       scopes: [],
       extra,
     });
+    const SUB = "0b7c2f1e-uuid";
+    // preferred_username present: it names the person, not the opaque subject.
+    expect(handleOf(info({ iss: ISSUER, sub: SUB, [USERNAME_EXTRA]: "alice" }))).toBe(
+      "idp.example.com/alice"
+    );
+    // Absent: the subject stands in.
     expect(handleOf(info({ iss: ISSUER, sub: "alice" }))).toBe("idp.example.com/alice");
     expect(handleOf(info({ iss: "not a url", sub: "alice" }))).toBe("not a url/alice");
+    // An email sign-in name is never used: the subject stands in.
+    expect(handleOf(info({ iss: ISSUER, sub: SUB, [USERNAME_EXTRA]: "alice@example.com" }))).toBe(
+      `idp.example.com/${SUB}`
+    );
+    // Both emails: no handle.
+    expect(
+      handleOf(
+        info({ iss: ISSUER, sub: "alice@example.com", [USERNAME_EXTRA]: "alice@example.com" })
+      )
+    ).toBeUndefined();
     expect(handleOf(info({ iss: ISSUER, sub: "alice@example.com" }))).toBeUndefined();
+    // No subject is no signed-in person, whatever name the token carries.
+    expect(handleOf(info({ iss: ISSUER, [USERNAME_EXTRA]: "alice" }))).toBeUndefined();
     expect(handleOf(info({ iss: ISSUER }))).toBeUndefined();
     expect(handleOf(undefined)).toBeUndefined();
+  });
+
+  it("reads preferred_username for the handle only: the person id is the issuer and subject's", async () => {
+    const home = join(mkdtempSync(join(tmpdir(), "ynm-otel-person-")), ".ynm");
+    const opts = {
+      cwd: home,
+      env: { ...process.env, YNM_HOME: home, YNM_USER: "h", YNM_NO_CLAUDE_CLI: "1" },
+      noPersonal: true,
+    };
+    const getYnm = serviceCache(opts);
+    const { identify } = hostedAudit({ YNM_AUDIT: '{"sink":"off"}' }, true, getYnm);
+    const base = { token: "t", clientId: "c", scopes: [] };
+    const named = await identify({
+      ...base,
+      extra: { iss: ISSUER, sub: "0b7c", [USERNAME_EXTRA]: "alice" },
+    });
+    const renamed = await identify({
+      ...base,
+      extra: { iss: ISSUER, sub: "0b7c", [USERNAME_EXTRA]: "alice2" },
+    });
+    const unnamed = await identify({ ...base, extra: { iss: ISSUER, sub: "0b7c" } });
+    expect(named).toBeDefined();
+    expect(renamed).toBe(named);
+    expect(unnamed).toBe(named);
+    expect(
+      loginOf({ ...base, extra: { iss: ISSUER, sub: "0b7c", [USERNAME_EXTRA]: "alice" } })
+    ).toEqual({ issuer: ISSUER, subject: "0b7c" });
   });
 
   it("carries a signed-in caller's handle from a hosted server's audit", async () => {
@@ -420,7 +563,7 @@ describe("the otel audit sink", () => {
           clientId: "claude-code",
           scopes: [],
           expiresAt: Math.floor(Date.now() / 1000) + 3600,
-          extra: { iss: ISSUER, sub: "alice" },
+          extra: { iss: ISSUER, sub: "0b7c2f1e", [USERNAME_EXTRA]: "alice" },
         };
       },
     };
@@ -456,5 +599,7 @@ describe("the otel audit sink", () => {
     expect(audits.length).toBeGreaterThan(0);
     expect(audits.every((a) => a.attributes["user.name"] === "idp.example.com/alice")).toBe(true);
     expect(audits.every((a) => a.attributes["ynm.actor.kind"] === "human")).toBe(true);
+    // The subject is not the handle when the token carries a sign-in name.
+    expect(JSON.stringify(audits)).not.toContain("0b7c2f1e");
   }, 30_000);
 });

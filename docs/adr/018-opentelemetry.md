@@ -78,8 +78,8 @@ one line on stderr saying why.
 ### Lazy loading
 
 All of it lives in a new package, `@ynm/telemetry`, behind a facade (`withSpan`, `beginSpan`,
-`emitEvent`, `emitLog`, `flushTelemetry`, `shutdownTelemetry`) that imports no `@opentelemetry`
-module. `startTelemetry` loads the SDK with a dynamic `import()` only when the target is not off.
+`emitEvent`, `emitLog`, `traceEnv`, `tracedFetch`, `traceContext`, `flushTelemetry`,
+`shutdownTelemetry`) that imports no `@opentelemetry` module. `startTelemetry` loads the SDK with a dynamic `import()` only when the target is not off.
 Until then, and in every process where it never is, `withSpan(name, opts, fn)` is `fn(noop)`, and
 the store is not wrapped at all (below).
 
@@ -126,10 +126,51 @@ it unset, as a 4xx is the caller's doing.
 | CLI command | `ynm {command}`, internal | `YnmCommand._run` |
 | Store call | `store {append, scan, purge, sync, read_document, write_document}`, client | a proxy over each mount's `RecordLog`, applied in `openMounts` only when telemetry is on |
 | Dream run and pass | `dream` and `dream {pass}`, internal | `dream/engine.ts` |
+| Tool call to a hosted ynm | `tools/call {tool}`, client, with `mcp.method.name`, `gen_ai.tool.name`, `ynm.mount`, `server.address` | `RemoteStore.call` |
+| Model call | `model {provider}`, client, with `ynm.model.provider` (`claude-cli`, `openai-compatible`, `typesafe`) and `gen_ai.request.model` | each attempt of `ValidatingWriter.write`, and `TypeSafeJudge.judge` |
 
-Index queries, ranking and model calls are inside these spans and get none of their own. A call
-to a hosted ynm (an `mcp` mount) and the git and model processes ynm spawns are calls out that
-the contract would span and pass trace context to; they are left for a follow-up.
+Index queries and ranking are inside these spans and get none of their own. A model call's span
+covers one Claude CLI invocation or one HTTP request, so a writer's retry after an answer that
+failed validation is a second span.
+
+**A git command gets no span.** git is how the git-notes store does its work, not a system of
+its own: a store call already has a client span at that boundary, and one call runs several git
+processes (a sync runs a dozen or more, and reads are batched but still more than one), so a span
+each would multiply the store's spans without saying anything the store span does not. The
+network half of git, a sync's fetch and push, is inside `store sync`. git is still given the store
+span's trace context (below), which is what lets a hook it runs, such as ynm's pre-push hook, join
+the trace. The other processes ynm starts are not calls to another system either and get no span:
+the `claude --version` check before choosing a writer, and the agent CLIs `ynm client install`
+runs, which happen inside the command's span.
+
+### Passing the trace on
+
+ynm passes the active span's W3C trace context to everything it calls (ynr ADR-006, item 4),
+computed through the facade:
+
+- **Processes.** `traceEnv(env)` returns `env` with `TRACEPARENT`, and `TRACESTATE` or none, set
+  to the active span, replacing whatever ynm itself inherited, because the child belongs under
+  ynm's span, not beside it. It is used for every process ynm spawns: git (`@ynm/store`'s one
+  runner, so the service's git calls too), the Claude CLI (in `claudeCliEnv`), the `claude
+  --version` check, and `ynm client install`'s CLIs. With telemetry off, or outside any span, it
+  returns `env` itself, so a child inherits exactly what it did before, including a `TRACEPARENT`
+  ynm was given.
+- **HTTP.** `tracedFetch(f)` wraps a fetch so each request carries `traceparent` and `tracestate`
+  for the span it is sent in, decided per request, and passes its arguments through untouched
+  when there is nothing to add. It wraps the remote mount's MCP transport, the remote sign-in
+  (`ynm login`), token introspection, the OpenAI-compatible writer and the TypeSafe judge.
+- **MCP `_meta`.** A remote mount's tool call also carries `traceparent` and `tracestate` in its
+  `_meta`, which is where ynm's own server reads them for the tool span, so the hosted tool span
+  is a child of the caller's client span rather than of its own HTTP request span.
+
+Not covered: the JWKS fetch inside `jose`, which has no fetch seam and is cached for the process;
+the AWS SDK's requests to S3, which S3 does not join and which the store span already times; and
+the platform opener `ynm login` starts to show the browser, because a browser it launches would
+carry a stale `TRACEPARENT` for its whole life.
+
+Both helpers cost one branch when telemetry is off and import nothing. The command line of a
+spawned process is never an attribute: a model CLI's arguments hold the prompt, and git's can
+hold refs and paths.
 
 **Joining traces.** An HTTP request's span joins the W3C `traceparent`/`tracestate` headers; a
 tool call also reads them from the MCP request's `_meta`, which is how a stdio client passes
@@ -172,10 +213,25 @@ reason, tool names, call and error counts, memory ids, input bytes, result count
 redaction. It needs telemetry on; otherwise the sink is refused at start and audit stays off with a
 message, as for any bad setting.
 
-The person appears as a **handle** in `user.name`: the token's subject, qualified by the issuer's
-host, `idp.example.com/alice`. The subject is the sign-in id at the identity provider; ADR-017
-reads no other claim, so this reads none either. A subject that is an email address gives no
-handle. The ynm person id (`p…`) is not exported: it is ynm's own key, and the contract names
+The person appears as a **handle** in `user.name`: their login name at the identity provider,
+qualified by the issuer's host, `idp.example.com/alice`. The login name is the token's
+`preferred_username` (from introspection, `preferred_username` or else RFC 7662's `username`),
+because a provider such as Keycloak makes `sub` an opaque id that no one would recognise on a
+dashboard or match to another tool's events. The rules:
+
+- `preferred_username`, when the token carries one and it has no `@`;
+- else `sub`, when it has no `@`;
+- else no handle. A handle is never a name or an email, so an email login name falls back to the
+  subject, and when both are emails the event has no `user.name`.
+
+Only a signed-in person has a handle: a token with no `sub` has none, whatever name it carries.
+The verifiers carry the claim beside `iss` and `sub` in the request's auth info, and `handleOf`
+is its only reader. **ynm's own identity is unchanged:** the person id, the actor and provenance
+on records, `ynm people`, and the stdout, file and s3 audit sinks read `iss` and `sub` alone, as
+ADR-017 decides. A person whose login name changes keeps their person id; only the handle in
+telemetry follows the new name.
+
+The ynm person id (`p…`) is not exported: it is ynm's own key, and the contract names
 people in the system where they acted. `ynm.actor.kind` is `human` for a signed-in person and `bot`
 for a shared static token or a client acting with no subject.
 
@@ -237,6 +293,12 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
   contract and ADR-015's start-up budget ask us to avoid. The facade costs one branch.
 - **A separate optional download for the SDK.** Keeps the bundle at its old size, but turning
   telemetry on would need a second install, and the standalone binary has nowhere to put it.
+- **The subject alone as the handle.** It is what ADR-017 reads, and stable, but with Keycloak
+  and similar providers it is a UUID, so a dashboard would show ids no one recognises and could
+  not join ynm's events to other tools', which name people by login name.
+- **A span per git command.** Simple to add at the one runner, but a store call runs several, so
+  traces would fill with short spans that repeat what the store span says; the trace context
+  passed to git is what a child that reports telemetry needs.
 - **The person id as the handle.** Stable across identity providers and already pseudonymous,
   but the contract names people in the system where they acted, so a dashboard can join ynm's
   events to the identity provider's and to other tools'.
@@ -274,9 +336,6 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
 - **Conformance.** `.ynr/conformance.yaml` scenarios and `ynr conformance` as a required CI check.
   The canary and store-unchanged test above is the in-repo version of the check the scenarios
   will run.
-- **Calls out.** Child spans and trace context for calls to a hosted ynm, git and model processes.
-- **The username.** Whether to read `preferred_username` (an LDAP id, say) for the handle when the
-  subject is opaque. ADR-017 reads only `iss` and `sub` today.
 
 ## History
 
@@ -286,3 +345,11 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
   written with `@eyelock/otel-spool-exporter` 0.1.0, the once-a-minute recheck for servers, the
   spool's dropped and error counts, and hosted ynm writing to `services/ynm/` through `YNR_SPOOL`.
   Running `ynr serve` beside a deployment, the Lambda relay and conformance stay open.
+- 2026-10-05: calls out and the handle are decided. ynm passes the active span's trace context to
+  every process it spawns (`TRACEPARENT`, `TRACESTATE`) and on every HTTP request it makes to a
+  hosted ynm, an identity provider or a model API (the W3C headers, and the MCP `_meta` for a
+  remote mount's tool calls), through the facade's `traceEnv` and `tracedFetch`, which change
+  nothing when telemetry is off. A tool call to a hosted ynm and a model call are client spans
+  with their own events and metrics; a git command is not, the store call being the boundary.
+  The handle reads `preferred_username`, falling back to `sub`, never a value with an `@`; ynm's
+  own identity still reads only `iss` and `sub`. Still proposed.

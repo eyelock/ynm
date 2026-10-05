@@ -256,6 +256,9 @@ importers:
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
+      '@ynm/telemetry':
+        specifier: workspace:*
+        version: link:../telemetry
       zod:
         specifier: ^4.3.6
         version: 4.6.5
@@ -347,6 +350,9 @@ importers:
       '@ynm/model':
         specifier: workspace:*
         version: link:../model
+      '@ynm/telemetry':
+        specifier: workspace:*
+        version: link:../telemetry
     devDependencies:
       '@types/node':
         specifier: ^26.0.1
@@ -888,6 +894,13 @@ packages:
       '@opentelemetry/sdk-logs': '>=0.222.0 <1'
       '@opentelemetry/sdk-metrics': ^2.11.0
       '@opentelemetry/sdk-trace': ^2.11.0
+    peerDependenciesMeta:
+      '@opentelemetry/sdk-logs':
+        optional: true
+      '@opentelemetry/sdk-metrics':
+        optional: true
+      '@opentelemetry/sdk-trace':
+        optional: true
 
   '@hono/node-server@1.19.17':
     resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
@@ -2477,6 +2490,7 @@ snapshots:
     dependencies:
       '@opentelemetry/core': 2.11.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/otlp-transformer': 0.222.0(@opentelemetry/api@1.9.1)
+    optionalDependencies:
       '@opentelemetry/sdk-logs': 0.222.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-metrics': 2.11.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace': 2.11.0(@opentelemetry/api@1.9.1)

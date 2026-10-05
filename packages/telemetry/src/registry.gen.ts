@@ -52,6 +52,7 @@ export const ATTR_YNM_AUDIT_TOOLS = "ynm.audit.tools";
 export const ATTR_YNM_AUDIT_CALL_COUNT = "ynm.audit.call.count";
 export const ATTR_YNM_AUDIT_ERROR_COUNT = "ynm.audit.error.count";
 export const ATTR_YNM_AUDIT_DURATION_MS = "ynm.audit.duration_ms";
+export const ATTR_YNM_MODEL_PROVIDER = "ynm.model.provider";
 export const ATTR_YNM_TELEMETRY_SIGNAL = "ynm.telemetry.signal";
 export const ATTR_YNM_TELEMETRY_SIGNAL_VALUE_TRACES = "traces";
 export const ATTR_YNM_TELEMETRY_SIGNAL_VALUE_LOGS = "logs";
@@ -60,11 +61,13 @@ export const ATTR_YNM_TELEMETRY_SIGNAL_VALUE_METRICS = "metrics";
 // Upstream attributes ynm uses (semantic conventions v1.43.0)
 export const ATTR_ERROR_TYPE = "error.type";
 export const ATTR_GEN_AI_OPERATION_NAME = "gen_ai.operation.name";
+export const ATTR_GEN_AI_REQUEST_MODEL = "gen_ai.request.model";
 export const ATTR_GEN_AI_TOOL_NAME = "gen_ai.tool.name";
 export const ATTR_HTTP_REQUEST_METHOD = "http.request.method";
 export const ATTR_HTTP_RESPONSE_STATUS_CODE = "http.response.status_code";
 export const ATTR_HTTP_ROUTE = "http.route";
 export const ATTR_MCP_METHOD_NAME = "mcp.method.name";
+export const ATTR_SERVER_ADDRESS = "server.address";
 export const ATTR_URL_PATH = "url.path";
 export const ATTR_USER_NAME = "user.name";
 
@@ -73,6 +76,8 @@ export const EVENT_YNM_REQUEST_STARTED = "ynm.request.started";
 export const EVENT_YNM_TOOL_STARTED = "ynm.tool.started";
 export const EVENT_YNM_COMMAND_STARTED = "ynm.command.started";
 export const EVENT_YNM_STORE_STARTED = "ynm.store.started";
+export const EVENT_YNM_REMOTE_STARTED = "ynm.remote.started";
+export const EVENT_YNM_MODEL_STARTED = "ynm.model.started";
 export const EVENT_YNM_DREAM_STARTED = "ynm.dream.started";
 export const EVENT_YNM_DREAM_PASS_STARTED = "ynm.dream.pass.started";
 export const EVENT_YNM_AUDIT_REQUEST = "ynm.audit.request";
@@ -82,6 +87,8 @@ export const METRIC_YNM_HTTP_REQUEST_DURATION = "ynm.http.request.duration";
 export const METRIC_YNM_TOOL_CALL_DURATION = "ynm.tool.call.duration";
 export const METRIC_YNM_COMMAND_DURATION = "ynm.command.duration";
 export const METRIC_YNM_STORE_OPERATION_DURATION = "ynm.store.operation.duration";
+export const METRIC_YNM_REMOTE_CALL_DURATION = "ynm.remote.call.duration";
+export const METRIC_YNM_MODEL_CALL_DURATION = "ynm.model.call.duration";
 export const METRIC_YNM_DREAM_PASS_DURATION = "ynm.dream.pass.duration";
 export const METRIC_YNM_TELEMETRY_EXPORT_FAILURES = "ynm.telemetry.export.failures";
 export const METRIC_YNM_TELEMETRY_SPOOL_DROPPED = "ynm.telemetry.spool.dropped";
@@ -93,6 +100,8 @@ export const METRIC_CARDINALITY_LIMITS: Readonly<Record<string, number>> = {
   "ynm.tool.call.duration": 48,
   "ynm.command.duration": 96,
   "ynm.store.operation.duration": 144,
+  "ynm.remote.call.duration": 48,
+  "ynm.model.call.duration": 12,
   "ynm.dream.pass.duration": 21,
   "ynm.telemetry.export.failures": 3,
   "ynm.telemetry.spool.dropped": 1,
@@ -525,6 +534,22 @@ export const REGISTRY = {
           "stability": "development"
         },
         {
+          "id": "ynm.model.provider",
+          "type": "string",
+          "brief": "The model a call went to, by ynm's name for its kind: a writer (`claude-cli`, `openai-compatible`) or a judge (`typesafe`). Never the prompt or the answer.\n",
+          "examples": [
+            "claude-cli",
+            "openai-compatible",
+            "typesafe"
+          ],
+          "stability": "development",
+          "annotations": {
+            "ynm": {
+              "cardinality": 4
+            }
+          }
+        },
+        {
           "id": "ynm.telemetry.signal",
           "type": {
             "members": [
@@ -673,6 +698,66 @@ export const REGISTRY = {
       ]
     },
     {
+      "id": "span.ynm.remote.call",
+      "type": "span",
+      "span_kind": "client",
+      "stability": "development",
+      "brief": "One tool call to a hosted ynm behind a remote mount, named `tools/call {gen_ai.tool.name}`. Its HTTP requests carry the W3C `traceparent` and `tracestate` headers, and the call its MCP `_meta`, so the hosted server's spans join this trace.\n",
+      "attributes": [
+        {
+          "ref": "mcp.method.name"
+        },
+        {
+          "ref": "gen_ai.operation.name"
+        },
+        {
+          "ref": "gen_ai.tool.name"
+        },
+        {
+          "ref": "ynm.mount"
+        },
+        {
+          "ref": "server.address"
+        },
+        {
+          "ref": "ynm.outcome"
+        },
+        {
+          "ref": "error.type"
+        }
+      ],
+      "events": [
+        "ynm.remote.started"
+      ]
+    },
+    {
+      "id": "span.ynm.model.call",
+      "type": "span",
+      "span_kind": "client",
+      "stability": "development",
+      "brief": "One call to a model: an invocation of the Claude CLI, or a request to an OpenAI-compatible endpoint or TypeSafe, named `model {ynm.model.provider}`. A spawned CLI gets `TRACEPARENT` for this span. The prompt and the answer are never exported.\n",
+      "attributes": [
+        {
+          "ref": "ynm.model.provider"
+        },
+        {
+          "ref": "gen_ai.operation.name"
+        },
+        {
+          "ref": "gen_ai.request.model"
+        },
+        {
+          "ref": "ynm.outcome"
+        },
+        {
+          "ref": "error.type"
+        }
+      ],
+      "events": [
+        "ynm.model.started"
+      ]
+    },
+    {
       "id": "span.ynm.dream.run",
       "type": "span",
       "span_kind": "internal",
@@ -793,6 +878,33 @@ export const REGISTRY = {
       ]
     },
     {
+      "id": "event.ynm.remote.started",
+      "type": "event",
+      "name": "ynm.remote.started",
+      "stability": "development",
+      "brief": "A tool call to a hosted ynm began.",
+      "attributes": [
+        {
+          "ref": "gen_ai.tool.name"
+        },
+        {
+          "ref": "ynm.mount"
+        }
+      ]
+    },
+    {
+      "id": "event.ynm.model.started",
+      "type": "event",
+      "name": "ynm.model.started",
+      "stability": "development",
+      "brief": "A call to a model began.",
+      "attributes": [
+        {
+          "ref": "ynm.model.provider"
+        }
+      ]
+    },
+    {
       "id": "event.ynm.dream.started",
       "type": "event",
       "name": "ynm.dream.started",
@@ -821,7 +933,7 @@ export const REGISTRY = {
       "type": "event",
       "name": "ynm.audit.request",
       "stability": "development",
-      "brief": "One audited request, from the `otel` audit sink: metadata only, after the redaction patterns run. The person appears only by their handle, the sign-in id qualified by the identity provider's host, never by name or email.\n",
+      "brief": "One audited request, from the `otel` audit sink: metadata only, after the redaction patterns run. The person appears only by their handle: their login name at the identity provider (`preferred_username`, else the subject), qualified by its host, never a name or an email.\n",
       "attributes": [
         {
           "ref": "ynm.audit.id"
@@ -984,6 +1096,58 @@ export const REGISTRY = {
           "attribute_cardinality": {
             "ynm.store.operation": 6,
             "ynm.store.provider": 8,
+            "ynm.outcome": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.ynm.remote.call.duration",
+      "type": "metric",
+      "metric_name": "ynm.remote.call.duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "stability": "development",
+      "brief": "Duration of tool calls to a hosted ynm, as the caller saw them.",
+      "attributes": [
+        {
+          "ref": "gen_ai.tool.name"
+        },
+        {
+          "ref": "ynm.outcome"
+        }
+      ],
+      "annotations": {
+        "ynm": {
+          "cardinality_limit": 48,
+          "attribute_cardinality": {
+            "gen_ai.tool.name": 16,
+            "ynm.outcome": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.ynm.model.call.duration",
+      "type": "metric",
+      "metric_name": "ynm.model.call.duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "stability": "development",
+      "brief": "Duration of calls to models.",
+      "attributes": [
+        {
+          "ref": "ynm.model.provider"
+        },
+        {
+          "ref": "ynm.outcome"
+        }
+      ],
+      "annotations": {
+        "ynm": {
+          "cardinality_limit": 12,
+          "attribute_cardinality": {
+            "ynm.model.provider": 4,
             "ynm.outcome": 3
           }
         }

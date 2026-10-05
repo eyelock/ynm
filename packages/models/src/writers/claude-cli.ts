@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { traceEnv } from "@ynm/telemetry";
 import { ModelUnavailableError } from "../types.js";
 import { type RawCompletion, ValidatingWriter } from "./base.js";
 
@@ -17,13 +18,17 @@ export interface ClaudeCliOptions {
 /**
  * The environment for a spawned `claude` CLI. The key is dropped by default because current
  * Claude Code exits 1 when `ANTHROPIC_API_KEY` is set alongside a login, and these callers want
- * the login. Everything else passes through.
+ * the login. With telemetry on, `TRACEPARENT` (and `TRACESTATE`) name the active span, the model
+ * call's, so the CLI's own telemetry nests under ynm's. Everything else passes through.
  */
 export function claudeCliEnv(
   env: NodeJS.ProcessEnv,
   opts: { useApiKey?: boolean } = {}
 ): NodeJS.ProcessEnv {
-  const out: NodeJS.ProcessEnv = { ...env, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" };
+  const out: NodeJS.ProcessEnv = {
+    ...traceEnv(env),
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+  };
   if (!opts.useApiKey) delete out.ANTHROPIC_API_KEY;
   return out;
 }
@@ -36,6 +41,10 @@ export class ClaudeCliWriter extends ValidatingWriter {
   readonly name = "claude-cli";
   constructor(private readonly opts: ClaudeCliOptions = {}) {
     super();
+  }
+
+  protected override model(): string | undefined {
+    return this.opts.model;
   }
 
   protected complete(prompt: string): Promise<RawCompletion> {

@@ -14,6 +14,7 @@ function invalid(message: string): OAuthError {
   return new OAuthError(OAuthErrorCode.InvalidToken, message);
 }
 
+import { tracedFetch } from "@ynm/telemetry";
 import { createRemoteJWKSet, type JWTPayload, jwtVerify } from "jose";
 
 /**
@@ -39,6 +40,19 @@ export const CLIENT_ID_EXTRA = "client";
 export function clientIdOf(info: AuthInfo | undefined): string | undefined {
   const id = info?.extra?.[CLIENT_ID_EXTRA];
   return typeof id === "string" && id ? id : undefined;
+}
+
+/**
+ * The sign-in name a token carries (`preferred_username`, or RFC 7662's `username` in an
+ * introspection response), kept beside the subject for the telemetry handle only. ynm's own
+ * identity (the person id, actors, provenance and audit) reads `iss` and `sub` alone.
+ */
+export const USERNAME_EXTRA = "preferredUsername";
+
+/** The sign-in name a token carries, if it carries one. */
+export function usernameOf(info: AuthInfo | undefined): string | undefined {
+  const name = info?.extra?.[USERNAME_EXTRA];
+  return typeof name === "string" && name ? name : undefined;
 }
 
 /** A claim as a non-empty string, if it is one. */
@@ -87,7 +101,7 @@ export class IntrospectionVerifier implements OAuthTokenVerifier {
     const key = createHash("sha256").update(token).digest("hex");
     const hit = this.cache.get(key);
     if (hit && hit.until > Date.now()) return hit.info;
-    const f = this.opts.fetch ?? fetch;
+    const f = tracedFetch(this.opts.fetch);
     const res = await f(this.opts.url, {
       method: "POST",
       headers: {
@@ -105,6 +119,8 @@ export class IntrospectionVerifier implements OAuthTokenVerifier {
       exp?: number;
       sub?: string;
       iss?: string;
+      preferred_username?: string;
+      username?: string;
     };
     if (!data.active) throw invalid("token inactive");
     const info: AuthInfo = {
@@ -117,6 +133,7 @@ export class IntrospectionVerifier implements OAuthTokenVerifier {
         sub: data.sub,
         iss: data.iss ?? new URL(this.opts.url).origin,
         ...clientExtra(claim(data.client_id)),
+        ...usernameExtra(claim(data.preferred_username) ?? claim(data.username)),
       },
     };
     const until = Math.min(
@@ -165,6 +182,7 @@ export class JwksVerifier implements OAuthTokenVerifier {
         sub: payload.sub,
         iss: payload.iss,
         ...clientExtra(claim(payload.azp) ?? claim(payload.client_id)),
+        ...usernameExtra(claim(payload.preferred_username)),
       },
     };
   }
@@ -172,6 +190,10 @@ export class JwksVerifier implements OAuthTokenVerifier {
 
 function clientExtra(client: string | undefined): Record<string, string> {
   return client ? { [CLIENT_ID_EXTRA]: client } : {};
+}
+
+function usernameExtra(name: string | undefined): Record<string, string> {
+  return name ? { [USERNAME_EXTRA]: name } : {};
 }
 
 function scopesOf(payload: JWTPayload, claim?: string): string[] {
