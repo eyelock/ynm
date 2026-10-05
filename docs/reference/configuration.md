@@ -135,6 +135,7 @@ Models and consolidation thresholds, under the `dream` key. See
 | `dream.openai.apiKeyEnv` | string | `OPENAI_API_KEY` | Environment variable holding the key |
 | `dream.claude` | object |  | Claude CLI writer settings |
 | `dream.claude.model` | string |  | Model passed to `claude -p`; default: the CLI's own |
+| `dream.claude.useApiKey` | boolean | `false` | Keep `ANTHROPIC_API_KEY` for the CLI. By default it is removed so the CLI uses your Claude Code login |
 <!-- /gen:dream-keys -->
 
 An uncalibrated judge (`heuristic`, `writer-emulated`) never reaches the act band: at or above

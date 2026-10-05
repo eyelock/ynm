@@ -45,6 +45,10 @@ describe("DreamConfigSchema", () => {
     expect(c.thresholds.reflect).toEqual({ minEpisodes: 3, flagAt: 0.7 });
     expect(c.typesafe.apiKeyEnv).toBe("TYPESAFE_API_KEY");
     expect(c.openai.baseUrl).toBe("http://localhost:11434/v1");
+    expect(c.claude.useApiKey).toBe(false);
+  });
+  it("accepts dream.claude.useApiKey", () => {
+    expect(DreamConfigSchema.parse({ claude: { useApiKey: true } }).claude.useApiKey).toBe(true);
   });
   it("accepts a review threshold equal to or below act", () => {
     expect(

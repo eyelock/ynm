@@ -133,6 +133,12 @@ export const DreamConfigSchema = z
           .string()
           .optional()
           .describe("Model passed to `claude -p`; default: the CLI's own"),
+        useApiKey: z
+          .boolean()
+          .default(false)
+          .describe(
+            "Keep `ANTHROPIC_API_KEY` for the CLI. By default it is removed so the CLI uses your Claude Code login"
+          ),
       })
       .prefault({})
       .describe("Claude CLI writer settings"),

@@ -7,11 +7,30 @@ export interface ClaudeCliOptions {
   /** Command to run; default `claude`. */
   command?: string;
   timeoutMs?: number;
+  /**
+   * Keep `ANTHROPIC_API_KEY` in the child's environment so the CLI runs on the API key instead
+   * of the person's Claude Code login. Default false.
+   */
+  useApiKey?: boolean;
+}
+
+/**
+ * The environment for a spawned `claude` CLI. The key is dropped by default because current
+ * Claude Code exits 1 when `ANTHROPIC_API_KEY` is set alongside a login, and these callers want
+ * the login. Everything else passes through.
+ */
+export function claudeCliEnv(
+  env: NodeJS.ProcessEnv,
+  opts: { useApiKey?: boolean } = {}
+): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = { ...env, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" };
+  if (!opts.useApiKey) delete out.ANTHROPIC_API_KEY;
+  return out;
 }
 
 /**
  * Writer over Claude Code headless (`claude -p --output-format json`): uses the user's own
- * Claude session, no API key. Slow (seconds per call) but always available where Claude Code is.
+ * Claude session, not an API key (`ANTHROPIC_API_KEY` is removed from the child unless `useApiKey`). Slow (seconds per call) but always available where Claude Code is.
  */
 export class ClaudeCliWriter extends ValidatingWriter {
   readonly name = "claude-cli";
@@ -33,7 +52,7 @@ export class ClaudeCliWriter extends ValidatingWriter {
     return new Promise((resolve, reject) => {
       const child = spawn(this.opts.command ?? "claude", args, {
         stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
+        env: claudeCliEnv(process.env, { useApiKey: this.opts.useApiKey }),
       });
       let out = "";
       let err = "";

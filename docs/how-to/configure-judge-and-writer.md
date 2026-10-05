@@ -56,7 +56,16 @@ the variable to read.
 { "dream": { "writer": "claude-cli", "claude": { "model": "sonnet" } } }
 ```
 
-It runs headless `claude -p` on your subscription, so no key is needed.
+It runs headless `claude -p` on your Claude Code login, so no key is needed. ynm removes
+`ANTHROPIC_API_KEY` from the environment it gives the CLI, even when the key is in your shell,
+`~/.ynm/env` or a repo `.env`: current Claude Code refuses to run when both a key and a login are
+present. To run the CLI on the API key instead, opt in:
+
+```json
+{ "dream": { "writer": "claude-cli", "claude": { "useApiKey": true } } }
+```
+
+Only `ANTHROPIC_API_KEY` is removed; the rest of the environment is passed through.
 
 ### An OpenAI-compatible endpoint (Ollama, vLLM, a hosted API)
 
