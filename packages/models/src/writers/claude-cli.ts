@@ -15,11 +15,16 @@ export interface ClaudeCliOptions {
   useApiKey?: boolean;
 }
 
+/** Claude Code settings that put prompt or tool content into its telemetry; never passed on. */
+const CONTENT_LOGGING = ["OTEL_LOG_USER_PROMPTS", "OTEL_LOG_TOOL_DETAILS"] as const;
+
 /**
  * The environment for a spawned `claude` CLI. The key is dropped by default because current
  * Claude Code exits 1 when `ANTHROPIC_API_KEY` is set alongside a login, and these callers want
  * the login. With telemetry on, `TRACEPARENT` (and `TRACESTATE`) name the active span, the model
- * call's, so the CLI's own telemetry nests under ynm's. Everything else passes through.
+ * call's, so the CLI's own telemetry nests under ynm's. Claude Code's content logging is always
+ * off: a prompt here carries memory content, so an inherited `OTEL_LOG_USER_PROMPTS` or
+ * `OTEL_LOG_TOOL_DETAILS` is dropped. Everything else passes through.
  */
 export function claudeCliEnv(
   env: NodeJS.ProcessEnv,
@@ -30,6 +35,7 @@ export function claudeCliEnv(
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
   };
   if (!opts.useApiKey) delete out.ANTHROPIC_API_KEY;
+  for (const key of CONTENT_LOGGING) delete out[key];
   return out;
 }
 
