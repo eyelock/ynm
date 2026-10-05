@@ -4,10 +4,11 @@
 // `node dist-release/ynm.mjs`). Runs --version, --help and serve --help, an init/remember/recall
 // round trip in a throwaway YNM_HOME, and one MCP exchange over stdio (initialize, the
 // session-start prompt, which is embedded guidance), and one command with telemetry on, whose spans
-// must reach a local OTLP endpoint. Prints each step; exits 1 on the first failure.
+// must reach a local OTLP endpoint, and one writing to a ynr spool folder. Prints each step; exits
+// 1 on the first failure.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -26,8 +27,9 @@ mkdirSync(home);
 mkdirSync(work);
 const env = { ...process.env, HOME: home, YNM_HOME: join(home, ".ynm") };
 delete env.YNM_CONFIG;
-// Telemetry is off unless a step turns it on.
-for (const key of Object.keys(env)) if (key.startsWith("OTEL_")) delete env[key];
+// Telemetry is off unless a step turns it on (HOME above has no ynr spool either).
+for (const key of Object.keys(env))
+  if (key.startsWith("OTEL_") || key === "YNR_SPOOL" || key === "XDG_STATE_HOME") delete env[key];
 
 let failed = false;
 function step(name, ok, detail) {
@@ -66,6 +68,13 @@ try {
     otlp.status === 0 && otlp.paths.includes("/v1/traces"),
     `exit ${otlp.status}, ${otlp.paths.join(" ") || "no exports"}`
   );
+
+  const spool = await withSpool("status");
+  step(
+    "status with a ynr spool: spans are written to it",
+    spool.status === 0 && spool.spans,
+    `exit ${spool.status}, ${spool.files.join(" ") || "no files"}`
+  );
 } finally {
   rmSync(scratch, { recursive: true, force: true });
 }
@@ -94,6 +103,30 @@ async function withTelemetry(...args) {
   });
   server.close();
   return { status, paths: [...new Set(paths)].sort() };
+}
+
+/**
+ * Runs one command with YNR_SPOOL set to a fresh folder and returns its exit status, the files it
+ * left there, and whether they hold a span: proof the bundled spool exporter loads and writes.
+ */
+async function withSpool(...args) {
+  const dir = join(scratch, "spool", "local");
+  const status = await new Promise((resolve) => {
+    const child = spawn(cmd, [...pre, ...args], {
+      cwd: work,
+      env: { ...env, YNR_SPOOL: dir },
+      stdio: "ignore",
+    });
+    child.on("exit", (code) => resolve(code));
+  });
+  let files = [];
+  try {
+    files = readdirSync(dir).sort();
+  } catch {}
+  const spans = files
+    .filter((f) => f.endsWith(".jsonl"))
+    .some((f) => readFileSync(join(dir, f), "utf8").includes('"resourceSpans"'));
+  return { status, files, spans };
 }
 
 /** Starts `serve` on stdio, initializes, fetches one prompt, and returns its text. */

@@ -1,8 +1,15 @@
 /**
- * The OpenTelemetry SDK, set up for ynm. Only ever loaded by `startTelemetry` through a dynamic
- * import, so a process with telemetry off never loads any of this (ADR-018).
+ * The OpenTelemetry SDK, set up for ynm, and the ynr spool exporter. Only ever loaded by
+ * `startTelemetry` through a dynamic import, so a process with telemetry off never loads any of
+ * this (ADR-018).
  */
 import { randomUUID } from "node:crypto";
+import {
+  SpoolLogExporter,
+  SpoolMetricExporter,
+  SpoolSpanExporter,
+  SpoolWriter,
+} from "@eyelock/otel-spool-exporter";
 import {
   type Context,
   context,
@@ -45,6 +52,8 @@ import {
   ATTR_YNM_TELEMETRY_SIGNAL,
   METRIC_CARDINALITY_LIMITS,
   METRIC_YNM_TELEMETRY_EXPORT_FAILURES,
+  METRIC_YNM_TELEMETRY_SPOOL_DROPPED,
+  METRIC_YNM_TELEMETRY_SPOOL_ERRORS,
   REGISTRY,
 } from "./registry.gen.js";
 import type {
@@ -53,10 +62,10 @@ import type {
   LogLevel,
   OpenSpan,
   Outcome,
-  Protocol,
   Signal,
   SpanHandle,
   SpanOptions,
+  Target,
 } from "./telemetry.js";
 
 /** What the facade calls once the SDK is running. */
@@ -72,7 +81,8 @@ export interface Runtime {
 export interface RuntimeOptions {
   version: string;
   env: NodeJS.ProcessEnv;
-  signals: Partial<Record<Signal, Protocol>>;
+  /** Where to write; ignored when `exporters` is given. */
+  target: Exclude<Target, { kind: "off" }>;
   exporters?: { spans?: unknown; logs?: unknown; metrics?: unknown };
   exportTimeoutMs?: number;
   /** The facade's attribute cleaner: drops undefined, redacts strings, leaves namespaces out. */
@@ -131,7 +141,11 @@ function guarded<E extends object>(inner: E, signal: Signal, failures: Record<Si
  * exporters read it themselves). `timeoutMs` caps how long one
  * export, retries included, may keep a short-lived process alive after its work is done.
  */
-function otlpExporters(signals: RuntimeOptions["signals"], env: NodeJS.ProcessEnv, cap?: number) {
+function otlpExporters(
+  signals: Extract<Target, { kind: "otlp" }>["signals"],
+  env: NodeJS.ProcessEnv,
+  cap?: number
+) {
   const json = (s: Signal) => signals[s] === "http/json";
   const fromEnv = Number(env.OTEL_EXPORTER_OTLP_TIMEOUT);
   const configured = Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 10_000;
@@ -160,20 +174,51 @@ function metricInterval(env: NodeJS.ProcessEnv): number {
   return Number.isFinite(n) && n > 0 ? n : 60_000;
 }
 
-export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
-  const { clean, env } = opts;
-  const exporters = (opts.exporters ?? otlpExporters(opts.signals, env, opts.exportTimeoutMs)) as {
-    spans?: SpanExporter;
-    logs?: LogRecordExporter;
-    metrics?: PushMetricExporter;
+/**
+ * The spool exporters, sharing one writer that names its files after the service and instance:
+ * `<service>-<instance id>-<seq>.jsonl` in the writer folder.
+ */
+function spoolExporters(
+  target: Extract<Target, { kind: "spool" }>,
+  resource: { attributes: Record<string, unknown> },
+  cap?: number
+) {
+  const writer = new SpoolWriter({
+    dir: target.dir,
+    service: String(resource.attributes["service.name"] ?? "ynm"),
+    instanceId: String(resource.attributes["service.instance.id"] ?? randomUUID()),
+    ...(cap ? { syncTimeoutMs: cap } : {}),
+  });
+  const on = (s: Signal) => target.signals.includes(s);
+  return {
+    writer,
+    spans: on("traces") ? new SpoolSpanExporter(writer) : undefined,
+    logs: on("logs") ? new SpoolLogExporter(writer) : undefined,
+    metrics: on("metrics") ? new SpoolMetricExporter(writer) : undefined,
   };
-  const failures: Record<Signal, number> = { traces: 0, logs: 0, metrics: 0 };
+}
+
+export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
+  const { clean, env, target } = opts;
   // OTEL_RESOURCE_ATTRIBUTES and OTEL_SERVICE_NAME win over ynm's own values.
   const resource = resourceFromAttributes({
     "service.name": "ynm",
     "service.version": opts.version,
     "service.instance.id": randomUUID(),
   }).merge(detectResources({ detectors: [envDetector] }));
+  const spool =
+    !opts.exporters && target.kind === "spool"
+      ? spoolExporters(target, resource, opts.exportTimeoutMs)
+      : undefined;
+  const writer = spool?.writer;
+  const exporters = (opts.exporters ??
+    spool ??
+    otlpExporters(target.kind === "otlp" ? target.signals : {}, env, opts.exportTimeoutMs)) as {
+    spans?: SpanExporter;
+    logs?: LogRecordExporter;
+    metrics?: PushMetricExporter;
+  };
+  const failures: Record<Signal, number> = { traces: 0, logs: 0, metrics: 0 };
 
   const tracerProvider = new TracerProvider({
     resource,
@@ -225,6 +270,15 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
       for (const [signal, n] of Object.entries(failures))
         result.observe(n, { [ATTR_YNM_TELEMETRY_SIGNAL]: signal });
     });
+  // The spool writer never reports a failure to the SDK; what it could not do is counted here.
+  if (writer) {
+    meter
+      .createObservableCounter(METRIC_YNM_TELEMETRY_SPOOL_DROPPED, { unit: "{record}" })
+      .addCallback((result) => result.observe(writer.stats().dropped));
+    meter
+      .createObservableCounter(METRIC_YNM_TELEMETRY_SPOOL_ERRORS, { unit: "{operation}" })
+      .addCallback((result) => result.observe(writer.stats().errors));
+  }
   const histograms = new Map<string, Histogram>();
 
   const extract = (carrier: Record<string, string | null | undefined>): Context | undefined => {
@@ -359,13 +413,16 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
         context: context.active(),
       });
     },
+    // The end of a unit of work: export what is buffered, then put the spool file on disk.
     async flush() {
       await Promise.allSettled([
         tracerProvider.forceFlush(),
         loggerProvider.forceFlush(),
         meterProvider.forceFlush(),
       ]);
+      await writer?.sync();
     },
+    // The providers flush as they shut down; the writer closes after them, renaming its file.
     async shutdown() {
       await Promise.allSettled([
         tracerProvider.shutdown(),
@@ -373,6 +430,7 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
         meterProvider.shutdown(),
       ]);
       context.disable();
+      await writer?.close();
     },
   };
 }

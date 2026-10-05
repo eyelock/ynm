@@ -1,19 +1,27 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSpool } from "@ynm/telemetry/testing";
 import { bin, testEnv, ynm } from "./helpers.js";
 
 const recorder = fileURLToPath(new URL("./fixtures/record-otel-modules.mjs", import.meta.url));
 
-/** The environment with every OTEL_* variable removed: telemetry off, whatever the shell has. */
+/**
+ * The environment with every OTEL_* variable and the ynr spool removed: telemetry off, whatever
+ * the shell has (the test config points XDG_STATE_HOME at a folder that does not exist).
+ */
 function withoutOtel(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const env = testEnv(extra);
   for (const key of Object.keys(env))
-    if (key.startsWith("OTEL_") && !(key in extra)) delete env[key];
+    if ((key.startsWith("OTEL_") || key === "YNR_SPOOL") && !(key in extra)) delete env[key];
   return env;
 }
+
+const TRACE = "4bf92f3577b34da6a3ce929d0e0e4736";
+const PARENT = "00f067aa0ba902b7";
+const isSpoolModule = (url: string) => /[\\/]@eyelock[\\/]otel-spool-exporter[\\/]/.test(url);
 
 /** Runs the CLI with the module recorder and returns its result and every OpenTelemetry module it loaded. */
 function traced(cwd: string, env: NodeJS.ProcessEnv, args: string[], input = "") {
@@ -85,6 +93,63 @@ describe("telemetry off loads nothing", () => {
     for (const args of [["forget", "--memory-id", "01XXXXXXXXXXXXXXXXXXXXXXXX"], ["nope"]]) {
       const a = traced(cwd, off, args);
       const b = traced(cwd, on, args);
+      expect(a.status).not.toBe(0);
+      expect(b.status).toBe(a.status);
+      expect(b.stdout).toBe(a.stdout);
+    }
+  });
+});
+
+describe("telemetry to a ynr spool", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "ynm-otel-spool-cli-"));
+
+  it("writes each command's span, events and metrics as OTLP JSON lines, joining TRACEPARENT", () => {
+    const dir = join(mkdtempSync(join(tmpdir(), "ynm-spool-")), "local");
+    const env = withoutOtel({ YNR_SPOOL: dir, TRACEPARENT: `00-${TRACE}-${PARENT}-01` });
+    const r = traced(cwd, env, ["remember", "--type", "semantic", "--content", "spooled"]);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.modules.some(isSpoolModule)).toBe(true);
+    const spooled = readSpool(dir);
+    // Closed on exit: no file is left open.
+    expect(spooled.files.length).toBeGreaterThan(0);
+    expect(spooled.files.every((f) => /^ynm-[\w-]+-\d+\.jsonl$/.test(f))).toBe(true);
+    const command = spooled.spans.find((s) => s.name === "ynm remember");
+    expect(command).toMatchObject({ traceId: TRACE, parentSpanId: PARENT });
+    expect(spooled.spans.find((s) => s.name === "store append")).toMatchObject({
+      traceId: TRACE,
+      kind: 3,
+    });
+    expect(spooled.events).toEqual(
+      expect.arrayContaining(["ynm.command.started", "ynm.store.started"])
+    );
+    expect(spooled.metrics).toEqual(
+      expect.arrayContaining(["ynm.command.duration", "ynm.telemetry.spool.dropped"])
+    );
+    expect(spooled.text).not.toContain("spooled");
+  });
+
+  it("ynm hook stays silent and loads nothing, even with a spool", () => {
+    const dir = join(mkdtempSync(join(tmpdir(), "ynm-spool-")), "local");
+    const input = JSON.stringify({ session_id: "s", cwd, hook_event_name: "SessionStart" });
+    const r = traced(cwd, withoutOtel({ YNR_SPOOL: dir }), ["hook", "session-start"], input);
+    expect(r.status).toBe(0);
+    expect(r.modules).toEqual([]);
+    expect(readSpool(dir).files).toEqual([]);
+  });
+
+  it("an unwritable spool changes no exit code and no output", () => {
+    const file = join(mkdtempSync(join(tmpdir(), "ynm-spool-")), "not-a-folder");
+    writeFileSync(file, "");
+    const off = withoutOtel();
+    const broken = withoutOtel({ YNR_SPOOL: join(file, "local") });
+    const ok = traced(cwd, broken, ["status", "--json"]);
+    expect(ok.status, ok.stderr).toBe(0);
+    expect(ok.modules.some(isSpoolModule)).toBe(true);
+    expect(ok.ms).toBeLessThan(15_000);
+    expect(JSON.parse(ok.stdout).name).toBe("ynm");
+    for (const args of [["forget", "--memory-id", "01XXXXXXXXXXXXXXXXXXXXXXXX"], ["nope"]]) {
+      const a = traced(cwd, off, args);
+      const b = traced(cwd, broken, args);
       expect(a.status).not.toBe(0);
       expect(b.status).toBe(a.status);
       expect(b.stdout).toBe(a.stdout);

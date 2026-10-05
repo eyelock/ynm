@@ -94,13 +94,15 @@ export async function main(argv: readonly string[]): Promise<void> {
     process.stdout.write(`ynm-mcp ${MCP_VERSION}\n`);
     return;
   }
-  // Telemetry starts before the store opens, so store calls are spans; with no OTLP endpoint in
-  // the environment nothing is loaded (ADR-018).
+  // Telemetry starts before the store opens, so store calls are spans; with no OTLP endpoint and
+  // no ynr spool nothing is loaded (ADR-018). A server is long-lived, so with neither it looks
+  // for the spool again once a minute.
   // A stdio server ends when its client closes stdin, so its exports are bounded as a command's.
   await startTelemetry({
     version: MCP_VERSION,
     redaction: DEFAULT_REDACTION,
     bridgeConsole: true,
+    recheck: true,
     exportTimeoutMs: args.mode === "stdio" ? 2000 : undefined,
   });
   const opts = { cwd: args.cwd, noPersonal: args.noPersonal };

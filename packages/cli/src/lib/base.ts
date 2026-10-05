@@ -47,8 +47,8 @@ export abstract class YnmCommand extends Command {
 
   /**
    * With telemetry on, the command runs as one span that joins the TRACEPARENT it was started
-   * with, and what is buffered is flushed, for at most two seconds, before the process exits
-   * (ADR-018). With it off, nothing is loaded and the command runs as it always has. Errors and
+   * with, and what is buffered is flushed, for at most two seconds, before the process exits;
+   * a spool file is put on disk and closed (ADR-018). With it off, nothing is loaded and the command runs as it always has. Errors and
    * exit codes pass through unchanged.
    */
   protected override async _run<T>(): Promise<T> {

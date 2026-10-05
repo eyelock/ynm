@@ -1,5 +1,10 @@
+# syntax=docker/dockerfile:1
 # ynm hosted service (ADR-009): Streamable HTTP MCP server in front of a bare git repo (or sqlite),
 # single writer, dream worker on a timer. `docker compose -f infra/docker/docker-compose.yml up`.
+#
+# Installing needs a GitHub token with read:packages for @eyelock/otel-spool-exporter, passed as a
+# BuildKit secret so it is in no layer and no build arg:
+#   YNR_READ_PACKAGES=$(gh auth token) docker build --secret id=ynr_read_packages,env=YNR_READ_PACKAGES -t ynm:local .
 FROM node:26-alpine AS build
 # Node 25+ no longer bundles corepack; install it, then activate the pnpm that package.json pins.
 RUN apk add --no-cache git && npm install -g corepack && corepack enable && corepack prepare pnpm@9.15.4 --activate
@@ -7,7 +12,11 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc turbo.json ./
 COPY packages ./packages
 COPY integrations ./integrations
-RUN pnpm install --frozen-lockfile
+# The user npmrc names the variable, not the token, and is removed in the same step.
+RUN --mount=type=secret,id=ynr_read_packages,env=YNR_READ_PACKAGES \
+    echo '//npm.pkg.github.com/:_authToken=${YNR_READ_PACKAGES}' > /root/.npmrc && \
+    pnpm install --frozen-lockfile && \
+    rm /root/.npmrc
 RUN pnpm build
 
 FROM node:26-alpine

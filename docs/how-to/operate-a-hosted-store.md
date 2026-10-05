@@ -147,6 +147,20 @@ the query string, or anything from the request or response body beyond the metho
 The fields are the same as a Lambda function's request line, described in
 [Host ynm on AWS Lambda](host-on-aws-lambda.md#one-line-per-request).
 
+## Telemetry
+
+The server sends spans, events and metrics for each request, tool call, store call and dream pass
+when you give it somewhere to send them, and nothing otherwise:
+
+- an OpenTelemetry collector: set `OTEL_EXPORTER_OTLP_ENDPOINT` (it wins over a spool);
+- a ynr spool, with `ynr serve` running beside the server and reading the same volume: set
+  `YNR_SPOOL` to the `services/ynm` folder under the spool's root, such as
+  `YNR_SPOOL=/var/lib/ynr/spool/services/ynm` (with Docker, mount that volume into the container
+  too). Starting and keeping `ynr serve` running is your deployment's job, as for any sidecar.
+
+A server that starts before the spool folder exists looks again once a minute. See
+[Send telemetry to an OpenTelemetry collector](send-telemetry.md#when-hosted).
+
 ## Audit
 
 Every request that reaches the MCP handler, and every refused one, produces one audit event:

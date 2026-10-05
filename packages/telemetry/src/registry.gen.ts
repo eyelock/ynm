@@ -84,6 +84,8 @@ export const METRIC_YNM_COMMAND_DURATION = "ynm.command.duration";
 export const METRIC_YNM_STORE_OPERATION_DURATION = "ynm.store.operation.duration";
 export const METRIC_YNM_DREAM_PASS_DURATION = "ynm.dream.pass.duration";
 export const METRIC_YNM_TELEMETRY_EXPORT_FAILURES = "ynm.telemetry.export.failures";
+export const METRIC_YNM_TELEMETRY_SPOOL_DROPPED = "ynm.telemetry.spool.dropped";
+export const METRIC_YNM_TELEMETRY_SPOOL_ERRORS = "ynm.telemetry.spool.errors";
 
 /** Each metric's declared cardinality limit, which the SDK enforces. */
 export const METRIC_CARDINALITY_LIMITS: Readonly<Record<string, number>> = {
@@ -92,7 +94,9 @@ export const METRIC_CARDINALITY_LIMITS: Readonly<Record<string, number>> = {
   "ynm.command.duration": 96,
   "ynm.store.operation.duration": 144,
   "ynm.dream.pass.duration": 21,
-  "ynm.telemetry.export.failures": 3
+  "ynm.telemetry.export.failures": 3,
+  "ynm.telemetry.spool.dropped": 1,
+  "ynm.telemetry.spool.errors": 1
 };
 
 /** The whole registry, as `ynm telemetry registry --format json` prints it. */
@@ -1030,6 +1034,36 @@ export const REGISTRY = {
           "attribute_cardinality": {
             "ynm.telemetry.signal": 3
           }
+        }
+      }
+    },
+    {
+      "id": "metric.ynm.telemetry.spool.dropped",
+      "type": "metric",
+      "metric_name": "ynm.telemetry.spool.dropped",
+      "instrument": "counter",
+      "unit": "{record}",
+      "stability": "development",
+      "brief": "Spans, log records and metric points the ynr spool writer did not write: its files reached their cap, one export was over the line limit, or the writer had closed. Reported only when writing to the spool.\n",
+      "attributes": [],
+      "annotations": {
+        "ynm": {
+          "cardinality_limit": 1
+        }
+      }
+    },
+    {
+      "id": "metric.ynm.telemetry.spool.errors",
+      "type": "metric",
+      "metric_name": "ynm.telemetry.spool.errors",
+      "instrument": "counter",
+      "unit": "{operation}",
+      "stability": "development",
+      "brief": "Filesystem operations on the ynr spool that failed or ran past their time bound (a write, a flush to disk, a rotation). They are counted here, never reported. Reported only when writing to the spool.\n",
+      "attributes": [],
+      "annotations": {
+        "ynm": {
+          "cardinality_limit": 1
         }
       }
     }

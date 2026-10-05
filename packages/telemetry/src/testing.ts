@@ -3,6 +3,8 @@
  * received as plain data, so a test can assert on spans, events, logs and metrics, or search all
  * of it for a string that must never be exported.
  */
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { InMemoryLogRecordExporter } from "@opentelemetry/sdk-logs";
 import {
   AggregationTemporality,
@@ -96,4 +98,62 @@ export async function startMemoryTelemetry(
     },
     stop: () => shutdownTelemetry(5000),
   };
+}
+
+/** A span as the spool holds it (OTLP JSON: hex ids, the OTLP span kind numbering). */
+export interface SpooledSpan {
+  name: string;
+  /** OTLP's numbering: 1 internal, 2 server, 3 client. */
+  kind: number;
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  attributes: Record<string, unknown>;
+}
+
+export interface Spooled {
+  /** The writer folder's file names, sorted. */
+  files: string[];
+  spans: SpooledSpan[];
+  /** Event names of the log records that are events. */
+  events: string[];
+  /** Names of the metrics written. */
+  metrics: string[];
+  /** Every line of every file, for searching. */
+  text: string;
+}
+
+type OtlpAttribute = { key: string; value: Record<string, unknown> };
+const attributesOf = (list: OtlpAttribute[] = []) =>
+  Object.fromEntries(list.map((a) => [a.key, Object.values(a.value)[0]]));
+
+/** Reads a spool writer folder: every complete OTLP JSON line in its `.jsonl` files. */
+export function readSpool(dir: string): Spooled {
+  const files = existsSync(dir) ? readdirSync(dir).sort() : [];
+  const lines = files
+    .filter((f) => f.endsWith(".jsonl"))
+    .flatMap((f) => readFileSync(join(dir, f), "utf8").split("\n"))
+    .filter((l) => l.trim() !== "");
+  const out: Spooled = { files, spans: [], events: [], metrics: [], text: lines.join("\n") };
+  for (const line of lines) {
+    const req = JSON.parse(line);
+    for (const rs of req.resourceSpans ?? [])
+      for (const ss of rs.scopeSpans ?? [])
+        for (const s of ss.spans ?? [])
+          out.spans.push({
+            name: s.name,
+            kind: s.kind,
+            traceId: s.traceId,
+            spanId: s.spanId,
+            parentSpanId: s.parentSpanId || undefined,
+            attributes: attributesOf(s.attributes),
+          });
+    for (const rl of req.resourceLogs ?? [])
+      for (const sl of rl.scopeLogs ?? [])
+        for (const l of sl.logRecords ?? []) if (l.eventName) out.events.push(l.eventName);
+    for (const rm of req.resourceMetrics ?? [])
+      for (const sm of rm.scopeMetrics ?? [])
+        for (const m of sm.metrics ?? []) out.metrics.push(m.name);
+  }
+  return out;
 }

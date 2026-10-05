@@ -5,7 +5,8 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import type { AuthInfo, OAuthTokenVerifier } from "@modelcontextprotocol/server";
 import { type MemoryRecord, ulid } from "@ynm/model";
 import { FsLog } from "@ynm/store";
-import { type MemoryTelemetry, startMemoryTelemetry } from "@ynm/telemetry/testing";
+import { shutdownTelemetry, startTelemetry } from "@ynm/telemetry";
+import { type MemoryTelemetry, readSpool, startMemoryTelemetry } from "@ynm/telemetry/testing";
 import { type AuditEvent, Auditor, type AuditSink, auditSinkFromEnv, otelSink } from "./audit.js";
 import { handleOf, hostedAudit } from "./identity.js";
 import { createLambdaHandler, type FunctionUrlEvent, type LambdaHandler } from "./lambda.js";
@@ -22,7 +23,10 @@ let telemetry: MemoryTelemetry | undefined;
 afterEach(async () => {
   await telemetry?.stop();
   telemetry = undefined;
+  await shutdownTelemetry();
 });
+
+const spoolDir = () => join(mkdtempSync(join(tmpdir(), "ynm-spool-")), "services", "ynm");
 
 /** A fetch that goes through the Lambda handler as a Function URL would call it. */
 function viaLambda(handler: LambdaHandler): typeof fetch {
@@ -65,6 +69,8 @@ function lambdaEnv(extra: NodeJS.ProcessEnv = {}) {
       YNM_LAMBDA_ALLOW_OPEN: "1",
       YNM_HOME: join(root, "home"),
       YNM_USER: "lambda",
+      // No ynr spool from the developer's home: the test config points this nowhere.
+      XDG_STATE_HOME: process.env.XDG_STATE_HOME,
       YNM_MOUNTS: JSON.stringify([
         { id: "team", level: "distributed", provider: "fs", path: store },
       ]),
@@ -179,6 +185,63 @@ describe("trace context", () => {
   }, 30_000);
 });
 
+describe("to a ynr spool", () => {
+  it("an HTTP request with a traceparent writes its server span into the caller's trace", async () => {
+    const dir = spoolDir();
+    expect(await startTelemetry({ version: "1", env: { YNR_SPOOL: dir } })).toBe(true);
+    const home = join(mkdtempSync(join(tmpdir(), "ynm-otel-spool-http-")), ".ynm");
+    mkdirSync(home, { recursive: true });
+    const opts = {
+      cwd: home,
+      env: { ...process.env, YNM_HOME: home, YNM_USER: "http", YNM_NO_CLAUDE_CLI: "1" },
+      noPersonal: true,
+    };
+    const getYnm = serviceCache(opts);
+    const handle = await startHttp(() => createYnmServer(opts, getYnm), {
+      port: 0,
+      host: "127.0.0.1",
+      quiet: true,
+    });
+    try {
+      const client = new Client({ name: "otel-test", version: "0" });
+      await client.connect(
+        new StreamableHTTPClientTransport(new URL(handle.url), {
+          requestInit: { headers: { traceparent } },
+        })
+      );
+      await client.callTool({ name: "memory_status", arguments: {} });
+      await client.close();
+    } finally {
+      await handle.close();
+    }
+    await shutdownTelemetry();
+    const spooled = readSpool(dir);
+    const requests = spooled.spans.filter((s) => s.name === "POST /mcp");
+    expect(requests.length).toBeGreaterThan(0);
+    expect(requests.every((s) => s.traceId === TRACE && s.parentSpanId === PARENT)).toBe(true);
+    expect(requests.every((s) => s.kind === 2)).toBe(true);
+    const tool = spooled.spans.find((s) => s.name === "tools/call memory_status");
+    expect(requests.map((s) => s.spanId)).toContain(tool?.parentSpanId);
+    expect(spooled.events).toEqual(
+      expect.arrayContaining(["ynm.request.started", "ynm.tool.started"])
+    );
+    expect(spooled.metrics).toContain("ynm.http.request.duration");
+  }, 30_000);
+
+  it("a Lambda request puts its spans on disk before it returns", async () => {
+    const dir = spoolDir();
+    const { env } = lambdaEnv({ YNR_SPOOL: dir });
+    const handler = createLambdaHandler({ env, quiet: true });
+    const client = await connect(viaLambda(handler), { traceparent });
+    await client.callTool({ name: "memory_status", arguments: {} });
+    // No shutdown: what the invocation wrote is already in the open file.
+    const spooled = readSpool(dir);
+    expect(spooled.files.some((f) => f.endsWith(".open.jsonl"))).toBe(true);
+    expect(spooled.spans.some((s) => s.name === "tools/call memory_status")).toBe(true);
+    await client.close();
+  }, 30_000);
+});
+
 describe("no content in telemetry", () => {
   const CANARY = "CANARY-7f3e9b";
 
@@ -239,6 +302,21 @@ describe("no content in telemetry", () => {
     expect(text.toLowerCase()).not.toContain(CANARY.toLowerCase());
     expect(await records(on.store)).toEqual(await records(off.store));
     // The canary is in the store, so its absence above is telemetry's doing.
+    expect(JSON.stringify(await records(on.store))).toContain(CANARY);
+  }, 60_000);
+
+  it("writes none of it to a ynr spool either", async () => {
+    const dir = spoolDir();
+    const on = lambdaEnv({ YNM_AUDIT: '{"sink":"otel"}', YNR_SPOOL: dir });
+    await scenario(on.env);
+    await shutdownTelemetry();
+    const spooled = readSpool(dir);
+    expect(spooled.spans.length).toBeGreaterThan(5);
+    expect(spooled.events).toContain("ynm.audit.request");
+    expect(spooled.spans.some((s) => s.name === "dream")).toBe(true);
+    expect(spooled.metrics.length).toBeGreaterThan(0);
+    expect(spooled.text).not.toContain(CANARY);
+    expect(spooled.text.toLowerCase()).not.toContain(CANARY.toLowerCase());
     expect(JSON.stringify(await records(on.store))).toContain(CANARY);
   }, 60_000);
 });

@@ -13,9 +13,15 @@ on:
 permissions:
   contents: read
 
+# Each job that installs sets YNR_READ_PACKAGES and points the runner's ~/.npmrc at it:
+# @eyelock/otel-spool-exporter comes from GitHub Packages, which needs a token with read:packages
+# even to read. The bundles, binaries, Lambda package and image carry it inside them, so no one
+# installing a release needs the token. RELEASE_TOKEN is used only to push to the Homebrew tap.
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      YNR_READ_PACKAGES: ${{ secrets.YNR_READ_PACKAGES }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -23,6 +29,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${YNR_READ_PACKAGES}' >> ~/.npmrc
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm check
@@ -52,6 +60,8 @@ jobs:
             os: linux
             native: amd64
     runs-on: ${{ matrix.runner }}
+    env:
+      YNR_READ_PACKAGES: ${{ secrets.YNR_READ_PACKAGES }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -60,6 +70,8 @@ jobs:
           # The blob must be made by the Node it is injected into: .nvmrc pins it exactly.
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${YNR_READ_PACKAGES}' >> ~/.npmrc
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Build ${{ matrix.os }} binaries
@@ -83,6 +95,8 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      YNR_READ_PACKAGES: ${{ secrets.YNR_READ_PACKAGES }}
     permissions:
       contents: write
     outputs:
@@ -94,6 +108,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${YNR_READ_PACKAGES}' >> ~/.npmrc
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - id: meta
@@ -176,6 +192,9 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
+          # A BuildKit secret, so the token is in no layer of the image.
+          secrets: |
+            ynr_read_packages=${{ secrets.YNR_READ_PACKAGES }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

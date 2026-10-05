@@ -1,5 +1,8 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ExportResultCode } from "@opentelemetry/core";
 import { InMemoryLogRecordExporter } from "@opentelemetry/sdk-logs";
 import { AggregationTemporality, InMemoryMetricExporter } from "@opentelemetry/sdk-metrics";
@@ -14,10 +17,12 @@ import {
 import {
   addRedaction,
   beginSpan,
+  defaultSpoolDir,
   emitEvent,
   emitLog,
   flushTelemetry,
   namespacesIncluded,
+  RECHECK_MS,
   redact,
   shutdownTelemetry,
   startTelemetry,
@@ -25,7 +30,7 @@ import {
   telemetryTarget,
   withSpan,
 } from "./telemetry.js";
-import { startMemoryTelemetry } from "./testing.js";
+import { readSpool, startMemoryTelemetry } from "./testing.js";
 
 const TRACE = "4bf92f3577b34da6a3ce929d0e0e4736";
 const PARENT = "00f067aa0ba902b7";
@@ -33,10 +38,17 @@ const traceparent = `00-${TRACE}-${PARENT}-01`;
 
 afterEach(() => shutdownTelemetry());
 
+const scratch = () => mkdtempSync(join(tmpdir(), "ynm-spool-"));
+/** An environment whose laptop spool does not exist. */
+const NO_SPOOL = { XDG_STATE_HOME: join(tmpdir(), "ynm-test-no-xdg-state") };
+
 describe("telemetryTarget", () => {
-  it("is off with no OTLP endpoint, and names nothing to complain about", () => {
-    expect(telemetryTarget({})).toEqual({ kind: "off" });
-    expect(telemetryTarget({ OTEL_EXPORTER_OTLP_ENDPOINT: "  " })).toEqual({ kind: "off" });
+  it("is off with no OTLP endpoint and no spool, and names nothing to complain about", () => {
+    expect(telemetryTarget(NO_SPOOL)).toEqual({ kind: "off" });
+    expect(telemetryTarget({ ...NO_SPOOL, OTEL_EXPORTER_OTLP_ENDPOINT: "  " })).toEqual({
+      kind: "off",
+    });
+    expect(telemetryTarget({ ...NO_SPOOL, YNR_SPOOL: " " })).toEqual({ kind: "off" });
   });
 
   it("exports every signal over http/protobuf when the generic endpoint is set", () => {
@@ -289,6 +301,162 @@ describe("with telemetry on", () => {
     expect(traces?.value).toBeGreaterThanOrEqual(1);
     await shutdownTelemetry(300);
     expect(telemetryEnabled()).toBe(false);
+  });
+});
+
+describe("the ynr spool", () => {
+  const ALL = ["traces", "logs", "metrics"];
+
+  it("writes to the folder YNR_SPOOL names, which need not exist yet", () => {
+    const dir = join(scratch(), "runs", "r1");
+    expect(telemetryTarget({ ...NO_SPOOL, YNR_SPOOL: dir })).toEqual({
+      kind: "spool",
+      dir,
+      signals: ALL,
+    });
+  });
+
+  it("writes to the laptop default, $XDG_STATE_HOME/ynr/spool/local, only when it exists", () => {
+    const state = scratch();
+    expect(telemetryTarget({ XDG_STATE_HOME: state })).toEqual({ kind: "off" });
+    mkdirSync(join(state, "ynr", "spool", "local"), { recursive: true });
+    expect(telemetryTarget({ XDG_STATE_HOME: state })).toEqual({
+      kind: "spool",
+      dir: join(state, "ynr", "spool", "local"),
+      signals: ALL,
+    });
+    // A file where the folder should be is not a spool.
+    const other = scratch();
+    mkdirSync(join(other, "ynr", "spool"), { recursive: true });
+    writeFileSync(join(other, "ynr", "spool", "local"), "");
+    expect(telemetryTarget({ XDG_STATE_HOME: other })).toEqual({ kind: "off" });
+  });
+
+  it("defaults XDG_STATE_HOME to ~/.local/state, ignoring a relative one", () => {
+    expect(defaultSpoolDir({ HOME: "/home/me" })).toBe("/home/me/.local/state/ynr/spool/local");
+    expect(defaultSpoolDir({ HOME: "/home/me", XDG_STATE_HOME: "state" })).toBe(
+      "/home/me/.local/state/ynr/spool/local"
+    );
+    expect(defaultSpoolDir({ HOME: "/home/me", XDG_STATE_HOME: "/s" })).toBe("/s/ynr/spool/local");
+  });
+
+  it("loses to the operator's OTLP endpoint, and honours OTEL_SDK_DISABLED and `none`", () => {
+    const dir = scratch();
+    expect(
+      telemetryTarget({ YNR_SPOOL: dir, OTEL_EXPORTER_OTLP_ENDPOINT: "http://c" })
+    ).toMatchObject({ kind: "otlp" });
+    expect(telemetryTarget({ YNR_SPOOL: dir, OTEL_SDK_DISABLED: "true" })).toMatchObject({
+      kind: "off",
+    });
+    expect(
+      telemetryTarget({ YNR_SPOOL: dir, OTEL_LOGS_EXPORTER: "none", OTEL_METRICS_EXPORTER: "none" })
+    ).toEqual({ kind: "spool", dir, signals: ["traces"] });
+    expect(
+      telemetryTarget({
+        YNR_SPOOL: dir,
+        OTEL_TRACES_EXPORTER: "none",
+        OTEL_LOGS_EXPORTER: "none",
+        OTEL_METRICS_EXPORTER: "none",
+      })
+    ).toEqual({ kind: "off" });
+  });
+
+  it("writes spans, events and metrics as OTLP JSON lines, joining TRACEPARENT", async () => {
+    const dir = join(scratch(), "local");
+    const env = { YNR_SPOOL: dir, TRACEPARENT: traceparent };
+    expect(await startTelemetry({ version: "1", env })).toBe(true);
+    await withSpan("ynm remember", { started: "ynm.command.started" }, async () => {});
+    await flushTelemetry();
+    // Flushed at the end of the unit of work: already on disk, in the still-open file.
+    const open = readSpool(dir);
+    expect(open.files).toEqual([expect.stringMatching(/^ynm-[\w-]+-\d+\.open\.jsonl$/)]);
+    await shutdownTelemetry();
+    const spooled = readSpool(dir);
+    // Closed and renamed on shutdown.
+    expect(spooled.files).toEqual([expect.stringMatching(/^ynm-[\w-]+-\d+\.jsonl$/)]);
+    expect(spooled.spans).toEqual([
+      expect.objectContaining({ name: "ynm remember", traceId: TRACE, parentSpanId: PARENT }),
+    ]);
+    expect(spooled.events).toContain("ynm.command.started");
+    expect(spooled.metrics).toEqual(
+      expect.arrayContaining([
+        "ynm.telemetry.export.failures",
+        "ynm.telemetry.spool.dropped",
+        "ynm.telemetry.spool.errors",
+      ])
+    );
+  });
+
+  it("never fails or blocks when the spool cannot be written", async () => {
+    const file = join(scratch(), "not-a-folder");
+    writeFileSync(file, "");
+    expect(await startTelemetry({ version: "1", env: { YNR_SPOOL: join(file, "local") } })).toBe(
+      true
+    );
+    const result = await withSpan("a", { started: "ynm.a.started" }, async () => 42);
+    expect(result).toBe(42);
+    emitLog("error", "[ynm-mcp] still fine");
+    const began = Date.now();
+    await flushTelemetry();
+    await shutdownTelemetry();
+    expect(Date.now() - began).toBeLessThan(5000);
+    expect(telemetryEnabled()).toBe(false);
+  });
+});
+
+describe("the once-a-minute recheck", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("starts telemetry when the laptop spool appears, for a server that asked", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const state = scratch();
+    const env = { XDG_STATE_HOME: state };
+    expect(await startTelemetry({ version: "1", env, recheck: true })).toBe(false);
+    vi.advanceTimersByTime(RECHECK_MS);
+    expect(telemetryEnabled()).toBe(false);
+    const dir = join(state, "ynr", "spool", "local");
+    mkdirSync(dir, { recursive: true });
+    vi.advanceTimersByTime(RECHECK_MS);
+    await vi.waitFor(() => expect(telemetryEnabled()).toBe(true));
+    await withSpan("POST /mcp", {}, async () => {});
+    await shutdownTelemetry();
+    expect(readSpool(dir).spans.map((s) => s.name)).toEqual(["POST /mcp"]);
+  });
+
+  it("does not look again without being asked (a command, a Lambda), or once shut down", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const state = scratch();
+    const env = { XDG_STATE_HOME: state };
+    expect(await startTelemetry({ version: "1", env })).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await startTelemetry({ version: "1", env, recheck: true })).toBe(false);
+    expect(vi.getTimerCount()).toBe(1);
+    await shutdownTelemetry();
+    expect(vi.getTimerCount()).toBe(0);
+    mkdirSync(join(state, "ynr", "spool", "local"), { recursive: true });
+    vi.advanceTimersByTime(RECHECK_MS * 2);
+    expect(telemetryEnabled()).toBe(false);
+  });
+
+  it("does not look again when telemetry was turned off on purpose", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      const env = { ...NO_SPOOL, OTEL_SDK_DISABLED: "true" };
+      expect(await startTelemetry({ version: "1", env, recheck: true })).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+
+  it("keeps no process alive: its timer is unref'd", async () => {
+    const timers = () => process.getActiveResourcesInfo().filter((r) => r === "Timeout").length;
+    const before = timers();
+    expect(await startTelemetry({ version: "1", env: NO_SPOOL, recheck: true })).toBe(false);
+    expect(timers()).toBe(before);
   });
 });
 

@@ -52,6 +52,11 @@ import {
 }
 
 import {
+  to = github_actions_secret.ynr_read_packages
+  id = "ynm:YNR_READ_PACKAGES"
+}
+
+import {
   to = github_repository_environment.github_pages
   id = "ynm:github-pages"
 }

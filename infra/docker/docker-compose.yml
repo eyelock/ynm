@@ -4,6 +4,9 @@ services:
   store:
     build:
       context: ../..
+      # A GitHub token with read:packages in YNR_READ_PACKAGES, for @eyelock/otel-spool-exporter
+      # (CONTRIBUTING.md): YNR_READ_PACKAGES=$(gh auth token) docker compose -f <this file> up --build
+      secrets: [ynr_read_packages]
     image: ynm:local
     environment:
       YNM_MCP_TOKEN: demo-token
@@ -47,3 +50,7 @@ services:
 
 volumes:
   store:
+
+secrets:
+  ynr_read_packages:
+    environment: YNR_READ_PACKAGES
