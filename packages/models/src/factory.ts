@@ -14,7 +14,7 @@ export interface ModelsConfig {
   writer: WriterKind;
   typesafe?: { model?: string; apiKeyEnv?: string };
   openai?: { baseUrl?: string; model?: string; apiKeyEnv?: string };
-  claude?: { model?: string };
+  claude?: { model?: string; useApiKey?: boolean };
 }
 
 export const DEFAULT_MODELS_CONFIG: ModelsConfig = {

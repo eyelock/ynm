@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { z } from "zod";
 import { ModelUnavailableError, StructuredOutputError } from "../types.js";
-import { ClaudeCliWriter } from "./claude-cli.js";
+import { ClaudeCliWriter, claudeCliEnv } from "./claude-cli.js";
 
 /** A stand-in child process: the test scripts what it emits; nothing is ever executed. */
 class FakeChild extends EventEmitter {
@@ -60,6 +60,53 @@ beforeEach(() => {
   spawned.length = 0;
   scripts = [];
   hangNext = false;
+});
+
+describe("claudeCliEnv", () => {
+  const base = { ANTHROPIC_API_KEY: "test-key", PATH: "/bin", HOME: "/h" };
+
+  it("drops ANTHROPIC_API_KEY by default and passes everything else through", () => {
+    const env = claudeCliEnv(base);
+    expect("ANTHROPIC_API_KEY" in env).toBe(false);
+    expect(env.PATH).toBe("/bin");
+    expect(env.HOME).toBe("/h");
+    expect(env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC).toBe("1");
+  });
+
+  it("keeps the key when useApiKey is true", () => {
+    const env = claudeCliEnv(base, { useApiKey: true });
+    expect(env.ANTHROPIC_API_KEY).toBe("test-key");
+    expect(env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC).toBe("1");
+  });
+
+  it("does not mutate the input", () => {
+    claudeCliEnv(base);
+    expect(base.ANTHROPIC_API_KEY).toBe("test-key");
+  });
+});
+
+describe("ClaudeCliWriter environment (spawn mocked)", () => {
+  const saved = process.env.ANTHROPIC_API_KEY;
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = "test-key";
+  });
+  afterEach(() => {
+    if (saved === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = saved;
+  });
+
+  it("does not hand ANTHROPIC_API_KEY to the child by default", async () => {
+    scripts = [exits(0, JSON.stringify({ result: '{"ok":true}' }))];
+    await new ClaudeCliWriter().write(req);
+    expect("ANTHROPIC_API_KEY" in (spawned[0]?.env ?? {})).toBe(false);
+    expect(spawned[0]?.env.PATH).toBe(process.env.PATH);
+  });
+
+  it("hands it over when useApiKey is set", async () => {
+    scripts = [exits(0, JSON.stringify({ result: '{"ok":true}' }))];
+    await new ClaudeCliWriter({ useApiKey: true }).write(req);
+    expect("ANTHROPIC_API_KEY" in (spawned[0]?.env ?? {})).toBe(true);
+  });
 });
 
 describe("ClaudeCliWriter (spawn mocked, no real CLI)", () => {
