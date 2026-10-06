@@ -259,7 +259,9 @@ checks it (every own name under `ynm.`, every `ref` known to ynm or the pinned r
 match the installed one, every metric's attributes within its limit) and generates
 `packages/telemetry/src/registry.gen.ts`: constants for every name and the registry as data. A
 test fails when the generated file is stale. `ynm telemetry registry --format json` prints
-`{ tool, version, registry }`; `service.name` and `service.version` say which registry applies.
+`{ tool, version, semantic_conventions, attributes, standard_attributes, spans, events, metrics }`,
+the shape ynf prints so ynr can read every tool's registry; `service.name` and `service.version`
+say which registry applies.
 
 ### Never block, never fail
 
@@ -361,3 +363,5 @@ test fails when the generated file is stale. `ynm telemetry registry --format js
   refined ynr ADR-006 item 4. Requests to a hosted ynm keep the W3C headers and `_meta`; requests
   to an identity provider or a model API carry none, while their client spans stay. Still
   proposed.
+- 2026-10-06: the registry's JSON output follows the shared shape ynf uses, so ynr can read it.
+  Names are unchanged. Still proposed.

@@ -27,6 +27,6 @@ export default class Telemetry extends YnmCommand {
 
   async run(): Promise<void> {
     await this.parse(Telemetry);
-    this.log(JSON.stringify({ tool: "ynm", version: MCP_VERSION, registry: REGISTRY }, null, 2));
+    this.log(JSON.stringify({ tool: "ynm", version: MCP_VERSION, ...REGISTRY }, null, 2));
   }
 }

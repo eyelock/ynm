@@ -105,12 +105,7 @@ const SEVERITY: Record<LogLevel, SeverityNumber> = {
 
 /** The attribute keys the registry declares for each metric. */
 const METRIC_KEYS: ReadonlyMap<string, readonly string[]> = new Map(
-  REGISTRY.groups
-    .filter((g) => g.type === "metric")
-    .map((g) => [
-      (g as { metric_name: string }).metric_name,
-      (g.attributes as ReadonlyArray<{ ref?: string }>).map((a) => a.ref as string),
-    ])
+  REGISTRY.metrics.map((m) => [m.name, m.attributes.map((a) => a.name)])
 );
 
 type Exporter = { export(items: unknown, done: (r: ExportResult) => void): void };

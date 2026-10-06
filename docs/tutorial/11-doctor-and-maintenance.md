@@ -237,13 +237,13 @@ head -n 4 /tmp/ynm-tutorial/registry.json
 ```
 
 Expected: the registry, identified by the tool and its version (your version in place of
-`<version>`):
+`<version>`), then the semantic-conventions release it follows:
 
 ```text
 {
   "tool": "ynm",
   "version": "<version>",
-  "registry": {
+  "semantic_conventions": {
 ```
 
 Sending it to a collector is in
