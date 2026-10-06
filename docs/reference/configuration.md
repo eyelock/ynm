@@ -248,7 +248,6 @@ a spool. `ynm hook` never sends telemetry.
 | Variable | Effect |
 |---|---|
 | `YNM_SYNC_IN_PROGRESS` | Set by sync on its own git calls; the pre-push hook exits when it sees it |
-| `YNM_BIN` | Path of the `ynm` binary the Pi extension runs. Default `ynm` on `PATH` |
 
 ### Evals and development
 

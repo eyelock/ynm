@@ -42,7 +42,7 @@ function text(t: string, details: unknown = undefined): ToolResult {
 
 function run(command: string, params: Record<string, unknown>): Promise<ToolResult> {
   return new Promise((resolve) => {
-    const child = spawn(process.env.YNM_BIN ?? "ynm", argsFor(command, params), { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn("ynm", argsFor(command, params), { stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     let err = "";
     child.stdout.on("data", (d) => {
