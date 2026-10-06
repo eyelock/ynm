@@ -110,7 +110,7 @@ describe("redaction", () => {
 
 describe("with telemetry off", () => {
   it("starts nothing and runs work unchanged", async () => {
-    expect(await startTelemetry({ version: "1", env: {} })).toBe(false);
+    expect(await startTelemetry({ version: "1", env: NO_SPOOL })).toBe(false);
     expect(telemetryEnabled()).toBe(false);
     const seen: string[] = [];
     const r = await withSpan("x", { started: "ynm.x.started" }, async (span) => {
