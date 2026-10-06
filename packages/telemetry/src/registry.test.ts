@@ -9,13 +9,9 @@ describe("telemetry registry", () => {
   });
 
   it("is ynm's, pinned to the installed semantic conventions, with a limit on every metric", () => {
-    expect(REGISTRY.name).toBe("ynm");
     expect(SEMCONV_VERSION).toMatch(/^v\d+\.\d+\.\d+$/);
-    const metrics = REGISTRY.groups.filter((g) => g.type === "metric");
-    expect(metrics.length).toBeGreaterThan(0);
-    for (const m of metrics)
-      expect(METRIC_CARDINALITY_LIMITS[(m as { metric_name: string }).metric_name]).toBeGreaterThan(
-        0
-      );
+    expect(`v${REGISTRY.semantic_conventions.version}`).toBe(SEMCONV_VERSION);
+    expect(REGISTRY.metrics.length).toBeGreaterThan(0);
+    for (const m of REGISTRY.metrics) expect(METRIC_CARDINALITY_LIMITS[m.name]).toBeGreaterThan(0);
   });
 });

@@ -109,8 +109,10 @@ process. `OTEL_RESOURCE_ATTRIBUTES` adds to them or overrides them, for example
 `OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=staging`.
 
 `ynm telemetry registry --format json` prints every attribute, event, span and metric with its
-meaning, pinned to the OpenTelemetry semantic-conventions release it follows. A collector can tell
-which list applies from `service.name` and `service.version`.
+meaning, in the same shape as the other YN tools: the tool and its version, the
+OpenTelemetry semantic-conventions release it follows, ynm's attributes, the standard attributes
+it uses by name, then its spans, events and metrics. A collector can tell which list applies from
+`service.name` and `service.version`.
 
 ## What it never sends
 

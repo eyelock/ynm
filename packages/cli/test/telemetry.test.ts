@@ -189,11 +189,23 @@ describe("ynm telemetry registry", () => {
     const out = JSON.parse(r.stdout) as {
       tool: string;
       version: string;
-      registry: { name: string; semconv_version: string; groups: Array<{ id: string }> };
+      semantic_conventions: { name: string; version: string; schema_url: string };
+      attributes: Array<{ id: string; type: string }>;
+      standard_attributes: string[];
+      spans: Array<{ name: string; kind: string }>;
+      metrics: Array<{ attributes: Array<{ name: string; cardinality?: number }> }>;
     };
     expect(out.tool).toBe("ynm");
     expect(out.version).toMatch(/^\d+\.\d+\.\d+/);
-    expect(out.registry.name).toBe("ynm");
-    expect(out.registry.groups.map((g) => g.id)).toContain("span.ynm.tool.call");
+    expect(out.semantic_conventions).toEqual({
+      name: "otel",
+      version: "1.43.0",
+      schema_url: "https://opentelemetry.io/schemas/1.43.0",
+    });
+    expect(out.attributes.find((a) => a.id === "ynm.outcome")?.type).toBe("enum");
+    expect(out.spans.find((s) => s.name === "ynm.tool.call")?.kind).toBe("server");
+    expect(out.standard_attributes).toEqual([...out.standard_attributes].sort());
+    expect(out.standard_attributes.some((id) => id.startsWith("ynm."))).toBe(false);
+    expect(out.metrics.flatMap((m) => m.attributes).every((a) => a.cardinality)).toBe(true);
   });
 });

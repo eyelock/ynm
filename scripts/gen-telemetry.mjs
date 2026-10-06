@@ -80,6 +80,95 @@ function check({ manifest, groups }, up) {
   return problems;
 }
 
+/** An attribute ynm defines, in the shape the other YN tools print. */
+function attributeOf(a) {
+  const out = { id: a.id };
+  if (a.type !== null && typeof a.type === "object") {
+    out.type = "enum";
+    out.members = (a.type.members ?? []).map((m) => ({
+      id: m.id,
+      value: m.value,
+      brief: String(m.brief ?? "").trim(),
+    }));
+  } else out.type = a.type;
+  out.brief = String(a.brief ?? "").trim();
+  out.stability = a.stability;
+  if (a.examples?.length) out.examples = a.examples;
+  if (a.annotations && Object.keys(a.annotations).length) out.annotations = a.annotations;
+  return out;
+}
+
+/**
+ * The registry as `ynm telemetry registry --format json` prints it, less the tool and version:
+ * the same shape as ynf's, which ynr reads. Weaver's requirement levels are not declared in
+ * ynm's registry, so `requirement_level` is empty; a cardinality comes from the group's
+ * `attribute_cardinality` or from ynm's own definition of the attribute.
+ */
+export function describe({ manifest, groups }) {
+  const own = new Map();
+  const attributes = [];
+  for (const g of groups.filter((x) => x.type === "attribute_group"))
+    for (const a of g.attributes ?? []) {
+      own.set(a.id, a);
+      attributes.push(attributeOf(a));
+    }
+  const standard = new Set();
+  const uses = (g) =>
+    (g.attributes ?? []).map((a) => {
+      if (!a.ref) throw new Error(`${g.id}: an attribute is defined here, not referenced`);
+      if (!own.has(a.ref)) standard.add(a.ref);
+      const level = a.requirement_level ?? "";
+      const use = {
+        name: a.ref,
+        requirement_level: typeof level === "object" ? Object.keys(level)[0] : level,
+      };
+      const n =
+        a.annotations?.ynm?.cardinality ??
+        g.annotations?.ynm?.attribute_cardinality?.[a.ref] ??
+        own.get(a.ref)?.annotations?.ynm?.cardinality;
+      if (n) use.cardinality = n;
+      return use;
+    });
+  const brief = (g) => String(g.brief ?? "").trim();
+  const spans = [];
+  const events = [];
+  const metrics = [];
+  for (const g of groups) {
+    if (g.type === "span")
+      spans.push({
+        name: g.id.replace(/^span\./, ""),
+        kind: g.span_kind,
+        brief: brief(g),
+        attributes: uses(g),
+      });
+    else if (g.type === "event") events.push({ name: g.name, brief: brief(g), attributes: uses(g) });
+    else if (g.type === "metric")
+      metrics.push({
+        name: g.metric_name,
+        instrument: g.instrument,
+        unit: g.unit,
+        brief: brief(g),
+        attributes: uses(g),
+      });
+    else if (g.type !== "attribute_group")
+      throw new Error(`${g.id}: group type ${g.type} is not one ynm's registry uses`);
+  }
+  const version = String(manifest.semconv_version).replace(/^v/, "");
+  const dependency = manifest.dependencies?.[0]?.name ?? "otel";
+  return {
+    semantic_conventions: {
+      name: dependency,
+      version,
+      schema_url: `https://opentelemetry.io/schemas/${version}`,
+    },
+    attributes,
+    standard_attributes: [...standard].sort(),
+    spans,
+    events,
+    metrics,
+  };
+}
+
 /** The generated TypeScript for a registry. Deterministic: file order, no dates. */
 export function render(registry) {
   const { manifest, groups } = registry;
@@ -117,8 +206,8 @@ export function render(registry) {
     "/** Each metric's declared cardinality limit, which the SDK enforces. */",
     `export const METRIC_CARDINALITY_LIMITS: Readonly<Record<string, number>> = ${JSON.stringify(limits, null, 2)};`,
     "",
-    "/** The whole registry, as `ynm telemetry registry --format json` prints it. */",
-    `export const REGISTRY = ${JSON.stringify({ ...manifest, groups }, null, 2)} as const;`,
+    "/** The registry as `ynm telemetry registry --format json` prints it, after the tool and version. */",
+    `export const REGISTRY = ${JSON.stringify(describe(registry), null, 2)} as const;`,
     ""
   );
   return lines.join("\n");

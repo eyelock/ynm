@@ -108,1128 +108,1054 @@ export const METRIC_CARDINALITY_LIMITS: Readonly<Record<string, number>> = {
   "ynm.telemetry.spool.errors": 1
 };
 
-/** The whole registry, as `ynm telemetry registry --format json` prints it. */
+/** The registry as `ynm telemetry registry --format json` prints it, after the tool and version. */
 export const REGISTRY = {
-  "name": "ynm",
-  "description": "Telemetry names emitted by ynm, persistent memory for coding agents.",
-  "semconv_version": "v1.43.0",
-  "schema_base_url": "https://github.com/eyelock/ynm/tree/develop/telemetry/registry",
-  "dependencies": [
+  "semantic_conventions": {
+    "name": "otel",
+    "version": "1.43.0",
+    "schema_url": "https://opentelemetry.io/schemas/1.43.0"
+  },
+  "attributes": [
     {
-      "name": "otel",
-      "registry_path": "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.43.0.zip[model]"
-    }
-  ],
-  "groups": [
-    {
-      "id": "registry.ynm",
-      "type": "attribute_group",
-      "display_name": "ynm attributes",
-      "brief": "Attributes owned by ynm.",
-      "attributes": [
+      "id": "ynm.outcome",
+      "type": "enum",
+      "members": [
         {
-          "id": "ynm.outcome",
-          "type": {
-            "members": [
-              {
-                "id": "ok",
-                "value": "ok",
-                "brief": "The unit of work did what was asked.",
-                "stability": "development"
-              },
-              {
-                "id": "error",
-                "value": "error",
-                "brief": "The unit of work failed.",
-                "stability": "development"
-              },
-              {
-                "id": "refused",
-                "value": "refused",
-                "brief": "The request was refused before any work, for want of a valid token or scope.",
-                "stability": "development"
-              }
-            ]
-          },
-          "brief": "How a unit of work ended, in ynm's own vocabulary. Span status is set from it.",
-          "stability": "development",
-          "annotations": {
-            "ynm": {
-              "cardinality": 3
-            }
-          }
+          "id": "ok",
+          "value": "ok",
+          "brief": "The unit of work did what was asked."
         },
         {
-          "id": "ynm.command.name",
-          "type": "string",
-          "brief": "The CLI command that ran, such as `recall` or `dream`.",
-          "examples": [
-            "recall",
-            "dream"
-          ],
-          "stability": "development",
-          "annotations": {
-            "ynm": {
-              "cardinality": 32
-            }
-          }
+          "id": "error",
+          "value": "error",
+          "brief": "The unit of work failed."
         },
         {
-          "id": "ynm.store.operation",
-          "type": {
-            "members": [
-              {
-                "id": "append",
-                "value": "append",
-                "brief": "Records appended to a log.",
-                "stability": "development"
-              },
-              {
-                "id": "scan",
-                "value": "scan",
-                "brief": "Records read from a log's shards.",
-                "stability": "development"
-              },
-              {
-                "id": "purge",
-                "value": "purge",
-                "brief": "Every line of one memory removed.",
-                "stability": "development"
-              },
-              {
-                "id": "sync",
-                "value": "sync",
-                "brief": "The log replicated with its remote.",
-                "stability": "development"
-              },
-              {
-                "id": "read_document",
-                "value": "read_document",
-                "brief": "A named document beside the records read.",
-                "stability": "development"
-              },
-              {
-                "id": "write_document",
-                "value": "write_document",
-                "brief": "A named document beside the records written.",
-                "stability": "development"
-              }
-            ]
-          },
-          "brief": "What a call to a record store did.",
-          "stability": "development",
-          "annotations": {
-            "ynm": {
-              "cardinality": 6
-            }
-          }
-        },
-        {
-          "id": "ynm.store.provider",
-          "type": "string",
-          "brief": "The record store provider behind a mount.",
-          "examples": [
-            "git-notes",
-            "sqlite",
-            "s3"
-          ],
-          "stability": "development",
-          "annotations": {
-            "ynm": {
-              "cardinality": 8
-            }
-          }
-        },
-        {
-          "id": "ynm.mount",
-          "type": "string",
-          "brief": "The mount a store call went to, by its configured id. Never on a metric.",
-          "examples": [
-            "personal",
-            "project"
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.level",
-          "type": {
-            "members": [
-              {
-                "id": "personal",
-                "value": "personal",
-                "brief": "Private to one user.",
-                "stability": "development"
-              },
-              {
-                "id": "distributed",
-                "value": "distributed",
-                "brief": "Shared with everyone who can read the store.",
-                "stability": "development"
-              }
-            ]
-          },
-          "brief": "The level of the mount a store call went to.",
-          "stability": "development"
-        },
-        {
-          "id": "ynm.namespace",
-          "type": "string",
-          "brief": "The namespace a store call was limited to. Namespaces can name a person, so this is sent only when the operator sets YNM_TELEMETRY_NAMESPACES=1. Never on a metric.\n",
-          "examples": [
-            "common",
-            "org/acme"
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.record.count",
-          "type": "int",
-          "brief": "Records appended, read or removed by a store call.",
-          "examples": [
-            3
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.result.count",
-          "type": "int",
-          "brief": "Results a tool call returned, such as recall hits.",
-          "examples": [
-            5
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.input.bytes",
-          "type": "int",
-          "brief": "Size of a tool call's arguments as JSON, never the arguments themselves.",
-          "examples": [
-            212
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.memory.ids",
-          "type": "string[]",
-          "brief": "Ids of the memories a request wrote or returned.",
-          "examples": [
-            [
-              "01K6Z9X3T2V8Q4M5N6P7R8S9TA"
-            ]
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.dream.pass",
-          "type": {
-            "members": [
-              {
-                "id": "expire",
-                "value": "expire",
-                "brief": "Expires memories past their time to live.",
-                "stability": "development"
-              },
-              {
-                "id": "retention",
-                "value": "retention",
-                "brief": "Retires old occurrences.",
-                "stability": "development"
-              },
-              {
-                "id": "promote",
-                "value": "promote",
-                "brief": "Promotes working memories tagged for it.",
-                "stability": "development"
-              },
-              {
-                "id": "dedupe",
-                "value": "dedupe",
-                "brief": "Merges restatements.",
-                "stability": "development"
-              },
-              {
-                "id": "contradict",
-                "value": "contradict",
-                "brief": "Supersedes or flags contradictions.",
-                "stability": "development"
-              },
-              {
-                "id": "reflect",
-                "value": "reflect",
-                "brief": "Writes reflections from episodes.",
-                "stability": "development"
-              },
-              {
-                "id": "normalise",
-                "value": "normalise",
-                "brief": "Makes relative times absolute.",
-                "stability": "development"
-              }
-            ]
-          },
-          "brief": "One consolidation pass of a dream run.",
-          "stability": "development",
-          "annotations": {
-            "ynm": {
-              "cardinality": 7
-            }
-          }
-        },
-        {
-          "id": "ynm.dream.dry_run",
-          "type": "boolean",
-          "brief": "The dream run reported what it would do and changed nothing.",
-          "stability": "development"
-        },
-        {
-          "id": "ynm.dream.judge",
-          "type": "string",
-          "brief": "The judge a dream run used, by name.",
-          "examples": [
-            "heuristic",
-            "typesafe"
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.dream.fresh",
-          "type": "int",
-          "brief": "Memories new or changed since a run last finished with them.",
-          "examples": [
-            12
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.dream.dreamed",
-          "type": "int",
-          "brief": "Memories the run finished with and marked.",
-          "examples": [
-            12
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.dream.candidates",
-          "type": "int",
-          "brief": "Memories or pairs a pass considered.",
-          "examples": [
-            40
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.dream.judged",
-          "type": "int",
-          "brief": "Decisions a pass asked of the judge.",
-          "examples": [
-            8
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.dream.changed",
-          "type": "int",
-          "brief": "Memories a pass changed.",
-          "examples": [
-            2
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.dream.flagged",
-          "type": "int",
-          "brief": "Memories a pass flagged for review.",
-          "examples": [
-            1
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.actor.kind",
-          "type": {
-            "members": [
-              {
-                "id": "human",
-                "value": "human",
-                "brief": "A signed-in person, named by their handle in `user.name`.",
-                "stability": "development"
-              },
-              {
-                "id": "bot",
-                "value": "bot",
-                "brief": "A shared static token, or a client acting with no person behind its token.",
-                "stability": "development"
-              }
-            ]
-          },
-          "brief": "Who made an audited request.",
-          "stability": "development"
-        },
-        {
-          "id": "ynm.client.id",
-          "type": "string",
-          "brief": "The OAuth client that made a request, or `static` for a shared token.",
-          "examples": [
-            "claude-code",
-            "static"
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.audit.id",
-          "type": "string",
-          "brief": "The audit event's id, the same id ynm's own audit sinks would record.",
-          "examples": [
-            "01K6Z9X3T2V8Q4M5N6P7R8S9TA"
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.audit.reason",
-          "type": "string",
-          "brief": "For a refusal, the OAuth error code. Never the token.",
-          "examples": [
-            "invalid_token",
-            "insufficient_scope"
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.audit.tools",
-          "type": "string[]",
-          "brief": "The tools a request called, in order.",
-          "examples": [
-            [
-              "memory_recall"
-            ]
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.audit.call.count",
-          "type": "int",
-          "brief": "Tool calls and resource reads a request made.",
-          "examples": [
-            1
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.audit.error.count",
-          "type": "int",
-          "brief": "Of those, how many failed.",
-          "examples": [
-            0
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.audit.duration_ms",
-          "type": "int",
-          "brief": "How long the request took, in milliseconds.",
-          "examples": [
-            23
-          ],
-          "stability": "development"
-        },
-        {
-          "id": "ynm.model.provider",
-          "type": "string",
-          "brief": "The model a call went to, by ynm's name for its kind: a writer (`claude-cli`, `openai-compatible`) or a judge (`typesafe`). Never the prompt or the answer.\n",
-          "examples": [
-            "claude-cli",
-            "openai-compatible",
-            "typesafe"
-          ],
-          "stability": "development",
-          "annotations": {
-            "ynm": {
-              "cardinality": 4
-            }
-          }
-        },
-        {
-          "id": "ynm.telemetry.signal",
-          "type": {
-            "members": [
-              {
-                "id": "traces",
-                "value": "traces",
-                "brief": "Spans.",
-                "stability": "development"
-              },
-              {
-                "id": "logs",
-                "value": "logs",
-                "brief": "Log records and events.",
-                "stability": "development"
-              },
-              {
-                "id": "metrics",
-                "value": "metrics",
-                "brief": "Metric points.",
-                "stability": "development"
-              }
-            ]
-          },
-          "brief": "Which telemetry signal an export carried.",
-          "stability": "development",
-          "annotations": {
-            "ynm": {
-              "cardinality": 3
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "span.ynm.http.request",
-      "type": "span",
-      "span_kind": "server",
-      "stability": "development",
-      "brief": "One HTTP request to `ynm serve --http` or the Lambda function. Named `{http.request.method} {http.route}`, or the method alone for a path outside the routes.\n",
-      "attributes": [
-        {
-          "ref": "http.request.method"
-        },
-        {
-          "ref": "http.route"
-        },
-        {
-          "ref": "http.response.status_code"
-        },
-        {
-          "ref": "ynm.outcome"
+          "id": "refused",
+          "value": "refused",
+          "brief": "The request was refused before any work, for want of a valid token or scope."
         }
       ],
-      "events": [
-        "ynm.request.started"
+      "brief": "How a unit of work ended, in ynm's own vocabulary. Span status is set from it.",
+      "stability": "development",
+      "annotations": {
+        "ynm": {
+          "cardinality": 3
+        }
+      }
+    },
+    {
+      "id": "ynm.command.name",
+      "type": "string",
+      "brief": "The CLI command that ran, such as `recall` or `dream`.",
+      "stability": "development",
+      "examples": [
+        "recall",
+        "dream"
+      ],
+      "annotations": {
+        "ynm": {
+          "cardinality": 32
+        }
+      }
+    },
+    {
+      "id": "ynm.store.operation",
+      "type": "enum",
+      "members": [
+        {
+          "id": "append",
+          "value": "append",
+          "brief": "Records appended to a log."
+        },
+        {
+          "id": "scan",
+          "value": "scan",
+          "brief": "Records read from a log's shards."
+        },
+        {
+          "id": "purge",
+          "value": "purge",
+          "brief": "Every line of one memory removed."
+        },
+        {
+          "id": "sync",
+          "value": "sync",
+          "brief": "The log replicated with its remote."
+        },
+        {
+          "id": "read_document",
+          "value": "read_document",
+          "brief": "A named document beside the records read."
+        },
+        {
+          "id": "write_document",
+          "value": "write_document",
+          "brief": "A named document beside the records written."
+        }
+      ],
+      "brief": "What a call to a record store did.",
+      "stability": "development",
+      "annotations": {
+        "ynm": {
+          "cardinality": 6
+        }
+      }
+    },
+    {
+      "id": "ynm.store.provider",
+      "type": "string",
+      "brief": "The record store provider behind a mount.",
+      "stability": "development",
+      "examples": [
+        "git-notes",
+        "sqlite",
+        "s3"
+      ],
+      "annotations": {
+        "ynm": {
+          "cardinality": 8
+        }
+      }
+    },
+    {
+      "id": "ynm.mount",
+      "type": "string",
+      "brief": "The mount a store call went to, by its configured id. Never on a metric.",
+      "stability": "development",
+      "examples": [
+        "personal",
+        "project"
       ]
     },
     {
-      "id": "span.ynm.tool.call",
-      "type": "span",
-      "span_kind": "server",
+      "id": "ynm.level",
+      "type": "enum",
+      "members": [
+        {
+          "id": "personal",
+          "value": "personal",
+          "brief": "Private to one user."
+        },
+        {
+          "id": "distributed",
+          "value": "distributed",
+          "brief": "Shared with everyone who can read the store."
+        }
+      ],
+      "brief": "The level of the mount a store call went to.",
+      "stability": "development"
+    },
+    {
+      "id": "ynm.namespace",
+      "type": "string",
+      "brief": "The namespace a store call was limited to. Namespaces can name a person, so this is sent only when the operator sets YNM_TELEMETRY_NAMESPACES=1. Never on a metric.",
       "stability": "development",
+      "examples": [
+        "common",
+        "org/acme"
+      ]
+    },
+    {
+      "id": "ynm.record.count",
+      "type": "int",
+      "brief": "Records appended, read or removed by a store call.",
+      "stability": "development",
+      "examples": [
+        3
+      ]
+    },
+    {
+      "id": "ynm.result.count",
+      "type": "int",
+      "brief": "Results a tool call returned, such as recall hits.",
+      "stability": "development",
+      "examples": [
+        5
+      ]
+    },
+    {
+      "id": "ynm.input.bytes",
+      "type": "int",
+      "brief": "Size of a tool call's arguments as JSON, never the arguments themselves.",
+      "stability": "development",
+      "examples": [
+        212
+      ]
+    },
+    {
+      "id": "ynm.memory.ids",
+      "type": "string[]",
+      "brief": "Ids of the memories a request wrote or returned.",
+      "stability": "development",
+      "examples": [
+        [
+          "01K6Z9X3T2V8Q4M5N6P7R8S9TA"
+        ]
+      ]
+    },
+    {
+      "id": "ynm.dream.pass",
+      "type": "enum",
+      "members": [
+        {
+          "id": "expire",
+          "value": "expire",
+          "brief": "Expires memories past their time to live."
+        },
+        {
+          "id": "retention",
+          "value": "retention",
+          "brief": "Retires old occurrences."
+        },
+        {
+          "id": "promote",
+          "value": "promote",
+          "brief": "Promotes working memories tagged for it."
+        },
+        {
+          "id": "dedupe",
+          "value": "dedupe",
+          "brief": "Merges restatements."
+        },
+        {
+          "id": "contradict",
+          "value": "contradict",
+          "brief": "Supersedes or flags contradictions."
+        },
+        {
+          "id": "reflect",
+          "value": "reflect",
+          "brief": "Writes reflections from episodes."
+        },
+        {
+          "id": "normalise",
+          "value": "normalise",
+          "brief": "Makes relative times absolute."
+        }
+      ],
+      "brief": "One consolidation pass of a dream run.",
+      "stability": "development",
+      "annotations": {
+        "ynm": {
+          "cardinality": 7
+        }
+      }
+    },
+    {
+      "id": "ynm.dream.dry_run",
+      "type": "boolean",
+      "brief": "The dream run reported what it would do and changed nothing.",
+      "stability": "development"
+    },
+    {
+      "id": "ynm.dream.judge",
+      "type": "string",
+      "brief": "The judge a dream run used, by name.",
+      "stability": "development",
+      "examples": [
+        "heuristic",
+        "typesafe"
+      ]
+    },
+    {
+      "id": "ynm.dream.fresh",
+      "type": "int",
+      "brief": "Memories new or changed since a run last finished with them.",
+      "stability": "development",
+      "examples": [
+        12
+      ]
+    },
+    {
+      "id": "ynm.dream.dreamed",
+      "type": "int",
+      "brief": "Memories the run finished with and marked.",
+      "stability": "development",
+      "examples": [
+        12
+      ]
+    },
+    {
+      "id": "ynm.dream.candidates",
+      "type": "int",
+      "brief": "Memories or pairs a pass considered.",
+      "stability": "development",
+      "examples": [
+        40
+      ]
+    },
+    {
+      "id": "ynm.dream.judged",
+      "type": "int",
+      "brief": "Decisions a pass asked of the judge.",
+      "stability": "development",
+      "examples": [
+        8
+      ]
+    },
+    {
+      "id": "ynm.dream.changed",
+      "type": "int",
+      "brief": "Memories a pass changed.",
+      "stability": "development",
+      "examples": [
+        2
+      ]
+    },
+    {
+      "id": "ynm.dream.flagged",
+      "type": "int",
+      "brief": "Memories a pass flagged for review.",
+      "stability": "development",
+      "examples": [
+        1
+      ]
+    },
+    {
+      "id": "ynm.actor.kind",
+      "type": "enum",
+      "members": [
+        {
+          "id": "human",
+          "value": "human",
+          "brief": "A signed-in person, named by their handle in `user.name`."
+        },
+        {
+          "id": "bot",
+          "value": "bot",
+          "brief": "A shared static token, or a client acting with no person behind its token."
+        }
+      ],
+      "brief": "Who made an audited request.",
+      "stability": "development"
+    },
+    {
+      "id": "ynm.client.id",
+      "type": "string",
+      "brief": "The OAuth client that made a request, or `static` for a shared token.",
+      "stability": "development",
+      "examples": [
+        "claude-code",
+        "static"
+      ]
+    },
+    {
+      "id": "ynm.audit.id",
+      "type": "string",
+      "brief": "The audit event's id, the same id ynm's own audit sinks would record.",
+      "stability": "development",
+      "examples": [
+        "01K6Z9X3T2V8Q4M5N6P7R8S9TA"
+      ]
+    },
+    {
+      "id": "ynm.audit.reason",
+      "type": "string",
+      "brief": "For a refusal, the OAuth error code. Never the token.",
+      "stability": "development",
+      "examples": [
+        "invalid_token",
+        "insufficient_scope"
+      ]
+    },
+    {
+      "id": "ynm.audit.tools",
+      "type": "string[]",
+      "brief": "The tools a request called, in order.",
+      "stability": "development",
+      "examples": [
+        [
+          "memory_recall"
+        ]
+      ]
+    },
+    {
+      "id": "ynm.audit.call.count",
+      "type": "int",
+      "brief": "Tool calls and resource reads a request made.",
+      "stability": "development",
+      "examples": [
+        1
+      ]
+    },
+    {
+      "id": "ynm.audit.error.count",
+      "type": "int",
+      "brief": "Of those, how many failed.",
+      "stability": "development",
+      "examples": [
+        0
+      ]
+    },
+    {
+      "id": "ynm.audit.duration_ms",
+      "type": "int",
+      "brief": "How long the request took, in milliseconds.",
+      "stability": "development",
+      "examples": [
+        23
+      ]
+    },
+    {
+      "id": "ynm.model.provider",
+      "type": "string",
+      "brief": "The model a call went to, by ynm's name for its kind: a writer (`claude-cli`, `openai-compatible`) or a judge (`typesafe`). Never the prompt or the answer.",
+      "stability": "development",
+      "examples": [
+        "claude-cli",
+        "openai-compatible",
+        "typesafe"
+      ],
+      "annotations": {
+        "ynm": {
+          "cardinality": 4
+        }
+      }
+    },
+    {
+      "id": "ynm.telemetry.signal",
+      "type": "enum",
+      "members": [
+        {
+          "id": "traces",
+          "value": "traces",
+          "brief": "Spans."
+        },
+        {
+          "id": "logs",
+          "value": "logs",
+          "brief": "Log records and events."
+        },
+        {
+          "id": "metrics",
+          "value": "metrics",
+          "brief": "Metric points."
+        }
+      ],
+      "brief": "Which telemetry signal an export carried.",
+      "stability": "development",
+      "annotations": {
+        "ynm": {
+          "cardinality": 3
+        }
+      }
+    }
+  ],
+  "standard_attributes": [
+    "error.type",
+    "gen_ai.operation.name",
+    "gen_ai.request.model",
+    "gen_ai.tool.name",
+    "http.request.method",
+    "http.response.status_code",
+    "http.route",
+    "mcp.method.name",
+    "server.address",
+    "url.path",
+    "user.name"
+  ],
+  "spans": [
+    {
+      "name": "ynm.http.request",
+      "kind": "server",
+      "brief": "One HTTP request to `ynm serve --http` or the Lambda function. Named `{http.request.method} {http.route}`, or the method alone for a path outside the routes.",
+      "attributes": [
+        {
+          "name": "http.request.method",
+          "requirement_level": ""
+        },
+        {
+          "name": "http.route",
+          "requirement_level": ""
+        },
+        {
+          "name": "http.response.status_code",
+          "requirement_level": ""
+        },
+        {
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
+        }
+      ]
+    },
+    {
+      "name": "ynm.tool.call",
+      "kind": "server",
       "brief": "One MCP tool call, named `tools/call {gen_ai.tool.name}`.",
       "attributes": [
         {
-          "ref": "mcp.method.name"
+          "name": "mcp.method.name",
+          "requirement_level": ""
         },
         {
-          "ref": "gen_ai.operation.name"
+          "name": "gen_ai.operation.name",
+          "requirement_level": ""
         },
         {
-          "ref": "gen_ai.tool.name"
+          "name": "gen_ai.tool.name",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.input.bytes"
+          "name": "ynm.input.bytes",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.result.count"
+          "name": "ynm.result.count",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         },
         {
-          "ref": "error.type"
+          "name": "error.type",
+          "requirement_level": ""
         }
-      ],
-      "events": [
-        "ynm.tool.started"
       ]
     },
     {
-      "id": "span.ynm.command",
-      "type": "span",
-      "span_kind": "internal",
-      "stability": "development",
+      "name": "ynm.command",
+      "kind": "internal",
       "brief": "One CLI command, named `ynm {ynm.command.name}`. `ynm serve` and `ynm hook` have none.",
       "attributes": [
         {
-          "ref": "ynm.command.name"
+          "name": "ynm.command.name",
+          "requirement_level": "",
+          "cardinality": 32
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         },
         {
-          "ref": "error.type"
+          "name": "error.type",
+          "requirement_level": ""
         }
-      ],
-      "events": [
-        "ynm.command.started"
       ]
     },
     {
-      "id": "span.ynm.store.operation",
-      "type": "span",
-      "span_kind": "client",
-      "stability": "development",
+      "name": "ynm.store.operation",
+      "kind": "client",
       "brief": "One call to a mount's record store, named `store {ynm.store.operation}`.",
       "attributes": [
         {
-          "ref": "ynm.store.operation"
+          "name": "ynm.store.operation",
+          "requirement_level": "",
+          "cardinality": 6
         },
         {
-          "ref": "ynm.store.provider"
+          "name": "ynm.store.provider",
+          "requirement_level": "",
+          "cardinality": 8
         },
         {
-          "ref": "ynm.mount"
+          "name": "ynm.mount",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.level"
+          "name": "ynm.level",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.namespace"
+          "name": "ynm.namespace",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.record.count"
+          "name": "ynm.record.count",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         },
         {
-          "ref": "error.type"
+          "name": "error.type",
+          "requirement_level": ""
         }
-      ],
-      "events": [
-        "ynm.store.started"
       ]
     },
     {
-      "id": "span.ynm.remote.call",
-      "type": "span",
-      "span_kind": "client",
-      "stability": "development",
-      "brief": "One tool call to a hosted ynm behind a remote mount, named `tools/call {gen_ai.tool.name}`. Its HTTP requests carry the W3C `traceparent` and `tracestate` headers, and the call its MCP `_meta`, so the hosted server's spans join this trace.\n",
+      "name": "ynm.remote.call",
+      "kind": "client",
+      "brief": "One tool call to a hosted ynm behind a remote mount, named `tools/call {gen_ai.tool.name}`. Its HTTP requests carry the W3C `traceparent` and `tracestate` headers, and the call its MCP `_meta`, so the hosted server's spans join this trace.",
       "attributes": [
         {
-          "ref": "mcp.method.name"
+          "name": "mcp.method.name",
+          "requirement_level": ""
         },
         {
-          "ref": "gen_ai.operation.name"
+          "name": "gen_ai.operation.name",
+          "requirement_level": ""
         },
         {
-          "ref": "gen_ai.tool.name"
+          "name": "gen_ai.tool.name",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.mount"
+          "name": "ynm.mount",
+          "requirement_level": ""
         },
         {
-          "ref": "server.address"
+          "name": "server.address",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         },
         {
-          "ref": "error.type"
+          "name": "error.type",
+          "requirement_level": ""
         }
-      ],
-      "events": [
-        "ynm.remote.started"
       ]
     },
     {
-      "id": "span.ynm.model.call",
-      "type": "span",
-      "span_kind": "client",
-      "stability": "development",
-      "brief": "One call to a model: an invocation of the Claude CLI, or a request to an OpenAI-compatible endpoint or TypeSafe, named `model {ynm.model.provider}`. A spawned CLI gets `TRACEPARENT` for this span. The prompt and the answer are never exported.\n",
+      "name": "ynm.model.call",
+      "kind": "client",
+      "brief": "One call to a model: an invocation of the Claude CLI, or a request to an OpenAI-compatible endpoint or TypeSafe, named `model {ynm.model.provider}`. A spawned CLI gets `TRACEPARENT` for this span. The prompt and the answer are never exported.",
       "attributes": [
         {
-          "ref": "ynm.model.provider"
+          "name": "ynm.model.provider",
+          "requirement_level": "",
+          "cardinality": 4
         },
         {
-          "ref": "gen_ai.operation.name"
+          "name": "gen_ai.operation.name",
+          "requirement_level": ""
         },
         {
-          "ref": "gen_ai.request.model"
+          "name": "gen_ai.request.model",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         },
         {
-          "ref": "error.type"
+          "name": "error.type",
+          "requirement_level": ""
         }
-      ],
-      "events": [
-        "ynm.model.started"
       ]
     },
     {
-      "id": "span.ynm.dream.run",
-      "type": "span",
-      "span_kind": "internal",
-      "stability": "development",
+      "name": "ynm.dream.run",
+      "kind": "internal",
       "brief": "One dream run, named `dream`, with a child span per pass.",
       "attributes": [
         {
-          "ref": "ynm.dream.dry_run"
+          "name": "ynm.dream.dry_run",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.dream.judge"
+          "name": "ynm.dream.judge",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.dream.fresh"
+          "name": "ynm.dream.fresh",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.dream.dreamed"
+          "name": "ynm.dream.dreamed",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         },
         {
-          "ref": "error.type"
+          "name": "error.type",
+          "requirement_level": ""
         }
-      ],
-      "events": [
-        "ynm.dream.started"
       ]
     },
     {
-      "id": "span.ynm.dream.pass",
-      "type": "span",
-      "span_kind": "internal",
-      "stability": "development",
+      "name": "ynm.dream.pass",
+      "kind": "internal",
       "brief": "One consolidation pass, named `dream {ynm.dream.pass}`.",
       "attributes": [
         {
-          "ref": "ynm.dream.pass"
+          "name": "ynm.dream.pass",
+          "requirement_level": "",
+          "cardinality": 7
         },
         {
-          "ref": "ynm.dream.candidates"
+          "name": "ynm.dream.candidates",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.dream.judged"
+          "name": "ynm.dream.judged",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.dream.changed"
+          "name": "ynm.dream.changed",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.dream.flagged"
+          "name": "ynm.dream.flagged",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         },
         {
-          "ref": "error.type"
+          "name": "error.type",
+          "requirement_level": ""
         }
-      ],
-      "events": [
-        "ynm.dream.pass.started"
       ]
-    },
+    }
+  ],
+  "events": [
     {
-      "id": "event.ynm.request.started",
-      "type": "event",
       "name": "ynm.request.started",
-      "stability": "development",
       "brief": "An HTTP request began.",
       "attributes": [
         {
-          "ref": "http.request.method"
+          "name": "http.request.method",
+          "requirement_level": ""
         },
         {
-          "ref": "http.route"
+          "name": "http.route",
+          "requirement_level": ""
         }
       ]
     },
     {
-      "id": "event.ynm.tool.started",
-      "type": "event",
       "name": "ynm.tool.started",
-      "stability": "development",
       "brief": "An MCP tool call began.",
       "attributes": [
         {
-          "ref": "gen_ai.tool.name"
+          "name": "gen_ai.tool.name",
+          "requirement_level": ""
         }
       ]
     },
     {
-      "id": "event.ynm.command.started",
-      "type": "event",
       "name": "ynm.command.started",
-      "stability": "development",
       "brief": "A CLI command began.",
       "attributes": [
         {
-          "ref": "ynm.command.name"
+          "name": "ynm.command.name",
+          "requirement_level": "",
+          "cardinality": 32
         }
       ]
     },
     {
-      "id": "event.ynm.store.started",
-      "type": "event",
       "name": "ynm.store.started",
-      "stability": "development",
       "brief": "A call to a record store began.",
       "attributes": [
         {
-          "ref": "ynm.store.operation"
+          "name": "ynm.store.operation",
+          "requirement_level": "",
+          "cardinality": 6
         },
         {
-          "ref": "ynm.store.provider"
+          "name": "ynm.store.provider",
+          "requirement_level": "",
+          "cardinality": 8
         },
         {
-          "ref": "ynm.mount"
+          "name": "ynm.mount",
+          "requirement_level": ""
         }
       ]
     },
     {
-      "id": "event.ynm.remote.started",
-      "type": "event",
       "name": "ynm.remote.started",
-      "stability": "development",
       "brief": "A tool call to a hosted ynm began.",
       "attributes": [
         {
-          "ref": "gen_ai.tool.name"
+          "name": "gen_ai.tool.name",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.mount"
+          "name": "ynm.mount",
+          "requirement_level": ""
         }
       ]
     },
     {
-      "id": "event.ynm.model.started",
-      "type": "event",
       "name": "ynm.model.started",
-      "stability": "development",
       "brief": "A call to a model began.",
       "attributes": [
         {
-          "ref": "ynm.model.provider"
+          "name": "ynm.model.provider",
+          "requirement_level": "",
+          "cardinality": 4
         }
       ]
     },
     {
-      "id": "event.ynm.dream.started",
-      "type": "event",
       "name": "ynm.dream.started",
-      "stability": "development",
       "brief": "A dream run began.",
       "attributes": [
         {
-          "ref": "ynm.dream.dry_run"
+          "name": "ynm.dream.dry_run",
+          "requirement_level": ""
         }
       ]
     },
     {
-      "id": "event.ynm.dream.pass.started",
-      "type": "event",
       "name": "ynm.dream.pass.started",
-      "stability": "development",
       "brief": "A consolidation pass began.",
       "attributes": [
         {
-          "ref": "ynm.dream.pass"
+          "name": "ynm.dream.pass",
+          "requirement_level": "",
+          "cardinality": 7
         }
       ]
     },
     {
-      "id": "event.ynm.audit.request",
-      "type": "event",
       "name": "ynm.audit.request",
-      "stability": "development",
-      "brief": "One audited request, from the `otel` audit sink: metadata only, after the redaction patterns run. The person appears only by their handle: their login name at the identity provider (`preferred_username`, else the subject), qualified by its host, never a name or an email.\n",
+      "brief": "One audited request, from the `otel` audit sink: metadata only, after the redaction patterns run. The person appears only by their handle: their login name at the identity provider (`preferred_username`, else the subject), qualified by its host, never a name or an email.",
       "attributes": [
         {
-          "ref": "ynm.audit.id"
+          "name": "ynm.audit.id",
+          "requirement_level": ""
         },
         {
-          "ref": "user.name"
+          "name": "user.name",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.actor.kind"
+          "name": "ynm.actor.kind",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.client.id"
+          "name": "ynm.client.id",
+          "requirement_level": ""
         },
         {
-          "ref": "http.request.method"
+          "name": "http.request.method",
+          "requirement_level": ""
         },
         {
-          "ref": "url.path"
+          "name": "url.path",
+          "requirement_level": ""
         },
         {
-          "ref": "http.response.status_code"
+          "name": "http.response.status_code",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         },
         {
-          "ref": "ynm.audit.reason"
+          "name": "ynm.audit.reason",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.audit.tools"
+          "name": "ynm.audit.tools",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.audit.call.count"
+          "name": "ynm.audit.call.count",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.audit.error.count"
+          "name": "ynm.audit.error.count",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.memory.ids"
+          "name": "ynm.memory.ids",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.input.bytes"
+          "name": "ynm.input.bytes",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.result.count"
+          "name": "ynm.result.count",
+          "requirement_level": ""
         },
         {
-          "ref": "ynm.audit.duration_ms"
+          "name": "ynm.audit.duration_ms",
+          "requirement_level": ""
         }
       ]
-    },
+    }
+  ],
+  "metrics": [
     {
-      "id": "metric.ynm.http.request.duration",
-      "type": "metric",
-      "metric_name": "ynm.http.request.duration",
+      "name": "ynm.http.request.duration",
       "instrument": "histogram",
       "unit": "s",
-      "stability": "development",
       "brief": "Duration of HTTP requests.",
       "attributes": [
         {
-          "ref": "http.request.method"
+          "name": "http.request.method",
+          "requirement_level": "",
+          "cardinality": 10
         },
         {
-          "ref": "http.route"
+          "name": "http.route",
+          "requirement_level": "",
+          "cardinality": 4
         },
         {
-          "ref": "http.response.status_code"
+          "name": "http.response.status_code",
+          "requirement_level": "",
+          "cardinality": 16
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         }
-      ],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 1920,
-          "attribute_cardinality": {
-            "http.request.method": 10,
-            "http.route": 4,
-            "http.response.status_code": 16,
-            "ynm.outcome": 3
-          }
-        }
-      }
+      ]
     },
     {
-      "id": "metric.ynm.tool.call.duration",
-      "type": "metric",
-      "metric_name": "ynm.tool.call.duration",
+      "name": "ynm.tool.call.duration",
       "instrument": "histogram",
       "unit": "s",
-      "stability": "development",
       "brief": "Duration of MCP tool calls.",
       "attributes": [
         {
-          "ref": "gen_ai.tool.name"
+          "name": "gen_ai.tool.name",
+          "requirement_level": "",
+          "cardinality": 16
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         }
-      ],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 48,
-          "attribute_cardinality": {
-            "gen_ai.tool.name": 16,
-            "ynm.outcome": 3
-          }
-        }
-      }
+      ]
     },
     {
-      "id": "metric.ynm.command.duration",
-      "type": "metric",
-      "metric_name": "ynm.command.duration",
+      "name": "ynm.command.duration",
       "instrument": "histogram",
       "unit": "s",
-      "stability": "development",
       "brief": "Duration of CLI commands.",
       "attributes": [
         {
-          "ref": "ynm.command.name"
+          "name": "ynm.command.name",
+          "requirement_level": "",
+          "cardinality": 32
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         }
-      ],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 96,
-          "attribute_cardinality": {
-            "ynm.command.name": 32,
-            "ynm.outcome": 3
-          }
-        }
-      }
+      ]
     },
     {
-      "id": "metric.ynm.store.operation.duration",
-      "type": "metric",
-      "metric_name": "ynm.store.operation.duration",
+      "name": "ynm.store.operation.duration",
       "instrument": "histogram",
       "unit": "s",
-      "stability": "development",
       "brief": "Duration of calls to record stores.",
       "attributes": [
         {
-          "ref": "ynm.store.operation"
+          "name": "ynm.store.operation",
+          "requirement_level": "",
+          "cardinality": 6
         },
         {
-          "ref": "ynm.store.provider"
+          "name": "ynm.store.provider",
+          "requirement_level": "",
+          "cardinality": 8
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         }
-      ],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 144,
-          "attribute_cardinality": {
-            "ynm.store.operation": 6,
-            "ynm.store.provider": 8,
-            "ynm.outcome": 3
-          }
-        }
-      }
+      ]
     },
     {
-      "id": "metric.ynm.remote.call.duration",
-      "type": "metric",
-      "metric_name": "ynm.remote.call.duration",
+      "name": "ynm.remote.call.duration",
       "instrument": "histogram",
       "unit": "s",
-      "stability": "development",
       "brief": "Duration of tool calls to a hosted ynm, as the caller saw them.",
       "attributes": [
         {
-          "ref": "gen_ai.tool.name"
+          "name": "gen_ai.tool.name",
+          "requirement_level": "",
+          "cardinality": 16
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         }
-      ],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 48,
-          "attribute_cardinality": {
-            "gen_ai.tool.name": 16,
-            "ynm.outcome": 3
-          }
-        }
-      }
+      ]
     },
     {
-      "id": "metric.ynm.model.call.duration",
-      "type": "metric",
-      "metric_name": "ynm.model.call.duration",
+      "name": "ynm.model.call.duration",
       "instrument": "histogram",
       "unit": "s",
-      "stability": "development",
       "brief": "Duration of calls to models.",
       "attributes": [
         {
-          "ref": "ynm.model.provider"
+          "name": "ynm.model.provider",
+          "requirement_level": "",
+          "cardinality": 4
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         }
-      ],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 12,
-          "attribute_cardinality": {
-            "ynm.model.provider": 4,
-            "ynm.outcome": 3
-          }
-        }
-      }
+      ]
     },
     {
-      "id": "metric.ynm.dream.pass.duration",
-      "type": "metric",
-      "metric_name": "ynm.dream.pass.duration",
+      "name": "ynm.dream.pass.duration",
       "instrument": "histogram",
       "unit": "s",
-      "stability": "development",
       "brief": "Duration of consolidation passes.",
       "attributes": [
         {
-          "ref": "ynm.dream.pass"
+          "name": "ynm.dream.pass",
+          "requirement_level": "",
+          "cardinality": 7
         },
         {
-          "ref": "ynm.outcome"
+          "name": "ynm.outcome",
+          "requirement_level": "",
+          "cardinality": 3
         }
-      ],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 21,
-          "attribute_cardinality": {
-            "ynm.dream.pass": 7,
-            "ynm.outcome": 3
-          }
-        }
-      }
+      ]
     },
     {
-      "id": "metric.ynm.telemetry.export.failures",
-      "type": "metric",
-      "metric_name": "ynm.telemetry.export.failures",
+      "name": "ynm.telemetry.export.failures",
       "instrument": "counter",
       "unit": "{export}",
-      "stability": "development",
-      "brief": "Exports that failed and were dropped. Telemetry never blocks or fails ynm, so failures are counted here instead of reported.\n",
+      "brief": "Exports that failed and were dropped. Telemetry never blocks or fails ynm, so failures are counted here instead of reported.",
       "attributes": [
         {
-          "ref": "ynm.telemetry.signal"
+          "name": "ynm.telemetry.signal",
+          "requirement_level": "",
+          "cardinality": 3
         }
-      ],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 3,
-          "attribute_cardinality": {
-            "ynm.telemetry.signal": 3
-          }
-        }
-      }
+      ]
     },
     {
-      "id": "metric.ynm.telemetry.spool.dropped",
-      "type": "metric",
-      "metric_name": "ynm.telemetry.spool.dropped",
+      "name": "ynm.telemetry.spool.dropped",
       "instrument": "counter",
       "unit": "{record}",
-      "stability": "development",
-      "brief": "Spans, log records and metric points the ynr spool writer did not write: its files reached their cap, one export was over the line limit, or the writer had closed. Reported only when writing to the spool.\n",
-      "attributes": [],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 1
-        }
-      }
+      "brief": "Spans, log records and metric points the ynr spool writer did not write: its files reached their cap, one export was over the line limit, or the writer had closed. Reported only when writing to the spool.",
+      "attributes": []
     },
     {
-      "id": "metric.ynm.telemetry.spool.errors",
-      "type": "metric",
-      "metric_name": "ynm.telemetry.spool.errors",
+      "name": "ynm.telemetry.spool.errors",
       "instrument": "counter",
       "unit": "{operation}",
-      "stability": "development",
-      "brief": "Filesystem operations on the ynr spool that failed or ran past their time bound (a write, a flush to disk, a rotation). They are counted here, never reported. Reported only when writing to the spool.\n",
-      "attributes": [],
-      "annotations": {
-        "ynm": {
-          "cardinality_limit": 1
-        }
-      }
+      "brief": "Filesystem operations on the ynr spool that failed or ran past their time bound (a write, a flush to disk, a rotation). They are counted here, never reported. Reported only when writing to the spool.",
+      "attributes": []
     }
   ]
 } as const;
