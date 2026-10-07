@@ -1,3 +1,4 @@
 {
-  "context@100000": "p95 over 10 samples is one slow call: three reruns without writing gave p95 48.7, 58.9 and 196.6 ms with p50 46.1, 47.1 and 63.9 ms (0.3.0: p50 39.7, p95 41.0); no sustained regression."
+  "context@100000": "p95 over 10 samples is one slow call: three reruns without writing gave p95 48.7, 58.9 and 196.6 ms with p50 46.1, 47.1 and 63.9 ms (0.3.0: p50 39.7, p95 41.0); no sustained regression.",
+  "cleanup-dedupe-precision:typesafe@120": "Model variance on a handful of pairs, not a code change: the judge request and dedupe pass are unchanged since 0.3.0 apart from telemetry wrappers. 0.2.0 0.667, 0.3.0 0.80, 0.4.0 0.667 (recall 0.667 each time)."
 }
