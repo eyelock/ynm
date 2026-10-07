@@ -1,6 +1,6 @@
 {
   "name": "@ynm/mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "MCP server: tools, resources, prompts, stdio and Streamable HTTP transports (ADR-008, ADR-009).",
   "license": "MIT",
