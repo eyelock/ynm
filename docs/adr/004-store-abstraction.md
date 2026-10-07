@@ -5,7 +5,7 @@ Satisfies: FR-17, FR-18, NFR-1, NFR-10, NFR-11
 
 ## Context
 
-ACME's `StorageProvider` was a synchronous string read/write over "locations" with no append, no
+The predecessor project's `StorageProvider` was a synchronous string read/write over "locations" with no append, no
 lock, no CAS and no query, so all logic leaked into the repository layer. mcp-toolkit's session
 provider has the better shape (consumer/publisher split, TTL envelope, conformance suite) but is
 hard-typed to session config.
@@ -72,7 +72,7 @@ must pass it before it can be mounted; all four do.
 
 ## Alternatives considered
 
-- One provider with pluggable "location" strings (ACME). Rejected: pushes git specifics upward.
+- One provider with pluggable "location" strings (the predecessor project). Rejected: pushes git specifics upward.
 - Making git-notes the only provider. Rejected: hosting without git and unit testing need others,
   and the interface is small.
 

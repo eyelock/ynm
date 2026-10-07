@@ -7,41 +7,95 @@ resource "github_branch_default" "develop" {
   branch     = "develop"
 }
 
-locals {
-  # Status checks each protected branch requires before a PR can merge. "verify" and
-  # "coverage" (coverage of the lines a PR changes) are the ci workflow's jobs; "release gate"
-  # (the M6 gate, frozen evals compared with the previous release) is a ci job that runs only on
-  # PRs into main, as does "Verify PR source branch" from protect-main.yml.
-  protected_branches = {
-    main    = ["verify", "release gate", "Verify PR source branch"]
-    develop = ["verify", "coverage"]
+# One repository ruleset per protected branch replaces classic branch protection, so each branch
+# has a single list of rules. Neither branch takes a direct push, force push or deletion; a pull
+# request is required, with every conversation resolved and no approving review. The one required
+# check is "All Clear", the last job of the ci workflow, which depends on every other job, so jobs
+# can change without touching this file. Repository admins (role 5) can bypass in an emergency.
+resource "github_repository_ruleset" "develop" {
+  repository  = github_repository.ynm.name
+  name        = "Develop Branch Protection"
+  target      = "branch"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = ["refs/heads/develop"]
+      exclude = []
+    }
+  }
+
+  bypass_actors {
+    actor_id    = 5
+    actor_type  = "RepositoryRole"
+    bypass_mode = "always"
+  }
+
+  rules {
+    deletion         = true
+    non_fast_forward = true
+
+    pull_request {
+      required_approving_review_count   = 0
+      dismiss_stale_reviews_on_push     = false
+      require_code_owner_review         = false
+      require_last_push_approval        = false
+      required_review_thread_resolution = true
+    }
+
+    required_status_checks {
+      strict_required_status_checks_policy = true
+
+      required_check {
+        context = "All Clear"
+      }
+    }
   }
 }
 
-resource "github_branch_protection" "this" {
-  for_each = local.protected_branches
+# main moves only by release or hotfix PRs, and also requires the source-branch check from
+# protect-main.yml.
+resource "github_repository_ruleset" "main" {
+  repository  = github_repository.ynm.name
+  name        = "Main Branch Protection"
+  target      = "branch"
+  enforcement = "active"
 
-  repository_id  = github_repository.ynm.node_id
-  pattern        = each.key
-  enforce_admins = true
-
-  required_status_checks {
-    strict   = false
-    contexts = each.value
+  conditions {
+    ref_name {
+      include = ["refs/heads/main"]
+      exclude = []
+    }
   }
 
-  # A pull request is required, with no approving review: changes go through a PR and green CI.
-  required_pull_request_reviews {
-    required_approving_review_count = 0
-    dismiss_stale_reviews           = false
-    require_code_owner_reviews      = false
-    require_last_push_approval      = false
+  bypass_actors {
+    actor_id    = 5
+    actor_type  = "RepositoryRole"
+    bypass_mode = "always"
   }
 
-  require_signed_commits          = false
-  required_linear_history         = false
-  require_conversation_resolution = false
-  allows_force_pushes             = false
-  allows_deletions                = false
-  lock_branch                     = false
+  rules {
+    deletion         = true
+    non_fast_forward = true
+
+    pull_request {
+      required_approving_review_count   = 0
+      dismiss_stale_reviews_on_push     = false
+      require_code_owner_review         = false
+      require_last_push_approval        = false
+      required_review_thread_resolution = true
+    }
+
+    required_status_checks {
+      strict_required_status_checks_policy = true
+
+      required_check {
+        context = "All Clear"
+      }
+
+      required_check {
+        context = "Verify PR source branch"
+      }
+    }
+  }
 }

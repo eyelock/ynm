@@ -45,12 +45,12 @@ The function reads its configuration from environment variables alone. There is 
 | Variable | Value |
 |---|---|
 | `YNM_PUBLIC_URL` | Required. The URL clients use, such as `https://memory.example.com/mcp`. The function is reached through AWS's own host name (and often through a CDN), so it cannot learn this from the request. The function refuses to start without it |
-| `YNM_MOUNTS` | The store, as a JSON array of mounts, for example `[{"id":"team","level":"distributed","provider":"s3","bucket":"acme-memory","prefix":"team"}]` |
+| `YNM_MOUNTS` | The store, as a JSON array of mounts, for example `[{"id":"team","level":"distributed","provider":"s3","bucket":"example-org-memory","prefix":"team"}]` |
 | `YNM_JWKS_URL`, `YNM_OAUTH_INTROSPECTION_URL` or `YNM_MCP_TOKEN` | How tokens are verified, exactly as for the server ([Authentication](operate-a-hosted-store.md#authentication)). One is required: a function is public, so without any the function refuses to start (`YNM_LAMBDA_ALLOW_OPEN=1` overrides that for local tests). A static `YNM_MCP_TOKEN` is a shared secret: everyone using it is recorded as `token:static`, so for a per-person audit trail use an identity provider |
 | `YNM_REQUIRED_SCOPES` | Scopes every token must carry, as for the server |
 | `YNM_TOKEN_BUDGET` | Cap on model input tokens per instance for dream runs, as for the server |
 | Model keys | `TYPESAFE_API_KEY`, `OPENAI_API_KEY` and friends, if dream should use a model ([Configure the judge and writer](configure-judge-and-writer.md)) |
-| `YNM_SSM_ENV_PATH` | A Parameter Store path, such as `/ynm/acme/env/`. At cold start every parameter under it named like an environment variable (`/ynm/acme/env/YNM_MCP_TOKEN`) becomes that variable, unless the function already sets it. Keep secrets (tokens, model keys) there as `SecureString` rather than in the function's environment; the function's role needs `ssm:GetParametersByPath` on the path. A parameter whose value is `unset` is skipped |
+| `YNM_SSM_ENV_PATH` | A Parameter Store path, such as `/ynm/example-org/env/`. At cold start every parameter under it named like an environment variable (`/ynm/example-org/env/YNM_MCP_TOKEN`) becomes that variable, unless the function already sets it. Keep secrets (tokens, model keys) there as `SecureString` rather than in the function's environment; the function's role needs `ssm:GetParametersByPath` on the path. A parameter whose value is `unset` is skipped |
 
 `YNM_HOME` defaults to `/tmp/ynm` on Lambda. The personal mount is never opened: a hosted store
 is distributed memory only. `YNM_NO_CLAUDE_CLI` defaults to `1`, because the function has no

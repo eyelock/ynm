@@ -21,3 +21,25 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
+  - package-ecosystem: "docker-compose"
+    directory: "/infra/keycloak"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+  # One weekly pull request for every Terraform root's providers, while CI runs cost money.
+  - package-ecosystem: "terraform"
+    directories:
+      - "/infra/github"
+      - "/infra/auth0"
+      - "/infra/aws/baseline"
+      - "/infra/aws/lambda"
+      - "/infra/aws/server"
+      - "/infra/terraform-state"
+    schedule:
+      interval: "weekly"
+    groups:
+      terraform:
+        patterns: ["*"]
+    commit-message:
+      prefix: "deps"

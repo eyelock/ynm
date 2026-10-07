@@ -5,11 +5,11 @@ drift and set up again from nothing.
 
 | File | What it manages |
 |---|---|
-| `repository.tf` | The repository: description, homepage, topics, visibility, features, merge options; GitHub Pages from `/docs` on `main` |
-| `branches.tf` | `develop` as the default branch; protection on `main` and `develop` (PR required, required checks, admins included, no force-push or delete) |
+| `repository.tf` | The repository: description, homepage, topics, visibility, features (issues, discussions and projects on, wiki off), merge options (squash and merge commit on, rebase off), secret scanning when public; GitHub Pages from `/docs` on `main` |
+| `branches.tf` | `develop` as the default branch; one repository ruleset each for `develop` and `main` (see Rulesets) |
 | `labels.tf` | Issue and PR labels, authoritatively: a label not listed is removed |
 | `actions.tf` | Actions permissions, the read-only default `GITHUB_TOKEN`, the `YNM_MILESTONE` variable, the `RELEASE_TOKEN` secret, the `github-pages` environment |
-| `security.tf` | Dependabot alerts and security updates |
+| `security.tf` | Dependabot alerts and security updates (both on) |
 | `imports.tf` | Import blocks that adopt the live repository into a fresh state |
 
 Not managed here:
@@ -25,6 +25,33 @@ Not managed here:
   `gh secret set YNR_READ_PACKAGES --repo eyelock/ynm`, like the other siblings' ynr tokens.
 - The value of `YNM_MILESTONE`, which moves with the milestones. Terraform writes it only when it
   creates the variable.
+
+## Rulesets
+
+Two repository rulesets replace classic branch protection, so each branch has one list of rules
+(the same text is in [`.github/BRANCH_PROTECTION.md`](../../.github/BRANCH_PROTECTION.md)):
+
+| Ruleset | Branch | Required checks |
+|---|---|---|
+| Develop Branch Protection | `develop` | `All Clear` |
+| Main Branch Protection | `main` | `All Clear`, `Verify PR source branch` |
+
+Both block deletion and force pushes, require a pull request with every conversation resolved and
+no approving review, require the branch to be up to date (strict), and let repository admins
+(role 5) bypass. `All Clear` is the last job of `ci.yml`; it depends on every other job, so
+adding or renaming CI jobs never touches this configuration.
+
+## Security
+
+Dependabot alerts and security updates are on. Secret scanning and push protection are on only
+when `visibility` is `public`, because they need a public repository. `visibility` stays `private`
+until the repository is made public; that is a separate, confirmed change
+(`terraform apply -var visibility=public`).
+
+Private vulnerability reporting, which `SECURITY.md` points to, is turned on by Terraform once
+`visibility` is `public`. The `integrations/github` provider has no resource for it, so a
+`terraform_data` resource runs `gh api -X PUT repos/eyelock/ynm/private-vulnerability-reporting`.
+`gh` must be on PATH and authenticated through `GITHUB_TOKEN` when you apply.
 
 ## Use
 
@@ -67,9 +94,9 @@ For a new owner or name, set `owner` and `repository`, then:
 2. Create only the repository:
    `terraform apply -target=github_repository.ynm`.
 3. Push `main` and `develop` from a clone (`git push <new-remote> main develop --tags`). The
-   default branch, protections and Pages need the branches to exist.
+   default branch, rulesets and Pages need the branches to exist.
 4. Apply the rest, with the release token and the gate, since the secret and the variable are
    being created: `TF_VAR_release_token=<token> TF_VAR_milestone=<id> terraform apply`.
 
-The protections require the `verify`, `coverage` (on `develop`) and `Verify PR source branch`
-checks, which report once the workflows have run on a pull request.
+The rulesets require the `All Clear` and `Verify PR source branch` checks, which report once the
+workflows have run on a pull request.

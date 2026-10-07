@@ -253,7 +253,7 @@ export const REGISTRY = {
       "stability": "development",
       "examples": [
         "common",
-        "org/acme"
+        "org/example-org"
       ]
     },
     {

@@ -26,7 +26,7 @@ line per addendum that was folded in), and the FR/NFR ids from ADR-000 it satisf
 | [008](008-interface-surface.md) | MCP tools, resources, prompts, CLI parity |
 | [009](009-hosting-and-bootstrap.md) | Hosting topologies and `ynm init` |
 | [010](010-wiki-projection.md) | Compiled markdown wiki as a derived view |
-| [011](011-reuse-from-acme-and-mcp-toolkit.md) | What is copied from the old repos |
+| [011](011-reuse-from-prior-projects-and-mcp-toolkit.md) | What is copied from the old repos |
 | [012](012-model-seams-judge-and-writer.md) | Judge (decision models, Jev) and Writer (generative, structured output) seams |
 | [013](013-client-integrations.md) | Client integration adapters: Claude Code, Copilot CLI, OpenCode, Pi, ynh |
 | [014](014-evals-and-benchmarks.md) | Evals and benchmarks tracked at all times |

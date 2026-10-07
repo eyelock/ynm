@@ -103,7 +103,7 @@ groups:
         brief: >
           The namespace a store call was limited to. Namespaces can name a person, so this is sent
           only when the operator sets YNM_TELEMETRY_NAMESPACES=1. Never on a metric.
-        examples: ["common", "org/acme"]
+        examples: ["common", "org/example-org"]
         stability: development
       - id: ynm.record.count
         type: int

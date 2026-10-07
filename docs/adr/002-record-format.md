@@ -7,7 +7,7 @@ Satisfies: FR-3, FR-4, FR-5, FR-13, NFR-4, NFR-7
 
 Git notes merge conflict-free only if records are line-oriented and order-independent
 (`cat_sort_uniq` concatenates, sorts and dedupes lines). The modern consolidation approach
-(Mem0 2026, Zep, Supermemory) is append-and-supersede rather than edit-in-place. ACME re-appended
+(Mem0 2026, Zep, Supermemory) is append-and-supersede rather than edit-in-place. The predecessor project re-appended
 whole entries with the same id and resolved "latest" three different ways; effort entries had no id
 at all.
 

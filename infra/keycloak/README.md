@@ -2,8 +2,13 @@
 
 A local identity provider for building and testing sign-in to `ynm serve --http`. It runs
 Keycloak in Docker with a realm named `ynm` that is already set up the way ynm needs, so there
-is nothing to click through in an admin console. It is for development only: plain HTTP, fixed
-passwords, and an `admin`/`admin` console login.
+is nothing to click through in an admin console.
+
+> **For localhost only. Never run this anywhere another machine can reach it.**
+> Every credential here is public, because it is committed to this repository: the users
+> `alice`/`alice` and `bob`/`bob`, the `ynm-server` client secret `dev-only-not-a-secret`, and
+> the `admin`/`admin` console login. It also uses plain HTTP. Treat anything protected by these
+> values as unprotected, and never reuse them (or variants of them) for a real identity provider.
 
 ```sh
 make keycloak          # start it and wait until it answers
@@ -23,7 +28,7 @@ make keycloak-down     # stop it and throw its data away
 | Scopes | `memory:read` and `memory:write`, granted only when a client asks for them |
 | Audience | every token that carries a memory scope names `http://localhost:3000/mcp`, the default address of `ynm serve --http`. The audience rides on the scopes, so a client that registers itself (and gets only the scopes it asks for) still gets it |
 | `ynm-cli` | a public client with PKCE for the browser flow; it also allows the password grant, so scripts and tests can get a token without a browser |
-| `ynm-server` | a confidential client with secret `ynm-dev-secret`, for token introspection |
+| `ynm-server` | a confidential client with secret `dev-only-not-a-secret`, for token introspection |
 | Client registration | any client on this machine can register itself, the way MCP clients such as Claude Code do on first connect |
 | Admin console | `http://localhost:8180/admin`, `admin` / `admin` |
 

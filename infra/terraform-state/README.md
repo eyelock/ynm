@@ -1,7 +1,7 @@
 # Terraform state backend
 
 Where the Terraform under `infra/` keeps its state: an S3 bucket in `us-east-1`, plus the IAM
-users that day-to-day runs use. ynm has its own; astrolock, acme and collective each have theirs.
+users that day-to-day runs use. ynm has its own; other projects each have their own.
 
 This is its own configuration with its own state, so a plan or apply elsewhere under `infra/`
 uses the bucket but never touches it. It is applied once to bootstrap, and after that only to

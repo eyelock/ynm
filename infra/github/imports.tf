@@ -17,16 +17,6 @@ import {
 }
 
 import {
-  to = github_branch_protection.this["main"]
-  id = "ynm:main"
-}
-
-import {
-  to = github_branch_protection.this["develop"]
-  id = "ynm:develop"
-}
-
-import {
   to = github_issue_labels.ynm
   id = "ynm"
 }

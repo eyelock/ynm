@@ -1,7 +1,7 @@
 {
   "realm": "ynm",
   "enabled": true,
-  "displayName": "ynm (local development)",
+  "displayName": "ynm (local development only)",
   "sslRequired": "none",
   "accessTokenLifespan": 3600,
   "registrationAllowed": false,
@@ -292,7 +292,7 @@
       "publicClient": false,
       "protocol": "openid-connect",
       "clientAuthenticatorType": "client-secret",
-      "secret": "ynm-dev-secret",
+      "secret": "dev-only-not-a-secret",
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,

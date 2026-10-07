@@ -21,7 +21,7 @@ embedGuidance({
 
 // Secrets (a bearer token, a model API key) come from Parameter Store rather than the function's
 // environment, so they never sit in its configuration or in Terraform state. With
-// YNM_SSM_ENV_PATH=/ynm/acme/env/ every parameter under that path whose last segment is an
+// YNM_SSM_ENV_PATH=/ynm/example-org/env/ every parameter under that path whose last segment is an
 // environment variable name becomes that variable, unless it is already set; a value of "unset"
 // (a placeholder nobody has filled in) is skipped. This runs during the cold start, before the
 // handler module is loaded, because the handler reads its environment when it loads.

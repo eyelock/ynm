@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { gitOrNull } from "@ynm/store";
 
-/** Copied from ACME's worktree detector, using argv arrays instead of a shell string. */
+/** Adapted from an earlier project's worktree detector, using argv arrays instead of a shell string. */
 export interface WorktreeInfo {
   isGitRepo: boolean;
   isWorktree: boolean;
