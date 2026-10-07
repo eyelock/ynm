@@ -22,6 +22,8 @@ grep -q 'LABEL=ynm-data' /etc/fstab || echo 'LABEL=ynm-data /data xfs defaults,n
 mount -a
 mountpoint -q /data
 mkdir -p /data/ynm /data/caddy/data /data/caddy/config /etc/ynm
+# The ynm image runs as uid 1001; a store written by an earlier (root) image is handed over too.
+chown -R 1001:1001 /data/ynm
 
 # Non-secret settings. Secrets come from SSM at every start (ynm-up below).
 cat > /etc/ynm/ynm.env <<'ENV'

@@ -1,5 +1,7 @@
 # Demo topology (ADR-009): one hosted store, one HTTP agent client, one syncing clone.
 #   infra/docker/demo.sh   (brings up the store, runs the agent, then the clone)
+# The image runs as uid 1001; the named volume below takes that ownership on first use. A bind
+# mount in its place must be writable by uid 1001.
 services:
   store:
     build:

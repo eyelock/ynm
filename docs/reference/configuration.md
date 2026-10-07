@@ -203,7 +203,7 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 | `YNM_GIT_DAEMON` | `1` also serves the store over `git://` |
 | `YNM_URL` | Server URL used by the compose demo's agent |
 
-The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_CLAUDE_CLI=1`.
+The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_CLAUDE_CLI=1`. The container runs as uid 1001, so a bind-mounted `/data` must be writable by it.
 
 ### AWS Lambda
 

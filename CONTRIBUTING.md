@@ -97,7 +97,13 @@ timer, as a hosted server does. The Docker image is the same server: `docker com
 infra/docker/docker-compose.yml up`. Building it needs the token too, in `NODE_AUTH_TOKEN`,
 passed as a build secret: `NODE_AUTH_TOKEN=$(gh auth token) docker build --secret
 id=npm_token,env=NODE_AUTH_TOKEN .` (the compose file passes it for you, and
-`make test-hosted` falls back to `gh auth token` when it is unset).
+`make test-hosted` falls back to `gh auth token` when it is unset). The image bundles the CLI
+with `node scripts/release/bundle.mjs --with-s3` and copies only `ynm.mjs` into a runtime stage
+that runs as uid 1001 (a bind-mounted `/data` must be writable by it).
+
+CI scans for secrets with gitleaks. `.gitleaks.toml` extends the default rules and allowlists
+only the test files whose fake credentials check that redaction works, and the placeholder bearer
+token in the curl example above.
 
 ### As a Lambda
 

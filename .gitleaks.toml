@@ -1,0 +1,20 @@
+title = "ynm gitleaks config"
+
+[extend]
+useDefault = true
+
+# Fake credentials in tests that check redaction and telemetry scrubbing, and a placeholder bearer
+# token in a curl example. None is a credential. Path and rule allowlists, not fingerprints, so
+# this survives a history rewrite.
+[[allowlists]]
+description = "Fake AWS keys and tokens in the redaction and telemetry scrub tests"
+paths = [
+  '''packages/service/src/redaction\.test\.ts''',
+  '''packages/telemetry/src/telemetry\.test\.ts''',
+  '''packages/mcp/src/telemetry\.test\.ts''',
+  '''packages/mcp/src/lambda\.test\.ts''',
+]
+
+[[allowlists]]
+description = "Placeholder bearer token in the contributor guide's curl example"
+paths = ['''CONTRIBUTING\.md''']
