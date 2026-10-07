@@ -3,6 +3,27 @@ import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 import { ulid } from "@ynm/model";
 import { loadStoreS3 } from "@ynm/service";
+import {
+  ATTR_HTTP_REQUEST_METHOD,
+  ATTR_HTTP_RESPONSE_STATUS_CODE,
+  ATTR_URL_PATH,
+  ATTR_USER_NAME,
+  ATTR_YNM_ACTOR_KIND,
+  ATTR_YNM_AUDIT_CALL_COUNT,
+  ATTR_YNM_AUDIT_DURATION_MS,
+  ATTR_YNM_AUDIT_ERROR_COUNT,
+  ATTR_YNM_AUDIT_ID,
+  ATTR_YNM_AUDIT_REASON,
+  ATTR_YNM_AUDIT_TOOLS,
+  ATTR_YNM_CLIENT_ID,
+  ATTR_YNM_INPUT_BYTES,
+  ATTR_YNM_MEMORY_IDS,
+  ATTR_YNM_OUTCOME,
+  ATTR_YNM_RESULT_COUNT,
+  EVENT_YNM_AUDIT_REQUEST,
+  emitEvent,
+  telemetryEnabled,
+} from "@ynm/telemetry";
 import { z } from "zod";
 
 /*
@@ -46,8 +67,17 @@ export interface AuditEvent {
   durationMs: number;
 }
 
+/**
+ * What a sink may know about a request beyond its event. It is never part of the event, so the
+ * file, stdout and s3 sinks write exactly what they always have.
+ */
+export interface AuditContext {
+  /** The person's telemetry handle: login name (else subject) qualified by the IdP's host. */
+  handle?: string;
+}
+
 export interface AuditSink {
-  write(event: AuditEvent): Promise<void>;
+  write(event: AuditEvent, context?: AuditContext): Promise<void>;
 }
 
 /** What the request handler knows once it has answered. */
@@ -56,6 +86,8 @@ export interface AuditResponse {
   person?: string;
   client?: string;
   reason?: string;
+  /** For the otel sink only; see `AuditContext`. */
+  handle?: string;
 }
 
 /** Size of a value as JSON in bytes, for `AuditCall.inputBytes`. */
@@ -81,7 +113,8 @@ export function recordCall(call: AuditCall): void {
   current.getStore()?.push(call);
 }
 
-function outcomeOf(status: number): AuditEvent["outcome"] {
+/** A response status in the audit vocabulary, which telemetry's outcome shares. */
+export function outcomeOf(status: number): AuditEvent["outcome"] {
   if (status === 401 || status === 403) return "refused";
   return status >= 400 ? "error" : "ok";
 }
@@ -159,7 +192,7 @@ export class Auditor {
       durationMs: Math.max(0, this.now().getTime() - start.getTime()),
     };
     try {
-      await this.sink.write(event);
+      await this.sink.write(event, res.handle ? { handle: res.handle } : undefined);
     } catch (err) {
       this.onError(err);
     }
@@ -206,7 +239,42 @@ export function fileSink(path: string, opts: { maxBytes?: number } = {}): AuditS
   };
 }
 
-const SINKS = ["stdout", "file", "s3", "off"] as const;
+/**
+ * Each event as an OpenTelemetry event (`ynm.audit.request`), exported with the rest of ynm's
+ * telemetry after the redaction patterns run. The person appears by their handle, never their
+ * name or email; the event carries no namespace, content or tool input, as the others carry none.
+ */
+export function otelSink(): AuditSink {
+  return {
+    write: async (event, context) => {
+      const ids = [...new Set(event.calls.flatMap((c) => c.memoryIds ?? []))];
+      const sum = (pick: (c: AuditCall) => number | undefined) =>
+        event.calls.some((c) => pick(c) !== undefined)
+          ? event.calls.reduce((n, c) => n + (pick(c) ?? 0), 0)
+          : undefined;
+      emitEvent(EVENT_YNM_AUDIT_REQUEST, {
+        [ATTR_YNM_AUDIT_ID]: event.id,
+        [ATTR_USER_NAME]: context?.handle,
+        [ATTR_YNM_ACTOR_KIND]: event.person ? "human" : event.client ? "bot" : undefined,
+        [ATTR_YNM_CLIENT_ID]: event.client,
+        [ATTR_HTTP_REQUEST_METHOD]: event.method,
+        [ATTR_URL_PATH]: event.path,
+        [ATTR_HTTP_RESPONSE_STATUS_CODE]: event.status,
+        [ATTR_YNM_OUTCOME]: event.outcome,
+        [ATTR_YNM_AUDIT_REASON]: event.reason,
+        [ATTR_YNM_AUDIT_TOOLS]: event.calls.map((c) => c.tool),
+        [ATTR_YNM_AUDIT_CALL_COUNT]: event.calls.length,
+        [ATTR_YNM_AUDIT_ERROR_COUNT]: event.calls.filter((c) => c.status === "error").length,
+        [ATTR_YNM_MEMORY_IDS]: ids.length ? ids : undefined,
+        [ATTR_YNM_INPUT_BYTES]: sum((c) => c.inputBytes),
+        [ATTR_YNM_RESULT_COUNT]: sum((c) => c.resultCount),
+        [ATTR_YNM_AUDIT_DURATION_MS]: event.durationMs,
+      });
+    },
+  };
+}
+
+const SINKS = ["stdout", "file", "s3", "off", "otel"] as const;
 
 const AuditConfig = z.strictObject({
   sink: z.enum(SINKS),
@@ -265,6 +333,12 @@ export async function auditSinkFromEnv(
       return undefined;
     case "stdout":
       return stdoutSink();
+    case "otel":
+      if (!telemetryEnabled())
+        throw new Error(
+          "YNM_AUDIT: the otel sink sends audit events with ynm's telemetry, which is off; set OTEL_EXPORTER_OTLP_ENDPOINT to turn it on"
+        );
+      return otelSink();
     case "file":
       if (!cfg.path) throw new Error('YNM_AUDIT: the file sink needs a "path"');
       return fileSink(cfg.path);

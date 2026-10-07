@@ -10,6 +10,7 @@ import {
   selectAnchor,
 } from "@ynm/store";
 import { type ClientSetup, configureClients } from "./clients/index.js";
+import { harnessManifestPath } from "./clients/ynh.js";
 import { loadConfig, ynmHome } from "./config.js";
 import { ensurePersonalStore } from "./personal-store.js";
 import { detectWorktree } from "./worktree.js";
@@ -124,7 +125,7 @@ async function ensureExcluded(repo: string, entries: string[]): Promise<string[]
 export async function initProject(opts: InitProjectOptions): Promise<InitReport> {
   const wt = await detectWorktree(opts.cwd);
   if (!wt.isGitRepo) {
-    if (existsSync(join(opts.cwd, ".ynh-plugin", "plugin.json")))
+    if (existsSync(harnessManifestPath(opts.cwd)))
       throw new Error(
         `${opts.cwd} is a ynh harness, not a project: memory is initialised in the repositories you work on. To add ynm to this harness run \`ynm client install ynh\``
       );

@@ -1,6 +1,6 @@
 {
   "name": "@ynm/store",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Record log interface, fold, and providers: git-notes, fs, sqlite, memory (ADR-003, ADR-004).",
   "license": "MIT",
@@ -30,7 +30,8 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@ynm/model": "workspace:*"
+    "@ynm/model": "workspace:*",
+    "@ynm/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",

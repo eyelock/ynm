@@ -1,4 +1,4 @@
 # Copy to terraform.tfvars (gitignored) to override the defaults in variables.tf.
 # owner      = "eyelock"
 # repository = "ynm"
-# visibility = "public"
+# visibility = "public"   # also turns secret scanning and push protection on

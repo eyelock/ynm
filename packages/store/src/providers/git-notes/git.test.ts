@@ -1,5 +1,7 @@
 import { realpathSync } from "node:fs";
 import { join } from "node:path";
+import { withSpan } from "@ynm/telemetry";
+import { startMemoryTelemetry } from "@ynm/telemetry/testing";
 import { createRepo, tempDir } from "../../testing/git-fixtures.js";
 import { assertSha, GitError, git, gitCommonDir, gitOrNull, gitStats, identityEnv } from "./git.js";
 
@@ -76,5 +78,32 @@ describe("gitCommonDir", () => {
   it("returns the absolute .git directory of a work tree", async () => {
     const repo = await createRepo(1);
     expect(realpathSync(await gitCommonDir(repo))).toBe(realpathSync(join(repo, ".git")));
+  });
+});
+
+describe("git and trace context", () => {
+  /** What a process git starts (a hook, an alias) sees: git's own environment. */
+  const traceSeen = async (cwd: string) =>
+    (await git(["-c", 'alias.trace=!printf %s "$TRACEPARENT"', "trace"], { cwd })).trim();
+
+  it("gets nothing new when telemetry is off", async () => {
+    const dir = tempDir();
+    await withSpan("store sync", { kind: "client" }, async () =>
+      expect(await traceSeen(dir)).toBe(process.env.TRACEPARENT ?? "")
+    );
+  });
+
+  it("runs inside the store call's span, which it is given as TRACEPARENT", async () => {
+    const dir = tempDir();
+    const t = await startMemoryTelemetry();
+    try {
+      const seen = await withSpan("store sync", { kind: "client" }, () => traceSeen(dir));
+      const { spans } = await t.exported();
+      // No span of git's own: the store call is the boundary.
+      expect(spans.map((s) => s.name)).toEqual(["store sync"]);
+      expect(seen).toBe(`00-${spans[0]?.traceId}-${spans[0]?.spanId}-01`);
+    } finally {
+      await t.stop();
+    }
   });
 });

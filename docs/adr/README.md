@@ -26,10 +26,11 @@ line per addendum that was folded in), and the FR/NFR ids from ADR-000 it satisf
 | [008](008-interface-surface.md) | MCP tools, resources, prompts, CLI parity |
 | [009](009-hosting-and-bootstrap.md) | Hosting topologies and `ynm init` |
 | [010](010-wiki-projection.md) | Compiled markdown wiki as a derived view |
-| [011](011-reuse-from-acme-and-mcp-toolkit.md) | What is copied from the old repos |
+| [011](011-reuse-from-prior-projects-and-mcp-toolkit.md) | What is copied from the old repos |
 | [012](012-model-seams-judge-and-writer.md) | Judge (decision models, Jev) and Writer (generative, structured output) seams |
 | [013](013-client-integrations.md) | Client integration adapters: Claude Code, Copilot CLI, OpenCode, Pi, ynh |
 | [014](014-evals-and-benchmarks.md) | Evals and benchmarks tracked at all times |
 | [015](015-distribution.md) | Distribution: standalone binaries, a slim bundle and the image |
 | [016](016-agent-guidance-delivery.md) | Agent guidance delivery: `ynm hook` subcommands, and `ynm init` configures every detected client |
 | [017](017-auth-identity-audit.md) | Authentication, identity and audit for the HTTP server: an `AuthProvider` seam (local token, OIDC with provider presets, introspection), never open by default, per-user provenance and an audit log (proposed) |
+| [018](018-opentelemetry.md) | OpenTelemetry over OTLP: loaded only when an endpoint is set, spans at the boundaries joining the caller's trace, an `otel` audit sink naming people by handle, no content, a Weaver-style registry (proposed) |

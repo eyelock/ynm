@@ -139,9 +139,9 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 7.12 | [The other clients](07-connect-an-agent.md#the-other-clients) | `ynm client plan copilot-cli` |  |
 | 7.13 | [The other clients (2)](07-connect-an-agent.md#the-other-clients) | `ynm client install opencode` |  |
 | 7.14 | [The other clients (3)](07-connect-an-agent.md#the-other-clients) | `ynm client install pi` |  |
-| 7.15 | [Install into a ynh harness](07-connect-an-agent.md#install-into-a-ynh-harness) | `mkdir -p /tmp/ynm-tutorial/harness/.ynh-plugin` |  |
+| 7.15 | [Install into a ynh harness](07-connect-an-agent.md#install-into-a-ynh-harness) | `mkdir -p /tmp/ynm-tutorial/harness/.agents/harness` |  |
 | 7.16 | [Install into a ynh harness (2)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm client install` |  |
-| 7.17 | [Install into a ynh harness (3)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cat .ynh-plugin/plugin.json` |  |
+| 7.17 | [Install into a ynh harness (3)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cat .agents/harness/plugin.json` |  |
 | 7.18 | [Install into a ynh harness (4)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm validate` |  |
 | 7.19 | [Install into a ynh harness (5)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm client install` |  |
 | 7.20 | [Install into a ynh harness (6)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cd /tmp/ynm-tutorial/project` |  |
@@ -225,7 +225,8 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 11.11 | [Back up and restore](11-doctor-and-maintenance.md#back-up-and-restore) | `cd /tmp/ynm-tutorial/project` |  |
 | 11.12 | [Back up and restore (2)](11-doctor-and-maintenance.md#back-up-and-restore) | `git clone -q /tmp/ynm-tutorial/backup.bundle /tmp/ynm-tutorial/restored` |  |
 | 11.13 | [Back up and restore (3)](11-doctor-and-maintenance.md#back-up-and-restore) | `cd /tmp/ynm-tutorial/restored` |  |
-| 11.14 | [Cleanup](11-doctor-and-maintenance.md#cleanup) | `cd /tmp` |  |
+| 11.14 | [Telemetry](11-doctor-and-maintenance.md#telemetry) | `ynm telemetry registry --format json > /tmp/ynm-tutorial/registry.json` |  |
+| 11.15 | [Cleanup](11-doctor-and-maintenance.md#cleanup) | `cd /tmp` |  |
 
 ## [Evals and Benchmarks](12-evals-and-benchmarks.md)
 

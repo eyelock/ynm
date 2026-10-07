@@ -12,10 +12,20 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
+# @eyelock/otel-spool-exporter is public on GitHub's npm registry, which still wants a token even
+# to read a public package. Each job that installs sets NODE_AUTH_TOKEN to the workflow's own
+# GITHUB_TOKEN (packages: read, granted above and in the jobs that set their own permissions) and
+# points the runner's ~/.npmrc at it; the single quotes keep ${NODE_AUTH_TOKEN} out of the file,
+# so npm expands it at install time. The bundles, binaries, Lambda package and image carry the
+# package inside them, so no one installing a release needs a token. RELEASE_TOKEN is used only
+# to push to the Homebrew tap.
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -23,6 +33,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' >> ~/.npmrc
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm check
@@ -52,6 +64,8 @@ jobs:
             os: linux
             native: amd64
     runs-on: ${{ matrix.runner }}
+    env:
+      NODE_AUTH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -60,6 +74,8 @@ jobs:
           # The blob must be made by the Node it is injected into: .nvmrc pins it exactly.
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' >> ~/.npmrc
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Build ${{ matrix.os }} binaries
@@ -83,8 +99,11 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ github.token }}
     permissions:
       contents: write
+      packages: read
     outputs:
       version: ${{ steps.meta.outputs.version }}
     steps:
@@ -94,6 +113,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' >> ~/.npmrc
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - id: meta
@@ -176,6 +197,9 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
+          # A BuildKit secret, so the token is in no layer of the image.
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

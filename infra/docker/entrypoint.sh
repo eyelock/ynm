@@ -1,5 +1,5 @@
 #!/bin/sh
-# Hosted ynm: create/adopt the bare memory repo, optionally serve it over git://, run the HTTP server.
+# Hosted ynm (runs as uid 1001, so /data must be writable by it): create/adopt the bare memory repo, optionally serve it over git://, run the HTTP server.
 set -e
 STORE="${YNM_STORE:-/data/store.git}"
 mkdir -p "$(dirname "$STORE")" "${YNM_HOME:-/data/home}"
@@ -12,4 +12,4 @@ if [ "${YNM_GIT_DAEMON:-0}" = "1" ]; then
   git daemon --base-path="$(dirname "$STORE")" --export-all --enable=receive-pack \
     --reuseaddr --detach --port=9418 --pid-file=/tmp/git-daemon.pid "$(dirname "$STORE")"
 fi
-exec ynm-mcp --http --no-personal --cwd "$STORE" --host "${YNM_HTTP_HOST:-0.0.0.0}" --port "${PORT:-3000}" "$@"
+exec ynm serve --http --no-personal --cwd "$STORE" --host "${YNM_HTTP_HOST:-0.0.0.0}" --port "${PORT:-3000}" "$@"

@@ -11,7 +11,7 @@ export { JEV_LIMITS, TypeSafeJudge, type TypeSafeOptions } from "./judges/typesa
 export { WriterEmulatedJudge } from "./judges/writer-emulated.js";
 export * from "./types.js";
 export { type RawCompletion, ValidatingWriter } from "./writers/base.js";
-export { type ClaudeCliOptions, ClaudeCliWriter } from "./writers/claude-cli.js";
+export { type ClaudeCliOptions, ClaudeCliWriter, claudeCliEnv } from "./writers/claude-cli.js";
 export { NoneWriter } from "./writers/none.js";
 export {
   type OpenAICompatibleOptions,

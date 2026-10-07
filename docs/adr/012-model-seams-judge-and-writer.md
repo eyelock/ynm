@@ -144,3 +144,4 @@ None.
   refused at 0.9, judgments in `data.judgments`.
 - 2026-09-29 (M4): secrets loaded from `~/.ynm/env` or a gitignored `.env`, denied to the agent.
 - 2026-09-29: correction: the write-path judge switch is the config key `dream.judgeOnWrite` (not `judge.onWrite`), and there is no `memory-dream-review` prompt; memories flagged for review are listed by `ynm review`, and the wiki page frontmatter carries `needsReview`.
+- 2026-10-05: the `claude-cli` writer removes `ANTHROPIC_API_KEY` from the child's environment by default, because current Claude Code exits 1 when a key and a login are both present; `dream.claude.useApiKey` keeps it.

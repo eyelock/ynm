@@ -5,7 +5,7 @@ Satisfies: FR-2, FR-16, FR-18, NFR-5
 
 ## Context
 
-ACME's privacy guide described three modes (local-only, personal fork, team) but the code had one
+The predecessor project's privacy guide described three modes (local-only, personal fork, team) but the code had one
 set of refs and a forced fetch refspec, and its docs wrongly claimed prompts were not stored. Claude
 Code separates human-written tiers (managed, user, project, local) from machine-written auto memory
 kept outside the repo. Letta and Mem0 scope by ids but keep one store.

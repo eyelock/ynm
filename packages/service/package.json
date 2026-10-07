@@ -1,6 +1,6 @@
 {
   "name": "@ynm/service",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "The one business layer: mounts, remember, recall, consolidate, sync, doctor (ADR-008).",
   "license": "MIT",
@@ -33,7 +33,8 @@
     "@ynm/store": "workspace:*",
     "@ynm/store-s3": "workspace:*",
     "@ynm/wiki": "workspace:*",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@ynm/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/server": "^2.2.0",

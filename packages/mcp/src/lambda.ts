@@ -8,13 +8,14 @@
  * its index under `YNM_HOME` (default `/tmp/ynm`); the personal mount is never opened.
  */
 import { mkdirSync } from "node:fs";
-import type { Ynm } from "@ynm/service";
+import { DEFAULT_REDACTION, type Ynm } from "@ynm/service";
 import type { RecordLog, ShardKey } from "@ynm/store";
+import { flushTelemetry, startTelemetry } from "@ynm/telemetry";
 import { authFromEnv, protectedResourceFor, verifierFor } from "./auth.js";
 import { hostedAudit } from "./identity.js";
 import { startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
-import { createWebHandler } from "./transport/http.js";
+import { createWebHandler, requestSpan } from "./transport/http.js";
 import {
   consoleSink,
   formatRequestLine,
@@ -319,9 +320,18 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
   const cfg = lambdaConfig(opts.env ?? process.env);
   mkdirSync(cfg.home, { recursive: true });
   const serverOpts = { cwd: cfg.home, env: cfg.env, noPersonal: true };
+  // Telemetry loads only when an OTLP endpoint is set (ADR-018). The store waits for it, so its
+  // calls are spans; it never fails the function.
+  const telemetry = startTelemetry({
+    version: MCP_VERSION,
+    env: cfg.env,
+    redaction: DEFAULT_REDACTION,
+    bridgeConsole: !opts.quiet,
+  });
   let opened = false;
   const open = opts.getYnm ?? serviceCache(serverOpts);
   const getYnm = async () => {
+    await telemetry;
     const ynm = await open();
     opened = true;
     return ynm;
@@ -411,8 +421,28 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
     }
   };
 
+  /**
+   * Exports what this invocation buffered before it returns, since the instance may be frozen
+   * after. Bounded by the time left: never past `deadline` (ms from now), never over 2 seconds.
+   */
+  const flush = async (deadline: number | undefined) => {
+    const left = deadline ?? 2000;
+    if (left > 0) await flushTelemetry(Math.min(2000, left));
+  };
+  const remaining = (context?: LambdaContext) => {
+    const ms = context?.getRemainingTimeInMillis?.();
+    return ms === undefined ? undefined : ms - DEADLINE_MARGIN_MS;
+  };
+
   return async (event, context) => {
-    if (isScheduledEvent(event)) return runScheduled(event.ynm, context);
+    await telemetry;
+    if (isScheduledEvent(event)) {
+      try {
+        return await runScheduled(event.ynm, context);
+      } finally {
+        await flush(remaining(context));
+      }
+    }
     if (!isFunctionUrlEvent(event))
       throw new Error(
         'unrecognised event: expected a Function URL request (payload format 2.0) or { "ynm": "dream" | "compact" | "health" }'
@@ -431,25 +461,38 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       waited: budget.waited,
     };
     const seen: RequestSeen = {};
-    let result: FunctionUrlResult;
-    try {
-      const request = toRequest(event, cfg.publicUrl);
-      try {
-        Object.assign(entry, rpcOf(event, request));
-      } catch {}
-      const response = await web.fetch(request, seen);
-      const buffered = await bufferResult(response, { timeoutMs: budget.timeoutMs });
-      result = buffered.result;
-      if (buffered.truncated) entry.cut = budget.bound ?? "timeout";
-    } catch (err) {
-      log(`request failed${idField(context)}: ${err instanceof Error ? err.message : String(err)}`);
-      result = {
-        statusCode: 500,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ error: "internal error" }),
-        isBase64Encoded: false,
-      };
-    }
+    const headers = event.headers ?? {};
+    const result = await requestSpan(
+      {
+        method: event.requestContext.http.method,
+        path: event.rawPath || "/",
+        traceparent: headers.traceparent,
+        tracestate: headers.tracestate,
+      },
+      async (): Promise<FunctionUrlResult> => {
+        try {
+          const request = toRequest(event, cfg.publicUrl);
+          try {
+            Object.assign(entry, rpcOf(event, request));
+          } catch {}
+          const response = await web.fetch(request, seen);
+          const buffered = await bufferResult(response, { timeoutMs: budget.timeoutMs });
+          if (buffered.truncated) entry.cut = budget.bound ?? "timeout";
+          return buffered.result;
+        } catch (err) {
+          log(
+            `request failed${idField(context)}: ${err instanceof Error ? err.message : String(err)}`
+          );
+          return {
+            statusCode: 500,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ error: "internal error" }),
+            isBase64Encoded: false,
+          };
+        }
+      },
+      (r) => r.statusCode
+    );
     try {
       const line = {
         ...(entry as RequestLogEntry),
@@ -459,6 +502,10 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       };
       log(formatRequestLine(line), levelFor(line));
     } catch {}
+    // Within what is left of the response budget, so telemetry never costs the client its answer.
+    await flush(
+      budget.timeoutMs === undefined ? undefined : budget.timeoutMs - (performance.now() - started)
+    );
     return result;
   };
 }

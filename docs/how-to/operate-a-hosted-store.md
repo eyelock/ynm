@@ -35,6 +35,16 @@ ynm serve --http --host 0.0.0.0 --port 3000 --no-personal --cwd /srv/memory.git 
   --dream-every 15m --sync-every 5m
 ```
 
+The image runs as an unprivileged user, uid 1001, and holds only the runtime (one bundled
+`ynm.mjs`, Node, git and tini). A named volume such as `ynm-data` takes that user's ownership on
+first use. A bind-mounted host directory must be writable by uid 1001 before the container starts:
+
+```sh
+mkdir -p /srv/ynm && sudo chown 1001:1001 /srv/ynm
+docker run -d --name ynm -p 3000:3000 -v /srv/ynm:/data \
+  -e YNM_MCP_TOKEN=change-me ghcr.io/eyelock/ynm
+```
+
 The entrypoint creates the bare repo on first start (`ynm init --bare` then `ynm init` inside
 it) under `/data/store.git`. `GET /health` reports auth mode and scheduler stats and is outside
 auth. Bind to `0.0.0.0` only in containers or behind a proxy: the Host header check is then
@@ -147,6 +157,20 @@ the query string, or anything from the request or response body beyond the metho
 The fields are the same as a Lambda function's request line, described in
 [Host ynm on AWS Lambda](host-on-aws-lambda.md#one-line-per-request).
 
+## Telemetry
+
+The server sends spans, events and metrics for each request, tool call, store call and dream pass
+when you give it somewhere to send them, and nothing otherwise:
+
+- an OpenTelemetry collector: set `OTEL_EXPORTER_OTLP_ENDPOINT` (it wins over a spool);
+- a ynr spool, with `ynr serve` running beside the server and reading the same volume: set
+  `YNR_SPOOL` to the `services/ynm` folder under the spool's root, such as
+  `YNR_SPOOL=/var/lib/ynr/spool/services/ynm` (with Docker, mount that volume into the container
+  too, and make it readable and writable by uid 1001). Starting and keeping `ynr serve` running is your deployment's job, as for any sidecar.
+
+A server that starts before the spool folder exists looks again once a minute. See
+[Send telemetry to an OpenTelemetry collector](send-telemetry.md#when-hosted).
+
 ## Audit
 
 Every request that reaches the MCP handler, and every refused one, produces one audit event:
@@ -160,8 +184,10 @@ Health checks and sign-in discovery are not audited.
 `YNM_AUDIT` picks where events go ([configuration reference](../reference/configuration.md)):
 stdout (one JSON line per event, the default when the server checks tokens), a JSONL file rotated
 at 10 MiB, or S3 (one object per event at `audit/<store prefix>/<yyyy>/<mm>/<dd>/<id>.json`,
-outside the store's own prefix, so a retention rule on `audit/` can never expire memory). A sink
-that fails is reported on stderr and never fails the request.
+outside the store's own prefix, so a retention rule on `audit/` can never expire memory), or
+OpenTelemetry (`{"sink":"otel"}`: each event goes to your collector with the rest of ynm's
+telemetry; see [Send telemetry to an OpenTelemetry collector](send-telemetry.md#send-audit-events-too)).
+A sink that fails is reported on stderr and never fails the request.
 
 ## Backups
 

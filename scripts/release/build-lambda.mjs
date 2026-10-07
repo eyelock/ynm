@@ -9,6 +9,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { build } from "esbuild";
+import { checkTelemetryIsLazy } from "./lazy-telemetry.mjs";
 
 const root = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
 const outIndex = process.argv.indexOf("--out");
@@ -19,7 +20,7 @@ rmSync(stage, { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });
 mkdirSync(dirname(zip), { recursive: true });
 
-await build({
+const { metafile } = await build({
   entryPoints: [join(root, "scripts/release/lambda-entry.mjs")],
   outfile: join(stage, "index.mjs"),
   bundle: true,
@@ -32,6 +33,7 @@ await build({
   // The entry sits outside the MCP package; resolve its bare imports as that package would.
   nodePaths: [join(root, "packages/mcp/node_modules")],
   logLevel: "warning",
+  metafile: true,
   // Bundled CommonJS dependencies call require() for builtins.
   banner: {
     js: [
@@ -40,6 +42,8 @@ await build({
     ].join("\n"),
   },
 });
+
+checkTelemetryIsLazy(metafile, "scripts/release/lambda-entry.mjs");
 
 rmSync(zip, { force: true });
 // -X: no extra file attributes, so the archive depends on the bundle alone.

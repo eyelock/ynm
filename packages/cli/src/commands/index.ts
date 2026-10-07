@@ -29,6 +29,7 @@ import Session from "./session.js";
 import Status from "./status.js";
 import Supersede from "./supersede.js";
 import Sync from "./sync.js";
+import Telemetry from "./telemetry.js";
 import Validate from "./validate.js";
 import Wiki from "./wiki.js";
 
@@ -59,6 +60,7 @@ export const COMMANDS = {
   status: Status,
   supersede: Supersede,
   sync: Sync,
+  telemetry: Telemetry,
   validate: Validate,
   wiki: Wiki,
 };

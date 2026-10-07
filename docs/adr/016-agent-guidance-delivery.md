@@ -65,7 +65,7 @@ entry whose command is already there; `--no-hooks` skips them. The project file 
 personal project settings, never the team's tracked `.claude/settings.json`: a hook that runs
 `ynm` fails for every teammate who does not have it installed. Status counts hooks found in any
 of the three files, so a team that put them in the shared file on purpose still reads `hooks
-yes`. In a ynh harness (the directory holds `.ynh-plugin/plugin.json`) `ynm client install ynh`
+yes`. In a ynh harness (the directory holds `.agents/harness/plugin.json`) `ynm client install ynh`
 merges the server, the canonical hooks `on_session_start`, `before_prompt` and `on_stop`, and an
 include of the skill, `{ "git": "https://github.com/eyelock/ynm", "path": "integrations", "pick": ["skills/ynm-memory"] }`,
 into the manifest. Nothing is copied into the harness's `skills/`: ynh resolves the include and
@@ -99,7 +99,7 @@ uses. A client is found by three signals, but only one of them makes init write 
 | copilot-cli | `copilot` | `~/.copilot/` | none (`AGENTS.md` is shared) |
 | opencode | `opencode` | `~/.config/opencode/` | `opencode.json`, `opencode.jsonc` |
 | pi | `pi` | `~/.pi/agent/` | `.pi/` |
-| ynh | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` |
+| ynh | `ynh` | `~/.ynh/` | `.agents/harness/plugin.json` |
 
 A project footprint means the repository uses the client, and init configures it. The other two
 signals only say the client is on this machine; init writes nothing for such a client and
@@ -195,3 +195,4 @@ but guidance or hooks are missing.
   phrases, `memory_remember`, `memory_recall` and `memory_context` descriptions that claim the
   job over built-in memory, and a level-less remember that is distributed when no personal mount
   is open. Hooks remain the deterministic channel.
+- 2026-10-07: ynh's harness manifest moves to `.agents/harness/plugin.json`, ynh's canonical layout; `.ynh-plugin/` is no longer written (an existing one is moved there by `ynm client install ynh`). Accepted.

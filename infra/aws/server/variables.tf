@@ -44,6 +44,7 @@ variable "dns_zone_name" {
   default     = "eyelock.net"
 }
 
+# ACME = the certificate protocol (Let's Encrypt), RFC 8555
 variable "acme_email" {
   description = "Contact address for the Let's Encrypt account that issues the store's certificate"
   type        = string

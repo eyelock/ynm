@@ -14,16 +14,17 @@ resource "github_repository" "ynm" {
   ]
 
   has_issues      = true
-  has_discussions = false
-  has_projects    = false
+  has_discussions = true
+  has_projects    = true
   has_wiki        = false
   is_template     = false
 
   # Feature PRs into develop are squash-merged; release and hotfix PRs into main use a true
   # merge so the back-merge into develop is clean (CONTRIBUTING.md, "Branches and pull requests").
+  # Rebase merge is off: it rewrites SHAs.
   allow_squash_merge          = true
   allow_merge_commit          = true
-  allow_rebase_merge          = true
+  allow_rebase_merge          = false
   allow_auto_merge            = false
   allow_update_branch         = false
   delete_branch_on_merge      = true
@@ -32,6 +33,20 @@ resource "github_repository" "ynm" {
   merge_commit_title          = "MERGE_MESSAGE"
   merge_commit_message        = "PR_TITLE"
   web_commit_signoff_required = false
+
+  # Secret scanning and push protection only work on a public repository (a private one needs
+  # GitHub Advanced Security), so they follow the visibility variable.
+  dynamic "security_and_analysis" {
+    for_each = var.visibility == "public" ? [1] : []
+    content {
+      secret_scanning {
+        status = "enabled"
+      }
+      secret_scanning_push_protection {
+        status = "enabled"
+      }
+    }
+  }
 
   # A destroy archives the repository instead of deleting it.
   archive_on_destroy = true

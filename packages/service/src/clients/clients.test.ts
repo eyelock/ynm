@@ -68,7 +68,10 @@ describe("client adapters (ADR-013)", () => {
   it("ynh plugin generation matches the checked-in manifest and skill", () => {
     const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
     const checked = JSON.parse(
-      readFileSync(join(repoRoot, "integrations", "ynh", ".ynh-plugin", "plugin.json"), "utf8")
+      readFileSync(
+        join(repoRoot, "integrations", "ynh", ".agents", "harness", "plugin.json"),
+        "utf8"
+      )
     ) as Record<string, unknown>;
     const generated = ynhPlugin({ version: String(checked.version), transport: stdio });
     expect(generated).toEqual(checked);
@@ -85,7 +88,7 @@ describe("client adapters (ADR-013)", () => {
       kind: "command",
       argv: ["ynh", "install", "github.com/eyelock/ynm", "--path", "integrations/ynh"],
     });
-    const dir = join(home, ".ynh", "harnesses", "eyelock", "ynm", ".ynh-plugin");
+    const dir = join(home, ".ynh", "harnesses", "eyelock", "ynm", ".agents", "harness");
     await applyChanges([
       {
         kind: "write",
@@ -100,9 +103,9 @@ describe("client adapters (ADR-013)", () => {
   it("ynh in a harness merges the server, hooks and a skill include into it, idempotently", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
     const home = mkdtempSync(join(tmpdir(), "ynm-ynh-home-"));
-    mkdirSync(join(cwd, ".ynh-plugin"));
+    mkdirSync(join(cwd, ".agents", "harness"), { recursive: true });
     writeFileSync(
-      join(cwd, ".ynh-plugin", "plugin.json"),
+      join(cwd, ".agents", "harness", "plugin.json"),
       JSON.stringify({
         name: "my-harness",
         version: "0.1.0",
@@ -116,7 +119,7 @@ describe("client adapters (ADR-013)", () => {
     expect(plan[0]?.reason).toMatch(/replaced the string-form command "ynm serve"/);
     expect(plan[1]).toMatchObject({ kind: "note", text: "ynm validate" });
     await applyChanges(plan);
-    const m = JSON.parse(readFileSync(join(cwd, ".ynh-plugin", "plugin.json"), "utf8")) as {
+    const m = JSON.parse(readFileSync(join(cwd, ".agents", "harness", "plugin.json"), "utf8")) as {
       mcp_servers: Record<string, unknown>;
       hooks: Record<string, Array<{ command: string }>>;
     };
@@ -150,15 +153,15 @@ describe("client adapters (ADR-013)", () => {
 
   it("ynh --no-hooks merges only the server and the skill include", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
-    mkdirSync(join(cwd, ".ynh-plugin"));
+    mkdirSync(join(cwd, ".agents", "harness"), { recursive: true });
     writeFileSync(
-      join(cwd, ".ynh-plugin", "plugin.json"),
+      join(cwd, ".agents", "harness", "plugin.json"),
       JSON.stringify({ name: "h", version: "0.1.0" })
     );
     await applyChanges(
       await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio, hooks: false })
     );
-    const m = JSON.parse(readFileSync(join(cwd, ".ynh-plugin", "plugin.json"), "utf8")) as {
+    const m = JSON.parse(readFileSync(join(cwd, ".agents", "harness", "plugin.json"), "utf8")) as {
       hooks?: unknown;
     };
     expect(m.hooks).toBeUndefined();
@@ -167,8 +170,8 @@ describe("client adapters (ADR-013)", () => {
 
   it("keeps a harness manifest's own formatting when merging into it", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
-    mkdirSync(join(cwd, ".ynh-plugin"));
-    const file = join(cwd, ".ynh-plugin", "plugin.json");
+    mkdirSync(join(cwd, ".agents", "harness"), { recursive: true });
+    const file = join(cwd, ".agents", "harness", "plugin.json");
     writeFileSync(
       file,
       '{\n    "$schema": "https://eyelock.github.io/ynh/schema/plugin.schema.json",\n    "name": "h",\n    "description": "yours \\u2014 your AI"\n}\n'
@@ -184,11 +187,64 @@ describe("client adapters (ADR-013)", () => {
   });
 });
 
+describe("ynh harness with the deprecated .ynh-plugin/ layout", () => {
+  function legacy(extra: Record<string, unknown> = {}): string {
+    const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
+    mkdirSync(join(cwd, ".ynh-plugin"));
+    writeFileSync(
+      join(cwd, ".ynh-plugin", "plugin.json"),
+      JSON.stringify({ name: "h", version: "0.1.0", ...extra })
+    );
+    return cwd;
+  }
+
+  it("is still detected and reported, with a note that it should move", async () => {
+    const cwd = legacy({ mcp_servers: { ynm: { command: "ynm", args: ["serve"] } } });
+    expect((await ynh.detect({ cwd, home: cwd })).installed).toBe(true);
+    const status = await ynh.status({ cwd, home: cwd });
+    expect(status.configured).toBe(true);
+    expect(status.detail).toMatch(/\.ynh-plugin.*deprecated.*\.agents\/harness/);
+  });
+
+  it("is moved to .agents/harness/ on install, leaving one manifest", async () => {
+    const cwd = legacy();
+    writeFileSync(join(cwd, ".ynh-plugin", "installed.json"), "{}");
+    const plan = await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio });
+    expect(plan.map((c) => c.kind)).toEqual(["move", "write", "note"]);
+    await applyChanges(plan);
+    expect(existsSync(join(cwd, ".ynh-plugin"))).toBe(false);
+    expect(existsSync(join(cwd, ".agents", "harness", "installed.json"))).toBe(true);
+    const m = JSON.parse(readFileSync(join(cwd, ".agents", "harness", "plugin.json"), "utf8")) as {
+      mcp_servers: Record<string, unknown>;
+    };
+    expect(m.mcp_servers.ynm).toEqual({ command: "ynm", args: ["serve"] });
+    expect(await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio })).toEqual([]);
+  });
+
+  it("moves just the manifest when .agents/harness/ already exists without one", async () => {
+    const cwd = legacy();
+    mkdirSync(join(cwd, ".agents", "harness"), { recursive: true });
+    await applyChanges(await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio }));
+    expect(existsSync(join(cwd, ".ynh-plugin", "plugin.json"))).toBe(false);
+    expect(existsSync(join(cwd, ".agents", "harness", "plugin.json"))).toBe(true);
+  });
+
+  it("prefers the canonical manifest when both exist and never touches the legacy one", async () => {
+    const cwd = legacy();
+    mkdirSync(join(cwd, ".agents", "harness"), { recursive: true });
+    writeFileSync(join(cwd, ".agents", "harness", "plugin.json"), JSON.stringify({ name: "h" }));
+    const plan = await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio });
+    expect(plan.map((c) => c.kind)).toEqual(["write", "note"]);
+    await applyChanges(plan);
+    expect(existsSync(join(cwd, ".ynh-plugin", "plugin.json"))).toBe(true);
+  });
+});
+
 describe("ynh include from before the skill moved to integrations/", () => {
   it("is replaced in place, not duplicated", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
-    mkdirSync(join(cwd, ".ynh-plugin"));
-    const file = join(cwd, ".ynh-plugin", "plugin.json");
+    mkdirSync(join(cwd, ".agents", "harness"), { recursive: true });
+    const file = join(cwd, ".agents", "harness", "plugin.json");
     writeFileSync(
       file,
       JSON.stringify({
@@ -218,9 +274,9 @@ describe("ynh include from before the skill moved to integrations/", () => {
 describe("ynh harness edges", () => {
   function harness(manifest: unknown): string {
     const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
-    mkdirSync(join(cwd, ".ynh-plugin"));
+    mkdirSync(join(cwd, ".agents", "harness"), { recursive: true });
     writeFileSync(
-      join(cwd, ".ynh-plugin", "plugin.json"),
+      join(cwd, ".agents", "harness", "plugin.json"),
       typeof manifest === "string" ? manifest : JSON.stringify(manifest)
     );
     return cwd;
@@ -265,7 +321,7 @@ describe("ynh harness edges", () => {
       label: "harness manifest, 1 hook",
     });
     await applyChanges(plan);
-    const m = JSON.parse(readFileSync(join(cwd, ".ynh-plugin", "plugin.json"), "utf8")) as {
+    const m = JSON.parse(readFileSync(join(cwd, ".agents", "harness", "plugin.json"), "utf8")) as {
       mcp_servers: Record<string, unknown>;
     };
     expect(m.mcp_servers.ynm).toEqual({
@@ -301,8 +357,8 @@ describe("ynh harness edges", () => {
     mkdirSync(join(home, ".ynh"));
     expect((await ynh.status({ cwd: "/x", home })).detail).toMatch(/^run `ynh install/);
     const put = (dir: string, content: string) => {
-      mkdirSync(join(home, ".ynh", dir, ".ynh-plugin"), { recursive: true });
-      writeFileSync(join(home, ".ynh", dir, ".ynh-plugin", "plugin.json"), content);
+      mkdirSync(join(home, ".ynh", dir, ".agents", "harness"), { recursive: true });
+      writeFileSync(join(home, ".ynh", dir, ".agents", "harness", "plugin.json"), content);
     };
     put("broken", "{ not json");
     put("other", JSON.stringify({ name: "other" }));

@@ -1,4 +1,5 @@
 import { defaultSpendGuard, type SpendGuard } from "../budget.js";
+import { modelCall } from "../telemetry.js";
 import {
   type Answer,
   estimateTokens,
@@ -58,18 +59,23 @@ export class TypeSafeJudge implements Judge {
     const model = this.opts.model ?? "jev-latest";
     let res: Response;
     try {
-      res = await f(
-        `${(this.opts.baseUrl ?? "https://api.typesafe.ai").replace(/\/$/, "")}/v1/systemone`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${this.opts.apiKey}`,
-          },
-          body: JSON.stringify({ state, model, questions }),
-          signal: AbortSignal.timeout(this.opts.timeoutMs ?? 30_000),
-        }
-      );
+      // One client span per request (ADR-018); never the state or the answers.
+      res = await modelCall("typesafe", model, undefined, async (span) => {
+        const r = await f(
+          `${(this.opts.baseUrl ?? "https://api.typesafe.ai").replace(/\/$/, "")}/v1/systemone`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.opts.apiKey}`,
+            },
+            body: JSON.stringify({ state, model, questions }),
+            signal: AbortSignal.timeout(this.opts.timeoutMs ?? 30_000),
+          }
+        );
+        if (!r.ok) span.outcome("error", String(r.status));
+        return r;
+      });
     } catch (e) {
       throw new ModelUnavailableError("typesafe", (e as Error).message);
     }

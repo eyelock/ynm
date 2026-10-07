@@ -1,4 +1,9 @@
-import { createServer as createHttpServer, type Server as NodeServer } from "node:http";
+import {
+  createServer as createHttpServer,
+  type IncomingMessage,
+  type Server as NodeServer,
+  type ServerResponse,
+} from "node:http";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import {
   type AuthInfo,
@@ -13,8 +18,17 @@ import {
   originValidationResponse,
   verifyBearerToken,
 } from "@modelcontextprotocol/server";
-import type { Auditor } from "../audit.js";
+import {
+  ATTR_HTTP_REQUEST_METHOD,
+  ATTR_HTTP_RESPONSE_STATUS_CODE,
+  ATTR_HTTP_ROUTE,
+  EVENT_YNM_REQUEST_STARTED,
+  METRIC_YNM_HTTP_REQUEST_DURATION,
+  withSpan,
+} from "@ynm/telemetry";
+import { type Auditor, outcomeOf } from "../audit.js";
 import type { ProtectedResource } from "../auth.js";
+import { handleOf } from "../identity.js";
 import {
   formatRequestLine,
   type LogSink,
@@ -81,6 +95,56 @@ const json = (status: number, body: string, headers: Headers): Response => {
 };
 
 const METADATA_PATH = "/.well-known/oauth-protected-resource";
+
+const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "TRACE"]);
+
+/** The route a path is served by, for span names and metrics; undefined outside them. */
+export function routeOf(path: string): string | undefined {
+  if (path === "/mcp" || path === "/health") return path;
+  if (path === METADATA_PATH || path.startsWith(`${METADATA_PATH}/`)) return METADATA_PATH;
+  return undefined;
+}
+
+/** One incoming HTTP request as it reaches the server, for its span. */
+export interface IncomingRequest {
+  method: string;
+  path: string;
+  /** W3C trace context headers, so the span joins the caller's trace. */
+  traceparent?: string | null;
+  tracestate?: string | null;
+}
+
+/**
+ * Serves one HTTP request inside its server span (ADR-018), named `{method} {route}`: it joins the
+ * caller's trace from the W3C headers and ends with the status and outcome. Without telemetry,
+ * this is `serve()`.
+ */
+export function requestSpan<T>(
+  req: IncomingRequest,
+  serve: () => Promise<T>,
+  statusOf: (result: T) => number
+): Promise<T> {
+  const upper = req.method.toUpperCase();
+  const method = METHODS.has(upper) ? upper : "_OTHER";
+  const route = routeOf(req.path);
+  return withSpan(
+    route ? `${method} ${route}` : method,
+    {
+      kind: "server",
+      started: EVENT_YNM_REQUEST_STARTED,
+      metric: METRIC_YNM_HTTP_REQUEST_DURATION,
+      carrier: { traceparent: req.traceparent, tracestate: req.tracestate },
+      attributes: { [ATTR_HTTP_REQUEST_METHOD]: method, [ATTR_HTTP_ROUTE]: route },
+    },
+    async (span) => {
+      const result = await serve();
+      const status = statusOf(result);
+      span.set({ [ATTR_HTTP_RESPONSE_STATUS_CODE]: status });
+      span.outcome(outcomeOf(status));
+      return result;
+    }
+  );
+}
 
 /** The configured resource when it is an http(s) URL, else this server's own `/mcp` URL. */
 function resourceUrl(pr: ProtectedResource, request: URL): URL {
@@ -254,6 +318,7 @@ export function createWebHandler(
           status: response.status,
           person: await options.identify?.(verdict.authInfo),
           client: verdict.authInfo?.clientId,
+          handle: handleOf(verdict.authInfo),
           response,
         };
       });
@@ -293,9 +358,24 @@ export async function startHttp(
   const sink =
     options.log ?? (quiet ? undefined : (_: unknown, line: string) => console.error(line));
 
-  const httpServer: NodeServer = createHttpServer(async (req, res) => {
-    const started = performance.now();
+  const header = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const httpServer: NodeServer = createHttpServer((req, res) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? host}`);
+    const incoming = {
+      method: req.method ?? "GET",
+      path: url.pathname,
+      traceparent: header(req.headers.traceparent),
+      tracestate: header(req.headers.tracestate),
+    };
+    void requestSpan(
+      incoming,
+      () => serveNode(req, res, url),
+      () => res.statusCode
+    );
+  });
+
+  const serveNode = async (req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> => {
+    const started = performance.now();
     const probe = new Request(url, { method: req.method, headers: toHeaders(req.headers) });
     const seen: RequestSeen = {};
     const rpc = rpcFromHeaders(probe.headers);
@@ -351,9 +431,10 @@ export async function startHttp(
         status: res.statusCode,
         person: await options.identify?.(verdict.authInfo),
         client: verdict.authInfo?.clientId,
+        handle: handleOf(verdict.authInfo),
       };
     });
-  });
+  };
 
   const bound = await new Promise<number>((resolve) => {
     httpServer.listen(port, host, () => {

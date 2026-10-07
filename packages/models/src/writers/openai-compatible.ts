@@ -21,6 +21,10 @@ export class OpenAICompatibleWriter extends ValidatingWriter {
     super();
   }
 
+  protected override model(): string | undefined {
+    return this.opts.model;
+  }
+
   protected async complete(
     prompt: string,
     jsonSchema: Record<string, unknown>,

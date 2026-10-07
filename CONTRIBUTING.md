@@ -5,6 +5,25 @@
 Requires Node 22.13 or later (for `node:sqlite`) and pnpm via `corepack enable` (on Node 25 or
 later, which no longer bundle corepack, `npm install -g corepack` first).
 
+One dependency, `@eyelock/otel-spool-exporter`, comes from GitHub Packages. The package is public,
+but GitHub's npm registry always asks for a token, even to read a public package. The project
+`.npmrc` points the `@eyelock` scope at GitHub Packages; building locally needs a GitHub token
+with the `read:packages` scope in your user `~/.npmrc`, never in the repository. Any GitHub
+account's token works: `gh auth token` is fine if it has `read:packages` (`gh auth status` lists
+the scopes), or create a classic token with only `read:packages`:
+
+```bash
+echo "//npm.pkg.github.com/:_authToken=<token>" >> ~/.npmrc
+# or let npm write it, with the token as the password:
+npm login --scope=@eyelock --registry=https://npm.pkg.github.com
+```
+
+Without it, `pnpm install` (and `make deps`) fails with `ERR_PNPM_FETCH_401` from
+`npm.pkg.github.com`; building and testing an installed checkout do not need it. Users never do:
+the release bundles, binaries, Homebrew formulas, Docker image and Lambda package carry the
+exporter inside them. CI and the release jobs use the workflow's own token, so no secret is
+needed and pull requests from forks work.
+
 ```bash
 make deps
 make build                       # turbo, every package
@@ -75,7 +94,16 @@ Connect Claude Code with
 `claude mcp add --transport http ynm-dev http://localhost:3000/mcp --header "Authorization: Bearer dev-token"`,
 or the inspector with the same URL and header. `--dream-every 1m` runs the dream worker on a
 timer, as a hosted server does. The Docker image is the same server: `docker compose -f
-infra/docker/docker-compose.yml up`.
+infra/docker/docker-compose.yml up`. Building it needs the token too, in `NODE_AUTH_TOKEN`,
+passed as a build secret: `NODE_AUTH_TOKEN=$(gh auth token) docker build --secret
+id=npm_token,env=NODE_AUTH_TOKEN .` (the compose file passes it for you, and
+`make test-hosted` falls back to `gh auth token` when it is unset). The image bundles the CLI
+with `node scripts/release/bundle.mjs --with-s3` and copies only `ynm.mjs` into a runtime stage
+that runs as uid 1001 (a bind-mounted `/data` must be writable by it).
+
+CI scans for secrets with gitleaks. `.gitleaks.toml` extends the default rules and allowlists
+only the test files whose fake credentials check that redaction works, and the placeholder bearer
+token in the curl example above.
 
 ### As a Lambda
 
@@ -109,8 +137,11 @@ to `main` or `develop` directly: every change goes through a branch and a pull r
 
 Branch names use a slash: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…`,
 `hotfix/…`. `develop` is the default branch. Feature pull requests are squash-merged; release and
-hotfix pull requests into `main` use a true merge, so the back-merge into `develop` is clean.
-`main` accepts pull requests only from `develop`, `release/*` or `hotfix/*` (the "Verify PR
+hotfix pull requests into `main` use a true merge, so the back-merge into `develop` is clean;
+rebase merge is off. Each of `develop` and `main` has a repository ruleset
+([`.github/BRANCH_PROTECTION.md`](.github/BRANCH_PROTECTION.md)): a pull request with every
+conversation resolved, and the one required check, "All Clear", the last CI job, which depends on
+the others. `main` accepts pull requests only from `develop`, `release/*` or `hotfix/*` (the "Verify PR
 source branch" check enforces it), and release tags are cut from `main`.
 
 ```bash
@@ -133,7 +164,8 @@ Before `git push` or opening a pull request:
 3. Generated files are current: `make gen` after tool or client changes, `make docs-gen` after
    CLI or schema text changes (the drift test fails otherwise).
 4. A user-visible change ships with its docs in the same pull request.
-5. After pushing, CI is green before merging: `gh pr checks <number> --watch`.
+5. After pushing, CI is green before merging (the required check is "All Clear"):
+   `gh pr checks <number> --watch`.
 
 ## Layout
 
@@ -146,6 +178,7 @@ Before `git push` or opening a pull request:
 | `packages/models` | Judge and Writer seams: TypeSafe, heuristic, Claude CLI, OpenAI-compatible, spend guard |
 | `packages/service` | The one business layer: mounts, remember, recall, dream, wiki, client adapters, tool specs |
 | `packages/mcp` | MCP server, stdio and HTTP transports, auth verifiers, hosted scheduler |
+| `packages/telemetry` | OpenTelemetry behind a facade: the SDK and the ynr spool exporter are imported only when an OTLP endpoint is set or a spool is found; constants generated from `telemetry/registry` |
 | `packages/cli` | oclif commands; flags generated from the same schemas the tools use |
 | `packages/wiki` | Markdown projection of memory |
 | `packages/evals` | Tiered evals, milestone gates, benchmark drivers, baselines and reports |
@@ -183,6 +216,14 @@ variable.
   content.
 - Generated, checked-in artefacts under `integrations/` (the `ynm-memory` skill, the ynh harness and the Pi extension) are regenerated by
   `make gen`; a test fails when they drift.
+- Telemetry names live in the Weaver-format registry under `telemetry/registry/`. `make gen`
+  checks it and regenerates `packages/telemetry/src/registry.gen.ts`; a test fails when it is
+  stale. Import `@opentelemetry` packages and `@eyelock/otel-spool-exporter` only in
+  `packages/telemetry/src/sdk.ts`, its `testing.ts` entry and tests: the bundle build fails if
+  one loads at startup.
+- Tests run with `YNR_SPOOL` empty and `XDG_STATE_HOME` pointing at a folder that does not exist
+  (`packages/shared/vitest`), so a ynr spool on your machine does not turn telemetry on in them.
+  A test that spawns ynm with its own environment passes `XDG_STATE_HOME` through.
 - The CLI and MCP references, the key tables in the configuration, record-format and
   memory-types references, and the tutorial manual test plan are generated by `make docs-gen`
   (after `make build`); a test fails when they drift, when a link or anchor under `docs/` is

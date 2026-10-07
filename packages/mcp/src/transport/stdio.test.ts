@@ -58,7 +58,9 @@ describe("stdio transport", () => {
     seam.transport = serverT;
     const handle = startStdio(factory);
     expect(seam.options[0]?.legacy).toBe("serve");
-    expect([...signals.keys()].sort()).toEqual(["SIGINT", "SIGTERM"]);
+    // beforeExit closes telemetry when the client closes stdin, whether or not it is on yet: a
+    // server can start it later, on the spool recheck.
+    expect([...signals.keys()].sort()).toEqual(["SIGINT", "SIGTERM", "beforeExit"]);
 
     const client = new Client({ name: "stdio-client", version: "0" });
     await client.connect(clientT);

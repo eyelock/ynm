@@ -9,7 +9,7 @@ Facts about git notes that drive this decision (verified against git 2.54 and it
 
 - A note attaches to an object id; the object must exist. Notes on feature commits are lost on
   rebase, amend and server-side squash unless `notes.rewriteRef` is configured, and never for
-  server-side rewrites. ACME anchored to HEAD and suffered exactly this.
+  server-side rewrites. The predecessor project anchored to HEAD and suffered exactly this.
 - `git notes add` does `update-ref` with no expected old value: no compare-and-swap. Concurrent
   local writers can lose updates.
 - `git notes merge -s cat_sort_uniq` merges line-oriented notes without conflicts.
@@ -89,7 +89,7 @@ bloats a project clone; the hosted topology can use the sqlite provider.
 **Writes.** The git-notes provider does not shell out to `git notes add`. It builds the commit with
 plumbing so it can compare-and-swap:
 
-1. Take a per-repo lockfile (`.git/ynm.lock`, O_EXCL, stale-PID detection; copy from ACME fs).
+1. Take a per-repo lockfile (`.git/ynm.lock`, O_EXCL, stale-PID detection; copy from the predecessor project's fs storage).
 2. Read the ref tip `old`; read the existing note blob (may be absent).
 3. Append the line(s); `hash-object -w` the new blob; `mktree` with the anchor path (respecting
    fanout: write the flat 40-hex path; git reads either); `commit-tree -p old`.
@@ -109,7 +109,7 @@ not N.
 
 **Sync (shared refs only).** For each shard: fetch remote into `refs/ynm-remote/<same path>`,
 `git notes --ref=<local> merge -s cat_sort_uniq <remote-tmp>`, push, retry on non-fast-forward.
-Fetch refspecs are never forced into the local notes refs (ACME's `+refs/notes/*:refs/notes/*`
+Fetch refspecs are never forced into the local notes refs (the predecessor project's `+refs/notes/*:refs/notes/*`
 silently discarded unpushed local notes).
 
 **Never** run `git notes prune` on `refs/notes/ynm/*`; `ynm doctor` warns if the anchor is
@@ -128,7 +128,7 @@ unreachable.
   destroys it and tooling gets confused. Rejected.
 - **Custom refs with commit-per-record** (git-bug style, `refs/ynm/<id>`). Loses `notes merge`
   and the JSONL-line merge property; one ref per memory does not scale on forges. Rejected.
-- **Attach episodic memories to the commits they concern** (ACME's model). Optional future
+- **Attach episodic memories to the commits they concern** (the predecessor project's model). Optional future
   feature via an `about: commit:<sha>` link, not as the storage anchor.
 
 ## Consequences

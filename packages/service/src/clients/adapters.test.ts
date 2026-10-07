@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { transformSync } from "esbuild";
 import { TOOL_SPECS } from "../tools.js";
@@ -211,7 +211,8 @@ exec ${process.execPath} ${join(repoRoot, "packages", "cli", "bin", "run.js")} "
 `,
       { mode: 0o755 }
     );
-    process.env.YNM_BIN = bin;
+    const path = process.env.PATH;
+    process.env.PATH = `${dir}${delimiter}${path ?? ""}`;
     process.env.YNM_HOME = home;
     process.env.YNM_NO_CLAUDE_CLI = "1";
     try {
@@ -228,7 +229,7 @@ exec ${process.execPath} ${join(repoRoot, "packages", "cli", "bin", "run.js")} "
         ?.execute("call-3", { type: "nope", content: "x" });
       expect(bad?.content[0]?.text).toMatch(/exited/);
     } finally {
-      delete process.env.YNM_BIN;
+      process.env.PATH = path;
     }
   }, 60_000);
 });

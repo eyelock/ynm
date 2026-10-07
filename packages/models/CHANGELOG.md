@@ -1,5 +1,26 @@
 # @ynm/models
 
+## 0.4.0
+
+### Minor Changes
+
+- [#66](https://github.com/eyelock/ynm/pull/66) [`e00db04`](https://github.com/eyelock/ynm/commit/e00db04fff915b30899f688517820b5376e04397) Thanks [@eyelock](https://github.com/eyelock)! - Telemetry passes the trace on and names people by login name. With telemetry on, every process
+  ynm starts (git, the Claude CLI, the agent CLIs `ynm client install` runs) gets `TRACEPARENT` and
+  `TRACESTATE` for the span it runs in, and every request to a hosted ynm through a remote mount
+  carries the W3C `traceparent` and `tracestate` headers, so the work ynm calls joins its trace. No
+  request to a third party, such as an identity provider or a model API, carries trace context. A
+  tool call to a hosted ynm and a call to a model are now client spans of their own
+  (`tools/call …`, `model …`), with `started` events and duration metrics. With telemetry off
+  nothing changes. The `otel` audit sink's `user.name` is now the
+  person's login name, the token's `preferred_username`, falling back to its subject, qualified by
+  the identity provider's host; a value with an `@` is never used. Who a person is in ynm, and what
+  the other audit sinks record, is unchanged.
+
+### Patch Changes
+
+- Updated dependencies [[`1c2a577`](https://github.com/eyelock/ynm/commit/1c2a577f7a2438f64d8fe388edad96d2696a0495), [`e00db04`](https://github.com/eyelock/ynm/commit/e00db04fff915b30899f688517820b5376e04397), [`9b38d8f`](https://github.com/eyelock/ynm/commit/9b38d8fd6fe478821446029506eb25323bee8aba), [`1cd6046`](https://github.com/eyelock/ynm/commit/1cd604621735f4a8c7e28a6a79e5258a5bcb932a)]:
+  - @ynm/telemetry@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

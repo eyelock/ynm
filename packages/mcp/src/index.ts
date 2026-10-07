@@ -4,6 +4,8 @@
  * Hosted auth comes from the environment (see auth.ts): YNM_MCP_TOKEN, YNM_OAUTH_INTROSPECTION_URL
  * or YNM_JWKS_URL.
  */
+import { DEFAULT_REDACTION } from "@ynm/service";
+import { shutdownTelemetry, startTelemetry } from "@ynm/telemetry";
 import { authFromEnv, protectedResourceFor, verifierFor } from "./auth.js";
 import { hostedAudit } from "./identity.js";
 import { parseEvery, startScheduler } from "./scheduler.js";
@@ -92,6 +94,17 @@ export async function main(argv: readonly string[]): Promise<void> {
     process.stdout.write(`ynm-mcp ${MCP_VERSION}\n`);
     return;
   }
+  // Telemetry starts before the store opens, so store calls are spans; with no OTLP endpoint and
+  // no ynr spool nothing is loaded (ADR-018). A server is long-lived, so with neither it looks
+  // for the spool again once a minute.
+  // A stdio server ends when its client closes stdin, so its exports are bounded as a command's.
+  await startTelemetry({
+    version: MCP_VERSION,
+    redaction: DEFAULT_REDACTION,
+    bridgeConsole: true,
+    recheck: true,
+    exportTimeoutMs: args.mode === "stdio" ? 2000 : undefined,
+  });
   const opts = { cwd: args.cwd, noPersonal: args.noPersonal };
   const getYnm = serviceCache(opts);
   // Open the store up front so the instructions name the levels actually served; a store that
@@ -130,6 +143,7 @@ export async function main(argv: readonly string[]): Promise<void> {
     const shutdown = async () => {
       scheduler.stop();
       await handle.close();
+      await shutdownTelemetry();
       process.exit(0);
     };
     process.once("SIGINT", () => void shutdown());

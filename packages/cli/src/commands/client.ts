@@ -13,12 +13,14 @@ import {
   projectClients,
   ynmHome,
 } from "@ynm/service";
+import { traceEnv } from "@ynm/telemetry";
 import { YnmCommand } from "../lib/base.js";
 
 function run(argv: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const [cmd, ...args] = argv;
-    const child = spawn(cmd as string, args, { stdio: "inherit" });
+    // The client's CLI joins the command's trace when telemetry is on.
+    const child = spawn(cmd as string, args, { stdio: "inherit", env: traceEnv(process.env) });
     child.on("exit", (code) =>
       code === 0 ? resolve() : reject(new Error(`${argv.join(" ")} exited ${code}`))
     );

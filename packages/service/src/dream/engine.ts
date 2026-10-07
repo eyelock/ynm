@@ -1,6 +1,21 @@
 import type { ConsolidateInput, DreamConfig } from "@ynm/model";
 import { ConsolidateInputSchema } from "@ynm/model";
 import type { Judge, Writer } from "@ynm/models";
+import {
+  ATTR_YNM_DREAM_CANDIDATES,
+  ATTR_YNM_DREAM_CHANGED,
+  ATTR_YNM_DREAM_DREAMED,
+  ATTR_YNM_DREAM_DRY_RUN,
+  ATTR_YNM_DREAM_FLAGGED,
+  ATTR_YNM_DREAM_FRESH,
+  ATTR_YNM_DREAM_JUDGE,
+  ATTR_YNM_DREAM_JUDGED,
+  ATTR_YNM_DREAM_PASS,
+  EVENT_YNM_DREAM_PASS_STARTED,
+  EVENT_YNM_DREAM_STARTED,
+  METRIC_YNM_DREAM_PASS_DURATION,
+  withSpan,
+} from "@ynm/telemetry";
 import type { MemoryWithMount, Ynm } from "../ynm.js";
 import { contradict, dedupe, expire, normalise, promote, reflect, retain } from "./passes.js";
 import {
@@ -36,6 +51,47 @@ export async function dream(
   opts: DreamOptions
 ): Promise<DreamReport> {
   const input = ConsolidateInputSchema.parse(raw);
+  // One span per run and one per pass (ADR-018): counts only, never a memory.
+  return withSpan(
+    "dream",
+    {
+      started: EVENT_YNM_DREAM_STARTED,
+      attributes: {
+        [ATTR_YNM_DREAM_DRY_RUN]: input.dryRun,
+        [ATTR_YNM_DREAM_JUDGE]: opts.judge.name,
+      },
+    },
+    async (span) => {
+      const report = await run(ynm, input, opts);
+      span.set({ [ATTR_YNM_DREAM_FRESH]: report.fresh, [ATTR_YNM_DREAM_DREAMED]: report.dreamed });
+      return report;
+    }
+  );
+}
+
+/** One consolidation pass as a span, with what it considered and changed. */
+function passSpan(name: string, fn: () => Promise<PassReport>): Promise<PassReport> {
+  return withSpan(
+    `dream ${name}`,
+    {
+      started: EVENT_YNM_DREAM_PASS_STARTED,
+      metric: METRIC_YNM_DREAM_PASS_DURATION,
+      attributes: { [ATTR_YNM_DREAM_PASS]: name },
+    },
+    async (span) => {
+      const pr = await fn();
+      span.set({
+        [ATTR_YNM_DREAM_CANDIDATES]: pr.candidates,
+        [ATTR_YNM_DREAM_JUDGED]: pr.judged,
+        [ATTR_YNM_DREAM_CHANGED]: pr.changed.length,
+        [ATTR_YNM_DREAM_FLAGGED]: pr.flagged.length,
+      });
+      return pr;
+    }
+  );
+}
+
+async function run(ynm: Ynm, input: ConsolidateInput, opts: DreamOptions): Promise<DreamReport> {
   const before = await ynm.list({ namespace: input.namespace, includeTombstoned: false });
   const versionOf = (m: MemoryWithMount) => dreamVersion(m, opts.judge.name);
   const fresh = new Map(
@@ -75,33 +131,28 @@ export async function dream(
     if (name !== "expire" && fresh.size === 0 && !tagged) continue;
     // The pair cap applies per pass, so an expensive dedupe cannot starve contradiction.
     ctx.pairsJudged.n = 0;
-    let pr: PassReport;
-    switch (name) {
-      case "expire":
-        pr = await expire(ctx);
-        // Occurrence retention runs with expiry, before reflect: an occurrence it tombstones is
-        // one no current reflection rests on, and reflect then counts only what survives.
-        if (opts.config.occurrenceRetention) {
-          // Set expire first so the report lists it ahead of retention.
-          report.passes.expire = pr;
-          report.passes.retention = await retain(ctx);
-        }
-        break;
-      case "promote":
-        pr = await promote(ctx);
-        break;
-      case "dedupe":
-        pr = await dedupe(ctx, flaggedPairs);
-        break;
-      case "contradict":
-        pr = await contradict(ctx, flaggedPairs);
-        break;
-      case "reflect":
-        pr = await reflect(ctx);
-        break;
-      case "normalise":
-        pr = await normalise(ctx);
-        break;
+    const pr = await passSpan(name, () => {
+      switch (name) {
+        case "expire":
+          return expire(ctx);
+        case "promote":
+          return promote(ctx);
+        case "dedupe":
+          return dedupe(ctx, flaggedPairs);
+        case "contradict":
+          return contradict(ctx, flaggedPairs);
+        case "reflect":
+          return reflect(ctx);
+        case "normalise":
+          return normalise(ctx);
+      }
+    });
+    // Occurrence retention runs with expiry, before reflect: an occurrence it tombstones is one
+    // no current reflection rests on, and reflect then counts only what survives.
+    if (name === "expire" && opts.config.occurrenceRetention) {
+      // Set expire first so the report lists it ahead of retention.
+      report.passes.expire = pr;
+      report.passes.retention = await passSpan("retention", () => retain(ctx));
     }
     report.passes[name] = pr;
     addUsage(report.usage, pr.usage);

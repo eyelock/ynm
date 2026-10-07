@@ -18,7 +18,7 @@ and defaults. The write path is **generation-free**: no Writer call, and the ser
 credentials to accept writes or answer recall. A configured Judge (ADR-012) runs typed judgments on
 the write path (importance, near-duplicate flag, redaction gate) by default when a key is present,
 and can be turned off per store. Near-duplicate candidates come from the lexical index. Guidance on
-*what* to remember comes from prompts and resources (copied and rewritten from ACME's thought/rule
+*what* to remember comes from prompts and resources (copied and rewritten from the predecessor project's thought/rule
 creation prompts) and from a short guidance block the server appends to `memory_remember` results
 (e.g. "3 similar memories exist: consider `memory_supersede`"). `memory_remember` warns on
 duplicates, never refuses. Extraction-on-write remains possible later as an opt-in ingest plug-in

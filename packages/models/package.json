@@ -1,6 +1,6 @@
 {
   "name": "@ynm/models",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Judge (decision model) and Writer (generative, structured output) seams and implementations (ADR-012).",
   "license": "MIT",
@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@ynm/model": "workspace:*",
+    "@ynm/telemetry": "workspace:*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

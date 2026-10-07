@@ -76,9 +76,9 @@ describe("ynm validate", () => {
     const { tmpdir } = await import("node:os");
     const { join } = await import("node:path");
     const dir = mkdtempSync(join(tmpdir(), "ynm-validate-"));
-    mkdirSync(join(dir, ".ynh-plugin"));
+    mkdirSync(join(dir, ".agents", "harness"), { recursive: true });
     writeFileSync(
-      join(dir, ".ynh-plugin", "plugin.json"),
+      join(dir, ".agents", "harness", "plugin.json"),
       JSON.stringify({ name: "h", version: "0.1.0" })
     );
     const before = ynm(dir, "validate", dir);

@@ -45,7 +45,7 @@ anything:
 | `copilot-cli` | `copilot` | `~/.copilot/` | none |
 | `opencode` | `opencode` | `~/.config/opencode/` | `opencode.json` or `opencode.jsonc` |
 | `pi` | `pi` | `~/.pi/agent/` | `.pi/` |
-| `ynh` | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` |
+| `ynh` | `ynh` | `~/.ynh/` | `.agents/harness/plugin.json` |
 
 Copilot CLI has no project footprint, so init only ever suggests it. ynh is never configured by
 `ynm init`; a harness gets ynm with `ynm client install ynh` (see the end of this tutorial).
@@ -366,9 +366,9 @@ just a name and a version, and first see what `ynm init` says there. It exits no
 step ends in `|| true`:
 
 ```bash
-mkdir -p /tmp/ynm-tutorial/harness/.ynh-plugin
+mkdir -p /tmp/ynm-tutorial/harness/.agents/harness
 cd /tmp/ynm-tutorial/harness
-echo '{"name": "my-harness", "version": "0.1.0"}' > .ynh-plugin/plugin.json
+echo '{"name": "my-harness", "version": "0.1.0"}' > .agents/harness/plugin.json
 ynm init || true
 ```
 
@@ -392,14 +392,14 @@ then the check to run:
 
 ```text
 ynh:
-wrote /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json: harness manifest: mcp_servers.ynm; include of the ynm-memory skill; hooks on_session_start, before_prompt, on_stop; $schema
+wrote /tmp/ynm-tutorial/harness/.agents/harness/plugin.json: harness manifest: mcp_servers.ynm; include of the ynm-memory skill; hooks on_session_start, before_prompt, on_stop; $schema
 next: ynm validate
 ```
 
 The merged manifest, and what else is in the harness:
 
 ```bash
-cat .ynh-plugin/plugin.json
+cat .agents/harness/plugin.json
 find . -type f | sort
 ```
 
@@ -449,7 +449,7 @@ written into the harness's own `skills/`, and the manifest is the only file:
     ]
   }
 }
-./.ynh-plugin/plugin.json
+./.agents/harness/plugin.json
 ```
 
 Check the setup with `ynm validate`. It looks at the harness in the current directory (or a
@@ -464,7 +464,7 @@ include, the hooks, and `ynm` itself on the PATH:
 
 ```text
 ynh: valid
-  ok    manifest  /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
+  ok    manifest  /tmp/ynm-tutorial/harness/.agents/harness/plugin.json
   ok    server    mcp_servers.ynm runs `ynm serve`
   ok    guidance  includes https://github.com/eyelock/ynm path integrations pick skills/ynm-memory
   ok    hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
@@ -486,11 +486,15 @@ Expected:
 ```text
 ynh:
 already in place, nothing changed:
-  manifest  /tmp/ynm-tutorial/harness/.ynh-plugin/plugin.json
+  manifest  /tmp/ynm-tutorial/harness/.agents/harness/plugin.json
   server    mcp_servers.ynm runs `ynm serve`
   guidance  includes https://github.com/eyelock/ynm path integrations pick skills/ynm-memory
   hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
 ```
+
+ynh keeps a harness manifest in `.agents/harness/`. A harness that still has its manifest in the
+older `.ynh-plugin/` directory is moved there by `ynm client install`, which says so in its
+output, so the harness never has two manifests.
 
 The merge keeps whatever indentation and trailing newline the manifest
 already had, so it does not rewrite the rest of the file. Outside a harness,

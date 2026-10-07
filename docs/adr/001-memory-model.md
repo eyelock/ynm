@@ -9,7 +9,7 @@ Production agent memory systems converge on the CoALA taxonomy (working, episodi
 procedural) plus two additions that appear in nearly every product: reflective (derived insights,
 beliefs, summaries) and reference (pointers to external sources). Scope is a separate axis in all of
 them: Mem0 uses user/agent/app/run ids, LangGraph uses hierarchical namespaces, Claude Code uses
-managed/user/project/local tiers. ACME had one axis only (entry type) and one implicit scope (the
+managed/user/project/local tiers. The predecessor project had one axis only (entry type) and one implicit scope (the
 repo), which made "personal vs shared" impossible.
 
 ## Decision
@@ -49,7 +49,7 @@ the only type that a consolidation pass may promote into another type.
 - Three levels (`personal`, `project`, `organisation`) instead of two. Rejected for now: "project"
   and "organisation" are namespaces within `distributed`; the privacy boundary is binary.
 - Type as free-form string. Rejected: the six types drive TTL, ranking and consolidation rules.
-- A single "kind" enum mixing type and scope, as ACME did. Rejected: it cannot express
+- A single "kind" enum mixing type and scope, as the predecessor project did. Rejected: it cannot express
   "a personal procedural memory about project X".
 
 ## Consequences
