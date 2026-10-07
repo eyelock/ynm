@@ -24,6 +24,8 @@ export type Change =
       reason: string;
       label?: string;
     }
+  /** Renames a file or directory (not when `to` exists); `label` as for write. */
+  | { kind: "move"; from: string; to: string; reason: string; label?: string }
   | { kind: "command"; argv: string[]; reason: string }
   /** Nothing to do on disk: a next step the user should take, shown in the plan and report. */
   | { kind: "note"; text: string; reason: string };

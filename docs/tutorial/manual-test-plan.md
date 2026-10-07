@@ -139,9 +139,9 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 7.12 | [The other clients](07-connect-an-agent.md#the-other-clients) | `ynm client plan copilot-cli` |  |
 | 7.13 | [The other clients (2)](07-connect-an-agent.md#the-other-clients) | `ynm client install opencode` |  |
 | 7.14 | [The other clients (3)](07-connect-an-agent.md#the-other-clients) | `ynm client install pi` |  |
-| 7.15 | [Install into a ynh harness](07-connect-an-agent.md#install-into-a-ynh-harness) | `mkdir -p /tmp/ynm-tutorial/harness/.ynh-plugin` |  |
+| 7.15 | [Install into a ynh harness](07-connect-an-agent.md#install-into-a-ynh-harness) | `mkdir -p /tmp/ynm-tutorial/harness/.agents/harness` |  |
 | 7.16 | [Install into a ynh harness (2)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm client install` |  |
-| 7.17 | [Install into a ynh harness (3)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cat .ynh-plugin/plugin.json` |  |
+| 7.17 | [Install into a ynh harness (3)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cat .agents/harness/plugin.json` |  |
 | 7.18 | [Install into a ynh harness (4)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm validate` |  |
 | 7.19 | [Install into a ynh harness (5)](07-connect-an-agent.md#install-into-a-ynh-harness) | `ynm client install` |  |
 | 7.20 | [Install into a ynh harness (6)](07-connect-an-agent.md#install-into-a-ynh-harness) | `cd /tmp/ynm-tutorial/project` |  |
