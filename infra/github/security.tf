@@ -13,8 +13,20 @@ resource "github_repository_dependabot_security_updates" "ynm" {
   depends_on = [github_repository_vulnerability_alerts.ynm]
 }
 
-# Private vulnerability reporting (SECURITY.md points reporters to it) has no resource in the
-# integrations/github provider (checked at 6.13), so it is not managed here. It is a repository
-# setting: Settings, Code security, "Private vulnerability reporting", or
-#   gh api -X PUT repos/eyelock/ynm/private-vulnerability-reporting
+# Private vulnerability reporting is how SECURITY.md asks for reports. The github provider has no
+# resource for it, so this calls the API with gh, which reads GITHUB_TOKEN. The API answers 404
+# while the repository is private, so it runs only once visibility is public. The call is
+# idempotent; it runs on the first apply after that, and again only if the owner or repository
+# name changes.
+resource "terraform_data" "private_vulnerability_reporting" {
+  count            = var.visibility == "public" ? 1 : 0
+  triggers_replace = [var.owner, var.repository]
+
+  provisioner "local-exec" {
+    command = "gh api -X PUT repos/${var.owner}/${var.repository}/private-vulnerability-reporting"
+  }
+
+  depends_on = [github_repository.ynm]
+}
+
 # Secret scanning and push protection are in repository.tf, on once visibility is public.

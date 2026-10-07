@@ -48,9 +48,10 @@ when `visibility` is `public`, because they need a public repository. `visibilit
 until the repository is made public; that is a separate, confirmed change
 (`terraform apply -var visibility=public`).
 
-Private vulnerability reporting, which `SECURITY.md` points to, is not in Terraform: the
-`integrations/github` provider has no resource for it. Turn it on in Settings, Code security, or with
-`gh api -X PUT repos/eyelock/ynm/private-vulnerability-reporting`.
+Private vulnerability reporting, which `SECURITY.md` points to, is turned on by Terraform once
+`visibility` is `public`. The `integrations/github` provider has no resource for it, so a
+`terraform_data` resource runs `gh api -X PUT repos/eyelock/ynm/private-vulnerability-reporting`.
+`gh` must be on PATH and authenticated through `GITHUB_TOKEN` when you apply.
 
 ## Use
 
