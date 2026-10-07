@@ -4,9 +4,10 @@ services:
   store:
     build:
       context: ../..
-      # A GitHub token with read:packages in YNR_READ_PACKAGES, for @eyelock/otel-spool-exporter
-      # (CONTRIBUTING.md): YNR_READ_PACKAGES=$(gh auth token) docker compose -f <this file> up --build
-      secrets: [ynr_read_packages]
+      # A GitHub token with read:packages in NODE_AUTH_TOKEN: GitHub's npm registry asks for one even
+      # for the public @eyelock/otel-spool-exporter (CONTRIBUTING.md):
+      # NODE_AUTH_TOKEN=$(gh auth token) docker compose -f <this file> up --build
+      secrets: [npm_token]
     image: ynm:local
     environment:
       YNM_MCP_TOKEN: demo-token
@@ -52,5 +53,5 @@ volumes:
   store:
 
 secrets:
-  ynr_read_packages:
-    environment: YNR_READ_PACKAGES
+  npm_token:
+    environment: NODE_AUTH_TOKEN

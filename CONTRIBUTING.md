@@ -5,10 +5,12 @@
 Requires Node 22.13 or later (for `node:sqlite`) and pnpm via `corepack enable` (on Node 25 or
 later, which no longer bundle corepack, `npm install -g corepack` first).
 
-One dependency, `@eyelock/otel-spool-exporter`, comes from GitHub Packages, which needs a token
-even to read. The project `.npmrc` points the `@eyelock` scope at GitHub Packages; the token goes
-in your user `~/.npmrc`, never in the repository. Use a GitHub token with the `read:packages`
-scope (the GitHub CLI's own token has it if `gh auth status` lists the scope):
+One dependency, `@eyelock/otel-spool-exporter`, comes from GitHub Packages. The package is public,
+but GitHub's npm registry always asks for a token, even to read a public package. The project
+`.npmrc` points the `@eyelock` scope at GitHub Packages; building locally needs a GitHub token
+with the `read:packages` scope in your user `~/.npmrc`, never in the repository. Any GitHub
+account's token works: `gh auth token` is fine if it has `read:packages` (`gh auth status` lists
+the scopes), or create a classic token with only `read:packages`:
 
 ```bash
 echo "//npm.pkg.github.com/:_authToken=<token>" >> ~/.npmrc
@@ -19,8 +21,8 @@ npm login --scope=@eyelock --registry=https://npm.pkg.github.com
 Without it, `pnpm install` (and `make deps`) fails with `ERR_PNPM_FETCH_401` from
 `npm.pkg.github.com`; building and testing an installed checkout do not need it. Users never do:
 the release bundles, binaries, Homebrew formulas, Docker image and Lambda package carry the
-exporter inside them. CI and the release jobs read the token from the `YNR_READ_PACKAGES`
-secret.
+exporter inside them. CI and the release jobs use the workflow's own token, so no secret is
+needed and pull requests from forks work.
 
 ```bash
 make deps
@@ -92,9 +94,9 @@ Connect Claude Code with
 `claude mcp add --transport http ynm-dev http://localhost:3000/mcp --header "Authorization: Bearer dev-token"`,
 or the inspector with the same URL and header. `--dream-every 1m` runs the dream worker on a
 timer, as a hosted server does. The Docker image is the same server: `docker compose -f
-infra/docker/docker-compose.yml up`. Building it needs the token too, in `YNR_READ_PACKAGES`,
-passed as a build secret: `YNR_READ_PACKAGES=$(gh auth token) docker build --secret
-id=ynr_read_packages,env=YNR_READ_PACKAGES .` (the compose file passes it for you, and
+infra/docker/docker-compose.yml up`. Building it needs the token too, in `NODE_AUTH_TOKEN`,
+passed as a build secret: `NODE_AUTH_TOKEN=$(gh auth token) docker build --secret
+id=npm_token,env=NODE_AUTH_TOKEN .` (the compose file passes it for you, and
 `make test-hosted` falls back to `gh auth token` when it is unset).
 
 ### As a Lambda
