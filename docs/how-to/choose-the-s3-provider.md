@@ -38,7 +38,7 @@ or `~/.ynm/config.json`.
       "id": "team",
       "level": "distributed",
       "provider": "s3",
-      "bucket": "acme-ynm",
+      "bucket": "example-org-ynm",
       "prefix": "stores/team",
       "region": "eu-west-2"
     }
@@ -50,7 +50,7 @@ or `~/.ynm/config.json`.
 out to use the bucket root. `region` defaults to the AWS environment (`AWS_REGION` or the
 shared config). Credentials come from the standard AWS chain: environment variables, a profile,
 or the role of the container or function. `ynm status` shows the mount as
-`s3://acme-ynm/stores/team`, and `ynm doctor` reports its object and record counts, any line it
+`s3://example-org-ynm/stores/team`, and `ynm doctor` reports its object and record counts, any line it
 could not read, and whether the bucket keeps versions.
 
 The identity needs these actions on the bucket and prefix:

@@ -5,7 +5,7 @@ Satisfies: FR-7, FR-8, FR-9, FR-14, NFR-9, NFR-11
 
 ## Context
 
-ACME exposed 38 tools and 25 CLI commands with duplicated handler logic and a mandatory-workflow
+The predecessor project exposed 38 tools and 25 CLI commands with duplicated handler logic and a mandatory-workflow
 state machine that only gated 4 tools. mcp-toolkit's CLI hand-mirrored two tools. Both showed that
 parity needs a shared service layer plus generated CLI flags, not parallel implementations.
 
@@ -13,7 +13,7 @@ parity needs a shared service layer plus generated CLI flags, not parallel imple
 
 **Service layer** (`packages/service`) is the only place with business logic. MCP tools and CLI
 commands are thin adapters. Every input is a Zod schema in `packages/model`; MCP input schemas use
-`.toJSONSchema()`, CLI flags come from ACME's `schema-to-flags` copy.
+`.toJSONSchema()`, CLI flags come from the predecessor project's `schema-to-flags` copy.
 
 **MCP tools** are the ten below, defined once as `TOOL_SPECS` in the service package (name,
 description, Zod input, read-only hint, handler, CLI command name). The MCP server registers them
@@ -62,7 +62,7 @@ command's flags are generated from the same schema its tool uses; `--json` every
 
 - Fewer, more generic tools (`memory_write` with an `op` field). Rejected: agents choose better
   among clearly named tools, and per-tool descriptions carry the guidance.
-- Server-enforced workflow (must call status first). Rejected: ACME showed it is brittle and
+- Server-enforced workflow (must call status first). Rejected: the predecessor project showed it is brittle and
   stateless HTTP makes it impossible; guidance beats gating.
 
 ## Consequences

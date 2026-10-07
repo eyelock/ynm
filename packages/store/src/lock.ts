@@ -24,8 +24,8 @@ function isStale(lockPath: string): boolean {
 }
 
 /**
- * Cross-process lock via O_EXCL file creation with stale-holder detection (copied in spirit
- * from ACME's fs storage). Used by the fs and git-notes providers around read-modify-write.
+ * Cross-process lock via O_EXCL file creation with stale-holder detection (adapted from an earlier
+ * project's fs storage). Used by the fs and git-notes providers around read-modify-write.
  */
 export async function withLock<T>(
   lockPath: string,

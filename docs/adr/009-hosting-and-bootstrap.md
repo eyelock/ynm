@@ -7,7 +7,7 @@ Satisfies: FR-20, FR-21, NFR-6, NFR-11, NFR-14
 
 Requirement: "allow all different types of hosting". Git notes carry constraints (no default fetch,
 no forge protection, multi-writer contention). mcp-toolkit `spec-update` already has stdio and
-Streamable HTTP transports on SDK v2 with origin/host validation and bearer auth; ACME has OAuth
+Streamable HTTP transports on SDK v2 with origin/host validation and bearer auth; the predecessor project has OAuth
 introspection and JWT verifiers.
 
 ## Decision
@@ -38,7 +38,7 @@ Binding to `0.0.0.0` disables the Host header check (`--allow-host *`) because a
 hostname is unknown; a public listener sets `--allow-host <name>`.
 
 **Auth.** Three verifiers behind the SDK's `OAuthTokenVerifier` seam: static tokens (dev), RFC
-7662 introspection with a cache (copied in spirit from ACME), and JWT via JWKS with jose. The
+7662 introspection with a cache (copied in spirit from the predecessor project), and JWT via JWKS with jose. The
 transport uses `verifyBearerToken` and answers RFC 6750 challenges (401 `invalid_token`, 403
 `insufficient_scope`); verifiers throw the SDK's `OAuthError` (anything else becomes a 500) and
 every `AuthInfo` carries an expiry (the SDK rejects one without). Mode is chosen from the
@@ -69,7 +69,7 @@ every open rather than cached. `ynm client install <name>` writes client config 
 divergence per shard, personal refs absent from push refspecs, client status, node and git
 versions.
 
-**Config precedence** (copied from ACME): defaults → `~/.ynm/config.json` →
+**Config precedence** (copied from the predecessor project): defaults → `~/.ynm/config.json` →
 `<repo>/.ynm/config.json` → `<worktree>/.ynm/config.local.json` → env `YNM_*`.
 
 `memory_sync` against a repo with no remote reports the missing remote in the result instead of
@@ -88,7 +88,7 @@ Cases handled:
 - Multiple root commits: oldest by date, recorded in config (ADR-003).
 - Shallow clones: work, because the anchor SHA is only a tree path (ADR-003).
 - Existing users of `refs/notes/commits` or other notes: untouched, separate namespace.
-- Existing ACME data: not imported. ACME never left one laptop, so there is nothing to migrate;
+- Existing predecessor-project data: not imported. It never left one laptop, so there is nothing to migrate;
   `ynm import` takes ynm's own JSONL only (decided 2026-09-29).
 - Monorepos: several projects share the root commit and are separated by namespace (ADR-001).
 - Forks and mirrors: notes do not follow unless the fetch refspec is configured there; the doctor

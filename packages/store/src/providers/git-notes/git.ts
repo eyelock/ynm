@@ -27,7 +27,7 @@ export const gitStats = { spawned: 0 };
 /**
  * Runs git with an argv array (no shell) and optional stdin content, which is closed after
  * writing so stdin-reading plumbing (mktree, hash-object, cat-file --batch) terminates.
- * Copied in spirit from ACME's hardened plumbing, made async. A git process has no span of its
+ * Adapted from an earlier project's hardened plumbing, made async. A git process has no span of its
  * own: it runs inside the store call's span (ADR-018), whose trace context it is given.
  */
 export function git(args: readonly string[], opts: GitOptions): Promise<string> {

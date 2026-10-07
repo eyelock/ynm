@@ -91,7 +91,7 @@ export interface IntrospectionOptions {
   cacheMs?: number;
 }
 
-/** OAuth 2.0 token introspection (RFC 7662), copied in spirit from ACME's verifier. */
+/** OAuth 2.0 token introspection (RFC 7662), adapted from an earlier project's verifier. */
 export class IntrospectionVerifier implements OAuthTokenVerifier {
   private readonly cache = new Map<string, { info: AuthInfo; until: number }>();
   constructor(private readonly opts: IntrospectionOptions) {}

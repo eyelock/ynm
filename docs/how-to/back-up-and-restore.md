@@ -55,7 +55,7 @@ with its `-wal` file. Restore by putting the file back at the same path.
 
 Turn on versioning for the bucket, so an object deleted or rewritten by mistake can be
 recovered, and replicate it to another bucket or region for a copy outside it. A point-in-time
-copy is a copy of the prefix (`aws s3 sync s3://acme-ynm/stores/team ./team-backup`); restore by
+copy is a copy of the prefix (`aws s3 sync s3://example-org-ynm/stores/team ./team-backup`); restore by
 copying the objects back under the same prefix. Copying while ynm writes is safe: each write is
 a new object, and a record that shows up twice in the copy is read once.
 

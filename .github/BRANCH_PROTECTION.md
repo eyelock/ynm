@@ -1,0 +1,38 @@
+# Branch Protection Configuration
+
+ynm uses Gitflow. `develop` is the default branch and takes feature, fix and docs pull
+requests. `main` takes pull requests only from `develop`, `release/*` and `hotfix/*`, and
+carries the release tags (see "Branches and pull requests" in `CONTRIBUTING.md`).
+
+Each of the two long-lived branches is protected by one repository ruleset. There is no classic
+branch protection: the rulesets are the single source of truth. They are managed in
+Terraform, in `infra/github/branches.tf`; change them there, not in the GitHub UI.
+
+| Ruleset | Branch | Required checks |
+|---|---|---|
+| Develop Branch Protection | `develop` | **All Clear** |
+| Main Branch Protection | `main` | **All Clear**, **Verify PR source branch** |
+
+## Required checks
+
+**All Clear** is the last job of the CI workflow. It depends on every other job (verify,
+release gate, coverage) and fails if any of them failed or was cancelled; a job that was skipped
+(the release gate runs only on pull requests into `main`) does not fail it. Add or rename CI
+jobs freely; only All Clear is required.
+
+**Verify PR source branch** (`protect-main.yml`) fails a pull request into `main` that does not
+come from `develop`, `release/*` or `hotfix/*`.
+
+## Rules (both rulesets)
+
+- Changes arrive through a pull request; no approving review is required
+- All review conversations must be resolved
+- The branch must be up to date with its base before merging
+- Force pushes blocked
+- Branch deletion blocked
+- Repository admins can bypass in emergencies
+
+## Merge methods
+
+Squash merge for feature pull requests into `develop`. A true merge commit for release and
+hotfix pull requests into `main`, and for their back-merge into `develop`. Rebase merge is off.

@@ -1,12 +1,14 @@
 # A local identity provider for developing and testing ynm's HTTP sign-in.
-# Start it with `make keycloak`; see README.md in this directory. Development only: HTTP,
-# fixed passwords, admin/admin.
+# Start it with `make keycloak`; see README.md in this directory. LOCALHOST DEVELOPMENT ONLY:
+# plain HTTP and public, committed credentials (admin/admin, alice/alice, bob/bob). Never
+# expose this to another machine.
 name: ynm-keycloak
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.3
     command: ["start-dev", "--import-realm"]
     environment:
+      # Public dev credential, bound to 127.0.0.1 below. Not a secret.
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       # The issuer every token names, so it is the same from the host and from other containers.

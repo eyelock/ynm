@@ -5,7 +5,7 @@ Satisfies: FR-8, FR-9, FR-10, FR-11, NFR-2, NFR-13
 
 ## Context
 
-ACME had no index: every query scanned every note. Karpathy's wiki uses `index.md` and admits it
+The predecessor project had no index: every query scanned every note. Karpathy's wiki uses `index.md` and admits it
 stops working past a few hundred pages, recommending qmd (BM25 + vector + rerank). The production
 systems all do hybrid retrieval fused by rank (Zep, Hindsight, Mem0 2026, Letta). The DPC Messenger
 follow-up showed that querying git objects directly is too slow per turn; a derived index is
@@ -81,7 +81,7 @@ as markdown. This is the always-in-context tier (Letta blocks, MEMORY.md).
 
 ## Alternatives considered
 
-- Brute-force in-memory filter over the fold (ACME). Rejected by FR-10.
+- Brute-force in-memory filter over the fold (the predecessor project). Rejected by FR-10.
 - Making vector search the default. Rejected: needs a model, breaks NFR-13 (no LLM to read), and
   lexical + metadata already beats brute force. Vector is the first plug-in to prove the seam.
 - Storing the index in git. Rejected: it is derived, large, and rebuildable.

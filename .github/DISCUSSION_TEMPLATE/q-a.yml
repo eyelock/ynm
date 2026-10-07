@@ -1,0 +1,22 @@
+title: "[Question]: "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask a question about ynm: installing it, running it, or how a feature works. For a bug, open an issue instead.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: How do I...
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Any additional context that might help us answer
+      placeholder: I'm trying to...

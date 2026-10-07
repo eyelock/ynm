@@ -6,3 +6,6 @@ contact_links:
   - name: Security report
     url: https://github.com/eyelock/ynm/security/advisories/new
     about: Report a vulnerability privately
+  - name: Discussions
+    url: https://github.com/eyelock/ynm/discussions
+    about: Ask questions and discuss ideas

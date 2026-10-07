@@ -129,8 +129,11 @@ to `main` or `develop` directly: every change goes through a branch and a pull r
 
 Branch names use a slash: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…`,
 `hotfix/…`. `develop` is the default branch. Feature pull requests are squash-merged; release and
-hotfix pull requests into `main` use a true merge, so the back-merge into `develop` is clean.
-`main` accepts pull requests only from `develop`, `release/*` or `hotfix/*` (the "Verify PR
+hotfix pull requests into `main` use a true merge, so the back-merge into `develop` is clean;
+rebase merge is off. Each of `develop` and `main` has a repository ruleset
+([`.github/BRANCH_PROTECTION.md`](.github/BRANCH_PROTECTION.md)): a pull request with every
+conversation resolved, and the one required check, "All Clear", the last CI job, which depends on
+the others. `main` accepts pull requests only from `develop`, `release/*` or `hotfix/*` (the "Verify PR
 source branch" check enforces it), and release tags are cut from `main`.
 
 ```bash
@@ -153,7 +156,8 @@ Before `git push` or opening a pull request:
 3. Generated files are current: `make gen` after tool or client changes, `make docs-gen` after
    CLI or schema text changes (the drift test fails otherwise).
 4. A user-visible change ships with its docs in the same pull request.
-5. After pushing, CI is green before merging: `gh pr checks <number> --watch`.
+5. After pushing, CI is green before merging (the required check is "All Clear"):
+   `gh pr checks <number> --watch`.
 
 ## Layout
 

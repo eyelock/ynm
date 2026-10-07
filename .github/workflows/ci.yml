@@ -33,11 +33,14 @@ jobs:
       - run: make build
       - run: make verify
       - name: Milestone gate
-        run: make gate M=${{ vars.YNM_MILESTONE || 'M0' }}
+        env:
+          MILESTONE: ${{ vars.YNM_MILESTONE || 'M0' }}
+        run: make gate M="$MILESTONE"
 
   # A pull request into main is a release or hotfix: it must pass the release gate the tag would
   # run, including the check that the frozen evals did not regress against the previous release.
-  # Required on main (infra/github/branches.tf), so a release cannot merge with a regression.
+  # Part of All Clear, which main requires (infra/github/branches.tf), so a release cannot merge
+  # with a regression.
   release-gate:
     name: release gate
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
@@ -79,4 +82,28 @@ jobs:
       - run: make build
       - run: make coverage
       - name: Coverage of changed lines
-        run: make coverage-diff BASE=origin/${{ github.base_ref }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: make coverage-diff BASE="origin/$BASE_REF"
+
+  # The one check the rulesets require (infra/github/branches.tf). It runs even when a job it
+  # needs fails, because a skipped required check counts as passing. Skipped jobs are fine:
+  # release-gate and coverage only run on some pull requests.
+  all-clear:
+    name: All Clear
+    needs: [verify, release-gate, coverage]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for r in $RESULTS; do
+            if [[ "$r" == "failure" || "$r" == "cancelled" ]]; then
+              echo "One or more checks failed"
+              exit 1
+            fi
+          done
+          echo "All checks passed"

@@ -1,11 +1,11 @@
-# ADR-011: What is copied from ACME and mcp-toolkit
+# ADR-011: What is copied from prior projects and mcp-toolkit
 
 Status: accepted (2026-09-29)
 Satisfies: NFR-10, NFR-12
 
 ## Context
 
-Both old repos are unpublished. ACME (a private repository, last commit
+Both old repos are unpublished. The predecessor project (a private repository, last commit
 2026-01-14, SDK 1.x) has a good idea and a weak git-notes implementation. mcp-toolkit
 (private) has a current-spec transport layer on its
 unmerged `spec-update` branch (SDK v2, protocol 2026-07-28). Neither depends on the other.
@@ -27,7 +27,7 @@ Copy from mcp-toolkit (`spec-update` branch):
 The mcp-toolkit hook composer (`packages/core/src/hooks/*`) is not copied: guidance is plain
 markdown per tool appended to results (ADR-008).
 
-Copy from ACME:
+Copy from the predecessor project:
 
 - `packages/storage-git-notes/src/{git-operations,git-validation}.ts` → `@ynm/store/git`
   (make async, parameterise refs, add plumbing writes and `cat-file --batch`)
@@ -43,7 +43,7 @@ Copy from ACME:
 - `packages/storage-git-notes/src/__helpers__/git-test-repo.ts` → test helpers
 - Tooling: pnpm, turbo, biome, vitest projects with coverage merge, changesets
 
-Not copied: ACME domain schemas, state machine, hook wiring, reporting, plan/PR tools,
+Not copied: predecessor-project domain schemas, state machine, hook wiring, reporting, plan/PR tools,
 Dockerfiles, AWS infra; mcp-toolkit toolkit package, its CLI, workflow tracker, hook composer,
 demo sampling and resource templates.
 
@@ -52,7 +52,7 @@ Zod 4 (native `toJSONSchema`), oclif 4, vitest 4, biome 2, TypeScript 6.
 
 ## Consequences
 
-- Copied code is reviewed on entry: the ACME git code has synchronous `execFileSync` and a shell
+- Copied code is reviewed on entry: the predecessor project's git code has synchronous `execFileSync` and a shell
   interpolation in `notes-sync.ts` that must not survive the copy.
 - Coverage thresholds are set per package, starting at 80% for new code.
 
