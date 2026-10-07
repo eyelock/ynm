@@ -5,7 +5,7 @@
 name: ynm-keycloak
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3
+    image: quay.io/keycloak/keycloak:26.8
     command: ["start-dev", "--import-realm"]
     environment:
       # Public dev credential, bound to 127.0.0.1 below. Not a secret.
