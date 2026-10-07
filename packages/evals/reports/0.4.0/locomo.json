@@ -1,0 +1,45 @@
+{
+  "dataset": "locomo",
+  "datasetSha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+  "datasetLicense": "CC BY-NC 4.0",
+  "ranAt": "2026-10-07T20:54:48.140Z",
+  "ynmVersion": "0.4.0",
+  "setup": {
+    "ingest": "turn-episodic",
+    "index": "sqlite-fts",
+    "k": 10,
+    "cases": 10,
+    "questions": 1986
+  },
+  "retrieval": {
+    "evidenceRecallAtK": 0.5718,
+    "fullEvidenceAtK": 0.5333,
+    "byCategory": {
+      "temporal": {
+        "n": 321,
+        "evidenceRecall": 0.6623
+      },
+      "open-domain": {
+        "n": 92,
+        "evidenceRecall": 0.2488
+      },
+      "multi-hop": {
+        "n": 282,
+        "evidenceRecall": 0.237
+      },
+      "single-hop": {
+        "n": 841,
+        "evidenceRecall": 0.6421
+      },
+      "adversarial": {
+        "n": 446,
+        "evidenceRecall": 0.6525
+      }
+    }
+  },
+  "timing": {
+    "ingestMs": 1578,
+    "memories": 5882,
+    "recallMs": 10917
+  }
+}

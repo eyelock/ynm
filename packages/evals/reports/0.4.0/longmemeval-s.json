@@ -1,0 +1,49 @@
+{
+  "dataset": "longmemeval-s",
+  "datasetSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "datasetLicense": "MIT",
+  "ranAt": "2026-10-07T20:55:10.468Z",
+  "ynmVersion": "0.4.0",
+  "setup": {
+    "ingest": "turn-episodic",
+    "index": "sqlite-fts",
+    "k": 10,
+    "cases": 60,
+    "questions": 60
+  },
+  "retrieval": {
+    "evidenceRecallAtK": 0.9383,
+    "fullEvidenceAtK": 0.9074,
+    "byCategory": {
+      "single-session-assistant": {
+        "n": 8,
+        "evidenceRecall": 1
+      },
+      "multi-session": {
+        "n": 18,
+        "evidenceRecall": 0.9537
+      },
+      "temporal-reasoning": {
+        "n": 14,
+        "evidenceRecall": 0.8929
+      },
+      "knowledge-update": {
+        "n": 6,
+        "evidenceRecall": 1
+      },
+      "single-session-preference": {
+        "n": 5,
+        "evidenceRecall": 0.8
+      },
+      "single-session-user": {
+        "n": 3,
+        "evidenceRecall": 1
+      }
+    }
+  },
+  "timing": {
+    "ingestMs": 16969,
+    "memories": 29782,
+    "recallMs": 688
+  }
+}
