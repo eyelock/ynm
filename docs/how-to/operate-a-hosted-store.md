@@ -35,6 +35,16 @@ ynm serve --http --host 0.0.0.0 --port 3000 --no-personal --cwd /srv/memory.git 
   --dream-every 15m --sync-every 5m
 ```
 
+The image runs as an unprivileged user, uid 1001, and holds only the runtime (one bundled
+`ynm.mjs`, Node, git and tini). A named volume such as `ynm-data` takes that user's ownership on
+first use. A bind-mounted host directory must be writable by uid 1001 before the container starts:
+
+```sh
+mkdir -p /srv/ynm && sudo chown 1001:1001 /srv/ynm
+docker run -d --name ynm -p 3000:3000 -v /srv/ynm:/data \
+  -e YNM_MCP_TOKEN=change-me ghcr.io/eyelock/ynm
+```
+
 The entrypoint creates the bare repo on first start (`ynm init --bare` then `ynm init` inside
 it) under `/data/store.git`. `GET /health` reports auth mode and scheduler stats and is outside
 auth. Bind to `0.0.0.0` only in containers or behind a proxy: the Host header check is then
@@ -156,7 +166,7 @@ when you give it somewhere to send them, and nothing otherwise:
 - a ynr spool, with `ynr serve` running beside the server and reading the same volume: set
   `YNR_SPOOL` to the `services/ynm` folder under the spool's root, such as
   `YNR_SPOOL=/var/lib/ynr/spool/services/ynm` (with Docker, mount that volume into the container
-  too). Starting and keeping `ynr serve` running is your deployment's job, as for any sidecar.
+  too, and make it readable and writable by uid 1001). Starting and keeping `ynr serve` running is your deployment's job, as for any sidecar.
 
 A server that starts before the spool folder exists looks again once a minute. See
 [Send telemetry to an OpenTelemetry collector](send-telemetry.md#when-hosted).

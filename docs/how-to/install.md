@@ -23,7 +23,7 @@ tells them apart and what each one gets. The rest of this page covers the other 
 | [Direct download of a binary](#direct-download-of-a-binary) | The standalone executable from the release page | 40 to 45 MB download | No | Yes | No Homebrew, CI images, servers |
 | [Slim tarball with your own Node](#slim-tarball-with-your-own-node) | `ynm.mjs` and a `bin/ynm` launcher | about 1.4 MB download | Yes, 22.13 or later | Yes | You manage Node yourself (nvm, fnm, a base image) |
 | [From source](#from-source) | A checkout you can change | the repository plus `node_modules` | Yes, 22.13 or later, and pnpm | Yes | Working on ynm |
-| [Docker image](#docker-image) | The hosted service (`ynm serve --http`) in front of a bare repo | an Alpine image | No | No (inside the image) | Running a hosted store |
+| [Docker image](#docker-image) | The hosted service (`ynm serve --http`) in front of a bare repo | about 280 MB (Alpine, Node, git) | No | No (inside the image) | Running a hosted store |
 | [AWS Lambda package](#aws-lambda-package) | The hosted service as a Lambda function, `index.mjs` exporting `handler` | about 0.25 MB download | No (the Lambda runtime has it) | No | A hosted store that costs close to nothing while idle |
 
 Every mechanism that keeps memory on the machine needs `git`: memory is stored as git notes. Node 22.13 is the first release with
@@ -139,6 +139,10 @@ docker run -d --name ynm -p 3000:3000 -v ynm-data:/data \
 `YNM_MCP_TOKEN` is a static token, a shared secret: everyone who uses it is the same caller,
 recorded as `token:static`. A team that wants to know who wrote what signs in through an identity
 provider instead.
+
+The image runs as the unprivileged user uid 1001 and contains only the runtime: no sources,
+tests or build cache. A bind-mounted `/data` must be writable by that uid
+(`sudo chown 1001:1001 /srv/ynm`); a named volume needs nothing.
 
 Tags are `latest` and each version, for `linux/amd64` and `linux/arm64`. Configuration, auth and
 backups are in [Operate a hosted store](operate-a-hosted-store.md); connecting clients to it is in
