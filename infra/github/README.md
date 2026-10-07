@@ -43,9 +43,8 @@ adding or renaming CI jobs never touches this configuration.
 ## Security
 
 Dependabot alerts and security updates are on. Secret scanning and push protection are on only
-when `visibility` is `public`, because they need a public repository. `visibility` stays `private`
-until the repository is made public; that is a separate, confirmed change
-(`terraform apply -var visibility=public`).
+when `visibility` is `public`, because they need a public repository. `visibility` defaults to
+`public`, which is what the repository is; setting it to `private` turns both off.
 
 Private vulnerability reporting, which `SECURITY.md` points to, is turned on by Terraform once
 `visibility` is `public`. The `integrations/github` provider has no resource for it, so a

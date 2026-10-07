@@ -52,7 +52,7 @@ JSON lines, one export per line, and `ynr serve` reads them and ships them on. W
 instead of a network endpoint means a batch already written survives ynm being killed, and there
 is no endpoint to reach.
 
-On a laptop there is nothing to set. Once `ynr serve` has created its spool, every `ynm` command
+On a laptop there is nothing to set beyond installing ynr (`brew install eyelock/tap/ynr`). Once `ynr serve` has created its spool, every `ynm` command
 and server finds `~/.local/state/ynr/spool/local` and writes there:
 
 ```bash
@@ -81,7 +81,8 @@ and the Lambda function decide once, as they start.
 A hosted server writes to a spool when its deployment gives it one: set `YNR_SPOOL` to the
 `services/ynm` folder under the spool's root, for example
 `YNR_SPOOL=/var/lib/ynr/spool/services/ynm`, on a volume that a `ynr serve` beside the server
-also reads. Running that `ynr serve` is the deployment's job; ynm never starts it. With no
+also reads. Running that `ynr serve` is the deployment's job; ynm never starts it. Install ynr with
+`brew install eyelock/tap/ynr`. With no
 `YNR_SPOOL` and no endpoint, a hosted server sends nothing, so use an OTLP endpoint if there is no
 `ynr` beside it.
 

@@ -166,7 +166,7 @@ when you give it somewhere to send them, and nothing otherwise:
 - a ynr spool, with `ynr serve` running beside the server and reading the same volume: set
   `YNR_SPOOL` to the `services/ynm` folder under the spool's root, such as
   `YNR_SPOOL=/var/lib/ynr/spool/services/ynm` (with Docker, mount that volume into the container
-  too, and make it readable and writable by uid 1001). Starting and keeping `ynr serve` running is your deployment's job, as for any sidecar.
+  too, and make it readable and writable by uid 1001). Starting and keeping `ynr serve` running is your deployment's job, as for any sidecar. Install ynr with `brew install eyelock/tap/ynr`.
 
 A server that starts before the spool folder exists looks again once a minute. See
 [Send telemetry to an OpenTelemetry collector](send-telemetry.md#when-hosted).
