@@ -1,5 +1,5 @@
 import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { stringifyLike } from "./json-style.js";
 import { SKILLS_PATH, ynmSkill } from "./skill.js";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
@@ -29,7 +29,7 @@ function ynhServer(t: InstallTarget["transport"]): Record<string, unknown> {
     : { url: t.url, ...(t.bearer ? { headers: { Authorization: `Bearer ${t.bearer}` } } : {}) };
 }
 
-/** The harness manifest ynh reads; also the checked-in `.ynh-plugin/plugin.json` (ADR-013). */
+/** The harness manifest ynh reads; also the checked-in `.agents/harness/plugin.json` (ADR-013). */
 export function ynhPlugin(opts: YnhPluginOptions): Record<string, unknown> {
   return {
     $schema: YNH_SCHEMA,
@@ -73,7 +73,18 @@ export const ynhSkill = ynmSkill;
 
 export const YNH_SOURCE = "github.com/eyelock/ynm";
 
-export const harnessManifestPath = (cwd: string): string => join(cwd, ".ynh-plugin", "plugin.json");
+/** ynh's canonical manifest location: `.agents/harness/plugin.json`. */
+export const HARNESS_DIR = join(".agents", "harness");
+export const canonicalManifestPath = (cwd: string): string => join(cwd, HARNESS_DIR, "plugin.json");
+/** The deprecated location ynh still reads as a fallback; ynm never writes it. */
+export const LEGACY_HARNESS_DIR = ".ynh-plugin";
+export const legacyManifestPath = (cwd: string): string =>
+  join(cwd, LEGACY_HARNESS_DIR, "plugin.json");
+/** The manifest that is there: the canonical one, else the legacy one; canonical when neither. */
+export const harnessManifestPath = (cwd: string): string =>
+  !existsSync(canonicalManifestPath(cwd)) && existsSync(legacyManifestPath(cwd))
+    ? legacyManifestPath(cwd)
+    : canonicalManifestPath(cwd);
 export const harnessSkillPath = (cwd: string): string =>
   join(cwd, "skills", "ynm-memory", "SKILL.md");
 
@@ -136,18 +147,33 @@ function hookPresent(m: Manifest, event: string, command: string): boolean {
  * changes (none when everything is already there) plus a note to run `ynd validate .`.
  */
 function harnessPlan(t: InstallTarget): Change[] {
-  const file = harnessManifestPath(t.cwd);
+  const found = harnessManifestPath(t.cwd);
+  const file = canonicalManifestPath(t.cwd);
   const m = readManifest(t.cwd);
   if (!m)
     return [
       {
         kind: "note",
-        text: `${file} is not a JSON object; fix it, then rerun \`ynm client install ynh\``,
+        text: `${found} is not a JSON object; fix it, then rerun \`ynm client install ynh\``,
         reason: "harness manifest unreadable",
       },
     ];
   const changes: Change[] = [];
   const done: string[] = [];
+  // Only the legacy manifest exists: move it to ynh's layout (as `ynd migrate` does) so there is
+  // never a second manifest to drift from it.
+  const legacy = found !== file;
+  if (legacy) {
+    const wholeDir = !existsSync(join(t.cwd, HARNESS_DIR));
+    changes.push({
+      kind: "move",
+      from: wholeDir ? join(t.cwd, LEGACY_HARNESS_DIR) : found,
+      to: wholeDir ? join(t.cwd, HARNESS_DIR) : file,
+      reason: `${LEGACY_HARNESS_DIR}/ is deprecated; moved to ynh's ${HARNESS_DIR}${sep}`,
+      label: `moved ${LEGACY_HARNESS_DIR}/ to ${HARNESS_DIR}/`,
+    });
+    done.push(`moved from ${LEGACY_HARNESS_DIR}/`);
+  }
   const next: Manifest = structuredClone(m);
   const want = ynhServer(t.transport);
   const cur = m.mcp_servers?.ynm;
@@ -204,7 +230,7 @@ function harnessPlan(t: InstallTarget): Change[] {
     changes.push({
       kind: "write",
       path: file,
-      content: stringifyLike(readFileSync(file, "utf8"), withSchema),
+      content: stringifyLike(readFileSync(found, "utf8"), withSchema),
       reason: `harness manifest: ${done.join("; ")}`,
       label: `harness manifest${included ? ", skill include" : ""}${hookCount ? `, ${hookCount} hook${hookCount === 1 ? "" : "s"}` : ""}`,
     });
@@ -218,7 +244,7 @@ function harnessPlan(t: InstallTarget): Change[] {
 }
 
 /**
- * ynh: in a harness (the cwd holds `.ynh-plugin/plugin.json`) the adapter merges ynm's server,
+ * ynh: in a harness (the cwd holds `.agents/harness/plugin.json`, or the deprecated `.ynh-plugin/plugin.json`, which is moved) the adapter merges ynm's server,
  * hooks and skill into it. Elsewhere it offers `ynh install github.com/eyelock/ynm`, which
  * installs ynm's own checked-in harness.
  */
@@ -226,7 +252,11 @@ export const ynh: ClientAdapter = {
   name: "ynh",
   async detect(t): Promise<Detection> {
     return detectBySignals(
-      { bin: "ynh", user: [".ynh"], project: [join(".ynh-plugin", "plugin.json")] },
+      {
+        bin: "ynh",
+        user: [".ynh"],
+        project: [join(HARNESS_DIR, "plugin.json"), join(LEGACY_HARNESS_DIR, "plugin.json")],
+      },
       t
     );
   },
@@ -255,7 +285,7 @@ export const ynh: ClientAdapter = {
         client: "ynh",
         configured: server,
         detail: server
-          ? `harness ${file}`
+          ? `harness ${file}${file === legacyManifestPath(cwd) ? " (deprecated location; run `ynm client install ynh` to move it to .agents/harness/)" : ""}`
           : "harness here; ynm not declared; run `ynm client install ynh`",
         guidance: guided,
         hooks: hooked,
@@ -269,7 +299,7 @@ export const ynh: ClientAdapter = {
     }
     const dir = join(home, ".ynh");
     if (!existsSync(dir)) return { client: "ynh", configured: false, detail: "ynh not installed" };
-    const found = findFile(dir, "plugin.json", 4).find((f) => {
+    const found = findFile(dir, "plugin.json", 5).find((f) => {
       try {
         return (JSON.parse(readFileSync(f, "utf8")) as { name?: string }).name === "ynm";
       } catch {

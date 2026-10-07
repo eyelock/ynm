@@ -25,7 +25,7 @@ Leave `--token` off if the server is open (only sensible on localhost).
 | claude-code, `--scope user` | runs `claude mcp add --scope user --transport http ynm <url>` | the token is not passed; see below |
 | copilot-cli | `~/.copilot/mcp-config.json` | `type: http`, the URL and an `Authorization` header |
 | opencode | `opencode.json` | `type: remote`, the URL and an `Authorization` header |
-| ynh, in a harness (the directory holds `.ynh-plugin/plugin.json`) | `.ynh-plugin/plugin.json` | `mcp_servers.ynm` becomes `{"url": ..., "headers": {"Authorization": "Bearer ..."}}` |
+| ynh, in a harness (the directory holds `.agents/harness/plugin.json`) | `.agents/harness/plugin.json` | `mcp_servers.ynm` becomes `{"url": ..., "headers": {"Authorization": "Bearer ..."}}` |
 | ynh, elsewhere | nothing extra: the install command is the same whatever you pass | ynm's own harness ships a `hosted` profile that points at `http://localhost:3000/mcp`; select it in ynh, and edit its URL for a remote server |
 | pi | not applicable | Pi has no MCP; its extension shells out to the local `ynm` CLI |
 

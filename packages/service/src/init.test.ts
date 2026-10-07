@@ -222,16 +222,16 @@ describe("openYnm end to end on git notes", () => {
   it("never installs into a ynh harness on its own, and --client forces an undetected client", async () => {
     const home = await createRepo(0);
     const repo = await createRepo(1);
-    mkdirSync(join(repo, ".ynh-plugin"));
+    mkdirSync(join(repo, ".agents", "harness"), { recursive: true });
     writeFileSync(
-      join(repo, ".ynh-plugin", "plugin.json"),
+      join(repo, ".agents", "harness", "plugin.json"),
       JSON.stringify({ name: "h", version: "0.1.0" })
     );
     const clients = { home, env: { PATH: "" } };
-    const manifest = readFileSync(join(repo, ".ynh-plugin", "plugin.json"), "utf8");
+    const manifest = readFileSync(join(repo, ".agents", "harness", "plugin.json"), "utf8");
     const r = await initProject({ cwd: repo, hooks: false, clients });
     expect(r.clients).toEqual([]);
-    expect(readFileSync(join(repo, ".ynh-plugin", "plugin.json"), "utf8")).toBe(manifest);
+    expect(readFileSync(join(repo, ".agents", "harness", "plugin.json"), "utf8")).toBe(manifest);
     expect(existsSync(join(repo, "skills"))).toBe(false);
     const forced = await initProject({
       cwd: repo,
@@ -251,8 +251,11 @@ describe("openYnm end to end on git notes", () => {
   it("refuses a ynh harness directory with a pointer to the harness install", async () => {
     const dir = await createRepo(0);
     const harness = join(dir, "..", `harness-${Date.now()}`);
-    mkdirSync(join(harness, ".ynh-plugin"), { recursive: true });
-    writeFileSync(join(harness, ".ynh-plugin", "plugin.json"), JSON.stringify({ name: "h" }));
+    mkdirSync(join(harness, ".agents", "harness"), { recursive: true });
+    writeFileSync(
+      join(harness, ".agents", "harness", "plugin.json"),
+      JSON.stringify({ name: "h" })
+    );
     await expect(initProject({ cwd: harness })).rejects.toThrow(
       /ynh harness, not a project.*ynm client install ynh/
     );

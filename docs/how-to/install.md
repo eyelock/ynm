@@ -168,7 +168,7 @@ for three signals, and only one of them makes init write files:
 | GitHub Copilot CLI (`copilot-cli`) | `copilot` | `~/.copilot/` | none |
 | OpenCode (`opencode`) | `opencode` | `~/.config/opencode/` | `opencode.json` or `opencode.jsonc` |
 | Pi (`pi`) | `pi` | `~/.pi/agent/` | `.pi/` |
-| ynh (`ynh`) | `ynh` | `~/.ynh/` | `.ynh-plugin/plugin.json` (never acted on by `ynm init`) |
+| ynh (`ynh`) | `ynh` | `~/.ynh/` | `.agents/harness/plugin.json` (never acted on by `ynm init`; the older `.ynh-plugin/plugin.json` is still recognised) |
 
 Copilot CLI has no project footprint, so init only ever suggests it. `ynm init --client <name>`
 forces a client whatever the signals say.
@@ -181,7 +181,7 @@ For each client the project uses, it writes, inside the repository only:
 | Copilot CLI | `~/.copilot/mcp-config.json`: printed as a `run:` line, not written | block in `AGENTS.md` | none (Copilot CLI hooks do not fire in untrusted folders) |
 | OpenCode | `opencode.json` | block in `AGENTS.md` | none |
 | Pi | `.pi/extensions/ynm.ts` (Pi has no MCP; the extension runs the CLI) | `.pi/skills/ynm-memory/SKILL.md` | none |
-| ynh, in a harness: via `ynm client install ynh`, not init | `mcp_servers.ynm` in `.ynh-plugin/plugin.json` | a skill include (`github.com/eyelock/ynm`, `skills/ynm-memory`) in the manifest; nothing is copied into the harness | `on_session_start`, `before_prompt`, `on_stop` in the manifest |
+| ynh, in a harness: via `ynm client install ynh`, not init | `mcp_servers.ynm` in `.agents/harness/plugin.json` | a skill include (`github.com/eyelock/ynm`, `skills/ynm-memory`) in the manifest; nothing is copied into the harness | `on_session_start`, `before_prompt`, `on_stop` in the manifest |
 | ynh, elsewhere | printed as `run: ynh install github.com/eyelock/ynm --path integrations/ynh` | in that harness | in that harness |
 
 The hooks are what make an agent use ynm rather than its own memory: the session-start hook puts

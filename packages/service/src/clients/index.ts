@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { claudeCode } from "./claude-code.js";
 import { copilotCli } from "./copilot-cli.js";
@@ -104,7 +104,13 @@ export function formatClientReport(r: ClientReport): string {
 
 /** What a change touches, for plans and reports: the path, the command line or the note. */
 export function changeTarget(c: Change): string {
-  return c.kind === "command" ? c.argv.join(" ") : c.kind === "note" ? c.text : c.path;
+  return c.kind === "command"
+    ? c.argv.join(" ")
+    : c.kind === "note"
+      ? c.text
+      : c.kind === "move"
+        ? `${c.from} -> ${c.to}`
+        : c.path;
 }
 
 export interface ApplyOptions {
@@ -126,6 +132,12 @@ export async function applyChanges(changes: Change[], opts: ApplyOptions = {}): 
       mkdirSync(dirname(c.path), { recursive: true });
       writeFileSync(c.path, stringifyLike(raw, deepMerge(existing, c.patch)));
       done.push(`merged ${c.path}: ${c.reason}`);
+    } else if (c.kind === "move") {
+      if (!existsSync(c.to)) {
+        mkdirSync(dirname(c.to), { recursive: true });
+        renameSync(c.from, c.to);
+      }
+      done.push(`moved ${c.from} to ${c.to}: ${c.reason}`);
     } else if (c.kind === "note") {
       done.push(`next: ${c.text}`);
     } else if (opts.runCommand) {
@@ -140,6 +152,7 @@ export async function applyChanges(changes: Change[], opts: ApplyOptions = {}): 
 
 /** True when applying `c` would leave the file exactly as it is. */
 export function changeIsNoop(c: Change): boolean {
+  if (c.kind === "move") return !existsSync(c.from) || existsSync(c.to);
   if (c.kind === "write") return existsSync(c.path) && readFileSync(c.path, "utf8") === c.content;
   if (c.kind !== "merge-json" || !existsSync(c.path)) return false;
   try {
@@ -213,12 +226,16 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
       transport: { kind: "stdio", command: "ynm", args: ["serve"] },
       hooks: true,
     });
-    const local = plan.filter(
-      (c) => (c.kind === "write" || c.kind === "merge-json") && inside(c.path) && !changeIsNoop(c)
-    );
-    const outside = plan.some(
-      (c) => (c.kind === "write" || c.kind === "merge-json") && !inside(c.path) && !changeIsNoop(c)
-    );
+    const target = (c: Change): string | undefined =>
+      c.kind === "write" || c.kind === "merge-json" ? c.path : c.kind === "move" ? c.to : undefined;
+    const local = plan.filter((c) => {
+      const p = target(c);
+      return p !== undefined && inside(p) && !changeIsNoop(c);
+    });
+    const outside = plan.some((c) => {
+      const p = target(c);
+      return p !== undefined && !inside(p) && !changeIsNoop(c);
+    });
     const run: string[] = [];
     if (outside) run.push(`ynm client install ${a.name}`);
     const configured = (await a.status(opts)).configured;
@@ -230,17 +247,22 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
     out.push({
       client: a.name,
       detected: opts.only?.length ? (d.installed ? d.detail : "requested") : d.detail,
-      applied: local.map((c) =>
-        c.kind === "write" || c.kind === "merge-json" ? (c.label ?? relative(root, c.path)) : ""
-      ),
+      applied: local.map((c) => {
+        const p = target(c);
+        return p === undefined
+          ? ""
+          : ((c.kind !== "command" && c.kind !== "note" ? c.label : undefined) ??
+              relative(root, p));
+      }),
       run,
       // Every file in the project the setup lives in, changed this time or not, so init can say
       // what to commit.
       files: [
         ...new Set([
-          ...plan.flatMap((c) =>
-            (c.kind === "write" || c.kind === "merge-json") && inside(c.path) ? [c.path] : []
-          ),
+          ...plan.flatMap((c) => {
+            const p = target(c);
+            return p !== undefined && inside(p) && c.kind !== "move" ? [p] : [];
+          }),
           ...((await a.status(opts)).files?.filter(inside) ?? []),
         ]),
       ],
