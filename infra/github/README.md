@@ -20,9 +20,8 @@ Not managed here:
   it (`terraform/eyelock_tap` in `eyelock/ynh`).
 - The value of `RELEASE_TOKEN`. GitHub never returns it, so Terraform writes it only when it
   creates the secret.
-- The `YNR_READ_PACKAGES` secret, a classic token with only `read:packages` that installs
-  `@eyelock/otel-spool-exporter` from GitHub Packages. It is set by hand with
-  `gh secret set YNR_READ_PACKAGES --repo eyelock/ynm`, like the other siblings' ynr tokens.
+- No secret is needed to install `@eyelock/otel-spool-exporter`: the package is public, and the
+  workflows read it with their own `GITHUB_TOKEN` (`packages: read`).
 - The value of `YNM_MILESTONE`, which moves with the milestones. Terraform writes it only when it
   creates the variable.
 
@@ -37,8 +36,8 @@ Two repository rulesets replace classic branch protection, so each branch has on
 | Main Branch Protection | `main` | `All Clear`, `Verify PR source branch` |
 
 Both block deletion and force pushes, require a pull request with every conversation resolved and
-no approving review, require the branch to be up to date (strict), and let repository admins
-(role 5) bypass. `All Clear` is the last job of `ci.yml`; it depends on every other job, so
+no approving review, do not require the branch to be up to date with its base (not strict), and
+let repository admins (role 5) bypass. `All Clear` is the last job of `ci.yml`; it depends on every other job, so
 adding or renaming CI jobs never touches this configuration.
 
 ## Security

@@ -44,7 +44,9 @@ resource "github_repository_ruleset" "develop" {
     }
 
     required_status_checks {
-      strict_required_status_checks_policy = true
+      # Not strict: a pull request need not be up to date with its base, only green. A stacked
+      # or queued PR is not re-run every time its base moves.
+      strict_required_status_checks_policy = false
 
       required_check {
         context = "All Clear"
@@ -87,7 +89,9 @@ resource "github_repository_ruleset" "main" {
     }
 
     required_status_checks {
-      strict_required_status_checks_policy = true
+      # Not strict: a pull request need not be up to date with its base, only green. A stacked
+      # or queued PR is not re-run every time its base moves.
+      strict_required_status_checks_policy = false
 
       required_check {
         context = "All Clear"

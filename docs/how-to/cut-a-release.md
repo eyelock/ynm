@@ -101,7 +101,7 @@ targets can be built on macOS too; darwin targets need macOS for `codesign`.
 ## Secrets
 
 `RELEASE_TOKEN` in the ynm repository must be a token with write access to
-`eyelock/homebrew-tap` (the same convention ynh uses). `YNR_READ_PACKAGES` must be a classic
-token with only the `read:packages` scope: every job that installs uses it to read
-`@eyelock/otel-spool-exporter` from GitHub Packages, and the image build gets it as a build
-secret. `GITHUB_TOKEN` covers the release and pushing the image.
+`eyelock/homebrew-tap` (the same convention ynh uses). No secret is needed to install: every job that installs uses
+the workflow's own `GITHUB_TOKEN` (with `packages: read`) to read `@eyelock/otel-spool-exporter`
+from GitHub Packages, and the image build gets it as a build secret. `GITHUB_TOKEN` also covers
+the release and pushing the image.
