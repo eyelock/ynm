@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   type IndexedMemory,
   InMemoryIndex,
@@ -9,6 +9,7 @@ import {
 import type { MemoryRecord } from "@ynm/model";
 import { type AppendResult, applyRecord, fold, memoryFromBase, shardId } from "@ynm/store";
 import type { Mount } from "./mounts.js";
+import { ensureSelfIgnoring } from "./self-ignoring.js";
 
 export type IndexProvider = "sqlite-fts" | "memory";
 
@@ -49,10 +50,12 @@ export class IndexManager {
   async indexFor(mount: Mount): Promise<MemoryIndex> {
     let ix = this.open.get(mount.id);
     if (!ix) {
-      ix =
-        this.provider === "memory"
-          ? new InMemoryIndex()
-          : new SqliteIndex(this.locator.fileFor(mount));
+      if (this.provider === "memory") ix = new InMemoryIndex();
+      else {
+        const file = this.locator.fileFor(mount);
+        if (file !== ":memory:") ensureSelfIgnoring(dirname(file));
+        ix = new SqliteIndex(file);
+      }
       await ix.open();
       this.open.set(mount.id, ix);
     }

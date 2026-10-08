@@ -95,6 +95,10 @@ export interface ClientStatus {
   guidance?: boolean;
   /** ynm's agent hooks are installed; absent when the client has no hooks ynm installs. */
   hooks?: boolean;
+  /** The client passes ynm's environment (`YNM_HOME` and the like) to ynm; absent when it always does. */
+  env?: boolean;
+  /** How to fix a gap, when `ynm client install <client>` is not it (an installed ynh harness). */
+  fix?: string;
   /** What was checked and where each piece was found, one human line each. */
   checked?: string[];
   /** Files ynm's setup for this client was found in, any scope; init keeps those in the project. */
