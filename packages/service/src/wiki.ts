@@ -10,6 +10,7 @@ import {
   type WikiTarget,
 } from "@ynm/wiki";
 import type { Mount } from "./mounts.js";
+import { ensureSelfIgnoring } from "./self-ignoring.js";
 import type { Ynm } from "./ynm.js";
 
 export interface WikiBuildOptions {
@@ -56,7 +57,11 @@ export async function buildWiki(
   for (const mount of ynm.mounts) {
     if (opts.mount && mount.id !== opts.mount) continue;
     const pages = await wikiPages(ynm, mount);
-    const res = await wikiTarget(mount, opts).write(pages);
+    const target = wikiTarget(mount, opts);
+    const res = await target.write(pages);
+    // Only ynm's own default folder in the repository; a chosen directory (a vault) is the user's.
+    if (target instanceof DirectoryTarget && !opts.dir && mount.id === "project" && opts.repo)
+      ensureSelfIgnoring(target.dir);
     out.push({ mount: mount.id, ...res });
   }
   return out;

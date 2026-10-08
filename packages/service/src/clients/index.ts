@@ -77,7 +77,12 @@ export async function clientReports(target: DetectTarget): Promise<ClientReport[
   for (const a of CLIENT_ADAPTERS) {
     const d = await a.detect(target);
     const s = await a.status(target);
-    const gap = s.configured && (s.guidance === false || s.hooks === false);
+    const missing = [
+      s.guidance === false ? "guidance" : "",
+      s.hooks === false ? "hooks" : "",
+      s.env === false ? "env_passthrough (YNM_HOME)" : "",
+    ].filter(Boolean);
+    const gap = s.configured && missing.length > 0;
     out.push({
       ...s,
       detected: d.installed,
@@ -85,7 +90,7 @@ export async function clientReports(target: DetectTarget): Promise<ClientReport[
       level: !s.configured ? "off" : gap ? "warn" : "ok",
       ...(gap
         ? {
-            advice: `${[s.guidance === false ? "guidance" : "", s.hooks === false ? "hooks" : ""].filter(Boolean).join(" and ")} missing; run \`ynm client install ${a.name}\``,
+            advice: `${missing.join(" and ")} missing; ${s.fix ?? `run \`ynm client install ${a.name}\``}`,
           }
         : {}),
     });
@@ -99,7 +104,7 @@ export function formatClientReport(r: ClientReport): string {
     return `--   ${r.client}: ${r.detected ? `detected (${r.detection}); ${r.detail}` : "not detected"}`;
   const yn = (v: boolean | undefined) => (v === undefined ? "n/a" : v ? "yes" : "no");
   const tag = r.level === "ok" ? "ok  " : "warn";
-  return `${tag} ${r.client}: server yes, guidance ${yn(r.guidance)}, hooks ${yn(r.hooks)}; ${r.advice ?? r.detail}`;
+  return `${tag} ${r.client}: server yes, guidance ${yn(r.guidance)}, hooks ${yn(r.hooks)}${r.env === undefined ? "" : `, env ${yn(r.env)}`}; ${r.advice ?? r.detail}`;
 }
 
 /** What a change touches, for plans and reports: the path, the command line or the note. */
@@ -304,6 +309,7 @@ export async function validateClient(
     server: s.configured,
     guidance: s.guidance,
     hooks: s.hooks,
+    env: s.env,
   };
   const lines: ValidationLine[] = (s.checked ?? [`server    ${s.detail}`]).map((l) => {
     const m = /^(\S+)\s+(.*)$/.exec(l);
