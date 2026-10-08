@@ -252,7 +252,7 @@ describe("claude-code hooks (ADR-016)", () => {
     const plan = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
     expect(plan.map((c) => (c.kind === "command" ? c.kind : c.path))).toEqual([
       join(cwd, ".mcp.json"),
-      join(cwd, "AGENTS.md"),
+      join(cwd, "CLAUDE.md"),
       settings,
     ]);
     await applyChanges(plan);
@@ -262,6 +262,21 @@ describe("claude-code hooks (ADR-016)", () => {
       UserPromptSubmit: true,
       Stop: true,
     });
+    const again = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
+    expect(again.map((c) => (c.kind === "command" ? c.kind : c.path))).toEqual([
+      join(cwd, ".mcp.json"),
+    ]);
+  });
+
+  it("with only an AGENTS.md, keeps the block there and adds a CLAUDE.md that imports it", async () => {
+    const { cwd, home } = temp();
+    writeFileSync(join(cwd, "AGENTS.md"), "# shared\n");
+    const plan = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
+    await applyChanges(plan);
+    expect(readFileSync(join(cwd, "CLAUDE.md"), "utf8")).toBe("@AGENTS.md\n");
+    expect(readFileSync(join(cwd, "AGENTS.md"), "utf8")).toContain("<!-- ynm:guidance -->");
+    expect(readFileSync(join(cwd, "AGENTS.md"), "utf8")).toContain("# shared");
+    expect((await claudeCode.status({ cwd, home })).guidance).toBe(true);
     const again = await claudeCode.plan({ cwd, home, scope: "project", transport: stdio });
     expect(again.map((c) => (c.kind === "command" ? c.kind : c.path))).toEqual([
       join(cwd, ".mcp.json"),

@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { traceEnv } from "@ynm/telemetry";
 import { ModelUnavailableError } from "../types.js";
 import { type RawCompletion, ValidatingWriter } from "./base.js";
@@ -40,6 +43,17 @@ export function claudeCliEnv(
 }
 
 /**
+ * A dedicated, stable, empty directory to run `claude` in, created if missing. Run from the
+ * project, the CLI would load that project's CLAUDE.md and hooks (ynm's own, recursively) into
+ * the writer's session and add entries to the user's history for the project.
+ */
+export function claudeCliCwd(): string {
+  const dir = join(tmpdir(), "ynm-writer");
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/**
  * Writer over Claude Code headless (`claude -p --output-format json`): uses the user's own
  * Claude session, not an API key (`ANTHROPIC_API_KEY` is removed from the child unless `useApiKey`). Slow (seconds per call) but always available where Claude Code is.
  */
@@ -62,11 +76,14 @@ export class ClaudeCliWriter extends ValidatingWriter {
       "--strict-mcp-config",
       "--mcp-config",
       '{"mcpServers":{}}',
+      // Nothing about this call belongs in the user's session history.
+      "--no-session-persistence",
     ];
     if (this.opts.model) args.push("--model", this.opts.model);
     return new Promise((resolve, reject) => {
       const child = spawn(this.opts.command ?? "claude", args, {
         stdio: ["ignore", "pipe", "pipe"],
+        cwd: claudeCliCwd(),
         env: claudeCliEnv(process.env, { useApiKey: this.opts.useApiKey }),
       });
       let out = "";

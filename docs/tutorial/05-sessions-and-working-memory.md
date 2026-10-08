@@ -94,8 +94,8 @@ memory past its TTL stays in the store until something expires it.
 
 ## Dry-run the consolidation
 
-`dream` runs the maintenance passes. `--dry-run` reports what each would change and changes
-nothing:
+`dream` runs the maintenance passes. `--dry-run` calls no model and changes nothing: passes
+without a model report what they would change, and the others count their candidates:
 
 ```bash
 ynm dream --dry-run
@@ -103,12 +103,13 @@ ynm dream --dry-run
 
 Expected: one line per pass. Two of them would act: `expire` on the one-second note and
 `promote` on the tagged decision. `retention`, part of the expire pass, retires old occurrence
-records and has none to look at here. Counts read `changed/candidates`.
+records and has none to look at here. Counts read `changed/candidates`. `promote` acts on the
+tag without a model; its other candidate would need a judge (`--judge`).
 
 ```text
 expire: 1/2 would change
 retention: 0/0 would change
-promote: 1/2 would change
+promote: 2 candidates (not judged; add --judge), 1 would change
 dedupe: 0/0 would change
 contradict: 0/0 would change
 reflect: 0/0 would change

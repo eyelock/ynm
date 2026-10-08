@@ -42,7 +42,8 @@ export interface DreamOptions {
  * pass (TTL expiry, then occurrence retention, reported as `retention`) runs and no model is
  * called; a working memory tagged `promote` is still promoted. A pair
  * is judged when at least one side is fresh, so two memories already compared are never compared
- * again; a memory with a judgment deferred by the pair cap stays fresh. Only a full run (every
+ * again; a memory with a judgment deferred by the pair cap stays fresh. A dry run calls no model:
+ * the model-backed passes only count their candidates, unless `judge` asks for the verdicts. Only a full run (every
  * pass, every namespace) marks: a partial one has not finished with anything.
  */
 export async function dream(
@@ -106,6 +107,7 @@ async function run(ynm: Ynm, input: ConsolidateInput, opts: DreamOptions): Promi
     config: opts.config,
     now: opts.now ?? (() => new Date()),
     dryRun: input.dryRun,
+    judging: !input.dryRun || input.judge,
     namespace: input.namespace,
     maxPairs: input.maxPairs ?? opts.config.maxPairsPerRun,
     pairsJudged: { n: 0 },
@@ -115,6 +117,7 @@ async function run(ynm: Ynm, input: ConsolidateInput, opts: DreamOptions): Promi
   };
   const report: DreamReport = {
     dryRun: input.dryRun,
+    judged: ctx.judging,
     judge: { name: opts.judge.name, calibrated: opts.judge.calibrated },
     writer: opts.writer.name,
     passes: {},
@@ -160,9 +163,8 @@ async function run(ynm: Ynm, input: ConsolidateInput, opts: DreamOptions): Promi
   const full = !input.namespace && order.every((p) => input.passes.includes(p));
   if (!input.dryRun && full)
     report.dreamed = await markDreamed(ynm, input.namespace, fresh, ctx.deferred, versionOf);
-  report.estimatedCostUsd = opts.judge.calibrated
-    ? report.usage.inputTokens * JEV_USD_PER_INPUT_TOKEN
-    : 0;
+  report.estimatedCostUsd =
+    ctx.judging && opts.judge.calibrated ? report.usage.inputTokens * JEV_USD_PER_INPUT_TOKEN : 0;
   return report;
 }
 

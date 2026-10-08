@@ -169,6 +169,7 @@ This one started on an empty store, so its `context.markdown` is empty; the huma
   },
   "full": {
     "dryRun": true,
+    "judged": false,
     "judge": { "name": "heuristic", "calibrated": false },
     "writer": "none",
     "passes": {
@@ -179,6 +180,7 @@ This one started on an empty store, so its `context.markdown` is empty; the huma
         "flagged": [],
         "skipped": 0,
         "fallback": false,
+        "uncalibrated": false,
         "usage": { "inputTokens": 0, "outputTokens": 0 },
         "notes": []
       }
@@ -190,6 +192,16 @@ This one started on an empty store, so its `context.markdown` is empty; the huma
   }
 }
 ```
+
+`judged` is false for a dry run without `--judge`: the model-backed passes only counted their
+candidates (their `changed` and `flagged` are empty, `estimatedCostUsd` is 0) and the plain
+output says `N candidates (not judged; add --judge)`. A real run, and `--dry-run --judge`, have it
+true.
+
+Per pass, `fallback` is true when the pass took its no-model path: the heuristic judge answered,
+or a Writer step was absent, skipped or failed. A pass whose Writer ran and wrote is not a
+fallback. `uncalibrated` is true when an uncalibrated judge (the heuristic, or one emulated by a
+Writer) answered; it can flag for review but never act.
 
 `fresh` counts the memories new or changed since a run with this judge last finished with them;
 `dreamed` counts the ones this run finished with and marked (always 0 for a dry run, or a run

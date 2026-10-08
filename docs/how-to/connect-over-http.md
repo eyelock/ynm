@@ -29,7 +29,7 @@ Leave `--token` off if the server is open (only sensible on localhost).
 | ynh, elsewhere | nothing extra: the install command is the same whatever you pass | ynm's own harness ships a `hosted` profile that points at `http://localhost:3000/mcp`; select it in ynh, and edit its URL for a remote server |
 | pi | not applicable | Pi has no MCP; its extension shells out to the local `ynm` CLI |
 
-The guidance block (in the instruction file the client reads, `AGENTS.md` when there is none) is written the same way as for stdio.
+The guidance block (in the instruction file the client reads, a new `CLAUDE.md` when there is none for Claude Code) is written the same way as for stdio.
 
 ## What a URL-only client gets
 

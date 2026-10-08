@@ -2,6 +2,7 @@ import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "./config.js";
 import { EMPTY_CONTEXT_GUIDANCE } from "./hooks/intent.js";
 import { IndexManager } from "./indexing.js";
+import { overlapCoefficient } from "./similar.js";
 import { TOOL_NAMES, TOOL_SPECS, toolSpec } from "./tools.js";
 import { Ynm } from "./ynm.js";
 
@@ -114,6 +115,28 @@ describe("tool specs drive the service", () => {
       content: "Release tags are signed with the CI key",
     });
     expect(third.guidance).toMatch(/^2 similar memories exist/);
+  });
+
+  it("warns for a near-duplicate and stays quiet for an unrelated memory", async () => {
+    const y = make();
+    await run(y, "memory_remember", { type: "semantic", content: "Run pnpm check before pushing" });
+    const near = await run(y, "memory_remember", {
+      type: "semantic",
+      content: "Always run pnpm check before you push",
+    });
+    expect(near.guidance).toMatch(/^1 similar memory exists/);
+    const other = await run(y, "memory_remember", {
+      type: "semantic",
+      content: "Bob: the worker reads its queue from Redis",
+    });
+    expect(other.guidance).toBeUndefined();
+  });
+
+  it("computes the overlap coefficient over words of 3+ letters without stop words", () => {
+    expect(overlapCoefficient("Run pnpm check", "Always run pnpm check before")).toBe(1);
+    expect(overlapCoefficient("the and for", "the and for")).toBe(0);
+    expect(overlapCoefficient("alpha beta gamma delta", "alpha beta zeta eta")).toBe(0.5);
+    expect(overlapCoefficient("Uses the API", "API uses")).toBe(1);
   });
 
   it("remember gives no similarity guidance without an index", async () => {

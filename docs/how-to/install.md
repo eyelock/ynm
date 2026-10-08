@@ -200,11 +200,12 @@ lookup, and ynm appends to a file that exists rather than creating a sibling:
 |---|---|---|
 | `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` in the project directory | those files, not `AGENTS.md` | the one that exists (for example `.claude/CLAUDE.md`), never a new sibling |
 | a `CLAUDE.md` that imports `@AGENTS.md` | `CLAUDE.md` and the `AGENTS.md` it pulls in | that `AGENTS.md`, so every client gets it |
-| only `AGENTS.md` (or `.claude/AGENTS.md`) | `AGENTS.md` | that file |
-| none of these | nothing | a new `AGENTS.md`, which every client reads |
+| only `AGENTS.md` (or `.claude/AGENTS.md`) | not relied on | that `AGENTS.md`, plus a new `CLAUDE.md` containing just `@AGENTS.md`, so Claude reads it and other clients keep sharing it |
+| none of these | nothing | a new `CLAUDE.md` (Copilot CLI and OpenCode get their own `AGENTS.md` when you install them) |
 
-If such a file exists only in a parent directory, Claude reads that and ignores `AGENTS.md`, so ynm
-creates a `CLAUDE.md` in the project directory rather than an `AGENTS.md` Claude would not read.
+Claude Code reliably reads `CLAUDE.md`, so ynm does not depend on it falling back to `AGENTS.md`.
+If a `CLAUDE.md` exists only in a parent directory, Claude reads that and not the project's
+`AGENTS.md`, so ynm creates a `CLAUDE.md` in the project directory.
 `~/.claude/CLAUDE.md` always loads whatever the project has, so a block already in it counts
 as present and ynm adds nothing; `ynm client status` uses the same lookup. Claude Code's hooks go in `.claude/settings.local.json` because
 a hook that runs `ynm` would fail for every teammate who lacks it; with `--scope user` they go in

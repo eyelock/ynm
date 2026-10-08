@@ -196,3 +196,4 @@ but guidance or hooks are missing.
   job over built-in memory, and a level-less remember that is distributed when no personal mount
   is open. Hooks remain the deterministic channel.
 - 2026-10-07: ynh's harness manifest moves to `.agents/harness/plugin.json`, ynh's canonical layout; `.ynh-plugin/` is no longer written (an existing one is moved there by `ynm client install ynh`). Accepted.
+- 2026-10-08: for Claude Code, a project with no instruction file gets CLAUDE.md, not AGENTS.md, because Claude Code reads CLAUDE.md; a project with only an AGENTS.md keeps the block there and gets a CLAUDE.md that imports it (`@AGENTS.md`), so AGENTS.md stays shared with the other clients. Accepted.

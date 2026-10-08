@@ -10,14 +10,25 @@ export interface PassReport {
   changed: string[];
   flagged: string[];
   skipped: number;
-  /** True when the pass used its non-model fallback for at least one decision. */
+  /**
+   * True when the pass took its no-model path for at least one decision: the heuristic judge
+   * answered, or a Writer step was skipped, absent or failed. A pass whose Writer ran and
+   * wrote is not a fallback, whatever judge verified it.
+   */
   fallback: boolean;
+  /** True when an uncalibrated judge answered at least once; it can flag for review, never act. */
+  uncalibrated: boolean;
   usage: Usage;
   notes: string[];
 }
 
 export interface DreamReport {
   dryRun: boolean;
+  /**
+   * False for a dry run without `judge`: passes that need a model listed their candidates and
+   * judged none of them, so `changed` and `flagged` are empty for those passes.
+   */
+  judged: boolean;
   judge: { name: string; calibrated: boolean };
   writer: string;
   passes: Record<string, PassReport>;
@@ -37,6 +48,8 @@ export interface DreamContext {
   config: DreamConfig;
   now: () => Date;
   dryRun: boolean;
+  /** Whether the model-backed steps run: always for a real run, only on request for a dry one. */
+  judging: boolean;
   namespace?: string;
   maxPairs: number;
   /** Judgments so far in the current pass; reset by the engine before each pass. */
@@ -70,9 +83,20 @@ export function emptyReport(): PassReport {
     flagged: [],
     skipped: 0,
     fallback: false,
+    uncalibrated: false,
     usage: { inputTokens: 0, outputTokens: 0 },
     notes: [],
   };
+}
+
+/** Records on `r` what kind of judge answered: uncalibrated, and whether it was the heuristic. */
+export function noteJudge(
+  r: PassReport,
+  ctx: Pick<DreamContext, "judge">,
+  j: Pick<Judgment, "calibrated">
+): void {
+  if (!j.calibrated) r.uncalibrated = true;
+  if (ctx.judge.name === "heuristic") r.fallback = true;
 }
 
 export function addUsage(into: Usage, u?: Usage): void {

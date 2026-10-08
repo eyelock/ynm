@@ -46,19 +46,45 @@ ynm remember --type semantic --content "We never deploy on Tuesdays; deploys are
 ynm remember --type semantic --content "The database is Postgres 14."
 ```
 
-Expected: five `remembered <26-character id> in personal` lines.
+Expected: five `remembered <26-character id> in personal` lines. The second API memory also
+prints a `note:` line, because it restates the first: `note: 1 similar memory exists: <id> (The
+API listens on port 8080.). If one of them is the same fact, prefer `ynm supersede` over a
+duplicate.` The same note can follow the last deploy-day memory, which is close to the earlier
+one. The notes are hints: the memories are saved either way and the exit code is zero. Here we
+keep both and let `dream` find them.
 
 ## A dry run
 
-`--dry-run` runs every pass and reports what would change, writing nothing:
+`--dry-run` writes nothing and calls no model, so it is free. It lists what each pass would
+consider:
 
 ```bash
 ynm dream --dry-run
 ```
 
-Expected: one line per pass, in the form `pass: changed/candidates`. The dedupe pass looked at
-eight candidate pairs, the contradict pass at the one pair sharing a subject, and nothing would
-change:
+Expected: one line per pass. Passes that need no model (expire, retention, normalise) report
+what they would change, in the form `pass: changed/candidates`. Passes that ask a judge only
+count their candidates and say they did not judge them. The dedupe pass found eight candidate
+pairs and the contradict pass the one pair sharing a subject:
+
+```text
+expire: 0/0 would change
+retention: 0/0 would change
+promote: 0/0 would change
+dedupe: 8 candidates (not judged; add --judge)
+contradict: 1 candidates (not judged; add --judge)
+reflect: 0/0 would change
+normalise: 0/0 would change
+```
+
+To see the judge's verdicts without writing anything, add `--judge`. With a real model that
+costs money, which is why it is opt-in; here the judge is the free heuristic:
+
+```bash
+ynm dream --dry-run --judge
+```
+
+Expected: the same pass lines in the form `pass: changed/candidates`, now judged:
 
 ```text
 expire: 0/0 would change
@@ -76,17 +102,17 @@ with a heuristic: lexical similarity, recency and rules. Its answers are coarse 
 The JSON report shows that, under `full`:
 
 ```bash
-ynm dream --dry-run --json
+ynm dream --dry-run --judge --json
 ```
 
-Expected: a JSON object with `"dryRun": true`. Under `full`, `judge` is
+Expected: a JSON object with `"dryRun": true`. Under `full`, `"judged"` is `true`, `judge` is
 `{"name": "heuristic", "calibrated": false}` and `writer` is `"none"`. The `dedupe` pass lists
 the two API memories under `flagged`, and the `contradict` pass lists the two deploy-day
-memories, both with `"fallback": true`. Under `passes` every `changed` list is empty.
+memories, both with `"fallback": true` (the heuristic is a no-model path) and `"uncalibrated": true`. Under `passes` every `changed` list is empty.
 
 ## Flag for real
 
-Without `--dry-run` the same run writes its findings as review flags on the memories it
+Without `--dry-run` the same run (judging, as `--dry-run --judge` did) writes its findings as review flags on the memories it
 was unsure about. Still nothing is merged or deleted:
 
 ```bash

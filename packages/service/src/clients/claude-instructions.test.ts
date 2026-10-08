@@ -24,15 +24,15 @@ describe("Claude Code instruction lookup", () => {
   it("appends to an existing .claude/CLAUDE.md and never creates a sibling CLAUDE.md", () => {
     const { cwd, home } = repo({ ".claude/CLAUDE.md": "# team\n" });
     expect(claudeInstructions(cwd, home)).toMatchObject({
-      mode: "claude-md",
       target: { path: join(cwd, ".claude", "CLAUDE.md"), create: false },
     });
+    expect(claudeInstructions(cwd, home).link).toBeUndefined();
   });
-  it("uses AGENTS.md when no CLAUDE file is on the path", () => {
+  it("keeps the block in an AGENTS.md alone and links a CLAUDE.md that imports it", () => {
     const { cwd, home } = repo({ "AGENTS.md": "# agents\n" });
     expect(claudeInstructions(cwd, home)).toMatchObject({
-      mode: "agents-md",
       target: { path: join(cwd, "AGENTS.md"), create: false },
+      link: join(cwd, "CLAUDE.md"),
     });
   });
   it("puts the block in AGENTS.md when CLAUDE.md imports it", () => {
@@ -45,16 +45,15 @@ describe("Claude Code instruction lookup", () => {
   it("a CLAUDE.md above the project switches Claude to CLAUDE files; the user file does not", () => {
     const up = repo({ "../CLAUDE.md": "# parent\n", "AGENTS.md": "# agents\n" });
     expect(claudeInstructions(up.cwd, up.home)).toMatchObject({
-      mode: "claude-md",
       target: { path: join(up.cwd, "CLAUDE.md"), create: true },
     });
     const user = repo({ "~/.claude/CLAUDE.md": "# me\n", "AGENTS.md": "# agents\n" });
-    expect(claudeInstructions(user.cwd, user.home).mode).toBe("agents-md");
+    expect(claudeInstructions(user.cwd, user.home).link).toBe(join(user.cwd, "CLAUDE.md"));
   });
-  it("creates AGENTS.md only when the project has no instruction file", () => {
+  it("creates CLAUDE.md, not AGENTS.md, when the project has no instruction file", () => {
     const { cwd, home } = repo({});
     expect(claudeInstructions(cwd, home).target).toEqual({
-      path: join(cwd, "AGENTS.md"),
+      path: join(cwd, "CLAUDE.md"),
       create: true,
     });
   });

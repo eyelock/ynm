@@ -48,10 +48,21 @@ export const ConsolidateInputSchema = z
       .default([...CONSOLIDATE_PASSES])
       .describe("Passes to run"),
     namespace: NamespaceFilterSchema.optional().describe("Restrict to a namespace prefix"),
-    dryRun: z.boolean().default(false).describe("Report what would change"),
+    dryRun: z
+      .boolean()
+      .default(false)
+      .describe("Report the candidates each pass would consider, calling no model"),
+    judge: z
+      .boolean()
+      .default(false)
+      .describe("With dryRun, judge the candidates and report what would change (calls the model)"),
     maxPairs: z.number().int().positive().optional().describe("Cap on judged pairs this run"),
   })
-  .strict();
+  .strict()
+  .refine((i) => !i.judge || i.dryRun, {
+    message: "judge only applies to a dry run; add dryRun",
+    path: ["judge"],
+  });
 export type ConsolidateInput = z.infer<typeof ConsolidateInputSchema>;
 
 export const SyncInputSchema = z

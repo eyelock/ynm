@@ -195,7 +195,8 @@ CLI: `ynm dream`.
 |---|---|---|---|---|
 | `passes` | array of `expire` \| `promote` \| `dedupe` \| `contradict` \| `reflect` \| `normalise` |  | `["expire","promote","dedupe","contradict","reflect","normalise"]` | Passes to run |
 | `namespace` | string |  |  | Restrict to a namespace prefix |
-| `dryRun` | boolean |  | `false` | Report what would change |
+| `dryRun` | boolean |  | `false` | Report the candidates each pass would consider, calling no model |
+| `judge` | boolean |  | `false` | With dryRun, judge the candidates and report what would change (calls the model) |
 | `maxPairs` | integer >= 1 |  |  | Cap on judged pairs this run |
 
 ### memory_sync

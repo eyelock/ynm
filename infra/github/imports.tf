@@ -65,3 +65,8 @@ import {
   to = github_repository_dependabot_security_updates.ynm
   id = "ynm"
 }
+
+import {
+  to = github_repository_ruleset.never_delete
+  id = "ynm:24699970"
+}
