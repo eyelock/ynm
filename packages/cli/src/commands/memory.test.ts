@@ -182,3 +182,32 @@ describe("ynm memory commands, human output", () => {
     expect(ynm(dir, "list").stdout).not.toContain(id);
   });
 });
+
+describe("ynm list --namespace", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ynm-memory-ns-"));
+
+  it("matches the same memories with or without a trailing slash", () => {
+    const r = ynm(
+      dir,
+      "remember",
+      "--type",
+      "semantic",
+      "--content",
+      "slash tolerant",
+      "--namespace",
+      "factory/github.com/a/b",
+      "--json"
+    );
+    expect(r.status, r.stderr).toBe(0);
+    const ids = (args: string[]) => {
+      const l = ynm(dir, "list", ...args, "--json");
+      expect(l.status, l.stderr).toBe(0);
+      return (JSON.parse(l.stdout) as { memoryId: string }[]).map((m) => m.memoryId);
+    };
+    const plain = ids(["--namespace", "factory"]);
+    expect(plain).toHaveLength(1);
+    expect(ids(["--namespace", "factory/"])).toEqual(plain);
+    expect(ids(["--namespace", "factory//"])).toEqual(plain);
+    expect(ids(["--namespace", "/"])).toEqual(ids([]));
+  });
+});

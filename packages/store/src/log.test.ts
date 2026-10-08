@@ -43,6 +43,12 @@ describe("shards", () => {
     expect(namespaceMatches("org/eyelock", "org/eyelock")).toBe(true);
     expect(namespaceMatches("anything", undefined)).toBe(true);
   });
+  it("tolerates trailing slashes on the prefix", () => {
+    expect(namespaceMatches("org/eyelock/x", "org/eyelock/")).toBe(true);
+    expect(namespaceMatches("org/eyelock/x", "org/eyelock//")).toBe(true);
+    expect(namespaceMatches("org/eyelockx", "org/eyelock/")).toBe(false);
+    expect(namespaceMatches("anything", "/")).toBe(true);
+  });
   it("filters shards by level, type, namespace and bucket range", () => {
     const key = {
       level: "personal" as const,

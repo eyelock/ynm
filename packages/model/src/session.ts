@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEFAULT_WORKING_TTL, IsoDurationSchema } from "./record.js";
+import { DEFAULT_WORKING_TTL, IsoDurationSchema, NamespaceFilterSchema } from "./record.js";
 
 export const SessionStartInputSchema = z
   .object({
@@ -9,7 +9,7 @@ export const SessionStartInputSchema = z
       .max(100)
       .optional()
       .describe("Client session id; generated if omitted"),
-    namespace: z.string().optional().describe("Namespace prefix for the context block"),
+    namespace: NamespaceFilterSchema.optional().describe("Namespace prefix for the context block"),
     budgetTokens: z
       .number()
       .int()
@@ -47,7 +47,7 @@ export const ConsolidateInputSchema = z
       .array(z.enum(CONSOLIDATE_PASSES))
       .default([...CONSOLIDATE_PASSES])
       .describe("Passes to run"),
-    namespace: z.string().optional().describe("Restrict to a namespace prefix"),
+    namespace: NamespaceFilterSchema.optional().describe("Restrict to a namespace prefix"),
     dryRun: z.boolean().default(false).describe("Report what would change"),
     maxPairs: z.number().int().positive().optional().describe("Cap on judged pairs this run"),
   })

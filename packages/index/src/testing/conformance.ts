@@ -89,6 +89,11 @@ export function runIndexConformance(name: string, create: () => Promise<MemoryIn
       expect(await ids({ type: ["procedural"], limit: 10 })).toEqual([a.memoryId]);
       expect(await ids({ level: ["distributed"], limit: 10 })).toEqual([b.memoryId]);
       expect(await ids({ namespace: "org/eyelock", limit: 10 })).toEqual([a.memoryId]);
+      expect(await ids({ namespace: "org/eyelock/", limit: 10 })).toEqual([a.memoryId]);
+      expect(await ids({ namespace: "org/eyelock//", limit: 10 })).toEqual([a.memoryId]);
+      expect((await ids({ namespace: "/", limit: 10 })).sort()).toEqual(
+        [a.memoryId, b.memoryId].sort()
+      );
       expect(await ids({ subject: "topic:ci", limit: 10 })).toEqual([a.memoryId]);
       expect((await ids({ tags: ["ci"], limit: 10 })).sort()).toEqual(
         [a.memoryId, b.memoryId].sort()
