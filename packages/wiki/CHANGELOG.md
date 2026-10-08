@@ -1,5 +1,13 @@
 # @ynm/wiki
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [[`1e1263c`](https://github.com/eyelock/ynm/commit/1e1263c9295cdf31009d4f1745f9794c6248cdda), [`696da43`](https://github.com/eyelock/ynm/commit/696da435f5e38a0d678669199baa543f1e05862d)]:
+  - @ynm/model@0.3.1
+  - @ynm/store@0.4.1
+
 ## 0.3.1
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @ynm/model
 
+## 0.3.1
+
+### Patch Changes
+
+- [#80](https://github.com/eyelock/ynm/pull/80) [`1e1263c`](https://github.com/eyelock/ynm/commit/1e1263c9295cdf31009d4f1745f9794c6248cdda) Thanks [@eyelock](https://github.com/eyelock)! - `ynm dream --dry-run` no longer calls a model; add `--judge` to see the model's verdicts.
+
+- [#80](https://github.com/eyelock/ynm/pull/80) [`696da43`](https://github.com/eyelock/ynm/commit/696da435f5e38a0d678669199baa543f1e05862d) Thanks [@eyelock](https://github.com/eyelock)! - A namespace filter with a trailing slash now matches, so `--namespace factory/` finds the same
+  memories as `--namespace factory`. This applies to list, recall, context, export, session and
+  dream, over the CLI, MCP and HTTP.
+
 ## 0.3.0
 
 ### Minor Changes
