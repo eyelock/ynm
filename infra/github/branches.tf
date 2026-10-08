@@ -103,3 +103,28 @@ resource "github_repository_ruleset" "main" {
     }
   }
 }
+
+# Nobody deletes or force-pushes main or develop, repository admins included. This ruleset has no
+# bypass actors on purpose. The two rulesets above let admins bypass for emergencies, which
+# included deletion: on 2026-10-08 main was deleted by GitHub's delete-branch-on-merge, which ran
+# as an admin, when a pull request with main as its head was merged. Rules from every active
+# ruleset apply together, so an admin can still bypass the pull request and status checks, but
+# not this. It was created by hand first and is adopted by the import in imports.tf.
+resource "github_repository_ruleset" "never_delete" {
+  repository  = github_repository.ynm.name
+  name        = "Never Delete Main or Develop"
+  target      = "branch"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = ["refs/heads/main", "refs/heads/develop"]
+      exclude = []
+    }
+  }
+
+  rules {
+    deletion         = true
+    non_fast_forward = true
+  }
+}

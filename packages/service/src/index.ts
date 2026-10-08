@@ -13,6 +13,7 @@ export * from "./mounts.js";
 export * from "./open.js";
 export * from "./personal-store.js";
 export * from "./redaction.js";
+export * from "./similar.js";
 export * from "./tools.js";
 export * from "./wiki.js";
 export * from "./worktree.js";

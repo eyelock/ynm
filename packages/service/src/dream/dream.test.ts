@@ -76,6 +76,56 @@ function make(judge: Judge, writer: Writer = new NoneWriter()) {
 }
 
 describe("dream engine (ADR-006, ADR-012)", () => {
+  it("a dry run calls no model; with judge it judges but still writes nothing", async () => {
+    let calls = 0;
+    let writes = 0;
+    const inner = new ScriptJudge((_s, id) =>
+      id === "sameFact" ? 0.95 : id === "contradicts" ? 0.02 : 2
+    );
+    const counting: Judge = {
+      name: inner.name,
+      calibrated: true,
+      limits: () => inner.limits(),
+      judge: (state, questions) => {
+        calls += 1;
+        return inner.judge(state, questions);
+      },
+    };
+    const writer: Writer = {
+      name: "counting",
+      write: async () => {
+        writes += 1;
+        throw new Error("writer must not run");
+      },
+    } as unknown as Writer;
+    const { ynm, run } = make(counting, writer);
+    await ynm.remember({ type: "semantic", content: "Notes anchor to the root commit" });
+    await ynm.remember({
+      type: "semantic",
+      content: "Notes are anchored to the root commit of the repo",
+    });
+    calls = 0;
+    const dry = await run({ passes: ["dedupe", "promote", "reflect"], dryRun: true });
+    expect(calls).toBe(0);
+    expect(writes).toBe(0);
+    expect(dry.judged).toBe(false);
+    expect(dry.estimatedCostUsd).toBe(0);
+    expect(dry.passes.dedupe?.candidates).toBeGreaterThan(0);
+    expect(dry.passes.dedupe?.judged).toBe(0);
+    expect(dry.passes.dedupe?.changed).toEqual([]);
+    const judged = await run({ passes: ["dedupe"], dryRun: true, judge: true });
+    expect(calls).toBeGreaterThan(0);
+    expect(judged.judged).toBe(true);
+    expect(judged.passes.dedupe?.changed).toHaveLength(1);
+    expect(judged.estimatedCostUsd).toBeGreaterThan(0);
+    expect((await ynm.list()).length).toBe(2);
+  });
+
+  it("rejects judge without dryRun", async () => {
+    const { run } = make(new ScriptJudge(() => 0));
+    await expect(run({ judge: true })).rejects.toThrow(/judge only applies to a dry run/);
+  });
+
   it("dedupe with a calibrated judge merges, stores the judgment and links the survivor", async () => {
     const { ynm, run } = make(
       new ScriptJudge((_s, id) => (id === "sameFact" ? 0.95 : id === "contradicts" ? 0.02 : 2))
@@ -90,7 +140,7 @@ describe("dream engine (ADR-006, ADR-012)", () => {
       content: "Notes are anchored to the root commit of the repo",
     });
     await ynm.remember({ type: "semantic", content: "Unrelated: releases happen on Fridays" });
-    const dry = await run({ passes: ["dedupe"], dryRun: true });
+    const dry = await run({ passes: ["dedupe"], dryRun: true, judge: true });
     expect(dry.passes.dedupe?.changed).toHaveLength(1);
     expect((await ynm.list()).length).toBe(3);
     const r = await run({ passes: ["dedupe"] });
@@ -350,7 +400,12 @@ describe("dream passes: expire and promote", () => {
       content: "maybe durable",
     });
     const r = await review.run({ passes: ["promote"] });
-    expect(r.passes.promote).toMatchObject({ changed: [], flagged: [w.memoryId], fallback: true });
+    expect(r.passes.promote).toMatchObject({
+      changed: [],
+      flagged: [w.memoryId],
+      fallback: false,
+      uncalibrated: true,
+    });
     expect((await review.ynm.find(w.memoryId))?.needsReview).toBe(true);
 
     const ignore = make(new ScriptJudge(() => 0.1));
@@ -367,7 +422,7 @@ describe("dream passes: expire and promote", () => {
       content: "tagged",
       tags: ["promote"],
     });
-    const rc = await capped.run({ passes: ["promote"], maxPairs: 1, dryRun: true });
+    const rc = await capped.run({ passes: ["promote"], maxPairs: 1, dryRun: true, judge: true });
     expect(rc.passes.promote).toMatchObject({ judged: 1, skipped: 1 });
     expect(rc.passes.promote?.changed).toContain(tagged.memoryId);
     expect(
@@ -408,7 +463,7 @@ describe("dream passes: dedupe and contradict", () => {
     const review = make(new ScriptJudge((_s, id) => (id === "sameFact" ? 0.7 : 0)));
     await review.ynm.remember({ type: "semantic", content: "Builds use pnpm workspaces" });
     await review.ynm.remember({ type: "semantic", content: "Builds use pnpm workspaces too" });
-    const r = await review.run({ passes: ["dedupe"], dryRun: true });
+    const r = await review.run({ passes: ["dedupe"], dryRun: true, judge: true });
     expect(r.passes.dedupe?.flagged).toHaveLength(2);
     expect(await review.ynm.reviewQueue()).toEqual([]);
   });
@@ -440,7 +495,12 @@ describe("dream passes: dedupe and contradict", () => {
         (await unsure.ynm.remember({ type: "semantic", subject: "entity:port", content: c }))
           .memoryId
       );
-    const dry = await unsure.run({ passes: ["contradict"], dryRun: true, maxPairs: 2 });
+    const dry = await unsure.run({
+      passes: ["contradict"],
+      dryRun: true,
+      judge: true,
+      maxPairs: 2,
+    });
     expect(dry.passes.contradict).toMatchObject({ candidates: 3, judged: 2, skipped: 1 });
     expect(await unsure.ynm.reviewQueue()).toEqual([]);
     const ru = await unsure.run({ passes: ["contradict"] });
@@ -473,7 +533,17 @@ describe("dream passes: reflect and normalise", () => {
     await broken.ynm.remember({ type: "semantic", content: "no subject here" });
     const rb = await broken.run({ passes: ["reflect"] });
     expect(rb.passes.reflect?.skipped).toBe(1);
+    expect(rb.passes.reflect?.fallback).toBe(true);
     expect(rb.passes.reflect?.notes).toEqual(["reflect skipped topic:broken: endpoint down"]);
+  });
+
+  it("an uncalibrated judge is reported as such, not as a fallback, when the Writer wrote", async () => {
+    const writer = fixedWriter({ summary: "Deploy pattern", content: "Deploys repeat a pattern." });
+    const { ynm, run } = make(uncalibrated(new ScriptJudge(() => 0.05)), writer);
+    await episodes(ynm, "topic:deploy");
+    const r = await run({ passes: ["reflect"] });
+    expect(r.passes.reflect?.changed).toHaveLength(1);
+    expect(r.passes.reflect).toMatchObject({ fallback: false, uncalibrated: true });
   });
 
   it("reflect replaces an older reflection once new episodes arrive, and writes nothing in a dry run", async () => {
@@ -482,10 +552,11 @@ describe("dream passes: reflect and normalise", () => {
     await episodes(ynm, "topic:deploy");
     const first = await run({ passes: ["reflect"] });
     expect(first.passes.reflect?.changed).toHaveLength(1);
+    expect(first.passes.reflect).toMatchObject({ fallback: false, uncalibrated: false });
     expect(first.passes.reflect?.usage.inputTokens).toBeGreaterThan(0);
     const [old] = await ynm.list({ type: "reflective", includeTombstoned: false });
     await ynm.remember({ type: "episodic", subject: "topic:deploy", content: "another deploy" });
-    const dry = await run({ passes: ["reflect"], dryRun: true });
+    const dry = await run({ passes: ["reflect"], dryRun: true, judge: true });
     expect(dry.passes.reflect?.changed).toEqual(["personal:topic:deploy"]);
     expect(
       (await ynm.list({ type: "reflective", includeTombstoned: false })).map((m) => m.memoryId)

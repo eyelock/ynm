@@ -138,7 +138,10 @@ to `main` or `develop` directly: every change goes through a branch and a pull r
 Branch names use a slash: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…`,
 `hotfix/…`. `develop` is the default branch. Feature pull requests are squash-merged; release and
 hotfix pull requests into `main` use a true merge, so the back-merge into `develop` is clean;
-rebase merge is off. Each of `develop` and `main` has a repository ruleset
+rebase merge is off. The back-merge into `develop` goes through a temporary
+`chore/back-merge-vX.Y.Z` branch cut from `main` (the release branch is already deleted by
+delete-on-merge); never open a pull request with `main` as its head, because merging it deletes
+`main`. Each of `develop` and `main` has a repository ruleset
 ([`.github/BRANCH_PROTECTION.md`](.github/BRANCH_PROTECTION.md)): a pull request with every
 conversation resolved, and the one required check, "All Clear", the last CI job, which depends on
 the others. `main` accepts pull requests only from `develop`, `release/*` or `hotfix/*` (the "Verify PR

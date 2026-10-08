@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { resolveModels } from "@ynm/models";
+import { claudeCliCwd, resolveModels } from "@ynm/models";
 import { addRedaction, traceEnv } from "@ynm/telemetry";
 import { DEFAULT_REDACTION, loadConfig, loadEnvFile, ynmHome } from "./config.js";
 import { defaultIndexLocator, IndexManager } from "./indexing.js";
@@ -47,6 +47,7 @@ export async function openYnm(opts: OpenOptions = {}) {
       ? spawnSync("claude", ["--version"], {
           encoding: "utf8",
           timeout: 10_000,
+          cwd: claudeCliCwd(),
           env: traceEnv(process.env),
         }).status === 0
       : false;

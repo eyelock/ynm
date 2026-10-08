@@ -67,6 +67,9 @@ describe("ynm memory commands, human output", () => {
     const dry = ynm(dir, "dream", "--dry-run");
     expect(dry.status, dry.stderr).toBe(0);
     expect(dry.stdout).toMatch(/^expire: \d+\/\d+ would change$/m);
+    const alone = ynm(dir, "dream", "--judge");
+    expect(alone.status).toBe(2);
+    expect(alone.stderr).toMatch(/judge only applies to a dry run/);
     const real = ynm(dir, "dream", "--passes", "expire");
     expect(real.status, real.stderr).toBe(0);
     expect(real.stdout.trim()).toMatch(/^expire: \d+\/\d+ changed\nretention: \d+\/\d+ changed$/);
@@ -180,5 +183,81 @@ describe("ynm memory commands, human output", () => {
       new RegExp(`^purged ${id}: \\d+ record\\(s\\) removed from personal$`)
     );
     expect(ynm(dir, "list").stdout).not.toContain(id);
+  });
+});
+
+describe("ynm list --namespace", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ynm-memory-ns-"));
+
+  it("matches the same memories with or without a trailing slash", () => {
+    const r = ynm(
+      dir,
+      "remember",
+      "--type",
+      "semantic",
+      "--content",
+      "slash tolerant",
+      "--namespace",
+      "factory/github.com/a/b",
+      "--json"
+    );
+    expect(r.status, r.stderr).toBe(0);
+    const ids = (args: string[]) => {
+      const l = ynm(dir, "list", ...args, "--json");
+      expect(l.status, l.stderr).toBe(0);
+      return (JSON.parse(l.stdout) as { memoryId: string }[]).map((m) => m.memoryId);
+    };
+    const plain = ids(["--namespace", "factory"]);
+    expect(plain).toHaveLength(1);
+    expect(ids(["--namespace", "factory/"])).toEqual(plain);
+    expect(ids(["--namespace", "factory//"])).toEqual(plain);
+    expect(ids(["--namespace", "/"])).toEqual(ids([]));
+  });
+});
+
+describe("ynm remember warns about similar memories", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ynm-similar-"));
+
+  it("prints a note after the first line on the second near-identical memory, never failing", () => {
+    const first = ynm(
+      dir,
+      "remember",
+      "--type",
+      "semantic",
+      "--content",
+      "Notes anchor to the root commit"
+    );
+    expect(first.status, first.stderr).toBe(0);
+    expect(first.stdout).toMatch(/^remembered \S+ in \S+\n$/);
+    const second = ynm(
+      dir,
+      "remember",
+      "--type",
+      "semantic",
+      "--content",
+      "Notes are anchored to the root commit"
+    );
+    expect(second.status, second.stderr).toBe(0);
+    const [line, note] = second.stdout.trim().split("\n");
+    expect(line).toMatch(/^remembered \S+ in \S+$/);
+    expect(note).toMatch(/^note: 1 similar memory exists: \S+ \(.*\)\. .*`ynm supersede`/);
+    // JSON keeps its shape: one "memoryId" line (scripts grep for it) plus a guidance string.
+    const raw = ynm(
+      dir,
+      "remember",
+      "--type",
+      "semantic",
+      "--content",
+      "Notes anchor to the root commit again",
+      "--json"
+    ).stdout;
+    expect(raw.match(/"memoryId"/g)).toHaveLength(1);
+    expect((JSON.parse(raw) as { guidance: string }).guidance).toMatch(/similar memor/);
+  });
+
+  it("dream --dry-run counts candidates without judging", () => {
+    const dry = ynm(dir, "dream", "--dry-run");
+    expect(dry.status, dry.stderr).toBe(0);
+    expect(dry.stdout).toMatch(/^dedupe: \d+ candidates \(not judged; add --judge\)$/m);
   });
 });

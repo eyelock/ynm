@@ -70,8 +70,8 @@ initialised <project path>
   hooks     <project path>/.git/hooks/pre-push
   note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
   note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
-  client    claude-code: .mcp.json, AGENTS.md, 3 hooks
-  commit    .ynm/config.json .mcp.json AGENTS.md
+  client    claude-code: .mcp.json, CLAUDE.md, 3 hooks
+  commit    .ynm/config.json .mcp.json CLAUDE.md
             the team shares these; commit them so every clone gets the same setup
   local     .claude/settings.local.json (yours only; excluded from git)
   memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
@@ -96,7 +96,7 @@ initialised <project path>
   note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
   client    claude-code: unchanged
   also      copilot-cli, pi on this machine but not used here; add one with `ynm client install <name>`
-  commit    .ynm/config.json .mcp.json AGENTS.md
+  commit    .ynm/config.json .mcp.json CLAUDE.md
             the team shares these; commit them so every clone gets the same setup
   local     .claude/settings.local.json (yours only; excluded from git)
   memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
@@ -135,12 +135,12 @@ Expected:
 
 The guidance block tells the agent how to use memory. ynm puts it in the instruction file
 Claude Code reads in this project. This project has none (no `CLAUDE.md`, `.claude/CLAUDE.md` or
-`CLAUDE.local.md`, here or above), so ynm creates `AGENTS.md`, which Claude Code falls back to
-and every other client reads too. [Install ynm](../how-to/install.md#set-up-your-agent-clients)
-lists the other cases:
+`CLAUDE.local.md`, here or above, and no `AGENTS.md`), so ynm creates `CLAUDE.md`, which Claude
+Code reliably reads. [Install ynm](../how-to/install.md#set-up-your-agent-clients) lists the
+other cases, including a project that has only an `AGENTS.md`:
 
 ```bash
-cat AGENTS.md
+cat CLAUDE.md
 ```
 
 Expected: a Markdown block between two `<!-- ynm:guidance -->` marker lines, headed
@@ -286,7 +286,7 @@ unchanged`, plus an `also` line if other clients are on your machine:
 ```text
 already in place, nothing changed:
   server    mcpServers.ynm in <project path>/.mcp.json
-  guidance  <project path>/AGENTS.md
+  guidance  <project path>/CLAUDE.md
   hooks     SessionStart runs `ynm hook session-start`; UserPromptSubmit runs `ynm hook prompt`; Stop runs `ynm hook stop` (<project path>/.claude/settings.local.json)
 ```
 
@@ -304,14 +304,15 @@ ynm client plan copilot-cli
 ```
 
 Expected: one change, a `merge-json` of `<home>/.copilot/mcp-config.json` (Copilot CLI's
-user-level file, the only one it reads). The guidance block Copilot CLI reads from `AGENTS.md`
-is already there from the Claude Code install, so there is no `write` of it; in a project
-without one the plan would add it. `ynm client install copilot-cli` would apply the change, and
+user-level file, the only one it reads). Copilot CLI reads the guidance block from
+`AGENTS.md`, not `CLAUDE.md`, so the plan also has a `write` that adds the block to a new
+`AGENTS.md`. `ynm client install copilot-cli` would apply the change, and
 it changes your real home directory, which is why the tutorial stops at the plan. The file gets the same `ynm serve`
 command under `mcpServers`, plus `"type": "local"` and `"tools": ["*"]`. Copilot CLI gets no
 hooks: its hooks do not fire in folders the CLI has not marked as trusted.
 
-OpenCode reads `opencode.json` in the project and shares `AGENTS.md` for the guidance:
+OpenCode reads `opencode.json` in the project and `AGENTS.md` for the guidance, which this
+project does not have yet:
 
 ```bash
 ynm client install opencode
@@ -319,8 +320,8 @@ cat opencode.json
 ```
 
 Expected: one line, `merged <project path>/opencode.json: register the ynm MCP server with
-OpenCode (project scope)`, and nothing for `AGENTS.md`, which already holds the block. Each
-install line names the file and says what went into it. The file registers the same server in OpenCode's own shape:
+OpenCode (project scope)`, and `wrote <project path>/AGENTS.md: memory guidance for the agent
+(delimited block in AGENTS.md)`. Each install line names the file and says what went into it. The file registers the same server in OpenCode's own shape:
 
 ```text
 {
@@ -355,7 +356,7 @@ memory_* tools over the ynm CLI`, `ynm-memory skill`), then the two files:
 
 `ynm.ts` is generated; its first line says so. Every `memory_*`
 tool in it shells out to `ynm <command> --json`, so `ynm` must be on the PATH Pi runs with. The
-skill carries the same guidance text as the `AGENTS.md` block.
+skill carries the same guidance text as the `CLAUDE.md` and `AGENTS.md` blocks.
 
 ## Install into a ynh harness
 

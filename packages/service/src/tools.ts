@@ -16,6 +16,7 @@ import type { z } from "zod";
 import { z as zod } from "zod";
 import { emptyContextNote, REMEMBER_INTENT_EXAMPLES } from "./hooks/intent.js";
 import { Lifecycle } from "./lifecycle.js";
+import { similarGuidance, similarMemories } from "./similar.js";
 import { STATIC_TOKEN_ACTOR, type Ynm } from "./ynm.js";
 
 export interface ToolResult {
@@ -75,19 +76,10 @@ export const TOOL_SPECS = [
     readOnly: false,
     async run(ynm, input) {
       const r = await ynm.remember(input);
-      let guidance: string | undefined;
-      if (ynm.index) {
-        const similar = (await ynm.recall({ text: input.content.slice(0, 200), limit: 4 })).filter(
-          (h) => h.memoryId !== r.memoryId
-        );
-        if (similar.length) {
-          guidance = `${similar.length} similar memor${similar.length === 1 ? "y exists" : "ies exist"}: ${similar
-            .map((h) => `${h.memoryId} (${h.summary})`)
-            .join(
-              "; "
-            )}. If one of them is the same fact, prefer memory_supersede over a duplicate.`;
-        }
-      }
+      const guidance = similarGuidance(
+        await similarMemories(ynm, input.content, r.memoryId),
+        "memory_supersede"
+      );
       return { data: r, guidance };
     },
   }),

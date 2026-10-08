@@ -93,7 +93,8 @@ export function claudeSettingsPath(t: Pick<InstallTarget, "cwd" | "home" | "scop
 
 /**
  * Claude Code: project scope writes `.mcp.json` (mcpServers), a delimited block in CLAUDE.md
- * and the hooks in `.claude/settings.local.json`; user scope goes through `claude mcp add` so the
+ * (a new one when the project has no instruction file; in AGENTS.md, imported from a new
+ * CLAUDE.md, when that is all it has) and the hooks in `.claude/settings.local.json`; user scope goes through `claude mcp add` so the
  * user's own server config is not hand-edited, and merges the hooks into
  * `~/.claude/settings.json` (Claude Code has no command for hooks).
  */
@@ -145,9 +146,10 @@ export const claudeCode: ClientAdapter = {
         reason: "register the ynm MCP server for this project",
       });
       // Guidance goes where Claude Code will read it (its own lookup rules), appended to a file
-      // that exists; a file is created only when Claude reads nothing in this project.
+      // that exists; a file is created only when Claude reads nothing in this project: CLAUDE.md, or a CLAUDE.md
+      // that imports the project's AGENTS.md.
       if (!claudeHasGuidance(t.cwd, t.home, CLAUDE_MD_MARKER)) {
-        const { target } = claudeInstructions(t.cwd, t.home);
+        const { target, link } = claudeInstructions(t.cwd, t.home);
         const c = delimitedBlockChange(
           target.path,
           claudeMdBlock(),
@@ -155,6 +157,15 @@ export const claudeCode: ClientAdapter = {
           "memory guidance for the agent (delimited block)"
         );
         if (c?.kind === "write") changes.push({ ...c, label: relative(t.cwd, target.path) });
+        // An AGENTS.md alone is not something Claude is relied on to read: import it.
+        if (link)
+          changes.push({
+            kind: "write",
+            path: link,
+            content: "@AGENTS.md\n",
+            reason: "Claude Code reads CLAUDE.md; this imports the shared AGENTS.md",
+            label: relative(t.cwd, link),
+          });
       }
     }
     if (t.hooks !== false) {

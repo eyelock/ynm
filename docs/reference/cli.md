@@ -24,7 +24,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`client`](#ynm-client) | Install or inspect ynm in an agent client (claude-code, copilot-cli, opencode, pi, ynh) |
 | [`context`](#ynm-context) | Print the session-start memory block: pinned first, then ranked, within a token budget |
 | [`doctor`](#ynm-doctor) | Check configuration, mounts, refspecs and hooks |
-| [`dream`](#ynm-dream) | Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting. |
+| [`dream`](#ynm-dream) | Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting. --dry-run calls no model and lists each pass's candidates; add --judge to see the verdicts. |
 | [`export`](#ynm-export) | Export raw records as JSONL (the log, including history) |
 | [`forget`](#ynm-forget) | Tombstone a memory (history is kept) |
 | [`hook`](#ynm-hook) | Answer an agent client's hook: read its hook JSON on stdin, print the reply JSON on stdout (session-start, prompt, stop) |
@@ -39,7 +39,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`purge`](#ynm-purge) | Physically remove a memory's records (leaves an audited purge marker) |
 | [`recall`](#ynm-recall) | Search memory: indexed, ranked by relevance, recency and importance |
 | [`reindex`](#ynm-reindex) | Rebuild the search index from the log |
-| [`remember`](#ynm-remember) | Record a memory |
+| [`remember`](#ynm-remember) | Record a memory; a note names similar memories already stored, so a repeated fact can be superseded instead |
 | [`review`](#ynm-review) | List memories flagged for review, or clear a flag after deciding |
 | [`serve`](#ynm-serve) | Start the MCP server (stdio by default, --http for the hosted service) |
 | [`session`](#ynm-session) | Start a session (prints the context block) or end one (expires working memory) |
@@ -163,7 +163,7 @@ ynm doctor
 
 ## ynm dream
 
-Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting.
+Run consolidation passes: expire, promote, dedupe, contradict, reflect, normalise. Judged by the configured Judge; uncalibrated judges flag for review instead of acting. --dry-run calls no model and lists each pass's candidates; add --judge to see the verdicts.
 
 ```text
 ynm dream [flags]
@@ -173,7 +173,8 @@ ynm dream [flags]
 |---|---|---|---|---|
 | `--passes <value>` | `expire` \| `promote` \| `dedupe` \| `contradict` \| `reflect` \| `normalise`, repeatable |  | `["expire","promote","dedupe","contradict","reflect","normalise"]` | Passes to run |
 | `--namespace <value>` | string |  |  | Restrict to a namespace prefix |
-| `--[no-]dry-run` | boolean |  | `false` | Report what would change |
+| `--[no-]dry-run` | boolean |  | `false` | Report the candidates each pass would consider, calling no model |
+| `--[no-]judge` | boolean |  | `false` | With dryRun, judge the candidates and report what would change (calls the model) |
 | `--max-pairs <value>` | integer >= 1 |  |  | Cap on judged pairs this run |
 
 Common flags: `--json`, `--cwd`.
@@ -185,6 +186,7 @@ Examples:
 ```bash
 ynm dream
 ynm dream --dry-run --json
+ynm dream --dry-run --judge
 ```
 
 ## ynm export
@@ -553,7 +555,7 @@ ynm reindex --mount project
 
 ## ynm remember
 
-Record a memory
+Record a memory; a note names similar memories already stored, so a repeated fact can be superseded instead
 
 ```text
 ynm remember [flags]

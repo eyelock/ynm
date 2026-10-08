@@ -143,11 +143,15 @@ is what makes it safe to run a dream with no model and no key at all: it will ex
 normalise, and it will point at likely duplicates, but it will not merge or delete anything on a
 guess. An explicit signal from you, the `promote` tag, bypasses the judge entirely.
 
-To see what a dream would do without changing anything:
+To see what a dream would consider without changing anything or calling a model:
 
 ```bash
 ynm dream --dry-run
 ```
+
+Passes that need no model report exactly what they would change; the others report their
+candidate counts. Add `--judge` to have the judge give its verdicts, still with no writes (this
+calls the model).
 
 ## Judges and writers are different things
 

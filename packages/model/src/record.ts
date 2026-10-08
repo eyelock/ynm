@@ -64,6 +64,17 @@ export const NamespaceSchema = z
     "Hierarchical namespace, e.g. common, user/david, org/eyelock/project/ynm, session/<id>"
   );
 
+/** Strips trailing slashes from a namespace prefix; "/" or "" leaves an empty prefix (no filter). */
+export function normaliseNamespacePrefix(prefix: string): string {
+  return prefix.replace(/\/+$/, "");
+}
+
+/**
+ * A namespace prefix used to filter (list, recall, context, export, session, consolidate). Unlike
+ * NamespaceSchema it is lenient, and a trailing slash is dropped so "factory/" matches "factory".
+ */
+export const NamespaceFilterSchema = z.string().transform(normaliseNamespacePrefix);
+
 /** Well-known namespaces (ADR-001). */
 export const COMMON_NAMESPACE = "common";
 export const userNamespace = (id: string): string => `user/${id}`;
@@ -285,7 +296,7 @@ export const RecordFilterSchema = z
   .object({
     level: LevelSchema.optional(),
     type: MemoryTypeSchema.optional(),
-    namespace: z.string().optional().describe("Namespace prefix"),
+    namespace: NamespaceFilterSchema.optional().describe("Namespace prefix"),
     since: IsoDateTimeSchema.optional().describe("Updated at or after"),
     until: IsoDateTimeSchema.optional().describe("Updated at or before"),
     includeTombstoned: z

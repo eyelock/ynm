@@ -32,7 +32,8 @@ export function refFor(key: ShardKey): string {
 }
 
 export function refPrefixFor(level: Level, namespace?: string): string {
-  return `${NOTES_PREFIX}/${levelDir(level)}/${namespace ? `${namespace}/` : ""}`;
+  const ns = namespace?.replace(/\/+$/, "");
+  return `${NOTES_PREFIX}/${levelDir(level)}/${ns ? `${ns}/` : ""}`;
 }
 
 export function keyFromRef(ref: string, prefix: string = NOTES_PREFIX): ShardKey | null {

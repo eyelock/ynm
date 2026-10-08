@@ -2,8 +2,9 @@ import type { IndexedMemory, IndexQuery } from "./types.js";
 
 /** Whole-segment namespace prefix match, shared with the store. */
 export function namespaceMatches(namespace: string, prefix: string | undefined): boolean {
-  if (!prefix) return true;
-  return namespace === prefix || namespace.startsWith(`${prefix}/`);
+  const p = prefix?.replace(/\/+$/, "");
+  if (!p) return true;
+  return namespace === p || namespace.startsWith(`${p}/`);
 }
 
 /** Pure filter used by the memory index and by the SQLite index's tests. */

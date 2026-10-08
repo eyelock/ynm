@@ -221,7 +221,8 @@ export class S3Log implements RecordLog {
   private listPrefix(filter?: ShardFilter): string | null {
     if (filter?.level && filter.level !== this.level) return null;
     const base = `${this.root}${this.level}/`;
-    return filter?.namespace ? `${base}${filter.namespace}/` : base;
+    const ns = filter?.namespace?.replace(/\/+$/, "");
+    return ns ? `${base}${ns}/` : base;
   }
 
   /** One paginated ListObjectsV2 under `prefix`, grouped by shard, objects in key order. */

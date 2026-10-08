@@ -144,6 +144,7 @@ describe("ClaudeCliWriter (spawn mocked, no real CLI)", () => {
       "--strict-mcp-config",
       "--mcp-config",
       '{"mcpServers":{}}',
+      "--no-session-persistence",
     ]);
     expect(call?.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC).toBe("1");
   });

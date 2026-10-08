@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startMemoryTelemetry } from "@ynm/telemetry/testing";
@@ -13,6 +13,8 @@ const result = JSON.stringify({
   traffic: process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,
   marker: process.env.PASSTHROUGH_MARKER,
   traceparent: process.env.TRACEPARENT ?? "none",
+  cwd: process.cwd(),
+  args: process.argv.slice(2),
 });
 process.stdout.write(JSON.stringify({ result }));
 `;
@@ -22,6 +24,8 @@ const schema = z.object({
   traffic: z.string(),
   marker: z.string(),
   traceparent: z.string(),
+  cwd: z.string(),
+  args: z.array(z.string()),
 });
 const req = { instructions: "report", state: {}, schema };
 
@@ -53,12 +57,29 @@ describe("ClaudeCliWriter spawning a fake command", () => {
 
   it("runs without ANTHROPIC_API_KEY by default and keeps the rest of the environment", async () => {
     const r = await new ClaudeCliWriter({ command }).write(req);
-    expect(r.value).toEqual({ hasKey: false, traffic: "1", marker: "kept", traceparent: "none" });
+    expect(r.value).toMatchObject({
+      hasKey: false,
+      traffic: "1",
+      marker: "kept",
+      traceparent: "none",
+    });
+  });
+
+  it("runs in a dedicated temp directory, not the project, and keeps no session history", async () => {
+    const r = await new ClaudeCliWriter({ command }).write(req);
+    expect(realpathSync(r.value.cwd)).not.toBe(realpathSync(process.cwd()));
+    expect(realpathSync(r.value.cwd)).toBe(realpathSync(join(tmpdir(), "ynm-writer")));
+    expect(r.value.args).toContain("--no-session-persistence");
   });
 
   it("keeps ANTHROPIC_API_KEY when useApiKey is true", async () => {
     const r = await new ClaudeCliWriter({ command, useApiKey: true }).write(req);
-    expect(r.value).toEqual({ hasKey: true, traffic: "1", marker: "kept", traceparent: "none" });
+    expect(r.value).toMatchObject({
+      hasKey: true,
+      traffic: "1",
+      marker: "kept",
+      traceparent: "none",
+    });
   });
 
   it("with telemetry on, is one client span whose context the CLI gets as TRACEPARENT", async () => {
