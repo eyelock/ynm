@@ -189,9 +189,10 @@ export class SqliteIndex implements MemoryIndex {
       clauses.push(`m.level IN (${q.level.map(() => "?").join(",")})`);
       params.push(...q.level);
     }
-    if (q.namespace) {
+    const nsPrefix = q.namespace?.replace(/\/+$/, "");
+    if (nsPrefix) {
       clauses.push("(m.namespace = ? OR m.namespace LIKE ?)");
-      params.push(q.namespace, `${q.namespace.replace(/[%_]/g, "\\$&")}/%`);
+      params.push(nsPrefix, `${nsPrefix.replace(/[%_]/g, "\\$&")}/%`);
     }
     if (q.subject) {
       clauses.push("m.subject = ?");

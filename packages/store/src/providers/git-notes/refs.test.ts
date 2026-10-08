@@ -23,6 +23,9 @@ describe("git notes refs (ADR-003)", () => {
   });
   it("builds prefixes and remote-tracking refs", () => {
     expect(refPrefixFor("distributed", "org")).toBe("refs/notes/ynm/distributed/org/");
+    expect(refPrefixFor("distributed", "org/")).toBe("refs/notes/ynm/distributed/org/");
+    expect(refPrefixFor("distributed", "org//")).toBe("refs/notes/ynm/distributed/org/");
+    expect(refPrefixFor("distributed", "/")).toBe("refs/notes/ynm/distributed/");
     expect(remoteRef("origin", refFor(key))).toBe(
       "refs/notes/ynm-remote/origin/distributed/org/eyelock/project/ynm/semantic/2026-09"
     );

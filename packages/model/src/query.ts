@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { IsoDateTimeSchema, LevelSchema, MemoryTypeSchema, UlidSchema } from "./record.js";
+import {
+  IsoDateTimeSchema,
+  LevelSchema,
+  MemoryTypeSchema,
+  NamespaceFilterSchema,
+  UlidSchema,
+} from "./record.js";
 
 /** The single recall input for MCP and CLI (ADR-005). */
 export const RecallQuerySchema = z
@@ -11,7 +17,7 @@ export const RecallQuerySchema = z
       .describe("Free text; omit to filter and rank by recency and importance only"),
     type: z.array(MemoryTypeSchema).optional().describe("Restrict to these memory types"),
     level: z.array(LevelSchema).optional().describe("Restrict to these levels"),
-    namespace: z.string().optional().describe("Namespace prefix"),
+    namespace: NamespaceFilterSchema.optional().describe("Namespace prefix"),
     subject: z.string().optional().describe("Exact subject key"),
     tags: z.array(z.string()).optional().describe("All of these tags must be present"),
     dataKey: z.string().optional().describe("Only memories whose data has this key"),
@@ -36,7 +42,7 @@ export type RecallQuery = z.infer<typeof RecallQuerySchema>;
 /** Pinned plus top memories packed to a token budget, rendered as markdown (ADR-005). */
 export const ContextQuerySchema = z
   .object({
-    namespace: z.string().optional().describe("Namespace prefix"),
+    namespace: NamespaceFilterSchema.optional().describe("Namespace prefix"),
     level: z.array(LevelSchema).optional().describe("Restrict to these levels"),
     type: z.array(MemoryTypeSchema).optional().describe("Restrict to these memory types"),
     text: z.string().max(2000).optional().describe("Optional focus text for the ranked part"),

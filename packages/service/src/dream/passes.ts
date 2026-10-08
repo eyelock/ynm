@@ -13,6 +13,7 @@ import {
   band,
   type DreamContext,
   emptyReport,
+  noteJudge,
   type PassReport,
   storedJudgment,
 } from "./types.js";
@@ -128,6 +129,7 @@ export async function promote(ctx: DreamContext): Promise<PassReport> {
     let judgmentData: Record<string, unknown> | undefined;
     if (m.tags.includes("promote")) decision = "act";
     else {
+      if (!ctx.judging) continue;
       if (ctx.pairsJudged.n >= ctx.maxPairs) {
         r.skipped += 1;
         ctx.deferred.add(m.memoryId);
@@ -141,7 +143,7 @@ export async function promote(ctx: DreamContext): Promise<PassReport> {
       decision = band(p, ctx.config.thresholds.promote, j.calibrated);
       const kind = (j.answers.kind as { choice: string }).choice;
       if (kind === "semantic" || kind === "procedural" || kind === "reference") target = kind;
-      r.fallback ||= !j.calibrated;
+      noteJudge(r, ctx, j);
       judgmentData = { judgments: [storedJudgment("promote", j, PROMOTE_QUESTIONS, at, decision)] };
     }
     if (decision === "act") {
@@ -258,6 +260,7 @@ export async function dedupe(ctx: DreamContext, pairsOut?: Pair[]): Promise<Pass
     "reflective",
   ]);
   r.candidates = pairs.length;
+  if (!ctx.judging) return r;
   for (const { a, b, owner } of pairs) {
     if (ctx.pairsJudged.n >= ctx.maxPairs) {
       r.skipped += 1;
@@ -268,7 +271,7 @@ export async function dedupe(ctx: DreamContext, pairsOut?: Pair[]): Promise<Pass
     ctx.pairsJudged.n += 1;
     r.judged += 1;
     addUsage(r.usage, j.usage);
-    r.fallback ||= !j.calibrated;
+    noteJudge(r, ctx, j);
     const same = (j.answers.sameFact as { noul: number }).noul;
     const contradicts = (j.answers.contradicts as { noul: number }).noul;
     if (contradicts >= ctx.config.thresholds.contradict.review) pairsOut?.push({ a, b, owner });
@@ -360,6 +363,7 @@ export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise
     });
   }
   r.candidates = pairs.length;
+  if (!ctx.judging) return r;
   for (const { a, b, owner } of byOwner(ctx, pairs, (p) => p.owner)) {
     if (ctx.pairsJudged.n >= ctx.maxPairs) {
       r.skipped += 1;
@@ -371,7 +375,7 @@ export async function contradict(ctx: DreamContext, extra: Pair[] = []): Promise
     ctx.pairsJudged.n += 1;
     r.judged += 1;
     addUsage(r.usage, j.usage);
-    r.fallback ||= !j.calibrated;
+    noteJudge(r, ctx, j);
     const c = (j.answers.contradicts as { noul: number }).noul;
     const decision = band(c, ctx.config.thresholds.contradict, j.calibrated);
     if (decision === "ignore") continue;
@@ -438,6 +442,7 @@ export async function reflect(ctx: DreamContext): Promise<PassReport> {
     const existing = reflections.get(key);
     if (existing && existing.updatedAt >= latest.updatedAt) continue;
     r.candidates += 1;
+    if (!ctx.judging) continue;
     if (ctx.writer.name === "none") {
       r.skipped += 1;
       r.fallback = true;
@@ -465,13 +470,14 @@ export async function reflect(ctx: DreamContext): Promise<PassReport> {
     } catch (e) {
       r.notes.push(`reflect skipped ${subject}: ${(e as Error).message}`);
       r.skipped += 1;
+      r.fallback = true;
       continue;
     }
     const sources = sample.map((s) => `[${s.date}] ${s.summary}: ${s.content}`).join("\n");
     const j = await ctx.judge.judge({ summary: written.content, sources }, VERIFY_QUESTIONS);
     r.judged += 1;
     addUsage(r.usage, j.usage);
-    r.fallback ||= !j.calibrated;
+    noteJudge(r, ctx, j);
     const flags = Object.entries(j.answers)
       .filter(([, a]) => (a as { noul: number }).noul >= ctx.config.thresholds.reflect.flagAt)
       .map(([k]) => k);

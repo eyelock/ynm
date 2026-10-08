@@ -1,4 +1,6 @@
 import { ContextQuerySchema, RecallQuerySchema } from "./query.js";
+import { RecordFilterSchema, RememberInputSchema } from "./record.js";
+import { SessionStartInputSchema } from "./session.js";
 
 describe("query schemas (ADR-005)", () => {
   it("defaults limit, explain and tombstone handling", () => {
@@ -20,6 +22,23 @@ describe("query schemas (ADR-005)", () => {
   it("caps the limit and rejects unknown keys", () => {
     expect(RecallQuerySchema.safeParse({ limit: 1000 }).success).toBe(false);
     expect(RecallQuerySchema.safeParse({ foo: 1 }).success).toBe(false);
+  });
+  it("strips trailing slashes from namespace prefix filters", () => {
+    expect(RecallQuerySchema.parse({ namespace: "factory/" }).namespace).toBe("factory");
+    expect(RecallQuerySchema.parse({ namespace: "factory//" }).namespace).toBe("factory");
+    expect(RecallQuerySchema.parse({ namespace: "factory" }).namespace).toBe("factory");
+    expect(RecallQuerySchema.parse({ namespace: "/" }).namespace).toBe("");
+    expect(RecallQuerySchema.parse({ namespace: "" }).namespace).toBe("");
+    expect(RecallQuerySchema.parse({}).namespace).toBeUndefined();
+    expect(ContextQuerySchema.parse({ namespace: "a/b/" }).namespace).toBe("a/b");
+    expect(RecordFilterSchema.parse({ namespace: "a/b/" }).namespace).toBe("a/b");
+    expect(SessionStartInputSchema.parse({ namespace: "a/" }).namespace).toBe("a");
+  });
+  it("leaves the namespace stored on a record strict", () => {
+    expect(
+      RememberInputSchema.safeParse({ type: "semantic", content: "x", namespace: "factory/" })
+        .success
+    ).toBe(false);
   });
   it("context defaults to a 1500 token budget", () => {
     expect(ContextQuerySchema.parse({}).budgetTokens).toBe(1500);

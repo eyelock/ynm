@@ -67,9 +67,9 @@ async function commitAdvice(
   const personal = rels.filter((r) => PERSONAL_FILES.includes(r));
   const ignored = async (r: string) =>
     (await gitOrNull(["check-ignore", "-q", "--", r], { cwd: workTree })) !== null;
-  const toExclude: string[] = [];
-  for (const r of personal) if (!(await ignored(r))) toExclude.push(r);
-  if (toExclude.length) await ensureExcluded(workTree, toExclude);
+  // Always listed in this clone's own exclude file, even when something else (a global ignore
+  // file) ignores them today: that can change, and these files must never be committed.
+  if (personal.length) await ensureExcluded(workTree, personal);
   const commit: string[] = [];
   for (const r of rels) {
     if (personal.includes(r) || (await ignored(r))) continue;

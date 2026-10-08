@@ -32,7 +32,8 @@ tree files. A client counts as used when the repository has its project footprin
 `.claude/` for Claude Code, `opencode.json` or `opencode.jsonc` for OpenCode, `.pi/` for Pi).
 For Claude Code init writes `.mcp.json`, a delimited block in the instruction file Claude Code
 reads (an existing `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md`, or the `AGENTS.md` it
-imports; only when the project has none, a new `AGENTS.md`) and hooks in
+imports; with only an `AGENTS.md`, a new `CLAUDE.md` that imports it; with neither, a new
+`CLAUDE.md`) and hooks in
 `.claude/settings.local.json`; for OpenCode `opencode.json`; `AGENTS.md` for the clients that
 read it; the Pi extension under `.pi/`. A client found only on your machine gets no files, just
 one `also` line suggesting `ynm client install <name>`; a repository that has never used an agent

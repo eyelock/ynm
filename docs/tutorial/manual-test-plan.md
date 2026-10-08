@@ -129,7 +129,7 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 7.2 | [One command: `ynm init`](07-connect-an-agent.md#one-command-ynm-init) | `ynm init --client claude-code` |  |
 | 7.3 | [One command: `ynm init` (2)](07-connect-an-agent.md#one-command-ynm-init) | `ynm init` |  |
 | 7.4 | [What Claude Code got](07-connect-an-agent.md#what-claude-code-got) | `cat .mcp.json` |  |
-| 7.5 | [What Claude Code got (2)](07-connect-an-agent.md#what-claude-code-got) | `cat AGENTS.md` |  |
+| 7.5 | [What Claude Code got (2)](07-connect-an-agent.md#what-claude-code-got) | `cat CLAUDE.md` |  |
 | 7.6 | [What Claude Code got (3)](07-connect-an-agent.md#what-claude-code-got) | `cat .claude/settings.local.json` |  |
 | 7.7 | [What the hooks do](07-connect-an-agent.md#what-the-hooks-do) | `ynm remember --type semantic --content "The user likes to be called D...` |  |
 | 7.8 | [What the hooks do (2)](07-connect-an-agent.md#what-the-hooks-do) | `echo '{"session_id":"tutorial-session","hook_event_name":"UserPromptS...` |  |
@@ -157,14 +157,15 @@ Steps marked with a condition need a key or an optional tool and may be skipped.
 | 8.1 | [Prerequisites](08-dreaming.md#prerequisites) | `rm -rf /tmp/ynm-tutorial` |  |
 | 8.2 | [Seed a mess](08-dreaming.md#seed-a-mess) | `ynm remember --type semantic --content "The API listens on port 8080....` |  |
 | 8.3 | [A dry run](08-dreaming.md#a-dry-run) | `ynm dream --dry-run` |  |
-| 8.4 | [A dry run (2)](08-dreaming.md#a-dry-run) | `ynm dream --dry-run --json` |  |
-| 8.5 | [Flag for real](08-dreaming.md#flag-for-real) | `ynm dream` |  |
-| 8.6 | [Flag for real (2)](08-dreaming.md#flag-for-real) | `ynm dream` |  |
-| 8.7 | [Decide, and clear the flag](08-dreaming.md#decide-and-clear-the-flag) | `ynm review list \| grep "API" \| cut -d' ' -f1 \| while read -r id; do y...` |  |
-| 8.8 | [Promote to the team](08-dreaming.md#promote-to-the-team) | `THURSDAY=$(ynm review list \| head -1 \| cut -d' ' -f1)` |  |
-| 8.9 | [With a model: dedupe and contradict act](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `echo '{"dream":{"judge":"auto"}}' > /tmp/ynm-tutorial/home/config.json` | needs `TYPESAFE_API_KEY` |
-| 8.10 | [With a model: dedupe and contradict act (2)](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `ynm list` | needs `TYPESAFE_API_KEY` |
-| 8.11 | [Cleanup](08-dreaming.md#cleanup) | `cd /tmp` |  |
+| 8.4 | [A dry run (2)](08-dreaming.md#a-dry-run) | `ynm dream --dry-run --judge` |  |
+| 8.5 | [A dry run (3)](08-dreaming.md#a-dry-run) | `ynm dream --dry-run --judge --json` |  |
+| 8.6 | [Flag for real](08-dreaming.md#flag-for-real) | `ynm dream` |  |
+| 8.7 | [Flag for real (2)](08-dreaming.md#flag-for-real) | `ynm dream` |  |
+| 8.8 | [Decide, and clear the flag](08-dreaming.md#decide-and-clear-the-flag) | `ynm review list \| grep "API" \| cut -d' ' -f1 \| while read -r id; do y...` |  |
+| 8.9 | [Promote to the team](08-dreaming.md#promote-to-the-team) | `THURSDAY=$(ynm review list \| head -1 \| cut -d' ' -f1)` |  |
+| 8.10 | [With a model: dedupe and contradict act](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `echo '{"dream":{"judge":"auto"}}' > /tmp/ynm-tutorial/home/config.json` | needs `TYPESAFE_API_KEY` |
+| 8.11 | [With a model: dedupe and contradict act (2)](08-dreaming.md#with-a-model-dedupe-and-contradict-act) | `ynm list` | needs `TYPESAFE_API_KEY` |
+| 8.12 | [Cleanup](08-dreaming.md#cleanup) | `cd /tmp` |  |
 
 ## [Wiki Projection](09-wiki.md)
 

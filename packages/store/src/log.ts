@@ -136,8 +136,9 @@ export function shardId(key: ShardKey): string {
 
 /** Whole-segment prefix match: "org/eyelock" matches "org/eyelock/x" but not "org/eyelockx". */
 export function namespaceMatches(namespace: string, prefix: string | undefined): boolean {
-  if (!prefix) return true;
-  return namespace === prefix || namespace.startsWith(`${prefix}/`);
+  const p = prefix?.replace(/\/+$/, "");
+  if (!p) return true;
+  return namespace === p || namespace.startsWith(`${p}/`);
 }
 
 export function shardMatches(key: ShardKey, filter: ShardFilter | undefined): boolean {

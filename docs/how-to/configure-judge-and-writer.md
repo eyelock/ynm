@@ -21,7 +21,7 @@ With `judge` and `writer` both `auto`, ynm picks the first that is available:
 
 An uncalibrated judge, the heuristic and the writer-emulated one, can flag memories for review but
 is never allowed to act. To see what was resolved, look at `full.judge` and `full.writer` in
-`ynm dream --dry-run --json`.
+`ynm dream --dry-run --json`, which makes no model call.
 
 Set `YNM_NO_CLAUDE_CLI=1` to stop ynm probing for the `claude` CLI, which pins you to the no-model
 behaviour unless a key is set.
@@ -110,4 +110,5 @@ the judge to reorder the top `rerankTopK` recall hits.
 Calls are metered against a token budget, `YNM_TOKEN_BUDGET` (input tokens per process, default 2
 million); crossing it stops the run instead of spending. When a provider's reply leaves out the
 input-token count, the call is charged at ynm's own estimate of the request size. A pair
-judgment is about 700 input tokens. Try `ynm dream --dry-run --max-pairs 20` first.
+judgment is about 700 input tokens. `ynm dream --dry-run` is free: it makes no model call and counts the candidates. Add `--judge` to
+see the verdicts, which spends tokens, so try `ynm dream --dry-run --judge --max-pairs 20` first.

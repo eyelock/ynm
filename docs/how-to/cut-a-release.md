@@ -19,9 +19,22 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
    pull request then shows for review. The same gate runs as the `release gate` check on every
    pull request into `main`.
 5. Open a pull request from `release/vX.Y.Z` into `main`; merge it with a true merge (not
-   squash) once CI is green. Then open a second pull request from the release branch into
-   `develop` so `develop` has the version bump and frozen evals too (the mandatory back-merge),
-   and delete the release branch after both are in.
+   squash) once CI is green. GitHub deletes `release/vX.Y.Z` when that pull request merges
+   (delete-on-merge). `develop` must then get the version bump and frozen evals too (the
+   mandatory back-merge), through a temporary branch cut from `main`:
+
+   ```bash
+   git fetch origin
+   git switch -c chore/back-merge-vX.Y.Z origin/main
+   git push -u origin chore/back-merge-vX.Y.Z
+   ```
+
+   Open a pull request from `chore/back-merge-vX.Y.Z` into `develop` and merge it with a merge
+   commit; it is deleted on merge, which is what you want. **Never open a pull request with
+   `main` itself as the head**: merging it deletes `main` (this happened on 2026-10-08; the
+   ruleset "Never Delete Main or Develop" now blocks it). Alternatively, open the back-merge
+   pull request from `release/vX.Y.Z` into `develop` before merging the release pull request,
+   so the branch is still there; merge the release pull request first, then the back-merge.
 6. Tag `v<version>` on `main` and push the tag. The `release` workflow then:
    - `verify`: re-runs build, check, typecheck, tests and the M6 gate;
    - `build`: on `macos-26` (both darwin targets) and `ubuntu-24.04` (both linux targets),

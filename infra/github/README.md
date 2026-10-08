@@ -6,7 +6,7 @@ drift and set up again from nothing.
 | File | What it manages |
 |---|---|
 | `repository.tf` | The repository: description, homepage, topics, visibility, features (issues, discussions and projects on, wiki off), merge options (squash and merge commit on, rebase off), secret scanning when public; GitHub Pages from `/docs` on `main` |
-| `branches.tf` | `develop` as the default branch; one repository ruleset each for `develop` and `main` (see Rulesets) |
+| `branches.tf` | `develop` as the default branch; three repository rulesets: one each for `develop` and `main`, and one that blocks deletion and force pushes on both with no bypass (see Rulesets) |
 | `labels.tf` | Issue and PR labels, authoritatively: a label not listed is removed |
 | `actions.tf` | Actions permissions, the read-only default `GITHUB_TOKEN`, the `YNM_MILESTONE` variable, the `RELEASE_TOKEN` secret, the `github-pages` environment |
 | `security.tf` | Dependabot alerts and security updates (both on) |
@@ -27,25 +27,26 @@ Not managed here:
 
 ## Rulesets
 
-Two repository rulesets replace classic branch protection, so each branch has one list of rules
+Three repository rulesets replace classic branch protection: one list of rules per branch, plus one no-deletion ruleset for both
 (the same text is in [`.github/BRANCH_PROTECTION.md`](../../.github/BRANCH_PROTECTION.md)):
 
 | Ruleset | Branch | Required checks |
 |---|---|---|
 | Develop Branch Protection | `develop` | `All Clear` |
 | Main Branch Protection | `main` | `All Clear`, `Verify PR source branch` |
+| Never Delete Main or Develop | `main` and `develop` | none |
 
-Both block deletion and force pushes, require a pull request with every conversation resolved and
+The first two block deletion and force pushes, require a pull request with every conversation resolved and
 no approving review, do not require the branch to be up to date with its base (not strict), and
-let repository admins (role 5) bypass. `All Clear` is the last job of `ci.yml`; it depends on every other job, so
+let repository admins (role 5) bypass. The third has no bypass actors: repository admins cannot delete or
+force-push `main` or `develop` (delete-on-merge deleted `main` as an admin on 2026-10-08). `All Clear` is the last job of `ci.yml`; it depends on every other job, so
 adding or renaming CI jobs never touches this configuration.
 
 ## Security
 
 Dependabot alerts and security updates are on. Secret scanning and push protection are on only
-when `visibility` is `public`, because they need a public repository. `visibility` stays `private`
-until the repository is made public; that is a separate, confirmed change
-(`terraform apply -var visibility=public`).
+when `visibility` is `public`, because they need a public repository. `visibility` defaults to
+`public`, which is what the repository is; setting it to `private` turns both off.
 
 Private vulnerability reporting, which `SECURITY.md` points to, is turned on by Terraform once
 `visibility` is `public`. The `integrations/github` provider has no resource for it, so a

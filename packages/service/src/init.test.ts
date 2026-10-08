@@ -168,7 +168,7 @@ describe("openYnm end to end on git notes", () => {
       {
         client: "claude-code",
         detected: ".mcp.json",
-        applied: [".mcp.json", "AGENTS.md", "3 hooks"],
+        applied: [".mcp.json", "CLAUDE.md", "3 hooks"],
         run: [],
       },
     ]);
@@ -182,7 +182,7 @@ describe("openYnm end to end on git notes", () => {
     ]);
     expect(
       again.clients[0]?.files.map((f) => relative(realpathSync(repo), realpathSync(f)))
-    ).toEqual([".mcp.json", "AGENTS.md", join(".claude", "settings.local.json")]);
+    ).toEqual([".mcp.json", "CLAUDE.md", join(".claude", "settings.local.json")]);
     const none = await initProject({ cwd: await createRepo(1), hooks: false, clients });
     expect(none.clients).toEqual([]);
     const bare = (await initBare(join(await createRepo(0), "m.git"))).repo;
@@ -267,7 +267,7 @@ describe("openYnm end to end on git notes", () => {
     writeFileSync(join(repo, ".mcp.json"), JSON.stringify({ mcpServers: {} }));
     const clients = { home, env: { PATH: "" } };
     const report = await initProject({ cwd: repo, hooks: false, clients });
-    expect(report.commit.sort()).toEqual([".mcp.json", ".ynm/config.json", "AGENTS.md"]);
+    expect(report.commit.sort()).toEqual([".mcp.json", ".ynm/config.json", "CLAUDE.md"]);
     expect(report.local).toEqual([".claude/settings.local.json"]);
     const untracked = await fx(repo, "status", "--porcelain");
     expect(untracked).not.toContain("settings.local.json");
@@ -275,6 +275,22 @@ describe("openYnm end to end on git notes", () => {
     await fx(repo, "commit", "-q", "-m", "ynm");
     const again = await initProject({ cwd: repo, hooks: false, clients });
     expect(again.commit).toEqual([]);
+  });
+
+  it("excludes personal files in this clone even when a global ignore file already covers them", async () => {
+    const home = await createRepo(0);
+    const repo = await createRepo(1);
+    writeFileSync(join(repo, ".mcp.json"), JSON.stringify({ mcpServers: {} }));
+    const globalIgnore = join(await createRepo(0), "global-ignore");
+    writeFileSync(globalIgnore, ".claude/settings.local.json\n");
+    await fx(repo, "config", "core.excludesFile", globalIgnore);
+    await initProject({ cwd: repo, hooks: false, clients: { home, env: { PATH: "" } } });
+    const exclude = readFileSync(join(repo, ".git", "info", "exclude"), "utf8");
+    expect(exclude.split("\n")).toContain(".claude/settings.local.json");
+    // a second run does not repeat the line
+    await initProject({ cwd: repo, hooks: false, clients: { home, env: { PATH: "" } } });
+    const again = readFileSync(join(repo, ".git", "info", "exclude"), "utf8");
+    expect(again.split("\n").filter((l) => l === ".claude/settings.local.json")).toHaveLength(1);
   });
 
   it("with no remote yet, sync later adds the fetch refspec itself; nothing to push is not a failure", async () => {
