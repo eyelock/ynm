@@ -27,12 +27,12 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@modelcontextprotocol/node": "^2.1.0",
-    "@modelcontextprotocol/server": "^2.2.0",
+    "@modelcontextprotocol/node": "^2.1.1",
+    "@modelcontextprotocol/server": "^2.3.1",
     "@ynm/model": "workspace:*",
     "@ynm/service": "workspace:*",
     "@ynm/index": "workspace:*",
-    "zod": "^4.3.6",
+    "zod": "^4.6.6",
     "@ynm/store": "workspace:*",
     "@ynm/wiki": "workspace:*",
     "jose": "^6.2.12",
@@ -41,11 +41,11 @@
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
-    "@types/node": "^26.0.1",
+    "@types/node": "^26.6.5",
     "@vitest/coverage-v8": "^5.0.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2",
-    "@modelcontextprotocol/client": "^2.2.0"
+    "@modelcontextprotocol/client": "^2.3.1"
   },
   "bin": {
     "ynm-mcp": "./bin/run.js"
