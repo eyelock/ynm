@@ -26,7 +26,7 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "^2.2.0",
+    "@modelcontextprotocol/client": "^2.3.0",
     "@ynm/index": "workspace:*",
     "@ynm/model": "workspace:*",
     "@ynm/models": "workspace:*",
