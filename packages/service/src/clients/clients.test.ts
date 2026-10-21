@@ -7,8 +7,10 @@ import {
   CLAUDE_MD_MARKER,
   claudeCode,
   clientAdapter,
+  clientReports,
   onPath,
   stdioServerEntry,
+  YNH_ENV_PASSTHROUGH,
   ynh,
   ynhPlugin,
   ynhSkill,
@@ -111,6 +113,7 @@ describe("client adapters (ADR-013)", () => {
         version: "0.1.0",
         mcp_servers: { ynm: { command: "ynm serve" }, other: { command: "x" } },
         hooks: { on_stop: [{ command: "./cleanup.sh" }] },
+        env_passthrough: ["GITHUB_TOKEN", "YNM_USER"],
       })
     );
     expect((await ynh.detect({ cwd, home })).installed).toBe(true);
@@ -122,6 +125,7 @@ describe("client adapters (ADR-013)", () => {
     const m = JSON.parse(readFileSync(join(cwd, ".agents", "harness", "plugin.json"), "utf8")) as {
       mcp_servers: Record<string, unknown>;
       hooks: Record<string, Array<{ command: string }>>;
+      env_passthrough: string[];
     };
     expect(m.mcp_servers).toEqual({
       ynm: { command: "ynm", args: ["serve"] },
@@ -141,14 +145,36 @@ describe("client adapters (ADR-013)", () => {
       },
     ]);
     expect(existsSync(join(cwd, "skills"))).toBe(false);
+    // existing entries stay, ynm's are added once
+    expect(m.env_passthrough).toEqual([
+      "GITHUB_TOKEN",
+      "YNM_USER",
+      ...YNH_ENV_PASSTHROUGH.filter((v) => v !== "YNM_USER"),
+    ]);
     expect(await ynh.plan({ cwd, home, scope: "project", transport: stdio })).toEqual([]);
     expect(await ynh.status({ cwd, home })).toMatchObject({
       configured: true,
       guidance: true,
       hooks: true,
+      env: true,
     });
     const ynd = spawnSync("ynd", ["validate", cwd], { encoding: "utf8" });
     if (!ynd.error) expect(`${ynd.stdout}${ynd.stderr}`).toMatch(/: valid$/m);
+  });
+
+  it("ynh reports a harness whose env_passthrough lacks YNM_HOME as not fully configured", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "ynm-harness-"));
+    mkdirSync(join(cwd, ".agents", "harness"), { recursive: true });
+    writeFileSync(
+      join(cwd, ".agents", "harness", "plugin.json"),
+      JSON.stringify({ name: "h", mcp_servers: { ynm: { command: "ynm", args: ["serve"] } } })
+    );
+    expect((await ynh.status({ cwd, home: cwd })).env).toBe(false);
+    const report = (await clientReports({ cwd, home: cwd })).find((r) => r.client === "ynh");
+    expect(report?.level).toBe("warn");
+    expect(report?.advice).toMatch(/env_passthrough.*YNM_HOME.*run `ynm client install ynh`/);
+    await applyChanges(await ynh.plan({ cwd, home: cwd, scope: "project", transport: stdio }));
+    expect((await ynh.status({ cwd, home: cwd })).env).toBe(true);
   });
 
   it("ynh --no-hooks merges only the server and the skill include", async () => {
@@ -317,7 +343,7 @@ describe("ynh harness edges", () => {
     const plan = await ynh.plan({ cwd, home: cwd, scope: "project", transport: http });
     expect(plan[0]).toMatchObject({
       kind: "write",
-      reason: "harness manifest: mcp_servers.ynm; hooks on_stop",
+      reason: "harness manifest: mcp_servers.ynm; env_passthrough; hooks on_stop",
       label: "harness manifest, 1 hook",
     });
     await applyChanges(plan);
@@ -348,6 +374,7 @@ describe("ynh harness edges", () => {
     expect(status.checked?.slice(1)).toEqual([
       "server    missing",
       `guidance  ${join(cwd, "skills", "ynm-memory", "SKILL.md")}`,
+      expect.stringMatching(/^env {7}env_passthrough lacks YNM_HOME/),
       "hooks     missing",
     ]);
   });
@@ -366,6 +393,13 @@ describe("ynh harness edges", () => {
     const status = await ynh.status({ cwd: "/x", home });
     expect(status).toMatchObject({ configured: true, guidance: false, hooks: false });
     expect(status.detail).toMatch(/hooks missing \(an older release: run `ynh update ynm`\)/);
+    // an installed harness lacking YNM_HOME is fixed by updating or reinstalling, not by client install
+    expect(status.env).toBe(false);
+    const report = (await clientReports({ cwd: "/x", home })).find((r) => r.client === "ynh");
+    expect(report?.advice).toMatch(
+      /env_passthrough \(YNM_HOME\) missing; run `ynh update ynm`, or reinstall with `ynh install github\.com\/eyelock\/ynm --path integrations\/ynh`/
+    );
+    expect(report?.advice).not.toMatch(/ynm client install/);
   });
 });
 

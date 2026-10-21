@@ -23,6 +23,31 @@ export const YNH_HOOKS = {
   on_stop: "ynm hook stop",
 } as const;
 
+/**
+ * The environment ynh's worker keeps. ynh filters a worker's environment to the manifest's
+ * top-level `env_passthrough` plus a process minimum, so without these the MCP server and hooks
+ * lose the settings that choose the store and the person and silently fall back to `~/.ynm`, the
+ * user's real personal store. These are the `YNM_*` variables that select the store, the identity
+ * or the configuration. Not here: API keys (ynm loads those from `$YNM_HOME/env` itself),
+ * `YNM_STORE` (names the bare repository only the container image serves), and the telemetry
+ * variables (`OTEL_*`, `YNR_SPOOL`), which change where spans go, not which store is used; ynh
+ * supplies `YNR_SPOOL` itself when its telemetry is on.
+ */
+export const YNH_ENV_PASSTHROUGH = [
+  "YNM_HOME",
+  "YNM_USER",
+  "YNM_ACTOR",
+  "YNM_ANCHOR",
+  "YNM_REMOTE",
+  "YNM_PROVIDER",
+  "YNM_PERSONAL_STORE",
+  "YNM_INDEX",
+  "YNM_MOUNTS",
+] as const;
+
+/** Set by ynh in an agent worker's environment (`ynh agent run`); absent in an interactive run. */
+export const YNH_WORKER_SIGNAL = "YNH_AGENT_SESSION";
+
 function ynhServer(t: InstallTarget["transport"]): Record<string, unknown> {
   return t.kind === "stdio"
     ? { command: t.command, args: t.args }
@@ -40,6 +65,7 @@ export function ynhPlugin(opts: YnhPluginOptions): Record<string, unknown> {
     keywords: ["memory", "mcp", "git-notes", "agents"],
     default_vendor: "claude",
     includes: [{ ...SKILL_INCLUDE, pick: [...SKILL_INCLUDE.pick] }],
+    env_passthrough: [...YNH_ENV_PASSTHROUGH],
     mcp_servers: { ynm: ynhServer(opts.transport) },
     hooks: Object.fromEntries(
       Object.entries(YNH_HOOKS).map(([event, command]) => [event, [{ command }]])
@@ -124,6 +150,7 @@ function includePresent(m: Manifest): boolean {
 }
 
 type Manifest = Record<string, unknown> & {
+  env_passthrough?: unknown;
   mcp_servers?: Record<string, Record<string, unknown>>;
   hooks?: Record<string, Array<{ command?: string; matcher?: string }>>;
 };
@@ -135,6 +162,11 @@ function readManifest(cwd: string): Manifest | null {
   } catch {
     return null;
   }
+}
+
+/** Whether the harness lets `YNM_HOME` reach the worker; without it ynm uses `~/.ynm`. */
+function envPassed(m: Manifest): boolean {
+  return Array.isArray(m.env_passthrough) && m.env_passthrough.includes("YNM_HOME");
 }
 
 function hookPresent(m: Manifest, event: string, command: string): boolean {
@@ -207,6 +239,13 @@ function harnessPlan(t: InstallTarget): Change[] {
         : "include of the ynm-memory skill"
     );
     included = true;
+  }
+  // Merge ynm's variables into the harness's own allowlist: keep what is there, add what is not.
+  const have = Array.isArray(m.env_passthrough) ? (m.env_passthrough as unknown[]) : [];
+  const lacking = YNH_ENV_PASSTHROUGH.filter((v) => !have.includes(v));
+  if (lacking.length) {
+    next.env_passthrough = [...have, ...lacking];
+    done.push("env_passthrough");
   }
   let hookCount = 0;
   if (t.hooks !== false) {
@@ -281,6 +320,7 @@ export const ynh: ClientAdapter = {
       const hookNames = Object.entries(YNH_HOOKS).filter(([e, c]) =>
         hookPresent(m as Manifest, e, c)
       );
+      const passed = envPassed(m as Manifest);
       return {
         client: "ynh",
         configured: server,
@@ -289,10 +329,12 @@ export const ynh: ClientAdapter = {
           : "harness here; ynm not declared; run `ynm client install ynh`",
         guidance: guided,
         hooks: hooked,
+        env: passed,
         checked: [
           `manifest  ${file}`,
           `server    ${srv ? `mcp_servers.ynm runs \`${[srv.command, ...((srv.args as string[] | undefined) ?? [])].filter(Boolean).join(" ") || srv.url}\`` : "missing"}`,
           `guidance  ${includePresent(m as Manifest) ? `includes ${SKILL_INCLUDE.git} path ${SKILL_INCLUDE.path} pick ${SKILL_INCLUDE.pick.join(", ")}` : existsSync(harnessSkillPath(cwd)) ? harnessSkillPath(cwd) : "missing"}`,
+          `env       ${passed ? "env_passthrough carries YNM_HOME" : "env_passthrough lacks YNM_HOME: ynh would hide it from the worker, and ynm would use ~/.ynm"}`,
           `hooks     ${hookNames.length ? hookNames.map(([e, c]) => `${e} runs \`${c}\``).join("; ") : "missing"}`,
         ],
       };
@@ -322,6 +364,8 @@ export const ynh: ClientAdapter = {
       detail: `ynm harness installed${hooked ? "" : `; hooks missing (an older release: run \`ynh update ynm\`)`}`,
       guidance: guided,
       hooks: hooked,
+      env: envPassed(m as Manifest),
+      fix: `run \`ynh update ynm\`, or reinstall with \`ynh install ${YNH_SOURCE} --path ${YNH_PATH}\``,
     };
   },
 };

@@ -68,7 +68,8 @@ Tutorial 7 covers the clients; `ynm init --no-clients` skips the step.
 For memory itself, `ynm init` changes no branch, commit or tracked file. It wrote
 `.ynm/config.json`, which records the anchor, the commit memory attaches to. The
 derived `.ynm/wiki/` and `.ynm/index/` directories are kept out of the repository by
-`.git/info/exclude`, git's per-clone ignore file:
+`.git/info/exclude`, git's per-clone ignore file (each folder also holds a `.gitignore` of `*`,
+written when ynm creates it, so other clones ignore it too):
 
 ```bash
 cat .ynm/config.json

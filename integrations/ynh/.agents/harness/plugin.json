@@ -23,6 +23,17 @@
       ]
     }
   ],
+  "env_passthrough": [
+    "YNM_HOME",
+    "YNM_USER",
+    "YNM_ACTOR",
+    "YNM_ANCHOR",
+    "YNM_REMOTE",
+    "YNM_PROVIDER",
+    "YNM_PERSONAL_STORE",
+    "YNM_INDEX",
+    "YNM_MOUNTS"
+  ],
   "mcp_servers": {
     "ynm": {
       "command": "ynm",

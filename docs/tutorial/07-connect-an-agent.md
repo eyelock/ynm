@@ -393,7 +393,7 @@ then the check to run:
 
 ```text
 ynh:
-wrote /tmp/ynm-tutorial/harness/.agents/harness/plugin.json: harness manifest: mcp_servers.ynm; include of the ynm-memory skill; hooks on_session_start, before_prompt, on_stop; $schema
+wrote /tmp/ynm-tutorial/harness/.agents/harness/plugin.json: harness manifest: mcp_servers.ynm; include of the ynm-memory skill; env_passthrough; hooks on_session_start, before_prompt, on_stop; $schema
 next: ynm validate
 ```
 
@@ -405,7 +405,7 @@ find . -type f | sort
 ```
 
 Expected: the manifest gained the schema reference, the server, an include of ynm's memory
-skill, and three hooks under ynh's canonical event names, which ynh translates per vendor (for
+skill, an `env_passthrough` list and three hooks under ynh's canonical event names, which ynh translates per vendor (for
 Claude Code: `SessionStart`, `UserPromptSubmit`, `Stop`). The skill is an include, not a copy:
 ynh fetches `skills/ynm-memory` from `integrations/` in ynm's repository and keeps it current, so nothing is
 written into the harness's own `skills/`, and the manifest is the only file:
@@ -431,6 +431,17 @@ written into the harness's own `skills/`, and the manifest is the only file:
         "skills/ynm-memory"
       ]
     }
+  ],
+  "env_passthrough": [
+    "YNM_HOME",
+    "YNM_USER",
+    "YNM_ACTOR",
+    "YNM_ANCHOR",
+    "YNM_REMOTE",
+    "YNM_PROVIDER",
+    "YNM_PERSONAL_STORE",
+    "YNM_INDEX",
+    "YNM_MOUNTS"
   ],
   "hooks": {
     "on_session_start": [
@@ -461,13 +472,14 @@ ynm validate
 ```
 
 Expected: `ynh: valid`, then one `ok` line per check: the manifest, the server, the skill
-include, the hooks, and `ynm` itself on the PATH:
+include, the environment pass-through, the hooks, and `ynm` itself on the PATH:
 
 ```text
 ynh: valid
   ok    manifest  /tmp/ynm-tutorial/harness/.agents/harness/plugin.json
   ok    server    mcp_servers.ynm runs `ynm serve`
   ok    guidance  includes https://github.com/eyelock/ynm path integrations pick skills/ynm-memory
+  ok    env       env_passthrough carries YNM_HOME
   ok    hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
   ok    ynm       on PATH
 ```
@@ -490,8 +502,17 @@ already in place, nothing changed:
   manifest  /tmp/ynm-tutorial/harness/.agents/harness/plugin.json
   server    mcp_servers.ynm runs `ynm serve`
   guidance  includes https://github.com/eyelock/ynm path integrations pick skills/ynm-memory
+  env       env_passthrough carries YNM_HOME
   hooks     on_session_start runs `ynm hook session-start`; before_prompt runs `ynm hook prompt`; on_stop runs `ynm hook stop`
 ```
+
+The `env_passthrough` list matters. ynh gives an agent's worker only the variables a harness
+declares there, plus a few process basics, so without it ynm's server and hooks would lose
+`YNM_HOME` and `YNM_USER` and quietly use `~/.ynm`, your personal store, instead of the one you
+configured. ynm adds the variables that choose the store, the person and the configuration, and
+none of your API keys (ynm reads those from `$YNM_HOME/env`). Entries already in the list stay.
+`ynm client status` and `ynm doctor` report a harness without `YNM_HOME` in the list as not fully
+configured; run `ynm client install ynh` again to fix it.
 
 ynh keeps a harness manifest in `.agents/harness/`. A harness that still has its manifest in the
 older `.ynh-plugin/` directory is moved there by `ynm client install`, which says so in its
