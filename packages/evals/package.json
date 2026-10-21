@@ -34,18 +34,18 @@
     "@ynm/service": "workspace:*",
     "fast-check": "^4.6.0",
     "@ynm/index": "workspace:*",
-    "@modelcontextprotocol/client": "^2.3.0",
+    "@modelcontextprotocol/client": "^2.3.1",
     "@ynm/models": "workspace:*",
     "@ynm/wiki": "workspace:*",
     "@ynm/store-s3": "workspace:*",
-    "@aws-sdk/client-s3": "^3.1144.0"
+    "@aws-sdk/client-s3": "^3.1152.0"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
-    "@types/node": "^26.0.1",
-    "@vitest/coverage-v8": "^5.0.2",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.5",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.5"
   }
 }
