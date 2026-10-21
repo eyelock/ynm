@@ -175,10 +175,10 @@ importers:
     dependencies:
       '@modelcontextprotocol/node':
         specifier: ^2.1.0
-        version: 2.1.0(@modelcontextprotocol/server@2.2.0)(hono@4.13.11)
+        version: 2.1.0(@modelcontextprotocol/server@2.3.0)(hono@4.13.11)
       '@modelcontextprotocol/server':
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^2.3.0
+        version: 2.3.0
       '@ynm/index':
         specifier: workspace:*
         version: link:../index
@@ -313,8 +313,8 @@ importers:
         version: 4.6.5
     devDependencies:
       '@modelcontextprotocol/server':
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^2.3.0
+        version: 2.3.0
       '@types/node':
         specifier: ^26.0.1
         version: 26.6.3
@@ -949,8 +949,8 @@ packages:
       hono:
         optional: true
 
-  '@modelcontextprotocol/server@2.2.0':
-    resolution: {integrity: sha512-qFnltjus6Gk8Lx6J1w2RXmr3YPN22MNT6qD6zjAkaiWIlFIFxWClz0rXHNuJF/KSUyn5YGhkSvXkWDbQHVLFEQ==}
+  '@modelcontextprotocol/server@2.3.0':
+    resolution: {integrity: sha512-+6b0LdsQLmHsvS7J6sQJ4weTpzUn61fU1JKS+321/+IyDYoHW5CR2Tgqcs6GgAAQvlesCo6yX3xttgmx+XGtJw==}
     engines: {node: '>=20'}
 
   '@oclif/core@5.1.2':
@@ -2547,16 +2547,20 @@ snapshots:
     dependencies:
       zod: 4.6.7
 
-  '@modelcontextprotocol/node@2.1.0(@modelcontextprotocol/server@2.2.0)(hono@4.13.11)':
+  '@modelcontextprotocol/core@2.3.0':
+    dependencies:
+      zod: 4.6.5
+
+  '@modelcontextprotocol/node@2.1.0(@modelcontextprotocol/server@2.3.0)(hono@4.13.11)':
     dependencies:
       '@hono/node-server': 1.19.17(hono@4.13.11)
-      '@modelcontextprotocol/server': 2.2.0
+      '@modelcontextprotocol/server': 2.3.0
     optionalDependencies:
       hono: 4.13.11
 
-  '@modelcontextprotocol/server@2.2.0':
+  '@modelcontextprotocol/server@2.3.0':
     dependencies:
-      '@modelcontextprotocol/core': 2.2.0
+      '@modelcontextprotocol/core': 2.3.0
       zod: 4.6.5
 
   '@oclif/core@5.1.2':

@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/node": "^2.1.0",
-    "@modelcontextprotocol/server": "^2.2.0",
+    "@modelcontextprotocol/server": "^2.3.0",
     "@ynm/model": "workspace:*",
     "@ynm/service": "workspace:*",
     "@ynm/index": "workspace:*",

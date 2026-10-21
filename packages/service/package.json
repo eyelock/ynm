@@ -37,7 +37,7 @@
     "@ynm/telemetry": "workspace:*"
   },
   "devDependencies": {
-    "@modelcontextprotocol/server": "^2.2.0",
+    "@modelcontextprotocol/server": "^2.3.0",
     "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^5.0.2",
     "@ynm/typescript-config": "workspace:*",
