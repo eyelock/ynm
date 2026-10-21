@@ -26,24 +26,24 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@modelcontextprotocol/client": "^2.2.0",
+    "@modelcontextprotocol/client": "^2.3.1",
     "@ynm/index": "workspace:*",
     "@ynm/model": "workspace:*",
     "@ynm/models": "workspace:*",
     "@ynm/store": "workspace:*",
     "@ynm/store-s3": "workspace:*",
     "@ynm/wiki": "workspace:*",
-    "zod": "^4.3.6",
+    "zod": "^4.6.7",
     "@ynm/telemetry": "workspace:*"
   },
   "devDependencies": {
-    "@modelcontextprotocol/server": "^2.2.0",
-    "@types/node": "^26.0.1",
-    "@vitest/coverage-v8": "^5.0.2",
+    "@modelcontextprotocol/server": "^2.3.1",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.5",
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.5"
   }
 }
