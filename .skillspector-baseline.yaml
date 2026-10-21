@@ -1,0 +1,16 @@
+# SkillSpector baseline: findings read by a person and accepted.
+#
+# CI scans every skill a pull request changes with eyelock/actions/skillspector and fails on
+# any finding not suppressed here. Paths are relative to the repository root; `*` crosses `/`.
+#
+# Read the finding first; if it is a real concern, fix the skill. Otherwise add a rule with an
+# `id`, a `path` scoped to the file (and `message` where the wording is the point), and a
+# `reason`. A full scan warns about rules that no longer match anything; delete those.
+
+version: 2
+
+rules:
+  - id: "RP1"
+    path: ".agents/skills/deploy/SKILL.md"
+    message: "*docker run -d*"
+    reason: "Misparse: the image is ynm:local, tagged by the docker build on the line before; 'docker run -d' is the detach flag."
