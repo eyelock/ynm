@@ -100,6 +100,21 @@ describe("doctor", () => {
     });
   });
 
+  it("warns in a ynh worker that has no YNM_HOME", async () => {
+    const home = tempDir("ynm-doc-");
+    const run = () =>
+      doctor({ loaded: loaded(home), worktree: worktree(home, { isGitRepo: false }), mounts: [] });
+    vi.stubEnv("YNM_HOME", "");
+    vi.stubEnv("YNH_AGENT_SESSION", "");
+    expect(check(await run(), "ynh worker environment")).toBeUndefined();
+    vi.stubEnv("YNH_AGENT_SESSION", "s1");
+    const c = check(await run(), "ynh worker environment");
+    expect(c?.level).toBe("warn");
+    expect(c?.detail).toMatch(/env_passthrough.*ynm client install ynh.*ynh update ynm/);
+    vi.stubEnv("YNM_HOME", "/elsewhere");
+    expect(check(await run(), "ynh worker environment")).toBeUndefined();
+  });
+
   it("warns when a local launcher exists but its directory is not on PATH", async () => {
     const home = tempDir("ynm-doc-");
     const bin = join(home, "bin");

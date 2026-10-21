@@ -88,12 +88,25 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: make coverage-diff BASE="origin/$BASE_REF"
 
+  # NVIDIA SkillSpector over the agent skills and the ynh harness manifest, through
+  # eyelock/actions/skillspector. Any finding not accepted in .skillspector-baseline.yaml fails.
+  # On a pull request only what changed is scanned; a baseline change scans everything.
+  skillspector:
+    name: SkillSpector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: eyelock/actions/skillspector@skillspector-v1
+        with:
+          include: |
+            integrations/ynh
+
   # The one check the rulesets require (infra/github/branches.tf). It runs even when a job it
   # needs fails, because a skipped required check counts as passing. Skipped jobs are fine:
   # release-gate and coverage only run on some pull requests.
   all-clear:
     name: All Clear
-    needs: [verify, release-gate, coverage]
+    needs: [verify, release-gate, coverage, skillspector]
     if: always()
     runs-on: ubuntu-latest
     steps:

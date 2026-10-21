@@ -73,7 +73,7 @@ Expected:
 ```
 
 The wiki lives under `.ynm/wiki`, next to the config. Git ignores it: `ynm init` listed it in
-`.git/info/exclude`. To commit the wiki instead, remove that line, or use the orphan-branch
+`.git/info/exclude`, and the folder holds a `.gitignore` of `*` that does the same in every clone. To commit the wiki instead, remove that line, or use the orphan-branch
 target below, which keeps it in git without touching your working branch.
 
 ## Read the index
