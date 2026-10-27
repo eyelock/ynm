@@ -302,6 +302,53 @@ export async function compactMounts(ynm: Ynm): Promise<Array<Record<string, unkn
   return out;
 }
 
+/** The parts of `process` crash logging hooks into; a fake in tests. */
+export interface CrashProcess {
+  on(event: "exit", listener: (code: number) => void): unknown;
+  on(event: "uncaughtExceptionMonitor", listener: (err: unknown, origin: string) => void): unknown;
+  once(event: "SIGTERM", listener: () => void): unknown;
+  kill(pid: number, signal: string): unknown;
+  pid: number;
+  report?: object;
+}
+
+/**
+ * Logs why the process is going away, which Lambda itself does not: an invocation that ends in
+ * `Runtime.ExitError` otherwise leaves no line at all. Each line says what the instance was doing
+ * (`doing`). Nothing here changes how the process exits: the exception monitor only observes, and
+ * SIGTERM is re-raised once logged. A fatal V8 error (out of memory, an abort) is reported on
+ * stderr as one line, without the environment, which holds the secrets read from SSM.
+ */
+export function installCrashLogging(
+  log: (msg: string) => void,
+  doing: () => string,
+  proc: CrashProcess = process as unknown as CrashProcess
+): void {
+  const safe = (msg: string) => {
+    try {
+      log(`${msg} (${doing()})`);
+    } catch {}
+  };
+  proc.on("uncaughtExceptionMonitor", (err, origin) => {
+    safe(`crash: ${origin}: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
+  });
+  proc.on("exit", (code) => safe(`process exiting with code ${code}`));
+  proc.once("SIGTERM", () => {
+    safe("process received SIGTERM");
+    proc.kill(proc.pid, "SIGTERM");
+  });
+  if (proc.report)
+    Object.assign(proc.report, {
+      reportOnFatalError: true,
+      filename: "stderr",
+      compact: true,
+      excludeEnv: true,
+      excludeNetwork: true,
+    });
+}
+
+let crashLogging = false;
+
 export interface LambdaHandlerOptions {
   env?: NodeJS.ProcessEnv;
   /** Replaces the service opened from the environment (tests). */
@@ -310,6 +357,8 @@ export interface LambdaHandlerOptions {
   quiet?: boolean;
   /** Where the handler's own log lines go (tests); the console by default, nowhere when quiet. */
   log?: LogSink;
+  /** Hooks crash logging into this instead of the process (tests); quiet does not turn it off. */
+  crashProcess?: CrashProcess;
 }
 
 /**
@@ -375,6 +424,19 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
   };
   if (!opts.quiet) console.error(`ynm-mcp auth: ${auth.mode}`);
 
+  /** The invocation in progress, if any, for a crash line. */
+  let current: { what: () => string; started: number } | undefined;
+  const doing = () =>
+    current
+      ? `during ${current.what()} after ${Math.round(performance.now() - current.started)}ms`
+      : "between invocations";
+  // Process-wide, so once per process; a function's process holds one handler.
+  if (opts.crashProcess) installCrashLogging((msg) => log(msg), doing, opts.crashProcess);
+  else if (!opts.quiet && !crashLogging) {
+    crashLogging = true;
+    installCrashLogging((msg) => log(msg), doing);
+  }
+
   const scheduled = async (task: unknown): Promise<ScheduledResult> => {
     switch (task) {
       case "health": {
@@ -435,10 +497,29 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
   };
 
   return async (event, context) => {
+    const mine = { what: () => `invocation${idField(context)}`, started: performance.now() };
+    current = mine;
+    try {
+      return await invoke(event, mine, context);
+    } finally {
+      // Lambda runs one invocation at a time; locally and in tests they can overlap.
+      if (current === mine) current = undefined;
+    }
+  };
+
+  async function invoke(
+    event: unknown,
+    now: NonNullable<typeof current>,
+    context?: LambdaContext
+  ): Promise<FunctionUrlResult | ScheduledResult> {
+    const { started } = now;
     await telemetry;
     if (isScheduledEvent(event)) {
+      const task = event.ynm;
+      now.what = () =>
+        `scheduled ${typeof task === "string" && /^[\w-]{1,32}$/.test(task) ? task : "?"}${idField(context)}`;
       try {
-        return await runScheduled(event.ynm, context);
+        return await runScheduled(task, context);
       } finally {
         await flush(remaining(context));
       }
@@ -447,7 +528,6 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       throw new Error(
         'unrecognised event: expected a Function URL request (payload format 2.0) or { "ynm": "dream" | "compact" | "health" }'
       );
-    const started = performance.now();
     const budget = responseBudget(
       Date.now(),
       context?.getRemainingTimeInMillis?.(),
@@ -460,6 +540,14 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       cold: firstUse(),
       waited: budget.waited,
     };
+    now.what = () =>
+      [
+        `request ${entry.method} ${entry.path}`,
+        entry.rpc?.length ? `rpc=${entry.rpc.join(",")}` : "",
+        entry.tool ? `tool=${entry.tool}` : "",
+      ]
+        .filter(Boolean)
+        .join(" ") + idField(context);
     const seen: RequestSeen = {};
     const headers = event.headers ?? {};
     const result = await requestSpan(
@@ -507,7 +595,7 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       budget.timeoutMs === undefined ? undefined : budget.timeoutMs - (performance.now() - started)
     );
     return result;
-  };
+  }
 }
 
 // Inside Lambda the instance is built during init, so a missing setting fails the cold start
