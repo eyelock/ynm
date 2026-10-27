@@ -116,6 +116,27 @@ describe("GitNotesLog specifics (ADR-003)", () => {
     expect(gitStats.spawned - before).toBe(2);
   });
 
+  it("reads a shard of multi-byte text whole, and every shard after it in the same batch", async () => {
+    const log = await personalLog();
+    const wide = makeRecord({
+      namespace: "ns-a",
+      content: `“quoted” — ${"é—🙂".repeat(100)} — end`,
+    });
+    const after = [
+      makeRecord({ namespace: "ns-b" }),
+      makeRecord({ namespace: "ns-c", content: "plain — with a dash" }),
+    ];
+    await log.append([wide, ...after]);
+    const problems: unknown[] = [];
+    const read = [];
+    for await (const r of log.scan(undefined, (p) => problems.push(p))) read.push(r);
+    expect(problems).toEqual([]);
+    expect(read.map((r) => [r.id, r.content]).sort()).toEqual(
+      [wide, ...after].map((r) => [r.id, r.content]).sort()
+    );
+    expect((await log.health()).ok).toBe(true);
+  });
+
   it("reads notes written by porcelain, including fanned-out trees", async () => {
     const log = await personalLog();
     const r = makeRecord();

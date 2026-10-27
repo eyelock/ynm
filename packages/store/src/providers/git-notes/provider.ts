@@ -20,7 +20,7 @@ import {
 import { parseJsonl, serializeJsonl } from "../../parse.js";
 import { objectPresent } from "./anchor.js";
 import { assertDocumentName, commitDocument, readDocumentAt } from "./documents.js";
-import { assertSha, git, gitCommonDir, gitOrNull, identityEnv } from "./git.js";
+import { assertSha, git, gitBytes, gitCommonDir, gitOrNull, identityEnv } from "./git.js";
 import { documentRef, keyFromRef, NOTES_PREFIX, refFor, refPrefixFor } from "./refs.js";
 import { syncDistributed } from "./sync.js";
 
@@ -200,18 +200,20 @@ export class GitNotesLog implements RecordLog {
       specs.push({ ref, spec: `${ref}:${a.slice(0, 2)}/${a.slice(2)}` });
       specs.push({ ref, spec: `${ref}:${a.slice(0, 2)}/${a.slice(2, 4)}/${a.slice(4)}` });
     }
-    const out = await git(["cat-file", "--batch"], {
+    // Bytes, not a string: each header gives its object's size in bytes, and a shard holding
+    // multi-byte UTF-8 is fewer characters than that.
+    const out = await gitBytes(["cat-file", "--batch"], {
       cwd: this.repo,
       input: `${specs.map((s) => s.spec).join("\n")}\n`,
     });
     let pos = 0;
     for (const { ref } of specs) {
-      const nl = out.indexOf("\n", pos);
-      const header = out.slice(pos, nl);
+      const nl = out.indexOf(0x0a, pos);
+      const header = out.toString("utf8", pos, nl);
       pos = nl + 1;
       if (header.endsWith(" missing") || header.endsWith(" ambiguous")) continue;
       const size = Number(header.split(" ")[2]);
-      const body = out.slice(pos, pos + size);
+      const body = out.toString("utf8", pos, pos + size);
       pos += size + 1;
       if (!contents.has(ref)) contents.set(ref, body);
     }
