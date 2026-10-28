@@ -24,7 +24,7 @@
     "cli": "node bin/run.js"
   },
   "dependencies": {
-    "@oclif/core": "^5.1.8",
+    "@oclif/core": "^5.1.9",
     "@ynm/model": "workspace:*",
     "@ynm/service": "workspace:*",
     "@ynm/store": "workspace:*",
