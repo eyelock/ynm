@@ -227,6 +227,22 @@ resource "aws_iam_policy" "provisioner" {
         ]
         Resource = "arn:aws:logs:*:${local.account_id}:log-group:/ynm/*"
       },
+      # Reading what a store logged, to check a deploy or follow up an alarm.
+      {
+        Sid    = "ReadLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogStreams", "logs:FilterLogEvents", "logs:GetLogEvents", "logs:StartQuery",
+          "logs:StartLiveTail",
+        ]
+        Resource = "arn:aws:logs:*:${local.account_id}:log-group:/ynm/*"
+      },
+      {
+        Sid      = "LogQueryResults"
+        Effect   = "Allow"
+        Action   = ["logs:GetQueryResults", "logs:StopQuery"]
+        Resource = "*"
+      },
       {
         Sid      = "DescribeLogGroups"
         Effect   = "Allow"
