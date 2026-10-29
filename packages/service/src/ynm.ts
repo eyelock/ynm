@@ -140,6 +140,9 @@ export interface WriteResult {
   memoryId: string;
   recordId: string;
   mount: string;
+  /** The memory's namespace and level; a remote running an older ynm leaves them out. */
+  namespace?: string;
+  level?: Level;
   revision: string;
 }
 
@@ -333,6 +336,8 @@ export class Ynm {
       memoryId: record.memoryId,
       recordId: record.id,
       mount: mount.id,
+      namespace: record.namespace,
+      level: record.level,
       revision: res.shards[0]?.revision ?? "",
     };
   }

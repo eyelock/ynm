@@ -6,7 +6,7 @@ import { flagsFromSchema, inputFromFlags } from "../lib/flags.js";
 
 export default class Remember extends YnmCommand {
   static override description =
-    "Record a memory; a note names similar memories already stored, so a repeated fact can be superseded instead";
+    "Record a memory; a note names similar memories already stored in the same namespace, so a repeated fact can be superseded instead";
   static override examples = [
     '<%= config.bin %> <%= command.id %> --type semantic --content "Notes anchor to the root commit"',
     '<%= config.bin %> <%= command.id %> --type procedural --level distributed --content "Run pnpm check before pushing" --tags ci',
@@ -24,7 +24,7 @@ export default class Remember extends YnmCommand {
     const { ynm } = await this.open({ cwd });
     const r = await ynm.remember(input, mount);
     // A hint only: a similar memory never stops the write or changes the exit code.
-    const similar = await similarMemories(ynm, input.content, r.memoryId);
+    const similar = await similarMemories(ynm, input.content, r);
     const note = similarGuidance(similar, "`ynm supersede`");
     this.emit(json, note ? { ...r, guidance: note } : r, () =>
       [`remembered ${r.memoryId} in ${r.mount}`, ...(note ? [`note: ${note}`] : [])].join("\n")

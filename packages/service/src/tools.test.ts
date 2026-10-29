@@ -132,6 +132,21 @@ describe("tool specs drive the service", () => {
     expect(other.guidance).toBeUndefined();
   });
 
+  it("compares a new memory only with memories in its own namespace", async () => {
+    const y = make();
+    const birth = (seat: string) => ({
+      type: "episodic",
+      namespace: `seat/${seat}`,
+      content: `${seat} took the ${seat} seat on 2026-10-29, running on Sonnet, seated by David.`,
+    });
+    await run(y, "memory_remember", birth("eno"));
+    // Another owner's namespace, even one its name starts with, holds no duplicate to supersede.
+    const other = await run(y, "memory_remember", birth("eno2"));
+    expect(other.guidance).toBeUndefined();
+    const same = await run(y, "memory_remember", birth("eno"));
+    expect(same.guidance).toMatch(/^1 similar memory exists/);
+  });
+
   it("computes the overlap coefficient over words of 3+ letters without stop words", () => {
     expect(overlapCoefficient("Run pnpm check", "Always run pnpm check before")).toBe(1);
     expect(overlapCoefficient("the and for", "the and for")).toBe(0);

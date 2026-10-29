@@ -77,7 +77,7 @@ export const TOOL_SPECS = [
     async run(ynm, input) {
       const r = await ynm.remember(input);
       const guidance = similarGuidance(
-        await similarMemories(ynm, input.content, r.memoryId),
+        await similarMemories(ynm, input.content, r),
         "memory_supersede"
       );
       return { data: r, guidance };
