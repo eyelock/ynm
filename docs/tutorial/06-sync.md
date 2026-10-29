@@ -105,7 +105,7 @@ cd /tmp/ynm-tutorial/bob
 ynm remember --type semantic --level distributed --content "Bob: the worker reads its queue from Redis."
 ```
 
-Expected: `remembered <26-character id> in project` from each.
+Expected: `remembered <26-character id> in project, level distributed, namespace common` from each.
 
 ## Sync
 
@@ -162,7 +162,8 @@ ynm sync
 git -C /tmp/ynm-tutorial/remote.git for-each-ref --format='%(refname)'
 ```
 
-Expected: `remembered <id> in personal`, a sync line, and the remote's refs, only the code branch
+Expected: `remembered <id> in personal, level personal, namespace user/tutorial`, a sync line, and
+the remote's refs, only the code branch
 and the distributed memory:
 
 ```text

@@ -36,7 +36,8 @@ ynm remember --type procedural --level distributed --content "Run pnpm check bef
 ynm remember --type episodic --level distributed --content "The Monday deploy failed on a migration lock." --tags deploy --subject entity:deploys
 ```
 
-Expected: three `remembered <26-character id> in project` lines.
+Expected: three `remembered <26-character id> in project, level distributed, namespace common`
+lines.
 
 ## Build the wiki
 

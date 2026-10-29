@@ -369,7 +369,8 @@ ynm context
 
 Expected: `ynm login` opens a Keycloak login page; sign in as `alice` / `alice`, and it prints
 `signed in to team (http://localhost:3000/mcp)`. The first memory names no level, so it stays
-personal: `remembered <id> in personal`. The second asks to share: `remembered <id> in team`.
+personal: `remembered <id> in personal, level personal, namespace user/tutorial`. The second asks to
+share: `remembered <id> in team, level distributed, namespace user/<person id>`.
 Recall finds three memories in one list, your personal one and the two on the server, each
 labelled with where it lives:
 

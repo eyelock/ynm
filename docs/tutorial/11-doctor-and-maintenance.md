@@ -27,7 +27,8 @@ ynm remember --type semantic --level distributed --content "Backups are taken wi
 
 Expected: `personal store created at /tmp/ynm-tutorial/home/store.git`, the `initialised` report with
 its `refspecs`, `hooks` and `.git/info/exclude` note lines, an `also` line if agent clients are
-installed on your machine (tutorial 2), and `remembered <26-character id> in project`.
+installed on your machine (tutorial 2), and
+`remembered <26-character id> in project, level distributed, namespace common`.
 
 ## A healthy doctor
 
@@ -150,7 +151,8 @@ find .ynm -type f | sort
 git for-each-ref refs/notes
 ```
 
-Expected: `remembered <id> in project`. In `status` both mounts now say `sqlite` where they said
+Expected: `remembered <id> in project, level distributed, namespace common`. In `status` both mounts
+now say `sqlite` where they said
 `git-notes`, and the project one has `1 shard(s)`. The files are the config, the derived index and the
 store itself:
 

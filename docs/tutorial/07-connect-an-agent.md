@@ -215,7 +215,8 @@ ynm remember --type semantic --content "The user likes to be called Dee."
 echo '{"session_id":"tutorial-session","cwd":"'"$PWD"'","hook_event_name":"SessionStart","source":"startup"}' | ynm hook session-start
 ```
 
-Expected: `remembered <id> in personal`, then one line of JSON. Its `additionalContext` is the
+Expected: `remembered <id> in personal, level personal, namespace user/tutorial`, then one line of
+JSON. Its `additionalContext` is the
 context block from tutorial 3, prefixed by one line telling the agent to use ynm; Claude Code
 adds it to the agent's context before the first prompt:
 
@@ -563,7 +564,8 @@ ynm remember --type semantic --content "Deploys happen on Tuesdays." --tags depl
 ynm remember --type procedural --level distributed --content "Run pnpm check before pushing." --tags ci
 ```
 
-Expected: `remembered <id> in personal`, then `remembered <id> in project`.
+Expected: `remembered <id> in personal, level personal, namespace user/tutorial`, then
+`remembered <id> in project, level distributed, namespace common`.
 
 Write the script and run it:
 

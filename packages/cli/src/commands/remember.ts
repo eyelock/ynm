@@ -26,8 +26,14 @@ export default class Remember extends YnmCommand {
     // A hint only: a similar memory never stops the write or changes the exit code.
     const similar = await similarMemories(ynm, input.content, r);
     const note = similarGuidance(similar, "`ynm supersede`");
+    // The mount is a name, not a level, so the level and namespace are said in words; a remote
+    // running an older ynm does not return them.
+    const where =
+      r.level && r.namespace
+        ? `${r.mount}, level ${r.level}, namespace ${r.namespace}`
+        : r.mount;
     this.emit(json, note ? { ...r, guidance: note } : r, () =>
-      [`remembered ${r.memoryId} in ${r.mount}`, ...(note ? [`note: ${note}`] : [])].join("\n")
+      [`remembered ${r.memoryId} in ${where}`, ...(note ? [`note: ${note}`] : [])].join("\n")
     );
   }
 }
