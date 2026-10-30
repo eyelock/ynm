@@ -1,7 +1,7 @@
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { testYnmHome, ynm } from "../../test/helpers.js";
+import { testYnmHome, unwrapped, ynm } from "../../test/helpers.js";
 
 /** Memory commands in their human (non-JSON) form, outside any git repository. */
 describe("ynm memory commands, human output", () => {
@@ -183,6 +183,27 @@ describe("ynm memory commands, human output", () => {
       new RegExp(`^purged ${id}: \\d+ record\\(s\\) removed from personal$`)
     );
     expect(ynm(dir, "list").stdout).not.toContain(id);
+  });
+});
+
+describe("ynm --mount with a mount that does not exist", () => {
+  // Outside a repository there is no project mount: the case a script run from the wrong
+  // directory hits, which must not read as an empty store.
+  const dir = mkdtempSync(join(tmpdir(), "ynm-memory-mount-"));
+
+  it("refuses it with exit 2 and names the mounts there are", () => {
+    for (const args of [
+      ["recall", "--text", "x", "--mount", "project"],
+      ["list", "--mount", "project"],
+      ["context", "--mount", "project"],
+      ["export", "--mount", "project"],
+      ["wiki", "build", "--mount", "project"],
+    ]) {
+      const r = ynm(dir, ...args);
+      expect(r.status, `${args.join(" ")}: ${r.stderr}`).toBe(2);
+      expect(unwrapped(r.stderr)).toMatch(/no mount "project" \(have: personal\)/);
+    }
+    expect(ynm(dir, "list", "--mount", "personal").status).toBe(0);
   });
 });
 

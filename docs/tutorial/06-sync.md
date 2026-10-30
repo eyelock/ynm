@@ -192,6 +192,11 @@ and you can repair with a manual `ynm sync`. And the push above found nothing ne
 a push does carry new distributed memory, the hook publishes it first, then git pushes the branch and
 exits 0.
 
+To sync without pushing, set `sync.auto` to `true` in `~/.ynm/config.json`. The agent's Stop hook
+then runs `ynm sync --quiet` in the background after a turn that left unpushed distributed writes,
+at most once per `sync.intervalMinutes` (see the
+[configuration reference](../reference/configuration.md#the-sync-block)).
+
 ## Doctor sees the remote
 
 ```bash

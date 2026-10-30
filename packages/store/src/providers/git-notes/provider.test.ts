@@ -323,6 +323,40 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
     expect((await logM.sync()).conflicts).toEqual([]);
   });
 
+  it("knows locally what has not been pushed, and clears after a sync", async () => {
+    const { origin, anchor, logA, logB } = await pair();
+    // nothing written yet
+    expect(await logA.unpushed()).toBe(false);
+    await logA.append([distributed()]);
+    expect(await logA.unpushed()).toBe(true);
+    await logA.sync();
+    expect(await logA.unpushed()).toBe(false);
+    // a named document is unpushed until a sync too
+    await logA.writeDocument("people", "{}", null);
+    expect(await logA.unpushed()).toBe(true);
+    await logA.sync();
+    expect(await logA.unpushed()).toBe(false);
+    // the other seat pushes first: B merges, pushes, and is clean afterwards
+    await logB.append([distributed()]);
+    expect(await logB.unpushed()).toBe(true);
+    await logB.sync();
+    expect(await logB.unpushed()).toBe(false);
+    // a clone-mirror pushes by URL, which updates no tracking ref by itself
+    const mirror = await cloneMirror(origin);
+    const logM = new GitNotesLog("m", "distributed", { repo: mirror, anchor });
+    await logM.append([distributed()]);
+    expect(await logM.unpushed()).toBe(true);
+    await logM.sync();
+    expect(await logM.unpushed()).toBe(false);
+  });
+
+  it("is never unpushed with no remote to push to", async () => {
+    const repo = await createRepo(1);
+    const log = new GitNotesLog("s", "distributed", { repo, anchor: await rootCommit(repo) });
+    await log.append([distributed()]);
+    expect(await log.unpushed()).toBe(false);
+  });
+
   it("moves records both ways with zero loss", async () => {
     const { logA, logB } = await pair();
     const ra = distributed();

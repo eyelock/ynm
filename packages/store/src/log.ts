@@ -96,6 +96,11 @@ export interface RecordLog {
   /** Present only on replicating providers. */
   sync?(options?: SyncOptions): Promise<SyncResult>;
   /**
+   * Present only on replicating providers: whether anything written here has not reached the
+   * remote as of the last sync. Answered locally, with no network.
+   */
+  unpushed?(): Promise<boolean>;
+  /**
    * A named document beside the records (e.g. "people"), outside every shard: never scanned,
    * folded or purged. Whole-document reads and writes; null when it does not exist.
    */

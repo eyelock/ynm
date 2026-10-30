@@ -1,5 +1,12 @@
 # @ynm/wiki
 
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies [[`345e5f4`](https://github.com/eyelock/ynm/commit/345e5f4feac1a58a3dc48a205c53f8e065fac8f4)]:
+  - @ynm/store@0.4.3
+
 ## 0.3.3
 
 ### Patch Changes
