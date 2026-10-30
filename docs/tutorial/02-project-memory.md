@@ -129,7 +129,7 @@ ynm remember --type procedural --level distributed --content "Run pnpm check bef
 Expected:
 
 ```text
-remembered <26-character id> in project
+remembered <26-character id> in project, level distributed, namespace common
 ```
 
 Note `in project`, not `in personal`.
@@ -144,7 +144,8 @@ ynm remember --type semantic --level distributed --namespace org/eyelock/project
 ynm list --level distributed
 ```
 
-Expected: `remembered <id> in project`, then the list shows both distributed memories with
+Expected: `remembered <id> in project, level distributed, namespace org/eyelock/project/demo`, then
+the list shows both distributed memories with
 their namespaces, newest first:
 
 ```text

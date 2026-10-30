@@ -19,7 +19,7 @@ ynm remember --type semantic --content "Releases are cut from the main branch."
 ```
 
 Expected: `personal store created at /tmp/ynm-tutorial/home/store.git`, then
-`remembered <26-character id> in personal`.
+`remembered <26-character id> in personal, level personal, namespace user/tutorial`.
 
 `YNM_NO_CLAUDE_CLI=1` stops ynm from using a `claude` CLI on your PATH as a model for the
 consolidation passes below, so the output is the same on every machine. Tutorial 8 covers models.
@@ -64,7 +64,7 @@ ynm remember --type working --namespace "session/$SID" --ttl PT1S --content "Try
 ynm remember --type working --namespace "session/$SID" --ttl PT8H --tags promote --content "Decision: ship the migration behind a flag."
 ```
 
-Expected: two `remembered <id> in personal` lines.
+Expected: two `remembered <id> in personal, level personal, namespace session/<session id>` lines.
 
 ## The namespace rule
 

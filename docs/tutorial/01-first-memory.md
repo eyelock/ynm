@@ -68,8 +68,8 @@ ynm remember --type procedural --content "To run the test suite: pnpm test. Run 
 Expected, one line per command, each with a different 26-character id:
 
 ```text
-remembered 01M3P8JQT7MGJS23ZSY442P3Z6 in personal
-remembered 01M3P8JR5AR59QXSBTDS96MEZX in personal
+remembered 01M3P8JQT7MGJS23ZSY442P3Z6 in personal, level personal, namespace user/tutorial
+remembered 01M3P8JR5AR59QXSBTDS96MEZX in personal, level personal, namespace user/tutorial
 ```
 
 Memories are personal by default. Nothing you remember reaches a distributed store unless you say

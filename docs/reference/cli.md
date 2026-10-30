@@ -39,7 +39,7 @@ shapes are in [Exit codes and JSON output](exit-codes-and-json.md).
 | [`purge`](#ynm-purge) | Physically remove a memory's records (leaves an audited purge marker) |
 | [`recall`](#ynm-recall) | Search memory: indexed, ranked by relevance, recency and importance |
 | [`reindex`](#ynm-reindex) | Rebuild the search index from the log |
-| [`remember`](#ynm-remember) | Record a memory; a note names similar memories already stored, so a repeated fact can be superseded instead |
+| [`remember`](#ynm-remember) | Record a memory; a note names similar memories already stored in the same namespace, so a repeated fact can be superseded instead |
 | [`review`](#ynm-review) | List memories flagged for review, or clear a flag after deciding |
 | [`serve`](#ynm-serve) | Start the MCP server (stdio by default, --http for the hosted service) |
 | [`session`](#ynm-session) | Start a session (prints the context block) or end one (expires working memory) |
@@ -555,7 +555,7 @@ ynm reindex --mount project
 
 ## ynm remember
 
-Record a memory; a note names similar memories already stored, so a repeated fact can be superseded instead
+Record a memory; a note names similar memories already stored in the same namespace, so a repeated fact can be superseded instead
 
 ```text
 ynm remember [flags]
