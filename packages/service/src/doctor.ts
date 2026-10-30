@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { gitOrNull, NOTES_PREFIX } from "@ynm/store";
-import { clientReports, type InstallTarget } from "./clients/index.js";
+import { clientReports, type InstallTarget, YNH_WORKER_SIGNAL } from "./clients/index.js";
 import type { LoadedConfig } from "./config.js";
 import { DISTRIBUTED_FETCH } from "./init.js";
 import type { Mount } from "./mounts.js";
@@ -49,6 +49,16 @@ export async function doctor(opts: {
       onPath ? "info" : "warn"
     );
   }
+  // ynh's `agent run` sets YNH_AGENT_SESSION in a worker, and filters the rest of the environment
+  // to the harness's `env_passthrough`. A worker without YNM_HOME is using ~/.ynm, not the
+  // configured store: almost certainly a harness missing the passthrough.
+  if (process.env[YNH_WORKER_SIGNAL] && !process.env.YNM_HOME)
+    add(
+      "ynh worker environment",
+      false,
+      "running in a ynh worker with YNM_HOME unset, so ynm uses the default ~/.ynm store; add YNM_HOME to the harness's env_passthrough (`ynm client install ynh` in a local harness; `ynh update ynm` for an installed one)",
+      "warn"
+    );
   add(
     "config files",
     true,

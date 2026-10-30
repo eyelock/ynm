@@ -159,7 +159,29 @@ its error first and then fails the invocation:
 [ynm-mcp lambda] scheduled dream failed 30ms id=…: dream: <error message>
 ```
 
-The function also logs its auth mode at start and each compact run's summary.
+The function also logs its auth mode at start and each compact run's summary. The auth mode line
+(`ynm-mcp auth: jwt`) has no request id and shows as `ERROR` because it goes to stderr; it marks a
+new instance starting, not a failure.
+
+### When the process exits
+
+If the function's process goes away, the invocation ends in Lambda's `Runtime.ExitError` and the
+client gets a `500` with nothing in it. Lambda does not always say why, so the function logs it,
+with what it was doing at the time:
+
+```text
+[ynm-mcp lambda] crash: uncaughtException: TypeError: <message>
+    at <stack> (during request POST /mcp rpc=tools/call tool=memory_recall id=… after 132ms)
+[ynm-mcp lambda] process exiting with code 1 (during request POST /mcp rpc=tools/call tool=memory_recall id=… after 133ms)
+[ynm-mcp lambda] process received SIGTERM (between invocations)
+```
+
+`crash:` is an exception or promise rejection nothing caught, with its stack. `process exiting`
+gives the exit code. `between invocations` means the process went away after its last answer, so
+the invocation that reports `Runtime.ExitError` is the next one, not the cause. A fatal error
+inside Node (running out of memory, an internal abort) is reported on stderr as one JSON line, a
+Node diagnostic report, without the function's environment. A process killed outright leaves
+only Lambda's `Runtime.ExitError`.
 
 ### Timeouts and API Gateway errors
 
@@ -174,9 +196,10 @@ a deadline, a client holds a stream open, or a slow cold start used up most of t
 
 Some failures still never reach ynm's log as a request line: API Gateway answers `502` or `500`
 itself when the function crashes or cannot start, and a cold start that alone outlasts the 30
-seconds is a `504` before the handler runs. Lambda's own `Task timed out` and `Invoke Error`
-lines show a function that ran out of time or crashed. To match a `5xx` count in API Gateway's
-metrics with the log, look for those lines, `cut=` lines, and large `waited=` values.
+seconds is a `504` before the handler runs. Lambda's own `Task timed out`, `Invoke Error` and
+`Runtime.ExitError` lines show a function that ran out of time or crashed, and the lines above
+say why the process exited. To match a `5xx` count in API Gateway's metrics with the log, look
+for those lines, `cut=` lines, and large `waited=` values.
 
 ### Find requests in CloudWatch
 
@@ -185,7 +208,7 @@ Filter patterns for the console's log search or `aws logs filter-log-events --fi
 | To find | Filter pattern |
 |---|---|
 | Every request line | `"[ynm-mcp lambda] request "` |
-| Errors of any kind | `?"request failed" ?"cut=" ?"scheduled dream failed" ?"Task timed out" ?"Invoke Error"` |
+| Errors of any kind | `?"request failed" ?"cut=" ?"scheduled dream failed" ?"Task timed out" ?"Invoke Error" ?"Runtime.ExitError" ?"crash:" ?"process exiting" ?"process received"` |
 | `5xx` and cut-off answers from ynm (logged at `ERROR`) | `"[ynm-mcp lambda] request " "ERROR"` |
 | One tool's calls | `"tool=memory_remember"` |
 | One invocation | `"id=8f1c2d9e-4b7a-4e0f-9a51-3c6d2b1e7f40"` |

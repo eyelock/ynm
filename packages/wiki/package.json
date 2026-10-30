@@ -1,6 +1,6 @@
 {
   "name": "@ynm/wiki",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "Compiled markdown projection of the fold, behind a WikiTarget seam (ADR-010).",
   "license": "MIT",
@@ -28,9 +28,9 @@
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
-    "@types/node": "^26.0.1",
-    "@vitest/coverage-v8": "^5.0.2",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.5",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.5"
   }
 }

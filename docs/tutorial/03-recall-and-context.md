@@ -36,7 +36,8 @@ ynm remember --type procedural --content "To roll back a release: run ynm-deploy
 echo "reference id: $REF"
 ```
 
-Expected: four `remembered <26-character id> in personal` lines, then the reference id.
+Expected: four `remembered <26-character id> in personal, level personal, namespace user/tutorial`
+lines, then the reference id.
 
 ## Recall with text
 

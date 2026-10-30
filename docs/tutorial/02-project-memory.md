@@ -68,7 +68,8 @@ Tutorial 7 covers the clients; `ynm init --no-clients` skips the step.
 For memory itself, `ynm init` changes no branch, commit or tracked file. It wrote
 `.ynm/config.json`, which records the anchor, the commit memory attaches to. The
 derived `.ynm/wiki/` and `.ynm/index/` directories are kept out of the repository by
-`.git/info/exclude`, git's per-clone ignore file:
+`.git/info/exclude`, git's per-clone ignore file (each folder also holds a `.gitignore` of `*`,
+written when ynm creates it, so other clones ignore it too):
 
 ```bash
 cat .ynm/config.json
@@ -128,7 +129,7 @@ ynm remember --type procedural --level distributed --content "Run pnpm check bef
 Expected:
 
 ```text
-remembered <26-character id> in project
+remembered <26-character id> in project, level distributed, namespace common
 ```
 
 Note `in project`, not `in personal`.
@@ -143,7 +144,8 @@ ynm remember --type semantic --level distributed --namespace org/eyelock/project
 ynm list --level distributed
 ```
 
-Expected: `remembered <id> in project`, then the list shows both distributed memories with
+Expected: `remembered <id> in project, level distributed, namespace org/eyelock/project/demo`, then
+the list shows both distributed memories with
 their namespaces, newest first:
 
 ```text

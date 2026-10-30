@@ -230,6 +230,10 @@ One entry per synced mount:
 }
 ```
 
+`fetched` counts the refs the fetch brought something new for, and `pushed` lists the refs the
+push changed on the remote, so a sync with nothing to move reports `fetched 0` and `pushed 0`.
+`merged` lists the local refs the sync updated from the remote.
+
 A non-empty `conflicts` on any mount makes the exit code 1, except when `skipped` is set (no such remote): that is a report, printed as `remote "origin" not configured; nothing to sync`, and the exit code is 0.
 
 ### status

@@ -1,6 +1,6 @@
 {
   "name": "@ynm/store-s3",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "The s3 record log provider: append-only JSONL objects in an S3 bucket (ADR-004). Its own package so the AWS SDK stays out of the CLI bundles.",
   "license": "MIT",
@@ -26,16 +26,16 @@
     "clean": "rm -rf dist *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1144.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "@ynm/model": "workspace:*",
     "@ynm/store": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
-    "@types/node": "^26.0.1",
-    "@vitest/coverage-v8": "^5.0.2",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.5",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.5"
   }
 }

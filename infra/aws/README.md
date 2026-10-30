@@ -37,7 +37,8 @@ deprecation warning, the release after refuses it. A store never starts without 
 
 Runs use the `ynm-provisioner` profile. It can use the state bucket and build stores in its
 account, and every IAM role it creates carries the `ynm-workload-boundary` permissions boundary,
-which caps what any ynm workload can do. Both are defined in
+which caps what any ynm workload can do. It can also read the stores' logs (`/ynm/*`), so the
+same profile checks a deploy or follows up an alarm. Both are defined in
 [`infra/terraform-state`](../terraform-state/README.md); make the access key the way that README
 describes and add the profile:
 

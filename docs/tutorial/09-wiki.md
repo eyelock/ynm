@@ -36,7 +36,8 @@ ynm remember --type procedural --level distributed --content "Run pnpm check bef
 ynm remember --type episodic --level distributed --content "The Monday deploy failed on a migration lock." --tags deploy --subject entity:deploys
 ```
 
-Expected: three `remembered <26-character id> in project` lines.
+Expected: three `remembered <26-character id> in project, level distributed, namespace common`
+lines.
 
 ## Build the wiki
 
@@ -73,7 +74,7 @@ Expected:
 ```
 
 The wiki lives under `.ynm/wiki`, next to the config. Git ignores it: `ynm init` listed it in
-`.git/info/exclude`. To commit the wiki instead, remove that line, or use the orphan-branch
+`.git/info/exclude`, and the folder holds a `.gitignore` of `*` that does the same in every clone. To commit the wiki instead, remove that line, or use the orphan-branch
 target below, which keeps it in git without touching your working branch.
 
 ## Read the index

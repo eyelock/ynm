@@ -1,5 +1,17 @@
 # @ynm/evals
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [[`71c7d7d`](https://github.com/eyelock/ynm/commit/71c7d7de2f68b121c403c708180a203ab4147dfa), [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7), [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7), [`679df43`](https://github.com/eyelock/ynm/commit/679df4366d31107dbb06939d2f160feeff36e288), [`688845c`](https://github.com/eyelock/ynm/commit/688845cd1766ecde130b45f3ffe2c7e050c9317d)]:
+  - @ynm/store@0.4.2
+  - @ynm/service@0.4.2
+  - @ynm/index@0.3.3
+  - @ynm/store-s3@0.3.3
+  - @ynm/wiki@0.3.3
+  - @ynm/models@0.4.2
+
 ## 0.3.2
 
 ### Patch Changes

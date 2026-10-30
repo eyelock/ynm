@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,6 +10,7 @@ import {
   createLambdaHandler,
   type FunctionUrlEvent,
   type FunctionUrlResult,
+  installCrashLogging,
   type LambdaContext,
   type LambdaHandler,
   lambdaConfig,
@@ -466,6 +468,11 @@ describe("Lambda handler over scheduled events", () => {
 });
 
 /** A log sink that keeps every line, with its level. */
+/** A process for crash logging to hook into, with no real signals or exits. */
+function fakeProcess() {
+  return Object.assign(new EventEmitter(), { pid: 4242, kill: vi.fn(), report: {} });
+}
+
 function capture() {
   const lines: string[] = [];
   return { lines, log: (level: string, line: string) => lines.push(`${level} ${line}`) };
@@ -709,6 +716,80 @@ describe("Lambda request and event log lines", () => {
         /^error \[ynm-mcp lambda\] scheduled dream failed \d+ms cold id=d-2: dream: store offline$/
       ),
     ]);
+  });
+
+  it("logs an uncaught exception, the exit code and SIGTERM, passing SIGTERM on, and reports a fatal error without the environment", () => {
+    const { lines, log } = capture();
+    const proc = fakeProcess();
+    installCrashLogging(
+      (msg) => log("error", msg),
+      () => "between invocations",
+      proc
+    );
+    proc.emit("uncaughtExceptionMonitor", new Error("socket hang up"), "unhandledRejection");
+    proc.emit("exit", 7);
+    proc.emit("SIGTERM");
+    proc.emit("SIGTERM");
+    expect(lines[0]).toMatch(
+      /^error crash: unhandledRejection: Error: socket hang up\n {4}at .*\(between invocations\)$/s
+    );
+    expect(lines.slice(1)).toEqual([
+      "error process exiting with code 7 (between invocations)",
+      "error process received SIGTERM (between invocations)",
+    ]);
+    expect(proc.kill.mock.calls).toEqual([[4242, "SIGTERM"]]);
+    expect(proc.report).toEqual({
+      reportOnFatalError: true,
+      filename: "stderr",
+      compact: true,
+      excludeEnv: true,
+      excludeNetwork: true,
+    });
+  });
+
+  it("a crash line names the invocation in progress, and none once it has finished", async () => {
+    const { lines, log } = capture();
+    const proc = fakeProcess();
+    const ynm = memoryYnm();
+    let gate: Promise<void> | undefined;
+    let release = () => {};
+    let held = false;
+    const handler = createLambdaHandler({
+      env: lambdaEnv(),
+      getYnm: async () => {
+        if (gate) {
+          held = true;
+          await gate;
+        }
+        return ynm;
+      },
+      quiet: true,
+      log,
+      crashProcess: proc,
+    });
+    const client = new Client({ name: "lambda-test", version: "0" });
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(PUBLIC), {
+        fetch: viaLambda(handler, { context: () => ({ awsRequestId: "req-9" }) }),
+      })
+    );
+    gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const call = client.callTool({ name: "memory_status", arguments: {} });
+    await vi.waitFor(() => expect(held).toBe(true));
+    proc.emit("exit", 1);
+    release();
+    await call;
+    await client.close();
+    proc.emit("exit", 0);
+    const exits = lines.filter((l) => l.includes("process exiting"));
+    expect(exits[0]).toMatch(
+      /^error \[ynm-mcp lambda\] process exiting with code 1 \(during request POST \/mcp rpc=tools\/call tool=memory_status id=req-9 after \d+ms\)$/
+    );
+    expect(exits[1]).toBe(
+      "error [ynm-mcp lambda] process exiting with code 0 (between invocations)"
+    );
   });
 
   it("a log sink that throws never fails a request or an event", async () => {

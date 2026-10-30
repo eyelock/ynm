@@ -22,7 +22,8 @@ For memory, `ynm init` changes no branch, tag, commit or tracked file. It does f
   `"hooks": false` in your config;
 - adds `.ynm/wiki/` and `.ynm/index/` to `.git/info/exclude` (git's per-clone ignore file, never
   committed) when they are not already ignored, and says so in a note;
-- builds the search index under `.ynm/index/`.
+- builds the search index under `.ynm/index/`, and puts a `.gitignore` containing `*` inside that
+  folder (and inside `.ynm/wiki/` when the wiki is built) so it ignores itself in every clone.
 
 Memory itself appears only when someone writes it, as refs under `refs/notes/ynm/`. Teammates who
 have not run `ynm init` see nothing and are not affected.
@@ -63,7 +64,9 @@ teammate who has not installed it. Teammates who want the hooks run `ynm init` (
 `ynm client install claude-code`) in their own clone. Keep a client file out of git if it
 carries a token (see [Connect a client over HTTP](connect-over-http.md)).
 Nothing else changed in the work tree: the derived directories are
-excluded through `.git/info/exclude`, which git keeps per clone and never commits. If you would
+excluded through `.git/info/exclude`, which git keeps per clone and never commits, and each folder
+holds a `.gitignore` of `*` that ynm writes when it creates the folder, so a clone where `ynm init`
+never ran stays clean too. If you would
 rather have the rule in the repository's own `.gitignore` so it applies to every clone, add:
 
 ```text

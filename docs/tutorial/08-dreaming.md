@@ -46,7 +46,8 @@ ynm remember --type semantic --content "We never deploy on Tuesdays; deploys are
 ynm remember --type semantic --content "The database is Postgres 14."
 ```
 
-Expected: five `remembered <26-character id> in personal` lines. The second API memory also
+Expected: five `remembered <26-character id> in personal, level personal, namespace user/tutorial`
+lines. The second API memory also
 prints a `note:` line, because it restates the first: `note: 1 similar memory exists: <id> (The
 API listens on port 8080.). If one of them is the same fact, prefer `ynm supersede` over a
 duplicate.` The same note can follow the last deploy-day memory, which is close to the earlier

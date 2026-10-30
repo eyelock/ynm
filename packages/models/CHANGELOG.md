@@ -1,5 +1,12 @@
 # @ynm/models
 
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies [[`7be4f27`](https://github.com/eyelock/ynm/commit/7be4f275cdb6d0c2189f1b7cdcdb54415899886e)]:
+  - @ynm/telemetry@0.4.1
+
 ## 0.4.1
 
 ### Patch Changes

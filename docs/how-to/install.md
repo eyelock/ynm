@@ -185,7 +185,7 @@ For each client the project uses, it writes, inside the repository only:
 | Copilot CLI | `~/.copilot/mcp-config.json`: printed as a `run:` line, not written | block in `AGENTS.md` | none (Copilot CLI hooks do not fire in untrusted folders) |
 | OpenCode | `opencode.json` | block in `AGENTS.md` | none |
 | Pi | `.pi/extensions/ynm.ts` (Pi has no MCP; the extension runs the CLI) | `.pi/skills/ynm-memory/SKILL.md` | none |
-| ynh, in a harness: via `ynm client install ynh`, not init | `mcp_servers.ynm` in `.agents/harness/plugin.json` | a skill include (`github.com/eyelock/ynm`, `skills/ynm-memory`) in the manifest; nothing is copied into the harness | `on_session_start`, `before_prompt`, `on_stop` in the manifest |
+| ynh, in a harness: via `ynm client install ynh`, not init | `mcp_servers.ynm` in `.agents/harness/plugin.json` | a skill include (`github.com/eyelock/ynm`, `skills/ynm-memory`) in the manifest; nothing is copied into the harness | `on_session_start`, `before_prompt`, `on_stop` in the manifest, plus `env_passthrough` (see below) |
 | ynh, elsewhere | printed as `run: ynh install github.com/eyelock/ynm --path integrations/ynh` | in that harness | in that harness |
 
 The hooks are what make an agent use ynm rather than its own memory: the session-start hook puts
@@ -223,6 +223,16 @@ personal store. Run `ynm init --no-clients` in a repository only to add distribu
 flag keeps init from also writing `.mcp.json`, an instruction file and hooks that would duplicate what
 the harness already provides.
 
+ynh gives an agent's worker only the environment variables a harness lists in its top-level
+`env_passthrough`, plus a few process basics. `ynm client install ynh` adds the ynm variables that
+choose the store, the person and the configuration (`YNM_HOME`, `YNM_USER`, `YNM_ACTOR`,
+`YNM_ANCHOR`, `YNM_REMOTE`, `YNM_PROVIDER`, `YNM_PERSONAL_STORE`, `YNM_INDEX`, `YNM_MOUNTS`), keeping
+any entries already there. Without them the server and hooks run with the defaults and use
+`~/.ynm`, your real personal store, whatever you configured. API keys are not passed: ynm loads
+them from `$YNM_HOME/env`. `ynm client status` and `ynm doctor` report a harness whose list lacks
+`YNM_HOME` as not fully configured, and `ynm doctor` also warns when it runs in a ynh worker with
+`YNM_HOME` unset. Re-run `ynm client install ynh` to fix either.
+
 `ynm init --no-clients` skips the step; `ynm init --client claude-code` configures only the
 clients you name, whether the project uses them or not. `ynm client install` is the manual form,
 with `--scope user` for a user-wide install and `--no-hooks` to leave the hooks out. The client
@@ -233,7 +243,7 @@ everything is already in place it prints `already in place, nothing changed:` fo
 for each piece it found (server, guidance, hooks) and where. `ynm validate [dir]`
 checks a ynh harness, or the clients a project uses, and prints every check (server, guidance,
 hooks, and `ynm` on the PATH) with `ok` or `FAIL`, exiting 1 when something is missing.
-`ynm client status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks are
+`ynm client status` and `ynm doctor` report, per client, whether the server, the guidance and the hooks (and, for ynh, the environment pass-through) are
 in place. [Tutorial 7](../tutorial/07-connect-an-agent.md) walks through all of it.
 
 ## Next

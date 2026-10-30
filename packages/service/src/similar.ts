@@ -43,20 +43,28 @@ export function overlapCoefficient(a: string, b: string): number {
 }
 
 /**
- * Memories already stored that resemble `content`, other than `exceptId` (the one just written):
- * a recall on the first 200 characters, at most four, kept only when their words overlap
- * enough (`SIMILAR_MIN_OVERLAP`) with the new content. Empty without an index. Never refuses; it
- * only informs, so a caller can point at `supersede` instead of leaving a duplicate.
+ * Memories already stored in the same namespace as the one just written (`written`) that resemble
+ * `content`: a recall on the first 200 characters, at most four, kept only when their words
+ * overlap enough (`SIMILAR_MIN_OVERLAP`) with the new content. Another namespace has another
+ * owner, so its memories are never a duplicate to supersede. Empty without an index, or when the
+ * write did not say its namespace. Never refuses; it only informs, so a caller can point at
+ * `supersede` instead of leaving a duplicate.
  */
 export async function similarMemories(
   ynm: Ynm,
   content: string,
-  exceptId: string
+  written: { memoryId: string; namespace?: string }
 ): Promise<SimilarMemory[]> {
-  if (!ynm.index) return [];
-  const hits = await ynm.recall({ text: content.slice(0, 200), limit: 4 });
+  if (!ynm.index || written.namespace === undefined) return [];
+  const exceptId = written.memoryId;
+  // The namespace filter is a prefix; the exact match is below.
+  const hits = await ynm.recall({
+    text: content.slice(0, 200),
+    namespace: written.namespace,
+    limit: 4,
+  });
   return hits
-    .filter((h) => h.memoryId !== exceptId)
+    .filter((h) => h.memoryId !== exceptId && h.namespace === written.namespace)
     .filter((h) => overlapCoefficient(content, h.content || h.summary) >= SIMILAR_MIN_OVERLAP)
     .map((h) => ({ memoryId: h.memoryId, summary: h.summary }));
 }

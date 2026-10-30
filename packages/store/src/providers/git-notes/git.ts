@@ -30,7 +30,12 @@ export const gitStats = { spawned: 0 };
  * Adapted from an earlier project's hardened plumbing, made async. A git process has no span of its
  * own: it runs inside the store call's span (ADR-018), whose trace context it is given.
  */
-export function git(args: readonly string[], opts: GitOptions): Promise<string> {
+export async function git(args: readonly string[], opts: GitOptions): Promise<string> {
+  return (await gitBytes(args, opts)).toString("utf8");
+}
+
+/** git() returning stdout as bytes, for output that counts in bytes (cat-file --batch sizes). */
+export function gitBytes(args: readonly string[], opts: GitOptions): Promise<Buffer> {
   gitStats.spawned += 1;
   return new Promise((resolve, reject) => {
     const child = spawn("git", [...args], {
@@ -55,7 +60,7 @@ export function git(args: readonly string[], opts: GitOptions): Promise<string> 
     });
     child.on("close", (code, signal) => {
       clearTimeout(timer);
-      if (code === 0) resolve(Buffer.concat(out).toString("utf8"));
+      if (code === 0) resolve(Buffer.concat(out));
       else reject(new GitError(args, Buffer.concat(err).toString("utf8"), code ?? signal));
     });
     child.stdin.on("error", () => {

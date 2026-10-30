@@ -228,7 +228,7 @@ describe("ynm remember warns about similar memories", () => {
       "Notes anchor to the root commit"
     );
     expect(first.status, first.stderr).toBe(0);
-    expect(first.stdout).toMatch(/^remembered \S+ in \S+\n$/);
+    expect(first.stdout).toMatch(/^remembered \S+ in \S+, level \S+, namespace \S+\n$/);
     const second = ynm(
       dir,
       "remember",
@@ -239,7 +239,7 @@ describe("ynm remember warns about similar memories", () => {
     );
     expect(second.status, second.stderr).toBe(0);
     const [line, note] = second.stdout.trim().split("\n");
-    expect(line).toMatch(/^remembered \S+ in \S+$/);
+    expect(line).toMatch(/^remembered \S+ in \S+, level \S+, namespace \S+$/);
     expect(note).toMatch(/^note: 1 similar memory exists: \S+ \(.*\)\. .*`ynm supersede`/);
     // JSON keeps its shape: one "memoryId" line (scripts grep for it) plus a guidance string.
     const raw = ynm(

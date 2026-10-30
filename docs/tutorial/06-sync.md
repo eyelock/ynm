@@ -105,7 +105,7 @@ cd /tmp/ynm-tutorial/bob
 ynm remember --type semantic --level distributed --content "Bob: the worker reads its queue from Redis."
 ```
 
-Expected: `remembered <26-character id> in project` from each.
+Expected: `remembered <26-character id> in project, level distributed, namespace common` from each.
 
 ## Sync
 
@@ -147,8 +147,8 @@ ynm sync
 ynm list --level distributed
 ```
 
-Expected: a `project: fetched ...` line ending `retries 0`, and the same two memories, in
-the same order. The merge never loses a record because memory is an append-only log:
+Expected: `project: fetched 1, merged 1, pushed 0, retries 0`, and the same two memories, in
+the same order. Nothing is pushed: the remote already has everything Alice now has. The merge never loses a record because memory is an append-only log:
 both sides only ever added lines.
 
 ## Personal memory stays home
@@ -162,7 +162,8 @@ ynm sync
 git -C /tmp/ynm-tutorial/remote.git for-each-ref --format='%(refname)'
 ```
 
-Expected: `remembered <id> in personal`, a sync line, and the remote's refs, only the code branch
+Expected: `remembered <id> in personal, level personal, namespace user/tutorial`, a sync line, and
+the remote's refs, only the code branch
 and the distributed memory:
 
 ```text

@@ -17,12 +17,12 @@ import {
   defaultTextMapSetter,
   type Histogram,
   ROOT_CONTEXT,
+  SeverityNumber,
   type Span,
   SpanKind,
   SpanStatusCode,
   trace,
 } from "@opentelemetry/api";
-import { SeverityNumber } from "@opentelemetry/api-logs";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import {
   type ExportResult,
