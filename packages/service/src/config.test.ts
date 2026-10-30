@@ -115,13 +115,15 @@ describe("loadConfig (ADR-009)", () => {
     expect(config.dream.judge).toBe("auto");
   });
 
-  it("carries sync defaults and a five minute floor", () => {
+  it("carries sync defaults, a five minute floor and a one day ceiling", () => {
     const home = mkdtempSync(join(tmpdir(), "ynm-sync-"));
     const { config } = loadConfig({ home }, {});
     expect(config.sync).toEqual({ auto: false, intervalMinutes: 5 });
     writeFileSync(join(home, "config.json"), JSON.stringify({ sync: { auto: true } }));
     expect(loadConfig({ home }, {}).config.sync).toEqual({ auto: true, intervalMinutes: 5 });
     writeFileSync(join(home, "config.json"), JSON.stringify({ sync: { intervalMinutes: 4 } }));
+    expect(() => loadConfig({ home }, {})).toThrow();
+    writeFileSync(join(home, "config.json"), JSON.stringify({ sync: { intervalMinutes: 1441 } }));
     expect(() => loadConfig({ home }, {})).toThrow();
     writeFileSync(join(home, "config.json"), JSON.stringify({ sync: { intervalMinutes: 15 } }));
     expect(loadConfig({ home }, {}).config.sync.intervalMinutes).toBe(15);

@@ -105,7 +105,7 @@ Automatic sync from the client Stop hook, under the `sync` key. Off by default.
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `sync.auto` | boolean | `false` | Sync distributed memory in the background from the client Stop hook |
-| `sync.intervalMinutes` | integer >= 5 | `5` | Least minutes between automatic syncs of a repository; at least 5, because the Stop hook opens the store once per 5 minutes per session |
+| `sync.intervalMinutes` | integer 5..1440 | `5` | Least minutes between automatic syncs of a repository; from 5, because the Stop hook opens the store once per 5 minutes per session, to 1440, a day |
 <!-- /gen:sync-keys -->
 
 With `sync.auto` on, the Stop hook (`ynm hook stop`, after every agent turn) starts

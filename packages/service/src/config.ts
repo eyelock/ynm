@@ -84,9 +84,10 @@ export const SyncConfigSchema = z
       .number()
       .int()
       .min(5)
+      .max(1440)
       .default(5)
       .describe(
-        "Least minutes between automatic syncs of a repository; at least 5, because the Stop hook opens the store once per 5 minutes per session"
+        "Least minutes between automatic syncs of a repository; from 5, because the Stop hook opens the store once per 5 minutes per session, to 1440, a day"
       ),
   })
   .strict();
