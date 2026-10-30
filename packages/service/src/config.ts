@@ -74,6 +74,24 @@ export const DEFAULT_REDACTION = [
   "(?i)bearer\\s+[A-Za-z0-9._-]{20,}",
 ];
 
+export const SyncConfigSchema = z
+  .object({
+    auto: z
+      .boolean()
+      .default(false)
+      .describe("Sync distributed memory in the background from the client Stop hook"),
+    intervalMinutes: z
+      .number()
+      .int()
+      .min(5)
+      .default(5)
+      .describe(
+        "Least minutes between automatic syncs of a repository; at least 5, because the Stop hook opens the store once per 5 minutes per session"
+      ),
+  })
+  .strict();
+export type SyncConfig = z.infer<typeof SyncConfigSchema>;
+
 export const YnmConfigSchema = z
   .object({
     anchor: ShaSchema.optional().describe("Anchor commit for this repository's distributed notes"),
@@ -99,6 +117,7 @@ export const YnmConfigSchema = z
     hooks: z.boolean().default(true).describe("Install git hooks on init"),
     index: z.enum(["sqlite-fts", "memory"]).default("sqlite-fts").describe("Index implementation"),
     dream: DreamConfigSchema.prefault({}).describe("Judge, Writer and consolidation thresholds"),
+    sync: SyncConfigSchema.prefault({}).describe("Automatic sync from the client Stop hook"),
   })
   .strict();
 export type YnmConfig = z.infer<typeof YnmConfigSchema>;

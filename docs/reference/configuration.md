@@ -97,6 +97,28 @@ xox[baprs]-[A-Za-z0-9-]{10,}
 ```
 <!-- /gen:redaction-defaults -->
 
+## The sync block
+
+Automatic sync from the client Stop hook, under the `sync` key. Off by default.
+
+<!-- gen:sync-keys -->
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `sync.auto` | boolean | `false` | Sync distributed memory in the background from the client Stop hook |
+| `sync.intervalMinutes` | integer >= 5 | `5` | Least minutes between automatic syncs of a repository; at least 5, because the Stop hook opens the store once per 5 minutes per session |
+<!-- /gen:sync-keys -->
+
+With `sync.auto` on, the Stop hook (`ynm hook stop`, after every agent turn) starts
+`ynm sync --quiet` in the background when a distributed mount holds writes the remote has not
+seen and the repository was last synced automatically more than `sync.intervalMinutes` ago. It is
+a full sync (fetch, merge, push) of distributed mounts, never the personal store. A write made
+inside the interval is not lost or skipped: it is still unsent at the first Stop after the
+interval, and goes then. The hook never waits for the sync and never fails because of it.
+
+The interval cannot go below 5 minutes because the Stop hook opens the store at most once per
+5 minutes per session, so that is the finest it can act. The last launch is recorded per
+repository in `$YNM_HOME/hooks/`, shared by every session in it.
+
 ## The dream block
 
 Models and consolidation thresholds, under the `dream` key. See

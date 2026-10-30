@@ -386,16 +386,22 @@ async function configurationBlocks() {
   const { DreamConfigSchema } = await load("packages/model/dist/index.js");
   const json = jsonSchema(YnmConfigSchema);
   const defaults = YnmConfigSchema.parse({});
-  const top = schemaRows({ ...json, properties: { ...json.properties, dream: undefined } }, {
+  const top = schemaRows({ ...json, properties: { ...json.properties, dream: undefined, sync: undefined } }, {
     defaults,
-  }).filter((r) => r.name !== "dream");
+  }).filter((r) => r.name !== "dream" && r.name !== "sync");
   const dreamJson = jsonSchema(DreamConfigSchema);
   const dream = schemaRows(dreamJson, {
     prefix: "dream.",
     defaults: DreamConfigSchema.parse({}),
   });
+  const { SyncConfigSchema } = await load("packages/service/dist/config.js");
+  const sync = schemaRows(jsonSchema(SyncConfigSchema), {
+    prefix: "sync.",
+    defaults: SyncConfigSchema.parse({}),
+  });
   return {
     "config-keys": keyTable(top),
+    "sync-keys": keyTable(sync),
     "dream-keys": keyTable(dream),
     "redaction-defaults": ["```text", ...DEFAULT_REDACTION, "```"].join("\n"),
   };

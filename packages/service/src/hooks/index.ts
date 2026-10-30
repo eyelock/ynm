@@ -27,3 +27,4 @@ export async function stopHook(ynm: Ynm, input: HookInput): Promise<HookOutput> 
   if (input.session_id) await new Lifecycle(ynm).expireSession(input.session_id);
   return {};
 }
+export * from "./autosync.js";

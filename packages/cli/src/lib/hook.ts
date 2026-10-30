@@ -1,4 +1,6 @@
+import { spawn } from "node:child_process";
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -59,6 +61,29 @@ export function stopThrottled(sessionId: string, now = Date.now()): boolean {
   return false;
 }
 
+/**
+ * Starts `ynm sync --quiet` detached in `cwd`, so the turn never waits on it. A single-executable
+ * build re-runs itself; otherwise Node re-runs the script it was started from (bin/run.js, or the
+ * bundle's ynm.mjs).
+ */
+export function launchSync(cwd: string): void {
+  let sea = false;
+  try {
+    sea = (createRequire(import.meta.url)("node:sea") as { isSea(): boolean }).isSea();
+  } catch {
+    // an older Node without node:sea is never a single executable
+  }
+  const args = sea ? ["sync", "--quiet"] : [process.argv[1] as string, "sync", "--quiet"];
+  spawn(process.execPath, args, {
+    cwd,
+    detached: true,
+    stdio: "ignore",
+    env: { ...process.env, YNM_NO_CLAUDE_CLI: "1" },
+  })
+    .on("error", () => {})
+    .unref();
+}
+
 async function answer(event: string, input: HookInput, cwdFlag?: string): Promise<HookOutput> {
   if (!(HOOK_EVENTS as readonly string[]).includes(event)) {
     process.stderr.write(`ynm hook: unknown event "${event}" (have: ${HOOK_EVENTS.join(", ")})\n`);
@@ -69,10 +94,23 @@ async function answer(event: string, input: HookInput, cwdFlag?: string): Promis
   if (e === "stop" && (!input.session_id || stopThrottled(input.session_id))) return {};
   const cwd = cwdFlag ?? (typeof input.cwd === "string" && input.cwd ? input.cwd : undefined);
   // Loaded only when the store is needed, so the prompt hook and a throttled stop start fast.
-  const { openYnm, sessionStartHook, stopHook } = await import("@ynm/service");
+  const { autoSyncOnStop, openYnm, sessionStartHook, stopHook } = await import("@ynm/service");
   // Hooks run on the client's clock: skip the Claude CLI probe, which only picks a dream writer.
-  const { ynm } = await openYnm({ cwd, env: { ...process.env, YNM_NO_CLAUDE_CLI: "1" } });
-  return e === "session-start" ? sessionStartHook(ynm, input) : stopHook(ynm, input);
+  const { ynm, loaded, worktree } = await openYnm({
+    cwd,
+    env: { ...process.env, YNM_NO_CLAUDE_CLI: "1" },
+  });
+  if (e === "session-start") return sessionStartHook(ynm, input);
+  const out = await stopHook(ynm, input);
+  if (worktree.isGitRepo)
+    await autoSyncOnStop(ynm, {
+      sync: loaded.config.sync,
+      env: process.env,
+      home: loaded.home,
+      repo: worktree.mainRepoPath,
+      launch: () => launchSync(worktree.currentPath),
+    });
+  return out;
 }
 
 /**
