@@ -1,5 +1,27 @@
 # @ynm/cli
 
+## 0.4.2
+
+### Patch Changes
+
+- [#83](https://github.com/eyelock/ynm/pull/83) [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7) Thanks [@eyelock](https://github.com/eyelock)! - `ynm client install ynh` now adds ynm's store, identity and configuration variables (`YNM_HOME`, `YNM_USER` and the like) to the harness's `env_passthrough`. ynh hides every other variable from a worker, so without them the MCP server and hooks silently used `~/.ynm`, your real personal store. `ynm client status` and `ynm doctor` report a harness without `YNM_HOME` as not fully configured, and `ynm doctor` warns in a ynh worker where `YNM_HOME` is unset.
+
+- [#101](https://github.com/eyelock/ynm/pull/101) [`679df43`](https://github.com/eyelock/ynm/commit/679df4366d31107dbb06939d2f160feeff36e288) Thanks [@eyelock](https://github.com/eyelock)! - `remember`'s note about similar memories now compares a new memory only with memories in its own namespace. A namespace has one owner, so a memory in another one is never a duplicate to supersede; before, two seats writing alike records in their own namespaces were each told to supersede the other's.
+  
+  `ynm remember` now says the memory's level and namespace as well as its mount: `remembered <id> in project, level distributed, namespace common`. The mount's name (`project`) read like a level, and the only levels are `personal` and `distributed`. A write's JSON result has `namespace` and `level` too.
+
+- [#103](https://github.com/eyelock/ynm/pull/103) [`688845c`](https://github.com/eyelock/ynm/commit/688845cd1766ecde130b45f3ffe2c7e050c9317d) Thanks [@eyelock](https://github.com/eyelock)! - `ynm sync` counts only what it moved. `fetched` is the number of refs the fetch brought something new for, and `pushed` lists the refs the push changed on the remote, so a sync with nothing to move reports `fetched 0, merged 0, pushed 0`. Before, it reported every ref the remote had as fetched and every local ref as pushed, so a run couldn't show whether anything changed.
+  
+  A command whose output is cut short, such as `ynm sync --json | head`, now exits 0 quietly. Before, it exited 13 with Node's "unsettled top-level await" warning on stderr.
+- Updated dependencies [[`71c7d7d`](https://github.com/eyelock/ynm/commit/71c7d7de2f68b121c403c708180a203ab4147dfa), [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7), [`d7368e1`](https://github.com/eyelock/ynm/commit/d7368e18633a316b2f4fea49e5e1e66410d7d255), [`7be4f27`](https://github.com/eyelock/ynm/commit/7be4f275cdb6d0c2189f1b7cdcdb54415899886e), [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7), [`679df43`](https://github.com/eyelock/ynm/commit/679df4366d31107dbb06939d2f160feeff36e288), [`688845c`](https://github.com/eyelock/ynm/commit/688845cd1766ecde130b45f3ffe2c7e050c9317d)]:
+  - @ynm/store@0.4.2
+  - @ynm/service@0.4.2
+  - @ynm/mcp@0.4.2
+  - @ynm/telemetry@0.4.1
+  - @ynm/index@0.3.3
+  - @ynm/wiki@0.3.3
+  - @ynm/models@0.4.2
+
 ## 0.4.1
 
 ### Patch Changes

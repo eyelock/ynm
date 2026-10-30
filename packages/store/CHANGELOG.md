@@ -1,5 +1,17 @@
 # @ynm/store
 
+## 0.4.2
+
+### Patch Changes
+
+- [#93](https://github.com/eyelock/ynm/pull/93) [`71c7d7d`](https://github.com/eyelock/ynm/commit/71c7d7de2f68b121c403c708180a203ab4147dfa) Thanks [@eyelock](https://github.com/eyelock)! - A git-notes store now reads a shard holding non-ASCII text (an em dash, curly quotes, an accent) correctly. The reader measured each shard in characters where git counts bytes, so it ran past the shard's end into the next one: `ynm doctor` reported a store that was fine as corrupt (`invalid JSON: Unexpected token 'r', "refs/no"`), and in some layouts the shards read after it could be misread. Nothing was written wrongly; stores need no repair.
+
+- [#103](https://github.com/eyelock/ynm/pull/103) [`688845c`](https://github.com/eyelock/ynm/commit/688845cd1766ecde130b45f3ffe2c7e050c9317d) Thanks [@eyelock](https://github.com/eyelock)! - `ynm sync` counts only what it moved. `fetched` is the number of refs the fetch brought something new for, and `pushed` lists the refs the push changed on the remote, so a sync with nothing to move reports `fetched 0, merged 0, pushed 0`. Before, it reported every ref the remote had as fetched and every local ref as pushed, so a run couldn't show whether anything changed.
+  
+  A command whose output is cut short, such as `ynm sync --json | head`, now exits 0 quietly. Before, it exited 13 with Node's "unsettled top-level await" warning on stderr.
+- Updated dependencies [[`7be4f27`](https://github.com/eyelock/ynm/commit/7be4f275cdb6d0c2189f1b7cdcdb54415899886e)]:
+  - @ynm/telemetry@0.4.1
+
 ## 0.4.1
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @ynm/mcp
 
+## 0.4.2
+
+### Patch Changes
+
+- [#92](https://github.com/eyelock/ynm/pull/92) [`d7368e1`](https://github.com/eyelock/ynm/commit/d7368e18633a316b2f4fea49e5e1e66410d7d255) Thanks [@eyelock](https://github.com/eyelock)! - A hosted function now logs why its process went away, which Lambda alone does not: an uncaught exception or promise rejection with its stack, the exit code, or a SIGTERM, each with the request or scheduled run in progress at the time (or `between invocations`). A fatal error inside Node is reported on stderr as one line, without the function's environment. Before, such a crash left only Lambda's `Runtime.ExitError` and an empty `500` for the client.
+- Updated dependencies [[`71c7d7d`](https://github.com/eyelock/ynm/commit/71c7d7de2f68b121c403c708180a203ab4147dfa), [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7), [`7be4f27`](https://github.com/eyelock/ynm/commit/7be4f275cdb6d0c2189f1b7cdcdb54415899886e), [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7), [`679df43`](https://github.com/eyelock/ynm/commit/679df4366d31107dbb06939d2f160feeff36e288), [`688845c`](https://github.com/eyelock/ynm/commit/688845cd1766ecde130b45f3ffe2c7e050c9317d)]:
+  - @ynm/store@0.4.2
+  - @ynm/service@0.4.2
+  - @ynm/telemetry@0.4.1
+  - @ynm/index@0.3.3
+  - @ynm/wiki@0.3.3
+
 ## 0.4.1
 
 ### Patch Changes
