@@ -1,5 +1,11 @@
 # @ynm/telemetry
 
+## 0.4.1
+
+### Patch Changes
+
+- [#102](https://github.com/eyelock/ynm/pull/102) [`7be4f27`](https://github.com/eyelock/ynm/commit/7be4f275cdb6d0c2189f1b7cdcdb54415899886e) Thanks [@eyelock](https://github.com/eyelock)! - Telemetry runs on OpenTelemetry 3: the API at 1.10, the SDK at 3.0, the OTLP exporters at 0.300, and the ynr spool exporter at 0.3.0. The logs API now comes from `@opentelemetry/api`, so `@opentelemetry/api-logs` is gone. What ynm sends, and where, is unchanged.
+
 ## 0.4.0
 
 ### Minor Changes

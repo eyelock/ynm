@@ -1,5 +1,24 @@
 # @ynm/service
 
+## 0.4.2
+
+### Patch Changes
+
+- [#83](https://github.com/eyelock/ynm/pull/83) [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7) Thanks [@eyelock](https://github.com/eyelock)! - `ynm client install ynh` now adds ynm's store, identity and configuration variables (`YNM_HOME`, `YNM_USER` and the like) to the harness's `env_passthrough`. ynh hides every other variable from a worker, so without them the MCP server and hooks silently used `~/.ynm`, your real personal store. `ynm client status` and `ynm doctor` report a harness without `YNM_HOME` as not fully configured, and `ynm doctor` warns in a ynh worker where `YNM_HOME` is unset.
+
+- [#83](https://github.com/eyelock/ynm/pull/83) [`9774b45`](https://github.com/eyelock/ynm/commit/9774b456d02943651de7a7e842babd271db5c6e7) Thanks [@eyelock](https://github.com/eyelock)! - The derived `.ynm/index/` folder, and the default `.ynm/wiki/` folder, now hold a `.gitignore` of `*` that ynm writes when it opens the index or builds the wiki, and when an existing folder lacks one. They ignore themselves in every clone, not only the one where `ynm init` wrote `.git/info/exclude`, so a clone that never ran init no longer shows `.ynm/index/project.sqlite` as untracked.
+
+- [#101](https://github.com/eyelock/ynm/pull/101) [`679df43`](https://github.com/eyelock/ynm/commit/679df4366d31107dbb06939d2f160feeff36e288) Thanks [@eyelock](https://github.com/eyelock)! - `remember`'s note about similar memories now compares a new memory only with memories in its own namespace. A namespace has one owner, so a memory in another one is never a duplicate to supersede; before, two seats writing alike records in their own namespaces were each told to supersede the other's.
+  
+  `ynm remember` now says the memory's level and namespace as well as its mount: `remembered <id> in project, level distributed, namespace common`. The mount's name (`project`) read like a level, and the only levels are `personal` and `distributed`. A write's JSON result has `namespace` and `level` too.
+- Updated dependencies [[`71c7d7d`](https://github.com/eyelock/ynm/commit/71c7d7de2f68b121c403c708180a203ab4147dfa), [`7be4f27`](https://github.com/eyelock/ynm/commit/7be4f275cdb6d0c2189f1b7cdcdb54415899886e), [`688845c`](https://github.com/eyelock/ynm/commit/688845cd1766ecde130b45f3ffe2c7e050c9317d)]:
+  - @ynm/store@0.4.2
+  - @ynm/telemetry@0.4.1
+  - @ynm/index@0.3.3
+  - @ynm/store-s3@0.3.3
+  - @ynm/wiki@0.3.3
+  - @ynm/models@0.4.2
+
 ## 0.4.1
 
 ### Patch Changes
