@@ -77,6 +77,11 @@ export interface YnmOptions {
   remotes?: RemoteStore[];
 }
 
+/** A read named a mount this store does not have; the CLI exits 2 on it, as for any refused input. */
+export class UnknownMountError extends Error {
+  override name = "UnknownMountError";
+}
+
 /** How long session context waits for a remote before going on without it. */
 export const REMOTE_CONTEXT_TIMEOUT_MS = 3000;
 /** The share of the context budget a remote's section may take. */
@@ -272,6 +277,17 @@ export class Ynm {
   }
 
   /**
+   * Throws when a read names a mount that is neither local nor remote. Otherwise the filter
+   * matches nothing, and a typo or the wrong directory reads as an empty store.
+   */
+  requireMount(id: string | undefined): void {
+    if (!id || this.mounts.some((m) => m.id === id) || this.remotes.some((r) => r.id === id))
+      return;
+    const have = [...this.mounts.map((m) => m.id), ...this.remotes.map((r) => r.id)];
+    throw new UnknownMountError(`no mount "${id}" (have: ${have.join(", ") || "none"})`);
+  }
+
+  /**
    * The level a read or a session works at when the caller names none: personal when a personal
    * mount is open, else distributed (a hosted server mounts no personal store). A new memory never
    * defaults to distributed: see `remember`.
@@ -348,6 +364,7 @@ export class Ynm {
   }
 
   private mountsFor(q: { mount?: string; level?: Level[] }): Mount[] {
+    this.requireMount(q.mount);
     return this.mounts.filter(
       (m) => (!q.mount || m.id === q.mount) && (!q.level?.length || q.level.includes(m.level))
     );
@@ -407,6 +424,7 @@ export class Ynm {
 
   /** The remotes a read reaches: distributed ones, unless the query names another mount or level. */
   private remotesFor(q: { mount?: string; level?: Level[] }): RemoteStore[] {
+    this.requireMount(q.mount);
     return this.remotes.filter(
       (r) => (!q.mount || r.id === q.mount) && (!q.level?.length || q.level.includes("distributed"))
     );
@@ -540,6 +558,7 @@ export class Ynm {
   }
 
   async reindex(mountId?: string): Promise<Record<string, number>> {
+    this.requireMount(mountId);
     const index = this.requireIndex();
     const out: Record<string, number> = {};
     for (const mount of this.mounts) {
@@ -987,6 +1006,7 @@ export class Ynm {
     f: ListOptions = { includeTombstoned: false },
     onProblem?: (m: string, p: ParseProblem) => void
   ): Promise<Array<MemoryRecord & { mount: string }>> {
+    this.requireMount(f.mount);
     const out: Array<MemoryRecord & { mount: string }> = [];
     for (const mount of this.mounts) {
       if (f.mount && mount.id !== f.mount) continue;
@@ -999,6 +1019,7 @@ export class Ynm {
 
   /** Folded memories across mounts, newest first (ADR-004). */
   async list(f: ListOptions = { includeTombstoned: false }): Promise<MemoryWithMount[]> {
+    this.requireMount(f.mount);
     const out: MemoryWithMount[] = [];
     for (const mount of this.mounts) {
       if (f.mount && mount.id !== f.mount) continue;
@@ -1043,6 +1064,7 @@ export class Ynm {
 
   /** Syncs every replicating distributed mount. Personal mounts sync only when named explicitly. */
   async sync(opts: SyncOptions & { mount?: string } = {}): Promise<Record<string, SyncResult>> {
+    this.requireMount(opts.mount);
     const results: Record<string, SyncResult> = {};
     for (const mount of this.mounts) {
       if (opts.mount ? mount.id !== opts.mount : mount.level !== "distributed") continue;

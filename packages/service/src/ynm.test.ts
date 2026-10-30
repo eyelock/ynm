@@ -6,7 +6,7 @@ import { type Judge, type Judgment, NoneWriter, type Question } from "@ynm/model
 import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "./config.js";
 import { RedactionError } from "./redaction.js";
-import { ShareRequiredError, Ynm } from "./ynm.js";
+import { ShareRequiredError, UnknownMountError, Ynm } from "./ynm.js";
 
 function make(withProject = true): Ynm {
   const mounts = [
@@ -229,6 +229,23 @@ describe("Ynm routing and lookup errors", () => {
     const empty = new Ynm({ mounts: [], actor: "t", userId: "u", redaction: [] });
     expect(() => empty.mount("org")).toThrow(/have: none/);
     expect(() => empty.routeFor("personal")).toThrow(/no personal mount available/);
+  });
+
+  it("refuses a read that names a mount it does not have, rather than finding nothing", async () => {
+    const y = make();
+    const unknown = /no mount "org" \(have: personal, project\)/;
+    await expect(y.list({ includeTombstoned: false, mount: "org" })).rejects.toThrow(
+      UnknownMountError
+    );
+    await expect(y.list({ includeTombstoned: false, mount: "org" })).rejects.toThrow(unknown);
+    await expect(y.records({ includeTombstoned: true, mount: "org" })).rejects.toThrow(unknown);
+    await expect(y.exportJsonl({ includeTombstoned: true, mount: "org" })).rejects.toThrow(unknown);
+    await expect(y.reviewQueue("org")).rejects.toThrow(unknown);
+    await expect(y.reindex("org")).rejects.toThrow(unknown);
+    await expect(y.sync({ mount: "org" })).rejects.toThrow(unknown);
+    expect(() => y.requireMount(undefined)).not.toThrow();
+    expect(() => y.requireMount("project")).not.toThrow();
+    expect(await y.list({ includeTombstoned: false, mount: "project" })).toEqual([]);
   });
 
   it("refuses a named mount whose level does not match the record", async () => {
