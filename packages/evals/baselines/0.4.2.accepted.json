@@ -1,0 +1,3 @@
+{
+  "load+fold@100000": "the frozen p95 (1559 ms) caught a noisy run: three interleaved runs without writing on the same machine gave 0.4.2 p50 583, 609, 601 ms and p95 800, 651, 614 ms against 0.4.1's p50 524, 482, 483 ms and p95 550, 517, 513 ms. A real slowdown of about 20% at 100000 records, not 3x; 1000 and 10000 are unchanged or faster."
+}
