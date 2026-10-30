@@ -53,7 +53,7 @@ Rotate it the same way: create a second key, reconfigure the profile, then
 Runs that build infrastructure (`infra/aws`) use the `ynm-provisioner` profile instead, made the
 same way (`aws iam create-access-key --user-name ynm-provisioner`, then
 `aws configure --profile ynm-provisioner`). It can use the state too, so one profile is enough
-for those runs. It can create IAM roles only under `/ynm/` and only with the
+for those runs, and it can read the stores' logs (`/ynm/*` log groups) to check them. It can create IAM roles only under `/ynm/` and only with the
 `ynm-workload-boundary` boundary, which caps what any ynm workload can do; it cannot change the
 boundary, other IAM users, or this configuration. The regions it may build in and the DNS names
 it may create (`*.ynm.eyelock.net`) are locals at the top of `provisioner.tf`.
