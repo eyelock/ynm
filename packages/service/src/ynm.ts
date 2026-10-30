@@ -1055,6 +1055,14 @@ export class Ynm {
     return results;
   }
 
+  /** True when a replicating distributed mount holds writes the remote has not seen; local only. */
+  async hasUnpushed(): Promise<boolean> {
+    for (const mount of this.mounts)
+      if (mount.level === "distributed" && mount.log.unpushed && (await mount.log.unpushed()))
+        return true;
+    return false;
+  }
+
   async status(): Promise<{
     mounts: Array<{
       id: string;

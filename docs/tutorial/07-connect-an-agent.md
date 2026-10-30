@@ -250,6 +250,9 @@ echo '{"session_id":"tutorial-session","hook_event_name":"Stop"}' | ynm hook sto
 Expected: `{}`. A hook never fails the session: empty or broken input, or any error, still
 prints `{}` and exits 0, with the error on stderr.
 
+With `sync.auto` set, the stop hook also starts a background `ynm sync --quiet` when there are
+unpushed distributed writes (tutorial 6; [configuration](../reference/configuration.md#the-sync-block)).
+
 ## Status and the manual form
 
 `ynm client status` checks every supported client without changing anything:

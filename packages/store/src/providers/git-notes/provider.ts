@@ -22,7 +22,7 @@ import { objectPresent } from "./anchor.js";
 import { assertDocumentName, commitDocument, readDocumentAt } from "./documents.js";
 import { assertSha, git, gitBytes, gitCommonDir, gitOrNull, identityEnv } from "./git.js";
 import { documentRef, keyFromRef, NOTES_PREFIX, refFor, refPrefixFor } from "./refs.js";
-import { syncDistributed } from "./sync.js";
+import { hasUnpushed, syncDistributed } from "./sync.js";
 
 export interface GitNotesLogOptions {
   /** Repository path (work tree or bare). */
@@ -293,6 +293,10 @@ export class GitNotesLog implements RecordLog {
       },
       LOCK_TIMEOUT_MS
     );
+  }
+
+  unpushed(): Promise<boolean> {
+    return hasUnpushed(this.repo, this.level, this.remote);
   }
 
   async sync(options: SyncOptions = {}): Promise<SyncResult> {

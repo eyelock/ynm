@@ -24,7 +24,7 @@ export interface SyncParams {
 
 const MAX_ROUNDS = 3;
 
-async function listRefs(repo: string, prefix: string): Promise<Map<string, string>> {
+export async function listRefs(repo: string, prefix: string): Promise<Map<string, string>> {
   const out = await git(["for-each-ref", "--format=%(refname) %(objectname)", prefix], {
     cwd: repo,
   });
@@ -123,6 +123,41 @@ async function pushableDocuments(p: SyncParams, conflicted: Set<string>): Promis
   return [...(await listRefs(p.repo, prefix)).keys()].filter(
     (ref) => !conflicted.has(ref.slice(prefix.length))
   );
+}
+
+/**
+ * True when a local notes or document ref at this level differs from, or is missing in, the
+ * remote-tracking copy: something written here that the last sync has not seen the remote hold.
+ * Local only, no network. False when the remote is not configured, since nothing could be pushed.
+ */
+export async function hasUnpushed(repo: string, level: Level, remote: string): Promise<boolean> {
+  if (!(await gitOrNull(["remote", "get-url", remote], { cwd: repo }))?.trim()) return false;
+  const dir = levelDir(level);
+  const pairs: Array<[string, string]> = [
+    [`${NOTES_PREFIX}/${dir}/`, `${REMOTE_PREFIX}/${remote}/${dir}/`],
+    [documentPrefix(level), documentTrackingPrefix(remote, level)],
+  ];
+  for (const [local, tracking] of pairs) {
+    const tracked = await listRefs(repo, tracking);
+    for (const [ref, sha] of await listRefs(repo, local))
+      if (tracked.get(tracking + ref.slice(local.length)) !== sha) return true;
+  }
+  return false;
+}
+
+/** Points the tracking ref for a ref the remote now holds at our copy of it. */
+async function recordPushed(
+  p: SyncParams,
+  ref: string,
+  notesLocal: string,
+  notesTracking: string
+): Promise<void> {
+  const docs = documentPrefix(p.level);
+  const tracked = ref.startsWith(docs)
+    ? documentTrackingPrefix(p.remote, p.level) + ref.slice(docs.length)
+    : notesTracking + ref.slice(notesLocal.length);
+  const sha = (await gitOrNull(["rev-parse", "--verify", "-q", ref], { cwd: p.repo }))?.trim();
+  if (sha) await gitOrNull(["update-ref", tracked, sha], { cwd: p.repo });
 }
 
 /**
@@ -231,6 +266,9 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
     try {
       const out = await git(["push", "--porcelain", target, ...refspecs], { cwd: p.repo, env });
       result.pushed = pushedRefs(out);
+      // Push only updates tracking refs that a configured fetch line maps (not documents, not a
+      // mirror's URL target), so record what the remote now holds for `hasUnpushed`.
+      for (const ref of [...notes, ...documents]) await recordPushed(p, ref, local, tracking);
       return result;
     } catch (err) {
       const msg = (err as Error).message;

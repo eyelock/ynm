@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { REMEMBER_NUDGE, SESSION_START_PREFIX } from "@ynm/service";
@@ -139,6 +148,60 @@ describe("ynm hook", () => {
     expect(r.status).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual({});
   });
+
+  it("stop with sync.auto syncs an unpushed write in the background", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ynm-hook-autosync-"));
+    const git = (dir: string, ...args: string[]) => {
+      const r = spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+      expect(r.status, r.stderr).toBe(0);
+      return r.stdout;
+    };
+    const remote = join(root, "remote.git");
+    const repo = join(root, "repo");
+    git(root, "init", "-q", "--bare", "-b", "main", remote);
+    git(root, "init", "-q", "-b", "main", repo);
+    git(repo, "remote", "add", "origin", remote);
+    git(
+      repo,
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@x",
+      "commit",
+      "-q",
+      "--allow-empty",
+      "-m",
+      "first"
+    );
+    git(repo, "push", "-q", "-u", "origin", "main");
+    expect(ynm(repo, "init").status).toBe(0);
+    const config = join(repo, ".ynm", "config.json");
+    writeFileSync(
+      config,
+      JSON.stringify({ ...JSON.parse(readFileSync(config, "utf8")), sync: { auto: true } })
+    );
+    const remembered = ynm(
+      repo,
+      "remember",
+      "--type",
+      "semantic",
+      "--level",
+      "distributed",
+      "--content",
+      "Auto-sync carries this to the remote."
+    );
+    expect(remembered.status).toBe(0);
+    const remoteRefs = () => git(remote, "for-each-ref", "refs/notes/ynm/distributed").trim();
+    expect(remoteRefs()).toBe("");
+
+    expect(hook(repo, "stop", hookJson({ session_id: "autosync-test", cwd: repo })).out).toEqual(
+      {}
+    );
+    const stamps = readdirSync(join(testYnmHome, "hooks")).filter((f) => f.startsWith("autosync-"));
+    expect(stamps.length).toBeGreaterThan(0);
+    for (let i = 0; i < 100 && !remoteRefs(); i++) await new Promise((r) => setTimeout(r, 100));
+    expect(remoteRefs()).toMatch(/refs\/notes\/ynm\/distributed\//);
+  }, 30_000);
 
   it("an error opening the store becomes {} with the message on stderr", () => {
     const home = mkdtempSync(join(tmpdir(), "ynm-hook-home-"));
