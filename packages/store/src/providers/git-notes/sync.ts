@@ -36,6 +36,29 @@ async function listRefs(repo: string, prefix: string): Promise<Map<string, strin
   return map;
 }
 
+/** The remote-tracking refs for notes and documents, by name, with their objects. */
+async function trackedRefs(
+  repo: string,
+  notes: string,
+  documents: string
+): Promise<Map<string, string>> {
+  return new Map([...(await listRefs(repo, notes)), ...(await listRefs(repo, documents))]);
+}
+
+/**
+ * The refs `git push --porcelain` says it changed on the remote: new (`*`), fast-forwarded
+ * (` `) or forced (`+`). Ones already up to date (`=`) are left out, so a sync that moved
+ * nothing reports nothing pushed.
+ */
+export function pushedRefs(porcelain: string): string[] {
+  const refs: string[] = [];
+  for (const line of porcelain.split("\n")) {
+    const m = /^([ *+])\t[^:]*:([^\t]+)\t/.exec(line);
+    if (m?.[2]) refs.push(m[2]);
+  }
+  return refs;
+}
+
 async function isAncestor(repo: string, a: string, b: string): Promise<boolean> {
   return (await gitOrNull(["merge-base", "--is-ancestor", a, b], { cwd: repo })) !== null;
 }
@@ -56,7 +79,6 @@ async function reconcileDocuments(
   const remoteRefs = await listRefs(p.repo, tracking);
   const localRefs = await listRefs(p.repo, local);
   const conflicted = new Set<string>();
-  result.fetched += remoteRefs.size;
   for (const [rref, rsha] of remoteRefs) {
     const name = rref.slice(tracking.length);
     const label = `documents/${name}`;
@@ -154,19 +176,22 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
     if (doPull) {
       // The remote may have no notes at all yet; an empty refspec match is not an error we care about.
       // Documents are fetched with an explicit refspec only; no config line is added for them.
+      const docTracking = documentTrackingPrefix(p.remote, p.level);
+      const before = await trackedRefs(p.repo, tracking, docTracking);
       await gitOrNull(
         [
           "fetch",
           "--quiet",
           target,
           `+${local}*:${tracking}*`,
-          `+${documentPrefix(p.level)}*:${documentTrackingPrefix(p.remote, p.level)}*`,
+          `+${documentPrefix(p.level)}*:${docTracking}*`,
         ],
         { cwd: p.repo, env }
       );
+      for (const [ref, sha] of await trackedRefs(p.repo, tracking, docTracking))
+        if (before.get(ref) !== sha) result.fetched += 1;
       const remoteRefs = await listRefs(p.repo, tracking);
       const localRefs = await listRefs(p.repo, local);
-      result.fetched = remoteRefs.size;
       conflicted = await reconcileDocuments(p, env, result);
       for (const [rref, rsha] of remoteRefs) {
         const lref = local + rref.slice(tracking.length);
@@ -204,8 +229,8 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
       ...documents.map((ref) => `${ref}:${ref}`),
     ];
     try {
-      await git(["push", "--quiet", target, ...refspecs], { cwd: p.repo, env });
-      result.pushed = [...notes, ...documents];
+      const out = await git(["push", "--porcelain", target, ...refspecs], { cwd: p.repo, env });
+      result.pushed = pushedRefs(out);
       return result;
     } catch (err) {
       const msg = (err as Error).message;

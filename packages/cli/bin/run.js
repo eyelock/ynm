@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 
+// The reader went away (`ynm ... | head`): there is no one left to tell, so exit quietly rather
+// than leave a write pending, which Node reports as an unsettled top-level await (exit 13).
+process.stdout.on("error", (err) => {
+  if (err.code === "EPIPE") process.exit(0);
+  throw err;
+});
+
 // Client hooks fire every turn: `ynm hook <event>` skips oclif's startup (ADR-016).
 let handled = false;
 if (process.argv[2] === "hook") {

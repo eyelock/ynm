@@ -147,8 +147,8 @@ ynm sync
 ynm list --level distributed
 ```
 
-Expected: a `project: fetched ...` line ending `retries 0`, and the same two memories, in
-the same order. The merge never loses a record because memory is an append-only log:
+Expected: `project: fetched 1, merged 1, pushed 0, retries 0`, and the same two memories, in
+the same order. Nothing is pushed: the remote already has everything Alice now has. The merge never loses a record because memory is an append-only log:
 both sides only ever added lines.
 
 ## Personal memory stays home
