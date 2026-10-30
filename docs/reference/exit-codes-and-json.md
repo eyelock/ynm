@@ -9,7 +9,7 @@ for the common commands. Captured from the CLI; ids, hashes, paths and times var
 |---|---|---|
 | `0` | Success | Also: `recall` with no matches, `doctor` with only warnings |
 | `1` | The command ran and failed | `sync` reported a conflict; `doctor` found an error-level check failing; an unknown memory id; git or store errors |
-| `2` | The command refused its input | a missing required flag or argument; a value outside a flag's options; an unknown command; input the schema rejects or a malformed JSON flag value (`invalid input: ...`); the redaction gate (`refused: ...`); `purge` without `--yes`; `session end`, `review clear` or `wiki ingest` without their id or file; syncing the personal mount without `--remote` |
+| `2` | The command refused its input | a missing required flag or argument; a value outside a flag's options; a `--mount` naming a mount that does not exist (`no mount "x" (have: ...)`); an unknown command; input the schema rejects or a malformed JSON flag value (`invalid input: ...`); the redaction gate (`refused: ...`); `purge` without `--yes`; `session end`, `review clear` or `wiki ingest` without their id or file; syncing the personal mount without `--remote` |
 
 Errors are printed on stderr, prefixed `Error:`. Output on stdout is only ever the result.
 

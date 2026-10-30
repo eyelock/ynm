@@ -53,6 +53,7 @@ export async function buildWiki(
   ynm: Ynm,
   opts: WikiBuildOptions
 ): Promise<Array<{ mount: string; written: number; location: string }>> {
+  ynm.requireMount(opts.mount);
   const out = [];
   for (const mount of ynm.mounts) {
     if (opts.mount && mount.id !== opts.mount) continue;

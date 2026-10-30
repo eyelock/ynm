@@ -1,6 +1,6 @@
 import { Command, Flags } from "@oclif/core";
 import { MCP_VERSION } from "@ynm/mcp";
-import { DEFAULT_REDACTION, openYnm, RedactionError } from "@ynm/service";
+import { DEFAULT_REDACTION, openYnm, RedactionError, UnknownMountError } from "@ynm/service";
 import {
   ATTR_YNM_COMMAND_NAME,
   EVENT_YNM_COMMAND_STARTED,
@@ -84,6 +84,7 @@ export abstract class YnmCommand extends Command {
 
   protected override async catch(err: Error & { exitCode?: number }): Promise<unknown> {
     if (err instanceof RedactionError) this.error(`refused: ${err.message}`, { exit: 2 });
+    if (err instanceof UnknownMountError) this.error(err.message, { exit: 2 });
     if (err instanceof InvalidInputError) this.error(`invalid input: ${err.message}`, { exit: 2 });
     if (err.name === "ZodError") this.error(`invalid input: ${describeZodError(err)}`, { exit: 2 });
     return super.catch(err);
