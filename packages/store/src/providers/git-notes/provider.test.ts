@@ -14,6 +14,7 @@ import { selectAnchor } from "./anchor.js";
 import { git, gitStats } from "./git.js";
 import { GitNotesLog } from "./provider.js";
 import { refFor } from "./refs.js";
+import { pushedRefs } from "./sync.js";
 
 const writer = fileURLToPath(new URL("../../../test/fixtures/git-writer.mjs", import.meta.url));
 
@@ -336,6 +337,35 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
     await logB.sync();
     await logA.sync();
     expect((await collect(logA)).map((r) => r.id).sort()).toEqual([ra.id, rb.id].sort());
+  });
+
+  it("counts only what a sync moved, so a sync with nothing new reports nothing", async () => {
+    const { logA, logB } = await pair();
+    await logA.append([distributed()]);
+    const first = await logA.sync();
+    expect([first.fetched, first.pushed.length]).toEqual([0, 1]);
+    const again = await logA.sync();
+    expect([again.fetched, again.merged, again.pushed]).toEqual([0, [], []]);
+    const b = await logB.sync();
+    expect([b.fetched, b.merged.length, b.pushed]).toEqual([1, 1, []]);
+    expect((await logB.sync()).fetched).toBe(0);
+  });
+
+  it("reads the refs a push changed from its porcelain output", () => {
+    const out = [
+      "To /tmp/remote.git",
+      "=\trefs/notes/a:refs/notes/a\t[up to date]",
+      " \trefs/notes/b:refs/notes/b\t1a2b3c4..5d6e7f8",
+      "*\trefs/ynm/distributed/documents/people:refs/ynm/distributed/documents/people\t[new reference]",
+      "+\trefs/notes/c:refs/notes/c\t1a2b3c4...5d6e7f8 (forced update)",
+      "!\trefs/notes/d:refs/notes/d\t[rejected] (fetch first)",
+      "Done",
+    ].join("\n");
+    expect(pushedRefs(out)).toEqual([
+      "refs/notes/b",
+      "refs/ynm/distributed/documents/people",
+      "refs/notes/c",
+    ]);
   });
 
   it("merges diverged shards with cat_sort_uniq and retries the rejected push", async () => {

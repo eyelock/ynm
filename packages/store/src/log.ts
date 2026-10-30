@@ -66,8 +66,10 @@ export interface StoreDocument {
 }
 
 export interface SyncResult {
+  /** Refs the fetch brought something new for; 0 when the remote had nothing we lacked. */
   fetched: number;
   merged: string[];
+  /** Refs the push changed on the remote; empty when the remote already had everything. */
   pushed: string[];
   conflicts: string[];
   retries: number;
