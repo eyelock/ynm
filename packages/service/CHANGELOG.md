@@ -1,5 +1,22 @@
 # @ynm/service
 
+## 0.5.0
+
+### Minor Changes
+
+- [#106](https://github.com/eyelock/ynm/pull/106) [`345e5f4`](https://github.com/eyelock/ynm/commit/345e5f4feac1a58a3dc48a205c53f8e065fac8f4) Thanks [@eyelock](https://github.com/eyelock)! - A new `sync.auto` setting (off by default) syncs distributed memory in the background from the agent's Stop hook. When it is on and a distributed mount has writes the remote has not seen, the hook starts `ynm sync --quiet` detached: a full fetch, merge and push, never the personal store, and the turn does not wait for it. It runs at most once per `sync.intervalMinutes` per repository (default and minimum 5, because the Stop hook opens the store once per 5 minutes per session; at most 1440), and a write made inside the interval goes out at the first Stop after it. Errors never reach the session.
+  
+  A successful `ynm sync` now records what the remote holds in the remote-tracking refs for the notes and documents it pushed, so unpushed writes can be detected locally with no network.
+
+### Patch Changes
+
+- [#107](https://github.com/eyelock/ynm/pull/107) [`bc22cd3`](https://github.com/eyelock/ynm/commit/bc22cd3c99f964d20e054d3c2a7dfdb7f51cb62c) Thanks [@eyelock](https://github.com/eyelock)! - A `--mount` naming a mount that does not exist is now refused with exit 2 and the mounts there are: `no mount "projet" (have: personal, project, team)`. Before, `recall`, `context`, `list`, `export`, `review`, `reindex`, `sync` and `wiki build` matched nothing and exited 0, so a typo, or `--mount project` run outside an initialised repository, looked like an empty store.
+- Updated dependencies [[`345e5f4`](https://github.com/eyelock/ynm/commit/345e5f4feac1a58a3dc48a205c53f8e065fac8f4)]:
+  - @ynm/store@0.4.3
+  - @ynm/index@0.3.4
+  - @ynm/store-s3@0.3.4
+  - @ynm/wiki@0.3.4
+
 ## 0.4.2
 
 ### Patch Changes

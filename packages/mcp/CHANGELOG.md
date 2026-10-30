@@ -1,5 +1,15 @@
 # @ynm/mcp
 
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [[`345e5f4`](https://github.com/eyelock/ynm/commit/345e5f4feac1a58a3dc48a205c53f8e065fac8f4), [`bc22cd3`](https://github.com/eyelock/ynm/commit/bc22cd3c99f964d20e054d3c2a7dfdb7f51cb62c)]:
+  - @ynm/service@0.5.0
+  - @ynm/store@0.4.3
+  - @ynm/index@0.3.4
+  - @ynm/wiki@0.3.4
+
 ## 0.4.2
 
 ### Patch Changes
