@@ -29,9 +29,7 @@ export default class Remember extends YnmCommand {
     // The mount is a name, not a level, so the level and namespace are said in words; a remote
     // running an older ynm does not return them.
     const where =
-      r.level && r.namespace
-        ? `${r.mount}, level ${r.level}, namespace ${r.namespace}`
-        : r.mount;
+      r.level && r.namespace ? `${r.mount}, level ${r.level}, namespace ${r.namespace}` : r.mount;
     this.emit(json, note ? { ...r, guidance: note } : r, () =>
       [`remembered ${r.memoryId} in ${where}`, ...(note ? [`note: ${note}`] : [])].join("\n")
     );
