@@ -38,12 +38,12 @@
     "@ynm/models": "workspace:*",
     "@ynm/wiki": "workspace:*",
     "@ynm/store-s3": "workspace:*",
-    "@aws-sdk/client-s3": "^3.1156.0"
+    "@aws-sdk/client-s3": "^3.1161.0"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.0.5",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"

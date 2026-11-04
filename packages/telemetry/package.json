@@ -42,10 +42,10 @@
     "@opentelemetry/sdk-trace": "3.0.0"
   },
   "devDependencies": {
-    "@opentelemetry/semantic-conventions": "1.43.0",
+    "@opentelemetry/semantic-conventions": "1.44.0",
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.0.5",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
