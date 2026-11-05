@@ -1,10 +1,27 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { createBare, createRepo, fx, rootCommit } from "@ynm/store/testing/git";
 import { doctor } from "./doctor.js";
 import { initBare, initProject } from "./init.js";
 import { openYnm } from "./open.js";
 import { ensurePersonalStore } from "./personal-store.js";
+
+/**
+ * Client detection that sees nothing from the machine running the tests: an empty PATH and an
+ * empty home, so whether opencode, copilot or claude is installed here cannot change a result.
+ * A test that needs a client passes its own home, PATH or project files.
+ */
+function isolated(home = mkdtempSync(join(tmpdir(), "ynm-nohome-"))) {
+  return { home, env: { PATH: "" } };
+}
 
 async function snapshot(repo: string): Promise<string> {
   const refs = await fx(
@@ -27,7 +44,7 @@ describe("ynm init (ADR-009 retrofit)", () => {
     await fx(repo, "tag", "v1");
     const before = await snapshot(repo);
     const env = { YNM_HOME: join(await createRepo(0), ".ynm") };
-    const report = await initProject({ cwd: repo, env });
+    const report = await initProject({ cwd: repo, env, clients: isolated() });
     expect(await snapshot(repo)).toBe(before);
     expect(report.anchor).toBe(await rootCommit(repo));
     expect(report.anchorSource).toBe("root-commit");
@@ -41,7 +58,7 @@ describe("ynm init (ADR-009 retrofit)", () => {
     expect(push).toBe("");
     expect(report.hooksInstalled).toHaveLength(1);
     expect(existsSync(join(repo, ".git", "hooks", "pre-push"))).toBe(true);
-    const again = await initProject({ cwd: repo, env });
+    const again = await initProject({ cwd: repo, env, clients: isolated() });
     expect(again.configWritten).toBe(false);
     expect(again.refspecs).toEqual([]);
     expect(again.notes).toEqual([]);
@@ -52,13 +69,13 @@ describe("ynm init (ADR-009 retrofit)", () => {
     writeFileSync(join(repo, ".gitignore"), "node_modules\n");
     const exclude = join(repo, ".git", "info", "exclude");
     const before = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
-    const report = await initProject({ cwd: repo, hooks: false });
+    const report = await initProject({ cwd: repo, hooks: false, clients: isolated() });
     expect(report.notes).toContain("added .ynm/wiki/ and .ynm/index/ to .git/info/exclude");
     expect(readFileSync(exclude, "utf8")).toBe(
       `${before}${before.endsWith("\n") || before === "" ? "" : "\n"}.ynm/wiki/\n.ynm/index/\n`
     );
     expect(readFileSync(join(repo, ".gitignore"), "utf8")).toBe("node_modules\n");
-    const second = await initProject({ cwd: repo, hooks: false });
+    const second = await initProject({ cwd: repo, hooks: false, clients: isolated() });
     expect(second.notes.filter((n) => n.includes("exclude"))).toEqual([]);
     expect(readFileSync(exclude, "utf8").match(/\.ynm\/wiki\//g)).toHaveLength(1);
   });
@@ -69,15 +86,17 @@ describe("ynm init (ADR-009 retrofit)", () => {
     writeFileSync(join(home, ".ynm", "config.json"), JSON.stringify({ hooks: false }));
     const env = { YNM_HOME: join(home, ".ynm") };
     const off = await createRepo(1);
-    expect((await initProject({ cwd: off, env })).hooksInstalled).toEqual([]);
+    expect((await initProject({ cwd: off, env, clients: isolated() })).hooksInstalled).toEqual([]);
     expect(existsSync(join(off, ".git", "hooks", "pre-push"))).toBe(false);
     const on = await createRepo(1);
-    expect((await initProject({ cwd: on, env, hooks: true })).hooksInstalled).toHaveLength(1);
+    expect(
+      (await initProject({ cwd: on, env, hooks: true, clients: isolated() })).hooksInstalled
+    ).toHaveLength(1);
   });
 
   it("creates the root commit in an empty repo", async () => {
     const repo = await createRepo(0);
-    const report = await initProject({ cwd: repo });
+    const report = await initProject({ cwd: repo, clients: isolated() });
     expect(report.anchorSource).toBe("created");
     expect(await fx(repo, "rev-parse", "HEAD")).toBe(report.anchor);
   });
@@ -102,7 +121,7 @@ describe("openYnm end to end on git notes", () => {
   it("remembers personal and project memories and keeps them apart", async () => {
     const home = await createRepo(0);
     const repo = await createRepo(2);
-    await initProject({ cwd: repo, hooks: false });
+    await initProject({ cwd: repo, hooks: false, clients: isolated() });
     const env = { YNM_HOME: join(home, ".ynm"), YNM_USER: "david" };
     const { ynm, mounts } = await openYnm({ cwd: repo, env });
     expect(mounts.map((m) => m.id)).toEqual(["personal", "project"]);
@@ -127,12 +146,14 @@ describe("openYnm end to end on git notes", () => {
     const repo = await createRepo(1);
     const origin = await createBare();
     await fx(repo, "remote", "add", "origin", origin);
-    await initProject({ cwd: repo, hooks: false });
+    await initProject({ cwd: repo, hooks: false, clients: isolated() });
     const pushes = await fx(repo, "config", "--get-all", "remote.origin.push").catch(() => "");
     expect(pushes).toBe("");
     const env = { YNM_HOME: join(home, ".ynm") };
     const ctx = await openYnm({ cwd: repo, env });
-    const checks = (await doctor(ctx)).checks.map((c) => c.name);
+    const checks = (await doctor({ ...ctx, clients: { ...isolated(), cwd: repo } })).checks.map(
+      (c) => c.name
+    );
     expect(checks).not.toContain("distributed push refspec");
     await ctx.ynm.remember({ type: "semantic", level: "distributed", content: "distributed fact" });
     await ctx.ynm.sync();
@@ -149,11 +170,11 @@ describe("openYnm end to end on git notes", () => {
     await fx(repo, "remote", "add", "origin", origin);
     const env = { YNM_HOME: join(home, ".ynm") };
     let ctx = await openYnm({ cwd: repo, env });
-    let report = await doctor(ctx);
+    let report = await doctor({ ...ctx, clients: { ...isolated(), cwd: repo } });
     expect(report.checks.find((c) => c.name === "project initialised")?.ok).toBe(false);
-    await initProject({ cwd: repo });
+    await initProject({ cwd: repo, clients: isolated() });
     ctx = await openYnm({ cwd: repo, env });
-    report = await doctor(ctx);
+    report = await doctor({ ...ctx, clients: { ...isolated(), cwd: repo } });
     expect(report.ok).toBe(true);
     expect(report.checks.filter((c) => !c.ok)).toEqual([]);
   });
@@ -256,7 +277,7 @@ describe("openYnm end to end on git notes", () => {
       join(harness, ".agents", "harness", "plugin.json"),
       JSON.stringify({ name: "h" })
     );
-    await expect(initProject({ cwd: harness })).rejects.toThrow(
+    await expect(initProject({ cwd: harness, clients: isolated() })).rejects.toThrow(
       /ynh harness, not a project.*ynm client install ynh/
     );
   });
@@ -296,7 +317,7 @@ describe("openYnm end to end on git notes", () => {
   it("with no remote yet, sync later adds the fetch refspec itself; nothing to push is not a failure", async () => {
     const repo = await createRepo(1);
     const env = { YNM_HOME: join(await createRepo(0), ".ynm") };
-    const report = await initProject({ cwd: repo, env, hooks: false });
+    const report = await initProject({ cwd: repo, env, hooks: false, clients: isolated() });
     expect(report.refspecs).toEqual([]);
     expect(report.notes.join("\n")).toContain("`ynm sync`");
     expect(report.notes.join("\n")).not.toContain("re-run init");
@@ -317,13 +338,13 @@ describe("openYnm end to end on git notes", () => {
   it("doctor warns about a client with the server but no guidance or hooks", async () => {
     const home = await createRepo(0);
     const repo = await createRepo(1);
-    await initProject({ cwd: repo, hooks: false });
+    await initProject({ cwd: repo, hooks: false, clients: isolated() });
     writeFileSync(
       join(repo, ".mcp.json"),
       JSON.stringify({ mcpServers: { ynm: { command: "ynm", args: ["serve"] } } })
     );
     const ctx = await openYnm({ cwd: repo, env: { YNM_HOME: join(home, ".ynm") } });
-    const report = await doctor({ ...ctx, clients: { cwd: repo, home } });
+    const report = await doctor({ ...ctx, clients: { cwd: repo, home, env: { PATH: "" } } });
     expect(report.checks.find((c) => c.name === "client claude-code")).toEqual({
       name: "client claude-code",
       ok: false,
