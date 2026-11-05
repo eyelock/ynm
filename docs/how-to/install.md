@@ -233,6 +233,11 @@ them from `$YNM_HOME/env`. `ynm client status` and `ynm doctor` report a harness
 `YNM_HOME` as not fully configured, and `ynm doctor` also warns when it runs in a ynh worker with
 `YNM_HOME` unset. Re-run `ynm client install ynh` to fix either.
 
+Under Codex, ynh also gives the ynm MCP server the variables the harness lists, on `ynh run` (one-shot,
+interactive and resumed) as well as on an agent's worker, from ynh v0.17.0. Codex starts an MCP server
+with only a small default environment, so before that version a ynm server under Codex did not see
+`YNM_HOME` and opened `~/.ynm`, even with the variable listed. Upgrade ynh if you run ynm under Codex.
+
 `ynm init --no-clients` skips the step; `ynm init --client claude-code` configures only the
 clients you name, whether the project uses them or not. `ynm client install` is the manual form,
 with `--scope user` for a user-wide install and `--no-hooks` to leave the hooks out. The client
