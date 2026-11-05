@@ -162,6 +162,25 @@ describe("GitNotesLog specifics (ADR-003)", () => {
     expect((await collect(log)).map((x) => x.id)).toEqual([r.id]);
   });
 
+  it("works against a bare store under safe.bareRepository=explicit (ynm #112)", async () => {
+    vi.stubEnv("GIT_CONFIG_COUNT", "1");
+    vi.stubEnv("GIT_CONFIG_KEY_0", "safe.bareRepository");
+    vi.stubEnv("GIT_CONFIG_VALUE_0", "explicit");
+    try {
+      const bare = await createBare();
+      const log = new GitNotesLog("bare", "distributed", {
+        repo: bare,
+        anchor: await rootCommit(bare),
+      });
+      const r = makeRecord({ level: "distributed", namespace: "common" });
+      await log.append([r]);
+      expect((await collect(log)).map((x) => x.id)).toEqual([r.id]);
+      expect((await log.health()).ok).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("purge keeps ref history unless asked to forget it", async () => {
     const log = await personalLog();
     const r = makeRecord();

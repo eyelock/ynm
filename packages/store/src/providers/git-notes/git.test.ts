@@ -2,8 +2,45 @@ import { realpathSync } from "node:fs";
 import { join } from "node:path";
 import { withSpan } from "@ynm/telemetry";
 import { startMemoryTelemetry } from "@ynm/telemetry/testing";
-import { createRepo, tempDir } from "../../testing/git-fixtures.js";
-import { assertSha, GitError, git, gitCommonDir, gitOrNull, gitStats, identityEnv } from "./git.js";
+import { createBare, createRepo, tempDir } from "../../testing/git-fixtures.js";
+import {
+  assertSha,
+  GitError,
+  git,
+  gitCommonDir,
+  gitOrNull,
+  gitSpawnArgs,
+  gitStats,
+  identityEnv,
+} from "./git.js";
+
+// Copilot CLI sets safe.bareRepository=explicit, under which git will not discover a bare
+// repository from the working directory (ynm #112).
+const EXPLICIT = {
+  GIT_CONFIG_COUNT: "1",
+  GIT_CONFIG_KEY_0: "safe.bareRepository",
+  GIT_CONFIG_VALUE_0: "explicit",
+};
+
+describe("git under safe.bareRepository=explicit", () => {
+  it("runs in a bare store named by its working directory", async () => {
+    const bare = await createBare();
+    const out = await git(["rev-parse", "--is-bare-repository"], { cwd: bare, env: EXPLICIT });
+    expect(out.trim()).toBe("true");
+  });
+
+  it("still discovers a non-bare repository and does not rewrite its arguments", async () => {
+    const repo = await createRepo(1);
+    expect(gitSpawnArgs(["status"], repo)).toEqual(["status"]);
+    const out = await git(["rev-parse", "--is-bare-repository"], { cwd: repo, env: EXPLICIT });
+    expect(out.trim()).toBe("false");
+  });
+
+  it("names a bare cwd with --git-dir", async () => {
+    const bare = await createBare();
+    expect(gitSpawnArgs(["status"], bare)).toEqual([`--git-dir=${bare}`, "status"]);
+  });
+});
 
 describe("git", () => {
   it("returns stdout, passes stdin and counts spawns", async () => {
