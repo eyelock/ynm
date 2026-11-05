@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { existsSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { traceEnv } from "@ynm/telemetry";
 
 const TIMEOUT_MS = 30_000;
@@ -21,6 +23,29 @@ export interface GitOptions {
   env?: NodeJS.ProcessEnv;
 }
 
+/**
+ * True when dir is itself a bare repository: it holds HEAD and objects/ directly and has no .git.
+ * Cheap, synchronous and decided by layout alone, so it works whatever safe.bareRepository says.
+ */
+function isBareRepoDir(dir: string): boolean {
+  try {
+    if (existsSync(join(dir, ".git"))) return false;
+    return existsSync(join(dir, "HEAD")) && statSync(join(dir, "objects")).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The arguments git is spawned with. Git refuses to discover a bare repository from the working
+ * directory when safe.bareRepository=explicit (Copilot CLI sets it), so when cwd is the bare
+ * store itself it is named with --git-dir, which that setting allows. Other cwds (a project
+ * working tree, whose repository git finds through .git) are left to discovery.
+ */
+export function gitSpawnArgs(args: readonly string[], cwd: string): string[] {
+  return isBareRepoDir(cwd) ? [`--git-dir=${cwd}`, ...args] : [...args];
+}
+
 /** Counts spawned git processes; tests prove reads are batched, not per shard. */
 export const gitStats = { spawned: 0 };
 
@@ -38,7 +63,7 @@ export async function git(args: readonly string[], opts: GitOptions): Promise<st
 export function gitBytes(args: readonly string[], opts: GitOptions): Promise<Buffer> {
   gitStats.spawned += 1;
   return new Promise((resolve, reject) => {
-    const child = spawn("git", [...args], {
+    const child = spawn("git", gitSpawnArgs(args, opts.cwd), {
       cwd: opts.cwd,
       // The active span's trace context, so a hook git runs (ynm's pre-push) joins the trace.
       env: traceEnv({ ...process.env, ...opts.env }),
