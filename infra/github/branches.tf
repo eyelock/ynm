@@ -43,6 +43,19 @@ resource "github_repository_ruleset" "develop" {
       required_review_thread_resolution = true
     }
 
+    # Pull requests merge through the queue, which tests each on top of those ahead of it, so two
+    # green pull requests cannot combine red. All Clear must pass on the merge_group ref, hence the
+    # merge_group trigger in ci.yml (and protect-main.yml for main).
+    merge_queue {
+      merge_method                      = "SQUASH"
+      check_response_timeout_minutes    = 60
+      grouping_strategy                 = "ALLGREEN"
+      max_entries_to_build              = 5
+      max_entries_to_merge              = 5
+      min_entries_to_merge              = 1
+      min_entries_to_merge_wait_minutes = 5
+    }
+
     required_status_checks {
       # Not strict: a pull request need not be up to date with its base, only green. A stacked
       # or queued PR is not re-run every time its base moves.
@@ -86,6 +99,19 @@ resource "github_repository_ruleset" "main" {
       require_code_owner_review         = false
       require_last_push_approval        = false
       required_review_thread_resolution = true
+    }
+
+    # Pull requests merge through the queue, which tests each on top of those ahead of it, so two
+    # green pull requests cannot combine red. All Clear must pass on the merge_group ref, hence the
+    # merge_group trigger in ci.yml (and protect-main.yml for main).
+    merge_queue {
+      merge_method                      = "MERGE"
+      check_response_timeout_minutes    = 60
+      grouping_strategy                 = "ALLGREEN"
+      max_entries_to_build              = 5
+      max_entries_to_merge              = 5
+      min_entries_to_merge              = 1
+      min_entries_to_merge_wait_minutes = 5
     }
 
     required_status_checks {

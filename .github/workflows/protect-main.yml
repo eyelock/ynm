@@ -7,6 +7,9 @@ permissions:
 on:
   pull_request:
     branches: [main]
+  # Required by main's ruleset, so it must report on the merge queue's ref too.
+  merge_group:
+    branches: [main]
 
 jobs:
   check-source-branch:
@@ -16,7 +19,13 @@ jobs:
       - name: Check that PR targets main only from develop, hotfix/*, or release/*
         env:
           HEAD_REF: ${{ github.head_ref }}
+          EVENT: ${{ github.event_name }}
         run: |
+          # A queue entry has no head branch: the pull request already passed this check to enter.
+          if [[ "$EVENT" == "merge_group" ]]; then
+            echo "Merge queue entry: source branch was checked when the pull request was queued"
+            exit 0
+          fi
           SOURCE="$HEAD_REF"
           echo "PR source branch: $SOURCE"
 
