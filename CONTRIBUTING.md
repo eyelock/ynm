@@ -136,15 +136,17 @@ to `main` or `develop` directly: every change goes through a branch and a pull r
 | Hotfix | the release tag, as `hotfix/<what>` | `main`, then back-merged into `develop` |
 
 Branch names use a slash: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…`,
-`hotfix/…`. `develop` is the default branch. Feature pull requests are squash-merged; release and
-hotfix pull requests into `main` use a true merge, so the back-merge into `develop` is clean;
-rebase merge is off. The back-merge into `develop` goes through a temporary
+`hotfix/…`. `develop` is the default branch. Pull requests merge through a merge queue ("Merge when
+ready"), which tests each one on top of those ahead of it and merges with the queue's method:
+feature pull requests into `develop` are squashed; release and hotfix pull requests into `main`
+use a true merge; rebase merge is off. The back-merge into `develop` is the one exception: it
+must be a true merge, so a repository admin merges it around `develop`'s queue. The back-merge into `develop` goes through a temporary
 `chore/back-merge-vX.Y.Z` branch cut from `main` (the release branch is already deleted by
 delete-on-merge); never open a pull request with `main` as its head, because merging it deletes
 `main`. Each of `develop` and `main` has a repository ruleset
 ([`.github/BRANCH_PROTECTION.md`](.github/BRANCH_PROTECTION.md)): a pull request with every
 conversation resolved, and the one required check, "All Clear", the last CI job, which depends on
-the others. `main` accepts pull requests only from `develop`, `release/*` or `hotfix/*` (the "Verify PR
+the others (it also runs on the queue's `merge_group` ref). `main` accepts pull requests only from `develop`, `release/*` or `hotfix/*` (the "Verify PR
 source branch" check enforces it), and release tags are cut from `main`.
 
 ```bash

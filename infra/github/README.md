@@ -6,7 +6,7 @@ drift and set up again from nothing.
 | File | What it manages |
 |---|---|
 | `repository.tf` | The repository: description, homepage, topics, visibility, features (issues, discussions and projects on, wiki off), merge options (squash and merge commit on, rebase off), secret scanning when public; GitHub Pages from `/docs` on `main` |
-| `branches.tf` | `develop` as the default branch; three repository rulesets: one each for `develop` and `main`, and one that blocks deletion and force pushes on both with no bypass (see Rulesets) |
+| `branches.tf` | `develop` as the default branch; three repository rulesets: one each for `develop` (merge queue squashes) and `main` (merge queue makes merge commits), and one that blocks deletion and force pushes on both with no bypass (see Rulesets) |
 | `labels.tf` | Issue and PR labels, authoritatively: a label not listed is removed |
 | `actions.tf` | Actions permissions, the read-only default `GITHUB_TOKEN`, the `YNM_MILESTONE` variable, the `RELEASE_TOKEN` secret, the `github-pages` environment |
 | `security.tf` | Dependabot alerts and security updates (both on) |
@@ -38,7 +38,7 @@ Three repository rulesets replace classic branch protection: one list of rules p
 
 The first two block deletion and force pushes, require a pull request with every conversation resolved and
 no approving review, do not require the branch to be up to date with its base (not strict), and
-let repository admins (role 5) bypass. The third has no bypass actors: repository admins cannot delete or
+let repository admins (role 5) bypass. Both also have a merge queue (`merge_queue` rule: all-green grouping, up to 5 entries, 60 minute check timeout), whose method is the merge method for the branch; an admin bypasses it to merge the once-per-release back-merge into `develop` as a merge commit. The third has no bypass actors: repository admins cannot delete or
 force-push `main` or `develop` (delete-on-merge deleted `main` as an admin on 2026-10-08). `All Clear` is the last job of `ci.yml`; it depends on every other job, so
 adding or renaming CI jobs never touches this configuration.
 

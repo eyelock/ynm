@@ -45,7 +45,9 @@ resource "github_repository_ruleset" "develop" {
 
     # Pull requests merge through the queue, which tests each on top of those ahead of it, so two
     # green pull requests cannot combine red. All Clear must pass on the merge_group ref, hence the
-    # merge_group trigger in ci.yml (and protect-main.yml for main).
+    # merge_group trigger in ci.yml (and protect-main.yml for main). The queue squashes, as feature
+    # pull requests always have; the once-per-release back-merge from main must stay a true merge,
+    # so an admin merges it around the queue (see docs/how-to/cut-a-release.md).
     merge_queue {
       merge_method                      = "SQUASH"
       check_response_timeout_minutes    = 60
