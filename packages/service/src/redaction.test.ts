@@ -9,6 +9,14 @@ describe("redaction (ADR-007)", () => {
     ).toHaveLength(1);
     expect(findRedactions("-----BEGIN RSA PRIVATE KEY-----", DEFAULT_REDACTION)).toHaveLength(1);
   });
+  it("flags sk- keys but not ordinary words that end in sk-", () => {
+    expect(
+      findRedactions("key sk-proj-ABCDEFGHIJKLMNOPQRSTUV here", DEFAULT_REDACTION)
+    ).toHaveLength(1);
+    expect(findRedactions("key=sk-ABCDEFGHIJKLMNOPQRSTUVWXYZ", DEFAULT_REDACTION)).toHaveLength(1);
+    expect(findRedactions("eval desk-asks-three-decisions passed", DEFAULT_REDACTION)).toEqual([]);
+    expect(findRedactions("the task-based-scheduling-of-work", DEFAULT_REDACTION)).toEqual([]);
+  });
   it("passes ordinary text", () => {
     expect(findRedactions("We anchor notes to the root commit.", DEFAULT_REDACTION)).toEqual([]);
   });
