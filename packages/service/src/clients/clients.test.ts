@@ -75,7 +75,12 @@ describe("client adapters (ADR-013)", () => {
         "utf8"
       )
     ) as Record<string, unknown>;
-    const generated = ynhPlugin({ version: String(checked.version), transport: stdio });
+    // Generate at the CLI's version, as scripts/gen-clients.mjs does, not the checked-in file's own:
+    // otherwise a release bump that skipped `make gen` leaves a stale manifest that still passes.
+    const cli = JSON.parse(
+      readFileSync(join(repoRoot, "packages", "cli", "package.json"), "utf8")
+    ) as { version: string };
+    const generated = ynhPlugin({ version: cli.version, transport: stdio });
     expect(generated).toEqual(checked);
     expect(
       readFileSync(join(repoRoot, "integrations", "skills", "ynm-memory", "SKILL.md"), "utf8")
