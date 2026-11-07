@@ -27,8 +27,8 @@
     "gen:telemetry": "node scripts/gen-telemetry.mjs"
   },
   "devDependencies": {
-    "@aws-sdk/client-ssm": "^3.1156.0",
-    "@biomejs/biome": "^2.6.3",
+    "@aws-sdk/client-ssm": "^3.1161.0",
+    "@biomejs/biome": "^2.6.4",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "esbuild": "^0.28.2",

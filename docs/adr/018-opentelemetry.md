@@ -253,7 +253,7 @@ what it was. Nothing else is bridged: a CLI's stdout carries memory content and 
 
 `telemetry/registry/` holds ynm's names in OpenTelemetry Weaver's format: every `ynm.*`
 attribute, the events, the spans, the metrics with their attributes' cardinalities and limits, and
-a manifest pinning semantic conventions v1.43.0 (the `@opentelemetry/semantic-conventions`
+a manifest pinning semantic conventions v1.44.0 (the `@opentelemetry/semantic-conventions`
 release installed). Weaver is not installed, so `scripts/gen-telemetry.mjs`, run by `make gen`,
 checks it (every own name under `ynm.`, every `ref` known to ynm or the pinned release, which must
 match the installed one, every metric's attributes within its limit) and generates
