@@ -253,15 +253,22 @@ what it was. Nothing else is bridged: a CLI's stdout carries memory content and 
 
 `telemetry/registry/` holds ynm's names in OpenTelemetry Weaver's format: every `ynm.*`
 attribute, the events, the spans, the metrics with their attributes' cardinalities and limits, and
-a manifest pinning semantic conventions v1.44.0 (the `@opentelemetry/semantic-conventions`
-release installed). Weaver is not installed, so `scripts/gen-telemetry.mjs`, run by `make gen`,
-checks it (every own name under `ynm.`, every `ref` known to ynm or the pinned release, which must
-match the installed one, every metric's attributes within its limit) and generates
+a manifest pinning the semantic conventions release that matches the installed
+`@opentelemetry/semantic-conventions` package. Weaver is not installed, so
+`scripts/gen-telemetry.mjs`, run by `make gen`, first moves that pin to the installed release,
+then checks the registry (every own name under `ynm.`, every `ref` known to ynm or the pinned
+release, which must match the installed one, every metric's attributes within its limit) and
+generates
 `packages/telemetry/src/registry.gen.ts`: constants for every name and the registry as data. A
 test fails when the generated file is stale. `ynm telemetry registry --format json` prints
 `{ tool, version, semantic_conventions, attributes, standard_attributes, spans, events, metrics }`,
 the shape ynf prints so ynr can read every tool's registry; `service.name` and `service.version`
 say which registry applies.
+
+Dependabot raises `@opentelemetry/semantic-conventions` in its own group, because a bump can add
+or drop attributes the registry refers to. Taking it means running `make gen` on that branch and
+committing the moved pin and regenerated file; the check in `make gen` still refuses a manifest
+that disagrees with the installed release.
 
 ### Never block, never fail
 
@@ -366,3 +373,6 @@ say which registry applies.
   Names are unchanged. Still proposed.
 - 2026-10-07: the spool exporter package is public; CI reads it with the workflow's own token and
   the YNR_READ_PACKAGES secret is gone. Still proposed.
+- 2026-11-07: `make gen` moves the semantic-conventions pin to the installed release, and a
+  semantic-conventions bump arrives alone in its own Dependabot group. The ADR no longer names the
+  version, which the manifest holds.
