@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SEMCONV_VERSION } from "@ynm/telemetry";
 import { readSpool } from "@ynm/telemetry/testing";
 import { bin, testEnv, ynm } from "./helpers.js";
 
@@ -197,10 +198,12 @@ describe("ynm telemetry registry", () => {
     };
     expect(out.tool).toBe("ynm");
     expect(out.version).toMatch(/^\d+\.\d+\.\d+/);
+    // Follows the installed release: `make gen` moves the pin, and its check ties it to the package.
+    const semconv = SEMCONV_VERSION.replace(/^v/, "");
     expect(out.semantic_conventions).toEqual({
       name: "otel",
-      version: "1.44.0",
-      schema_url: "https://opentelemetry.io/schemas/1.44.0",
+      version: semconv,
+      schema_url: `https://opentelemetry.io/schemas/${semconv}`,
     });
     expect(out.attributes.find((a) => a.id === "ynm.outcome")?.type).toBe("enum");
     expect(out.spans.find((s) => s.name === "ynm.tool.call")?.kind).toBe("server");
