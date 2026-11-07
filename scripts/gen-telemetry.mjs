@@ -1,7 +1,9 @@
 // Checks ynm's telemetry registry (telemetry/registry, Weaver's format) and generates the
 // TypeScript constants from it. Weaver itself is not needed: this reads the same YAML.
 //
-//   node scripts/gen-telemetry.mjs           write packages/telemetry/src/registry.gen.ts
+//   node scripts/gen-telemetry.mjs           move the manifest's semantic-conventions pin to the
+//                                            installed release, then write
+//                                            packages/telemetry/src/registry.gen.ts
 //   node scripts/gen-telemetry.mjs --check   exit 1 when that file is not current
 //
 // Checks: every own name is under `ynm.`; every `ref` names an attribute of ynm's or one in the
@@ -50,7 +52,7 @@ function check({ manifest, groups }, up) {
   const problems = [];
   if (`v${up.version}` !== manifest.semconv_version)
     problems.push(
-      `the registry pins semantic conventions ${manifest.semconv_version}, but ${up.version} is installed`
+      `the registry pins semantic conventions ${manifest.semconv_version}, but ${up.version} is installed; run \`make gen\` to move the pin`
     );
   const own = new Map();
   for (const g of groups)
@@ -213,6 +215,23 @@ export function render(registry) {
   return lines.join("\n");
 }
 
+/**
+ * Moves the manifest's semantic-conventions pin (and the registry URL that names the same tag) to
+ * the installed release, so a dependency bump needs `make gen`, not a hand edit. Returns whether
+ * the manifest changed. The check in `generate` still refuses a manifest that disagrees.
+ */
+export async function syncManifest() {
+  const file = join(registryDir, "registry_manifest.yaml");
+  const { version } = await upstream();
+  const text = readFileSync(file, "utf8");
+  const next = text
+    .replace(/^(semconv_version:\s*)v\S+/m, `$1v${version}`)
+    .replace(/(semantic-conventions\/archive\/refs\/tags\/)v[^/\s]+?(\.zip)/, `$1v${version}$2`);
+  if (next === text) return false;
+  writeFileSync(file, next);
+  return true;
+}
+
 /** Checks the registry and returns the generated file's text; throws listing every problem. */
 export async function generate() {
   const registry = loadRegistry();
@@ -223,8 +242,10 @@ export async function generate() {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
+    const checking = process.argv.includes("--check");
+    if (!checking && (await syncManifest())) console.log("moved the semantic-conventions pin to the installed release");
     const text = await generate();
-    if (process.argv.includes("--check")) {
+    if (checking) {
       const current = readFileSync(OUTPUT, "utf8");
       if (current !== text) {
         console.error(`${OUTPUT} is not current; run \`make gen\``);
