@@ -18,7 +18,7 @@ Terraform, in `infra/github/branches.tf`; change them there, not in the GitHub U
 
 **All Clear** is the last job of the CI workflow. It depends on every other job (verify,
 release gate, coverage) and fails if any of them failed or was cancelled; a job that was skipped
-(the release gate runs only on pull requests into `main`) does not fail it. Add or rename CI
+(the release gate runs only on pull requests and queue entries into `main`; coverage runs only on pull requests) does not fail it. Add or rename CI
 jobs freely; only All Clear is required.
 
 **Verify PR source branch** (`protect-main.yml`) fails a pull request into `main` that does not
@@ -42,7 +42,24 @@ deletion: on 2026-10-08 GitHub's delete-branch-on-merge, running as an admin, de
 after a pull request with `main` as its head was merged. Never open a pull request with `main`
 or `develop` as its head (see "Back-merge" in `docs/how-to/cut-a-release.md`).
 
+## Merge queue
+
+Both rulesets carry a merge queue. A pull request that is green and has its conversations resolved
+is added with "Merge when ready"; the queue builds a temporary `merge_group` ref of it on top of
+the entries ahead and runs CI there (`ci.yml` and, for `main`, `protect-main.yml` trigger on
+`merge_group`). **All Clear** must pass on that ref, and the pull request merges only then. This
+is what stops two green pull requests combining red. The queue builds up to 5 entries at once,
+groups only when all are green, waits 5 minutes for a second entry, and times a check out after
+60 minutes.
+
 ## Merge methods
 
-Squash merge for feature pull requests into `develop`. A true merge commit for release and
-hotfix pull requests into `main`, and for their back-merge into `develop`. Rebase merge is off.
+The queue's method replaces the per-pull-request choice: `develop`'s queue squashes (feature
+pull requests); `main`'s makes a merge commit (release and hotfix pull requests). Rebase merge is
+off.
+
+**The back-merge is the exception.** The back-merge of `main` into `develop` once per release
+(`chore/back-merge-vX.Y.Z`, see `docs/how-to/cut-a-release.md`) must be a true merge commit, or
+`develop` loses `main`'s history and the next release pull request diverges. `develop`'s queue
+would squash it, so a repository admin merges it around the queue (the ruleset's admin bypass,
+"Merge without waiting for requirements") choosing "Create a merge commit". Never queue it.

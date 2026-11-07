@@ -6,6 +6,10 @@ on:
   # No branch filter: CI runs on every pull request, including one based on another feature
   # branch, so a stacked PR is gated like any other.
   pull_request:
+  # The merge queue builds each entry on top of the ones ahead of it and waits for All Clear on
+  # that merge_group ref (infra/github/branches.tf). Without this trigger the queue never
+  # hears back and waits forever.
+  merge_group:
 
 permissions:
   contents: read
@@ -45,7 +49,7 @@ jobs:
   # with a regression.
   release-gate:
     name: release gate
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     env:
       NODE_AUTH_TOKEN: ${{ github.token }}
@@ -64,6 +68,8 @@ jobs:
         run: make gate M=M6
 
   # Gates on the lines a pull request adds or modifies, not on overall totals.
+  # Skipped in the merge queue: the pull request was already gated, and a skipped job is fine to
+  # All Clear.
   coverage:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -96,7 +102,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: eyelock/actions/skillspector@skillspector-v1
+      # Pinned to the commit skillspector-v1 pointed at on 2026-11-07, so a moved tag cannot
+      # change what the required check runs. To update, point it at a reviewed commit.
+      - uses: eyelock/actions/skillspector@2b4b0eafc45da186506a6fd72774482b636d55aa # skillspector-v1
         with:
           include: |
             integrations/ynh

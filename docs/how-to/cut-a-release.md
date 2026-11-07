@@ -19,8 +19,8 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
    `packages/evals/baselines/<v>.accepted.json` as `{ "<key>": "<reason>" }`, which the release
    pull request then shows for review. The same gate runs as the `release gate` check on every
    pull request into `main`.
-5. Open a pull request from `release/vX.Y.Z` into `main`; merge it with a true merge (not
-   squash) once CI is green. GitHub deletes `release/vX.Y.Z` when that pull request merges
+5. Open a pull request from `release/vX.Y.Z` into `main`; add it to the merge queue ("Merge when
+   ready") once CI is green. `main`'s queue makes a true merge (not squash). GitHub deletes `release/vX.Y.Z` when that pull request merges
    (delete-on-merge). `develop` must then get the version bump and frozen evals too (the
    mandatory back-merge), through a temporary branch cut from `main`:
 
@@ -30,12 +30,16 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
    git push -u origin chore/back-merge-vX.Y.Z
    ```
 
-   Open a pull request from `chore/back-merge-vX.Y.Z` into `develop` and merge it with a merge
-   commit; it is deleted on merge, which is what you want. **Never open a pull request with
+   Open a pull request from `chore/back-merge-vX.Y.Z` into `develop`. `develop`'s merge queue
+   squashes, and a squash would drop `main`'s history from `develop` so the next release
+   diverges, so do not queue this one: a repository admin merges it around the queue with a
+   merge commit ("Merge without waiting for requirements", method "Create a merge commit"). The
+   branch is deleted on merge, which is what you want. **Never open a pull request with
    `main` itself as the head**: merging it deletes `main` (this happened on 2026-10-08; the
    ruleset "Never Delete Main or Develop" now blocks it). Alternatively, open the back-merge
    pull request from `release/vX.Y.Z` into `develop` before merging the release pull request,
-   so the branch is still there; merge the release pull request first, then the back-merge.
+   so the branch is still there; merge the release pull request first, then the back-merge, which
+   an admin merges as a merge commit in the same way.
 6. Tag `v<version>` on `main` and push the tag. The `release` workflow then:
    - `verify`: re-runs build, check, typecheck, tests and the M6 gate;
    - `build`: on `macos-26` (both darwin targets) and `ubuntu-24.04` (both linux targets),
