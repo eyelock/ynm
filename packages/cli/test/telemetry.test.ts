@@ -199,8 +199,8 @@ describe("ynm telemetry registry", () => {
     expect(out.version).toMatch(/^\d+\.\d+\.\d+/);
     expect(out.semantic_conventions).toEqual({
       name: "otel",
-      version: "1.43.0",
-      schema_url: "https://opentelemetry.io/schemas/1.43.0",
+      version: "1.44.0",
+      schema_url: "https://opentelemetry.io/schemas/1.44.0",
     });
     expect(out.attributes.find((a) => a.id === "ynm.outcome")?.type).toBe("enum");
     expect(out.spans.find((s) => s.name === "ynm.tool.call")?.kind).toBe("server");
