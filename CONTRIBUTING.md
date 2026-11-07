@@ -164,7 +164,7 @@ Before `git push` or opening a pull request:
    `make coverage coverage-diff` shows changed lines at 80% or more.
 2. `make test-tutorials` passes; if the change touches a tutorial or anything a tutorial runs,
    `make eval-tutorials` for those tutorials too (opt-in, spends tokens).
-3. Generated files are current: `make gen` after tool or client changes, `make docs-gen` after
+3. Generated files are current: `make gen` after tool or client changes, and after `make version` (the version is in the generated files), `make docs-gen` after
    CLI or schema text changes (the drift test fails otherwise).
 4. A user-visible change ships with its docs in the same pull request.
 5. After pushing, CI is green before merging (the required check is "All Clear"):

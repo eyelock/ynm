@@ -6,7 +6,8 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
 1. Land changesets on `develop` with the features (`make changeset` for each user-visible
    change).
 2. Cut `release/vX.Y.Z` from `develop`. On it, `make version` bumps package versions and
-   CHANGELOGs from the changesets; commit.
+   CHANGELOGs from the changesets. Then run `make gen`, which carries the new version into the generated
+   files (the ynh `plugin.json` among them); the drift test fails the branch without it. Commit.
 3. Freeze the evals for the version on the same branch:
    `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1 make bench` and the tier 1 quality suites,
    then `make bench-public` for the tier 3 reports (`packages/evals/reports/<v>/`). Commit both.
