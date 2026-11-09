@@ -9,10 +9,13 @@ description: Cut an ynm release: version bump, frozen baselines, benchmark repor
    merge), then back-merge into `develop`; tag on `main`. Delete-on-merge removes `release/vX.Y.Z`
    when its PR merges, so cut a temporary branch from main for the back-merge
    (`git switch -c chore/back-merge-vX.Y.Z origin/main && git push -u origin chore/back-merge-vX.Y.Z`),
-   open a PR from it into `develop` and merge it with a merge commit. Or open the back-merge PR
-   from `release/vX.Y.Z` before merging the release PR. NEVER open a PR with `main` itself as
-   the head: merging it deletes `main`. Never commit to
-   `main` or `develop` directly.
+   open a PR from it into `develop`. `develop`'s merge queue squashes, and a squash would drop
+   `main`'s history from `develop`, so do not queue it (a plain `gh pr merge` or "Merge when
+   ready" queues it): a repository admin merges it around the queue as a merge commit ("Merge
+   without waiting for requirements", method "Create a merge commit"; decision ynw-fuy6). Or
+   open the back-merge PR from `release/vX.Y.Z` before merging the release PR, and merge it the
+   same way. NEVER open a PR with `main` itself as the head: merging it deletes `main`. Never
+   commit to `main` or `develop` directly.
 1. Changesets landed on `develop`; `make version` on the release branch bumps versions.
 2. Freeze evals for the version: `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1 make bench`, then
    `make bench-public`; commit `packages/evals/baselines/<v>.json` and `packages/evals/reports/<v>/`.
