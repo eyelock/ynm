@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative } from "node:path";
 import { guidance } from "@ynm/model";
 import { delimitedBlockChange } from "./agents-md.js";
@@ -43,6 +43,27 @@ function eventGroups(settings: Record<string, unknown>, event: string): HookGrou
 
 function hasCommand(groups: HookGroup[], command: string): boolean {
   return groups.some((g) => (g.hooks ?? []).some((h) => h.command?.trim() === command));
+}
+
+/**
+ * Where ~/.claude.json registers ynm for `cwd`: a user-scope entry (top-level `mcpServers`) or a
+ * local-scope entry under this project's own path (`projects[<path>].mcpServers`). Another
+ * project's local entry does not count (`claude mcp add --scope local` is per project).
+ */
+export function registeredScope(userFile: string, cwd: string): "user" | "local" | undefined {
+  const cfg = readJson(userFile) as {
+    mcpServers?: Record<string, unknown>;
+    projects?: Record<string, { mcpServers?: Record<string, unknown> }>;
+  };
+  if (cfg.mcpServers?.ynm) return "user";
+  const paths = new Set([cwd]);
+  try {
+    paths.add(realpathSync(cwd));
+  } catch {
+    // a path that is gone has only its own spelling
+  }
+  for (const p of paths) if (cfg.projects?.[p]?.mcpServers?.ynm) return "local";
+  return undefined;
 }
 
 /** Which of ynm's hooks a Claude Code settings file already has, by event. */
@@ -237,14 +258,15 @@ export const claudeCode: ClientAdapter = {
         files: [file, ...files],
       };
     const userFile = join(home, ".claude.json");
-    if (existsSync(userFile) && /"ynm"\s*:/.test(readFileSync(userFile, "utf8")))
+    const scope = registeredScope(userFile, cwd);
+    if (scope)
       return {
         client: "claude-code",
         configured: true,
-        detail: `user or local scope: ${userFile}`,
+        detail: `${scope} scope: ${userFile}`,
         guidance: guided,
         hooks: hooked,
-        checked: checkedWith(`ynm registered (user or local scope) in ${userFile}`),
+        checked: checkedWith(`ynm registered at ${scope} scope in ${userFile}`),
         files,
       };
     return {

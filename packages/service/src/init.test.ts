@@ -256,6 +256,31 @@ describe("openYnm end to end on git notes", () => {
     expect(failing.clients[0]?.run).toEqual(["claude mcp add --scope local ynm -- ynm serve"]);
   });
 
+  it("registers Claude Code in each repository, though another one already has a local-scope entry", async () => {
+    const home = await createRepo(0);
+    const a = await createRepo(1);
+    const b = await createRepo(1);
+    for (const r of [a, b]) mkdirSync(join(r, ".claude"));
+    // A stand-in for `claude mcp add --scope local`: it records the server under the project's
+    // path in ~/.claude.json, as Claude Code does.
+    const registered: string[] = [];
+    const runCommand = async (_argv: string[], cwd: string) => {
+      registered.push(cwd);
+      const file = join(home, ".claude.json");
+      const cfg = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+      cfg.projects = { ...cfg.projects, [cwd]: { mcpServers: { ynm: { command: "ynm" } } } };
+      writeFileSync(file, JSON.stringify(cfg));
+    };
+    const clients = { home, env: { PATH: "" }, runCommand };
+    await initProject({ cwd: a, hooks: false, clients });
+    const second = await initProject({ cwd: b, hooks: false, clients });
+    expect(registered).toEqual([realpathSync(a), realpathSync(b)]);
+    expect(second.clients[0]?.applied).toContain("claude mcp add --scope local");
+    // run again in a: its own entry is there, so nothing runs
+    await initProject({ cwd: a, hooks: false, clients });
+    expect(registered).toHaveLength(2);
+  });
+
   it("leaves git status exactly as it was, with a tracked CLAUDE.md, opencode.json and AGENTS.md (ynm #37)", async () => {
     const home = await createRepo(0);
     const repo = await createRepo(1);

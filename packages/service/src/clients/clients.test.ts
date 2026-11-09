@@ -9,6 +9,7 @@ import {
   clientAdapter,
   clientReports,
   onPath,
+  registeredScope,
   stdioServerEntry,
   YNH_ENV_PASSTHROUGH,
   ynh,
@@ -42,6 +43,20 @@ describe("client adapters (ADR-013)", () => {
     expect(again.map((c) => c.kind)).toEqual(["merge-json"]);
     const status = await claudeCode.status({ cwd, home });
     expect(status).toMatchObject({ configured: true, guidance: true, hooks: true });
+  });
+
+  it("claude-code counts a user entry or this project's own local entry, never another project's", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ynm-cc-reg-"));
+    const file = join(dir, ".claude.json");
+    expect(registeredScope(file, "/work/a")).toBeUndefined();
+    const server = { ynm: { command: "ynm" } };
+    writeFileSync(file, JSON.stringify({ projects: { "/work/a": { mcpServers: server } } }));
+    expect(registeredScope(file, "/work/a")).toBe("local");
+    expect(registeredScope(file, "/work/b")).toBeUndefined();
+    writeFileSync(file, JSON.stringify({ mcpServers: server, projects: {} }));
+    expect(registeredScope(file, "/work/b")).toBe("user");
+    writeFileSync(file, "not json");
+    expect(registeredScope(file, "/work/a")).toBeUndefined();
   });
 
   it("claude-code user scope registers the server by command and merges hooks into ~/.claude/settings.json", async () => {
