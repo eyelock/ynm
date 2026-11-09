@@ -1,27 +1,16 @@
-import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { Flags } from "@oclif/core";
 import {
   CLIENT_ADAPTERS,
+  clientSetupLines,
   initBare,
   initPersonal,
   initProject,
   loadConfig,
+  runInProject,
   ynmHome,
 } from "@ynm/service";
 import { YnmCommand } from "../lib/base.js";
-
-/** Runs a client's own command in the project, its output kept off init's report. */
-function runInProject(argv: string[], cwd: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const [cmd, ...args] = argv;
-    const child = spawn(cmd as string, args, { cwd, stdio: "ignore" });
-    child.on("exit", (code) =>
-      code === 0 ? resolve() : reject(new Error(`${argv.join(" ")} exited ${code}`))
-    );
-    child.on("error", reject);
-  });
-}
 
 export default class Init extends YnmCommand {
   static override description =
@@ -106,16 +95,7 @@ export default class Init extends YnmCommand {
           ? [`  hooks     ${report.hooksInstalled.join(", ")}`]
           : []),
         ...report.notes.map((n) => `  note      ${n}`),
-        ...report.clients
-          .filter((c) => !c.skipped)
-          .flatMap((c) => [
-            `  client    ${c.client}: ${c.applied.length ? c.applied.join(", ") : "unchanged"}`,
-            ...c.run.map((r) => `  run:      ${r}`),
-            ...c.left.map(
-              (f) =>
-                `  left      ${f} is tracked by git, so init did not edit it (add ynm's setup by hand if the team wants it)`
-            ),
-          ]),
+        ...report.clients.filter((c) => !c.skipped).flatMap(clientSetupLines),
         ...(report.clients.some((c) => c.skipped)
           ? [
               `  also      ${report.clients
