@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { claudeCode } from "./claude-code.js";
@@ -17,6 +16,7 @@ export * from "./copilot-cli.js";
 export * from "./json-style.js";
 export * from "./opencode.js";
 export * from "./pi.js";
+export * from "./setup.js";
 export * from "./skill.js";
 export * from "./types.js";
 export * from "./ynh.js";
@@ -373,28 +373,4 @@ export async function validateClient(
     detail: bin ? "on PATH" : "not on PATH; the server and hooks cannot start",
   });
   return { client: s.client, ok: lines.every((l) => l.ok), lines };
-}
-
-/** Runs a client's own command in `cwd`, its output kept off init's report; rejects on a non-zero exit. */
-export function runInProject(argv: string[], cwd: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const [cmd, ...args] = argv;
-    const child = spawn(cmd as string, args, { cwd, stdio: "ignore" });
-    child.on("exit", (code) =>
-      code === 0 ? resolve() : reject(new Error(`${argv.join(" ")} exited ${code}`))
-    );
-    child.on("error", reject);
-  });
-}
-
-/** The report lines for one client init configured: what was applied, what is left to run, what was left alone. */
-export function clientSetupLines(c: ClientSetup): string[] {
-  return [
-    `  client    ${c.client}: ${c.applied.length ? c.applied.join(", ") : "unchanged"}`,
-    ...c.run.map((r) => `  run:      ${r}`),
-    ...c.left.map(
-      (f) =>
-        `  left      ${f} is tracked by git, so init did not edit it (add ynm's setup by hand if the team wants it)`
-    ),
-  ];
 }
