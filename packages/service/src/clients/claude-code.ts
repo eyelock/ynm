@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative } from "node:path";
 import { guidance } from "@ynm/model";
 import { delimitedBlockChange } from "./agents-md.js";
@@ -43,6 +43,27 @@ function eventGroups(settings: Record<string, unknown>, event: string): HookGrou
 
 function hasCommand(groups: HookGroup[], command: string): boolean {
   return groups.some((g) => (g.hooks ?? []).some((h) => h.command?.trim() === command));
+}
+
+/**
+ * Where ~/.claude.json registers ynm for `cwd`: a user-scope entry (top-level `mcpServers`) or a
+ * local-scope entry under this project's own path (`projects[<path>].mcpServers`). Another
+ * project's local entry does not count (`claude mcp add --scope local` is per project).
+ */
+export function registeredScope(userFile: string, cwd: string): "user" | "local" | undefined {
+  const cfg = readJson(userFile) as {
+    mcpServers?: Record<string, unknown>;
+    projects?: Record<string, { mcpServers?: Record<string, unknown> }>;
+  };
+  if (cfg.mcpServers?.ynm) return "user";
+  const paths = new Set([cwd]);
+  try {
+    paths.add(realpathSync(cwd));
+  } catch {
+    // a path that is gone has only its own spelling
+  }
+  for (const p of paths) if (cfg.projects?.[p]?.mcpServers?.ynm) return "local";
+  return undefined;
 }
 
 /** Which of ynm's hooks a Claude Code settings file already has, by event. */
@@ -92,7 +113,11 @@ export function claudeSettingsPath(t: Pick<InstallTarget, "cwd" | "home" | "scop
 }
 
 /**
- * Claude Code: project scope writes `.mcp.json` (mcpServers), a delimited block in CLAUDE.md
+ * Claude Code: `ynm init` (`cleanTree`) never writes a project file for the server or the
+ * guidance: it registers the server with `claude mcp add --scope local` (recorded in the user's
+ * own Claude config), writes no instruction block (the SessionStart hook and the server's
+ * instructions carry the guidance) and puts the hooks in the untracked
+ * `.claude/settings.local.json` (ynm #37). Otherwise project scope writes `.mcp.json` (mcpServers), a delimited block in CLAUDE.md
  * (a new one when the project has no instruction file; in AGENTS.md, imported from a new
  * CLAUDE.md, when that is all it has) and the hooks in `.claude/settings.local.json`; user scope goes through `claude mcp add` so the
  * user's own server config is not hand-edited, and merges the hooks into
@@ -108,7 +133,10 @@ export const claudeCode: ClientAdapter = {
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     const changes: Change[] = [];
-    if (t.scope === "user") {
+    if (t.scope === "user" || t.cleanTree) {
+      // `--scope local` records the server in the user's own Claude config for this project, so
+      // no `.mcp.json` lands in the work tree (ynm #37).
+      const scope = t.scope === "user" ? "user" : "local";
       const argv =
         t.transport.kind === "stdio"
           ? [
@@ -116,7 +144,7 @@ export const claudeCode: ClientAdapter = {
               "mcp",
               "add",
               "--scope",
-              "user",
+              scope,
               "ynm",
               "--",
               t.transport.command,
@@ -127,7 +155,7 @@ export const claudeCode: ClientAdapter = {
               "mcp",
               "add",
               "--scope",
-              "user",
+              scope,
               "--transport",
               "http",
               "ynm",
@@ -136,7 +164,11 @@ export const claudeCode: ClientAdapter = {
       changes.push({
         kind: "command",
         argv,
-        reason: "register ynm with Claude Code for this user",
+        ...(scope === "local" ? { projectLocal: true } : {}),
+        reason:
+          scope === "user"
+            ? "register ynm with Claude Code for this user"
+            : "register ynm with Claude Code for this project, privately (local scope)",
       });
     } else {
       changes.push({
@@ -179,13 +211,15 @@ export const claudeCode: ClientAdapter = {
   },
   async status({ cwd, home }): Promise<ClientStatus> {
     // Any instruction file Claude Code loads here at launch, by its own lookup rules.
-    const guided = claudeHasGuidance(cwd, home, CLAUDE_MD_MARKER);
-    // A team may also have put them in the team's settings on purpose; any of the three counts.
+    // The SessionStart hook delivers the same guidance without a file, so it counts too.
     const hookFiles = [
       claudeSettingsPath({ cwd, home, scope: "project" }),
       join(cwd, ".claude", "settings.json"),
       claudeSettingsPath({ cwd, home, scope: "user" }),
     ];
+    const sessionHookFile = hookFiles.find((f) => claudeHooksPresent(f).SessionStart);
+    const guided = claudeHasGuidance(cwd, home, CLAUDE_MD_MARKER) || !!sessionHookFile;
+    // A team may also have put them in the team's settings on purpose; any of the three counts.
     const hooked = Object.keys(CLAUDE_HOOKS).every((event) =>
       hookFiles.some((f) => claudeHooksPresent(f)[event as keyof typeof CLAUDE_HOOKS])
     );
@@ -196,7 +230,12 @@ export const claudeCode: ClientAdapter = {
     const files = [guidanceFile, hookFile].filter((f): f is string => !!f);
     const checkedWith = (server: string) => [
       `server    ${server}`,
-      `guidance  ${guidanceFile ?? "missing (no file Claude Code loads here has the block)"}`,
+      `guidance  ${
+        guidanceFile ??
+        (sessionHookFile
+          ? `SessionStart hook (${sessionHookFile})`
+          : "missing (no file Claude Code loads here has the block)")
+      }`,
       `hooks     ${
         hookFile
           ? `${Object.entries(CLAUDE_HOOKS)
@@ -219,14 +258,15 @@ export const claudeCode: ClientAdapter = {
         files: [file, ...files],
       };
     const userFile = join(home, ".claude.json");
-    if (existsSync(userFile) && /"ynm"\s*:/.test(readFileSync(userFile, "utf8")))
+    const scope = registeredScope(userFile, cwd);
+    if (scope)
       return {
         client: "claude-code",
         configured: true,
-        detail: `user scope: ${userFile}`,
+        detail: `${scope} scope: ${userFile}`,
         guidance: guided,
         hooks: hooked,
-        checked: checkedWith(`ynm registered at user scope in ${userFile}`),
+        checked: checkedWith(`ynm registered at ${scope} scope in ${userFile}`),
         files,
       };
     return {
@@ -235,6 +275,7 @@ export const claudeCode: ClientAdapter = {
       detail: "ynm not registered; run `ynm client install claude-code`",
       guidance: guided,
       hooks: hooked,
+      files,
     };
   },
 };

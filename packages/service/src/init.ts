@@ -27,7 +27,13 @@ export interface InitProjectOptions {
    * Configure agent clients in the work tree (ADR-016): every detected one, or `only` those.
    * Omitted, init leaves clients alone (the CLI passes it unless `--no-clients`).
    */
-  clients?: { home: string; env?: NodeJS.ProcessEnv; only?: string[] };
+  clients?: {
+    home: string;
+    env?: NodeJS.ProcessEnv;
+    only?: string[];
+    /** Runs a client's command (such as `claude mcp add --scope local`) in the project. */
+    runCommand?: (argv: string[], cwd: string) => Promise<void>;
+  };
 }
 
 export interface InitReport {
@@ -92,8 +98,11 @@ command -v ynm >/dev/null 2>&1 && ynm sync --quiet || true
 exit 0
 `;
 
-/** Derived, per-clone state that must never be committed (ADR-010). */
-const LOCAL_STATE_IGNORES = [".ynm/wiki/", ".ynm/index/"];
+/**
+ * ynm's own folder is per-clone setup, never the project's: the whole of it is excluded, config
+ * file included, so init leaves nothing untracked in the work tree (ynm #37).
+ */
+const LOCAL_STATE_IGNORES = [".ynm/"];
 
 /**
  * Appends any of `entries` not already excluded to the repository's `.git/info/exclude`, the
@@ -107,7 +116,9 @@ async function ensureExcluded(repo: string, entries: string[]): Promise<string[]
   const text = existsSync(file) ? readFileSync(file, "utf8") : "";
   const lines = new Set(text.split(/\r?\n/).map((l) => l.trim().replace(/^\//, "")));
   const covered = (e: string): boolean =>
-    lines.has(e) || lines.has(e.replace(/\/$/, "")) || lines.has(".ynm/") || lines.has(".ynm");
+    lines.has(e) ||
+    lines.has(e.replace(/\/$/, "")) ||
+    (e.startsWith(".ynm/") && (lines.has(".ynm/") || lines.has(".ynm")));
   const missing = entries.filter((e) => !covered(e));
   if (!missing.length) return [];
   mkdirSync(dirname(file), { recursive: true });
@@ -201,6 +212,19 @@ export async function initProject(opts: InitProjectOptions): Promise<InitReport>
           home: opts.clients.home,
           env: opts.clients.env,
           only: opts.clients.only,
+          cleanTree: {
+            isTracked: async (p) =>
+              (await gitOrNull(["ls-files", "--error-unmatch", "--", relative(wt.currentPath, p)], {
+                cwd: wt.currentPath,
+              })) !== null,
+            exclude: async (paths) => {
+              await ensureExcluded(
+                wt.currentPath,
+                paths.map((p) => relative(wt.currentPath, p))
+              );
+            },
+            runCommand: opts.clients.runCommand,
+          },
         })
       : [];
   const advice = wt.isBare
