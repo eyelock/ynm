@@ -80,8 +80,8 @@ failing.
 Retrofit is the normal case; greenfield is the degenerate case where init creates the root commit.
 `ynm init` in an existing repo changes no branch, tag, commit or tracked file. It adds refs under
 `refs/notes/ynm/*`, local refspecs and hooks in `.git/` (never committed), and optionally
-`.ynm/config.json`, the one file a team may commit to share mounts, anchor and redaction
-settings. Teammates who have not run init see nothing until they do.
+`.ynm/config.json`, which init excludes with the rest of `.ynm/` (ynm #37); a team that wants to
+share mounts, anchor and redaction settings adds it on purpose with `git add -f`. Teammates who have not run init see nothing until they do.
 
 Cases handled:
 
@@ -139,3 +139,4 @@ Cases handled:
   5xx rate over its request count, with a request floor and 2 of 3 periods, and on function errors
   in 2 periods over two dream intervals, instead of on any single burst.
 - 2026-10-04: the Lambda handler cuts a response off before API Gateway's 30 s, counted from the request's arrival (`timeEpoch`), as well as before the function's own timeout; a cold start's init counts towards the first but not the second.
+- 2026-11-09: `.ynm/`, config file included, is excluded in `.git/info/exclude` by init, so nothing it writes shows in `git status`; a team shares `config.json` with `git add -f` (ynm #37, ADR-016).

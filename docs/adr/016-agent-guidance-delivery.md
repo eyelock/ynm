@@ -73,8 +73,9 @@ keeps it current, the way it does any other skill. ynm's own generated harness d
 three hooks, so `ynh install github.com/eyelock/ynm --path integrations/ynh` carries them. ynh translates the canonical
 names per vendor (`SessionStart`, `UserPromptSubmit`, `Stop` on Claude Code and Codex).
 
-Claude Code's guidance block goes into the instruction file Claude Code actually reads, by its
-own lookup (`claude-instructions.ts`). At launch Claude loads `CLAUDE.md`, `.claude/CLAUDE.md`
+When `ynm client install` writes it (not `ynm init`, which appends no block; see "`ynm init` is
+the one command"), Claude Code's guidance block goes into the instruction file Claude Code
+actually reads, by its own lookup (`claude-instructions.ts`). At launch Claude loads `CLAUDE.md`, `.claude/CLAUDE.md`
 and `CLAUDE.local.md` from the working directory and every directory above it; only when none
 exist does it load `AGENTS.md` and `.claude/AGENTS.md`. A `CLAUDE.md` that imports `@AGENTS.md`
 pulls that file in either way, and `~/.claude/CLAUDE.md` always loads. ynm appends its delimited
@@ -89,9 +90,16 @@ JSON merges preserve the target file's style: its indentation, its `\uXXXX` esca
 full of `\u2014` stays that way) and its trailing newline, so a merge changes only the lines it
 adds.
 
-**`ynm init` is the one command.** After the repository setup of ADR-009, `ynm init` applies the
-project-scope install (server entry, guidance and hooks) of each client the project already
-uses. A client is found by three signals, but only one of them makes init write files:
+**`ynm init` is the one command.** After the repository setup of ADR-009, `ynm init` sets up each
+client the project already uses without changing what git shows (ynm #37). For Claude Code that
+is the server, registered with `claude mcp add --scope local` (the user's own Claude config, no
+`.mcp.json`), and the three hooks in the untracked `.claude/settings.local.json`; no guidance
+block is appended to a project instruction file, since the session-start hook carries guidance.
+For the other clients it is their project files (`opencode.json`, `AGENTS.md`, `.pi/`). Init never
+edits a file git tracks (it names it on a `left` line), adds every file it creates to
+`.git/info/exclude`, and excludes the whole of `.ynm/`. The manual `ynm client install` is the
+form that writes the team-shareable project files: `.mcp.json` and the delimited guidance block,
+which the paragraph above describes. A client is found by three signals, but only one of them makes init write files:
 
 | Client | Executable on PATH | User-level footprint | Project footprint |
 |---|---|---|---|
@@ -119,7 +127,9 @@ through it need nothing for the agent to have ynm, and `ynm init --no-clients` t
 shared memory without writing files that duplicate the harness.
 
 Init writes only inside the work tree: a change to a file under the home directory (Copilot
-CLI's only config file) or a command becomes a `run:` line in the report. It prints one `client`
+CLI's only config file) becomes a `run:` line in the report, and so does a command, except
+Claude Code's local-scope `claude mcp add`, which init runs itself because it records the server
+in the user's own config and changes nothing in the repository. It prints one `client`
 line per client the project uses, at most one `also` line, and nothing for the rest; a second
 run reports `unchanged`. `--no-clients` skips the step and `--client <name>` names the clients
 to configure, used by the project or not. A bare repository gets no client files. `ynm client
@@ -215,4 +225,7 @@ but guidance or hooks are missing.
   status counts it); a tracked client file is left alone and reported; a client file init creates
   and the whole of `.ynm/` are excluded in `.git/info/exclude`. This reverses the 2026-09-30 and
   2026-10-08 decisions that init writes `.mcp.json` and a `CLAUDE.md` block for the team to
-  commit; `ynm client install` still writes them. Accepted.
+  commit; `ynm client install` still writes them. The Decision's "`ynm init` is the one command"
+  paragraph and its tracked-files and guidance paragraphs were rewritten to match (the former
+  statement that init applies the project-scope server entry, guidance block and hooks no longer
+  holds). Accepted.
