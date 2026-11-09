@@ -12,6 +12,11 @@ export interface InstallTarget {
   transport: Transport;
   /** Install the client's agent hooks where it has them (ADR-016); default true. */
   hooks?: boolean;
+  /**
+   * Leave the project's working tree as it is (ynm #37): an adapter that can register its server
+   * and deliver guidance without writing a project file does so, and writes no instruction block.
+   */
+  cleanTree?: boolean;
 }
 
 export type Change =
@@ -26,7 +31,11 @@ export type Change =
     }
   /** Renames a file or directory (not when `to` exists); `label` as for write. */
   | { kind: "move"; from: string; to: string; reason: string; label?: string }
-  | { kind: "command"; argv: string[]; reason: string }
+  /**
+   * `projectLocal`: the command only records ynm in the user's own config for this project, so
+   * `ynm init` may run it in the work tree's directory; any other command is left for the user.
+   */
+  | { kind: "command"; argv: string[]; reason: string; projectLocal?: boolean }
   /** Nothing to do on disk: a next step the user should take, shown in the plan and report. */
   | { kind: "note"; text: string; reason: string };
 

@@ -59,26 +59,26 @@ ynm init --client claude-code
 ```
 
 Expected: the `initialised` report from tutorial 2, including the note that there is no remote
-`origin` yet, then one `client` line saying what was written for Claude Code: its server entry,
-the guidance block and three hooks. The `commit` line now lists the client files the team
-shares, and a `local` line names the hooks file, which is yours alone and excluded from git.
+`origin` yet, then one `client` line saying what was set up for Claude Code: its server,
+registered with `claude mcp add --scope local` (a `run:` line gives you that command instead when
+`claude` is not installed here), and three hooks. Nothing lands in the work tree for git to see: no `.mcp.json`
+and no guidance block in `CLAUDE.md`. A `local` line names the hooks file, which is yours alone
+and excluded from git.
 
 ```text
 initialised <project path>
   anchor    <40-hex sha> (root-commit)
   config    <project path>/.ynm/config.json
   hooks     <project path>/.git/hooks/pre-push
-  note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
+  note      added .ynm/ to .git/info/exclude
   note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
-  client    claude-code: .mcp.json, CLAUDE.md, 3 hooks
-  commit    .ynm/config.json .mcp.json CLAUDE.md
-            the team shares these; commit them so every clone gets the same setup
+  client    claude-code: claude mcp add --scope local, 3 hooks
   local     .claude/settings.local.json (yours only; excluded from git)
   memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
-Claude Code now has a project footprint, `.mcp.json` and `.claude/`, so from here a plain
+Claude Code now has a project footprint, the `.claude/` folder, so from here a plain
 `ynm init` treats this project as one that uses it:
 
 ```bash
@@ -86,8 +86,8 @@ ynm init
 ```
 
 Expected: the same report, now with the config marked `(unchanged)`, `client    claude-code:
-unchanged`, and, for clients found only on your machine, one `also` line. The `commit` and
-`local` lines repeat until you commit, so a second run still tells you what is left:
+unchanged`, and, for clients found only on your machine, one `also` line. The `local` line
+repeats, so a second run still tells you which files are yours alone:
 
 ```text
 initialised <project path>
@@ -96,8 +96,6 @@ initialised <project path>
   note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
   client    claude-code: unchanged
   also      copilot-cli, pi on this machine but not used here; add one with `ynm client install <name>`
-  commit    .ynm/config.json .mcp.json CLAUDE.md
-            the team shares these; commit them so every clone gets the same setup
   local     .claude/settings.local.json (yours only; excluded from git)
   memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
@@ -105,50 +103,25 @@ next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 
 The `also` line names whichever other clients your machine has, so yours may name different
 ones or be absent. Without `--client`, you get one `client` line per client the project uses
-and at most that one `also` line. `--no-clients` skips the step. Init only writes inside the work
-tree: a client whose install needs a file in your home directory (Copilot CLI) gets a `run:`
-line to do yourself instead.
+and at most that one `also` line. `--no-clients` skips the step. Init never edits a file git
+tracks: if the project already tracks, say, `opencode.json` or `AGENTS.md`, init leaves it alone
+and prints a `left` line naming it, and a file init does create is excluded in this clone. A
+client whose install needs a file in your home directory (Copilot CLI) gets a `run:` line to do
+yourself instead.
 
 ## What Claude Code got
 
-The server entry, which Claude Code uses to start `ynm serve` over stdio whenever it opens the
-project:
+Nothing was added to the project for git to show. The server is registered with
+`claude mcp add --scope local`, which records it in your own Claude Code config for this project
+rather than in a `.mcp.json` the whole team would see. The guidance reaches Claude Code through
+the `SessionStart` hook below and the server's own instructions, so no block goes into
+`CLAUDE.md` or `AGENTS.md`. Check that the work tree is as clean as before:
 
 ```bash
-cat .mcp.json
+test ! -e .mcp.json && test ! -e CLAUDE.md && git status --short
 ```
 
-Expected:
-
-```text
-{
-  "mcpServers": {
-    "ynm": {
-      "command": "ynm",
-      "args": [
-        "serve"
-      ]
-    }
-  }
-}
-```
-
-The guidance block tells the agent how to use memory. ynm puts it in the instruction file
-Claude Code reads in this project. This project has none (no `CLAUDE.md`, `.claude/CLAUDE.md` or
-`CLAUDE.local.md`, here or above, and no `AGENTS.md`), so ynm creates `CLAUDE.md`, which Claude
-Code reliably reads. [Install ynm](../how-to/install.md#set-up-your-agent-clients) lists the
-other cases, including a project that has only an `AGENTS.md`:
-
-```bash
-cat CLAUDE.md
-```
-
-Expected: a Markdown block between two `<!-- ynm:guidance -->` marker lines, headed
-`# Using memory in this session`, with six numbered rules: start with `memory_context` or
-`memory_recall`, remember durable facts, keep `personal` unless the fact is safe for the team,
-supersede rather than duplicate, use ynm rather than the client's own note files, and stay quiet
-about it. ynm only ever rewrites the text between the markers, so anything else you keep in the
-file is safe, and installing again is harmless.
+Expected: no output.
 
 The hooks, in the project's personal Claude Code settings. They go in
 `.claude/settings.local.json`, the file Claude Code keeps for you and does not commit, and never
@@ -264,34 +237,34 @@ ynm client status
 Expected: five lines, one per client. Claude Code is `ok` with everything in place:
 
 ```text
-ok   claude-code: server yes, guidance yes, hooks yes; project scope: <project path>/.mcp.json
+ok   claude-code: server yes, guidance yes, hooks yes; user or local scope: <home>/.claude.json
 ```
 
 The other four lines depend on your machine: `--   <client>: not detected`, or, for a client
 detected by one of the signals above, `detected (...)` naming the signals and the command that
 would install it.
 
-`ynm client install <name>` is the manual form of what init did, one client at a time, with a
-`plan` to preview it. The name is optional: in a ynh harness directory `ynm client install`
-means ynh, and anywhere else it means every client the project already uses. In a project that
-uses none, it exits 2 with `no agent client is configured in <dir>; name one` and the list of
-names. For Claude Code there is nothing left to do, and `ynm init` again reports it
-unchanged:
+`ynm client install <name>` is the manual form, one client at a time, with a `plan` to preview
+it. The name is optional: in a ynh harness directory `ynm client install` means ynh, and
+anywhere else it means every client the project already uses. In a project that uses none, it
+exits 2 with `no agent client is configured in <dir>; name one` and the list of names. Unlike
+init, the manual form sets up what a team can share, so for Claude Code it plans a `.mcp.json`
+and a guidance block that init left out, and you decide whether to commit them:
 
 ```bash
 ynm client plan claude-code
 ynm init --client claude-code
 ```
 
-Expected: when nothing would change, the plan says what it found and where, then the
-`initialised` report with the config marked `(unchanged)` and `client    claude-code:
+Expected: the plan has two changes, a `merge-json` of `<project path>/.mcp.json` and a `write` of
+`<project path>/CLAUDE.md` (the hooks are already in place, so there is no hooks change). Running
+`ynm client install claude-code` would apply them. Then `ynm init --client claude-code` again
+prints the `initialised` report with the config marked `(unchanged)` and `client    claude-code:
 unchanged`, plus an `also` line if other clients are on your machine:
 
 ```text
-already in place, nothing changed:
-  server    mcpServers.ynm in <project path>/.mcp.json
-  guidance  <project path>/CLAUDE.md
-  hooks     SessionStart runs `ynm hook session-start`; UserPromptSubmit runs `ynm hook prompt`; Stop runs `ynm hook stop` (<project path>/.claude/settings.local.json)
+merge-json <project path>/.mcp.json  (register the ynm MCP server for this project)
+write      <project path>/CLAUDE.md  (memory guidance for the agent (delimited block))
 ```
 
 `ynm client install claude-code --scope user` registers the server for every project with
@@ -530,7 +503,7 @@ own harness with the same hooks.
 Once a harness carries ynm, the repositories you work on need nothing for the agent to have it:
 ynh assembles the server, the hooks and the skill at every launch, and memory goes to your
 personal store. Run `ynm init --no-clients` in a repository only to add distributed, team memory; the
-flag keeps init from also writing `.mcp.json`, an instruction file and hooks that duplicate the harness.
+flag keeps init from also registering a server and writing hooks that duplicate the harness.
 
 Back to the project for the rest of the tutorial:
 

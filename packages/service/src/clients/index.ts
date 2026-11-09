@@ -183,11 +183,28 @@ export interface ClientSetup {
    * writes nothing for it and suggests the install command instead.
    */
   skipped?: "machine-only";
+  /**
+   * Relative paths init left alone because the repository tracks them (clean-tree mode): init
+   * never edits a tracked file, so what it would have added there is the user's to add.
+   */
+  left: string[];
 }
 
 export interface ConfigureClientsOptions extends DetectTarget {
   /** Configure exactly these clients, detected or not; default every detected client. */
   only?: string[];
+  /**
+   * Keep the work tree clean (ynm #37): never modify a tracked file, and hide every file init
+   * creates. Absent, changes are applied as planned (the old behaviour).
+   */
+  cleanTree?: {
+    /** True when git tracks this absolute path. */
+    isTracked(path: string): Promise<boolean>;
+    /** Hides these absolute paths from git, for this clone only. */
+    exclude(paths: string[]): Promise<void>;
+    /** Runs a client's command in the project; absent, the command is left as a `run:` line. */
+    runCommand?: (argv: string[], cwd: string) => Promise<void>;
+  };
 }
 
 /**
@@ -219,6 +236,7 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
           applied: [],
           run: [`ynm client install ${a.name}`],
           files: [],
+          left: [],
           skipped: "machine-only",
         });
         continue;
@@ -230,12 +248,25 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
       scope: "project",
       transport: { kind: "stdio", command: "ynm", args: ["serve"] },
       hooks: true,
+      cleanTree: !!opts.cleanTree,
     });
     const target = (c: Change): string | undefined =>
       c.kind === "write" || c.kind === "merge-json" ? c.path : c.kind === "move" ? c.to : undefined;
-    const local = plan.filter((c) => {
+    const wanted = plan.filter((c) => {
       const p = target(c);
       return p !== undefined && inside(p) && !changeIsNoop(c);
+    });
+    // Clean-tree mode: a tracked file is never edited; what is new is applied and then excluded.
+    const left: string[] = [];
+    const local: Change[] = [];
+    for (const c of wanted) {
+      const p = target(c) as string;
+      if (opts.cleanTree && (await opts.cleanTree.isTracked(p))) left.push(relative(root, p));
+      else local.push(c);
+    }
+    const created = local.flatMap((c) => {
+      const p = target(c);
+      return opts.cleanTree && p !== undefined && !existsSync(p) ? [p] : [];
     });
     const outside = plan.some((c) => {
       const p = target(c);
@@ -244,22 +275,37 @@ export async function configureClients(opts: ConfigureClientsOptions): Promise<C
     const run: string[] = [];
     if (outside) run.push(`ynm client install ${a.name}`);
     const configured = (await a.status(opts)).configured;
+    const ran: string[] = [];
     for (const c of plan) {
-      if (c.kind === "command" && !configured) run.push(c.argv.join(" "));
+      if (c.kind === "command" && !configured) {
+        const runIt = c.projectLocal ? opts.cleanTree?.runCommand : undefined;
+        try {
+          if (!runIt) throw new Error("not run");
+          await runIt(c.argv, opts.cwd);
+          ran.push(c.argv.slice(0, 5).join(" "));
+        } catch {
+          run.push(c.argv.join(" "));
+        }
+      }
       if (c.kind === "note" && local.length) run.push(c.text);
     }
     await applyChanges(local);
+    if (created.length) await opts.cleanTree?.exclude(created);
     out.push({
       client: a.name,
       detected: opts.only?.length ? (d.installed ? d.detail : "requested") : d.detail,
-      applied: local.map((c) => {
-        const p = target(c);
-        return p === undefined
-          ? ""
-          : ((c.kind !== "command" && c.kind !== "note" ? c.label : undefined) ??
-              relative(root, p));
-      }),
+      applied: [
+        ...ran,
+        ...local.map((c) => {
+          const p = target(c);
+          return p === undefined
+            ? ""
+            : ((c.kind !== "command" && c.kind !== "note" ? c.label : undefined) ??
+                relative(root, p));
+        }),
+      ],
       run,
+      left,
       // Every file in the project the setup lives in, changed this time or not, so init can say
       // what to commit.
       files: [

@@ -151,10 +151,21 @@ but guidance or hooks are missing.
   `.claude/settings.local.json`, which is what `ynm init` writes for claude-code.
 - **Hosted servers.** The hooks run the local binary against the local store. With `--http` the
   prompt nudge works unchanged, but session start shows only local memory.
-- **Tracked files.** ADR-009's promise that init changes no tracked file holds for memory. The
-  client step can edit a tracked `CLAUDE.md`, `AGENTS.md`, `.mcp.json` or `opencode.json` by merge
-  or delimited block, keeping the file's style; the hooks go to the untracked
-  `.claude/settings.local.json`. `--no-clients` keeps init to memory alone.
+- **Tracked files.** ADR-009's promise that init changes no tracked file now holds for the
+  client step too (2026-11-09). Init never edits a tracked file: it prints a `left` line naming
+  it, and the manual `ynm client install` stays the way to merge into one. A file init creates
+  is added to `.git/info/exclude`, and so is all of `.ynm/`. `--no-clients` keeps init to memory
+  alone.
+- **Guidance for clients without hooks.** With nothing written to a tracked or visible file,
+  Copilot CLI, OpenCode and Pi get their guidance only from a file init creates and excludes
+  (`AGENTS.md`, the Pi skill). A user-level instruction file for them is open: Pi's and Copilot
+  CLI's file names are unconfirmed.
+- **Full guidance on session start for Claude Code.** Init no longer appends the six-rule block
+  to `CLAUDE.md`; Claude Code gets the session-start hook's context and one-line instruction, the
+  prompt nudge and the server's instructions. Carrying the whole block in `additionalContext`,
+  when no file Claude loads has it, is not done.
+- **Other hook managers.** How the pre-push hook coexists with husky, lefthook or
+  `core.hooksPath` is unchanged and open.
 
 ## Alternatives considered
 
@@ -198,3 +209,10 @@ but guidance or hooks are missing.
 - 2026-10-07: ynh's harness manifest moves to `.agents/harness/plugin.json`, ynh's canonical layout; `.ynh-plugin/` is no longer written (an existing one is moved there by `ynm client install ynh`). Accepted.
 - 2026-10-08: for Claude Code, a project with no instruction file gets CLAUDE.md, not AGENTS.md, because Claude Code reads CLAUDE.md; a project with only an AGENTS.md keeps the block there and gets a CLAUDE.md that imports it (`@AGENTS.md`), so AGENTS.md stays shared with the other clients. Accepted.
 - 2026-10-30: the Stop hook can sync distributed memory in the background. With `sync.auto` on, after the expire pass it checks locally (no network) whether a distributed git-notes mount has note or document refs that differ from, or are missing in, the remote-tracking refs, and if the per-repository stamp in `hooks/` is older than `sync.intervalMinutes` (minimum 5, matching the once per 5 minutes the hook opens the store) it launches `ynm sync --quiet` detached. It is a full sync, not push-only, since a push alone is rejected when another seat pushed first (ADR-009); `YNM_SYNC_IN_PROGRESS` suppresses it. A successful push now records the tracking refs, so "unpushed" goes false after a sync. Errors are swallowed; the hook still prints its JSON.
+- 2026-11-09: `ynm init` keeps the work tree clean (ynm #37, option B). The Claude Code server is
+  registered with `claude mcp add --scope local` instead of a project `.mcp.json`; no guidance
+  block is appended to a project instruction file (the session-start hook carries guidance, and
+  status counts it); a tracked client file is left alone and reported; a client file init creates
+  and the whole of `.ynm/` are excluded in `.git/info/exclude`. This reverses the 2026-09-30 and
+  2026-10-08 decisions that init writes `.mcp.json` and a `CLAUDE.md` block for the team to
+  commit; `ynm client install` still writes them. Accepted.

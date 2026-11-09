@@ -92,7 +92,11 @@ export function claudeSettingsPath(t: Pick<InstallTarget, "cwd" | "home" | "scop
 }
 
 /**
- * Claude Code: project scope writes `.mcp.json` (mcpServers), a delimited block in CLAUDE.md
+ * Claude Code: `ynm init` (`cleanTree`) never writes a project file for the server or the
+ * guidance: it registers the server with `claude mcp add --scope local` (recorded in the user's
+ * own Claude config), writes no instruction block (the SessionStart hook and the server's
+ * instructions carry the guidance) and puts the hooks in the untracked
+ * `.claude/settings.local.json` (ynm #37). Otherwise project scope writes `.mcp.json` (mcpServers), a delimited block in CLAUDE.md
  * (a new one when the project has no instruction file; in AGENTS.md, imported from a new
  * CLAUDE.md, when that is all it has) and the hooks in `.claude/settings.local.json`; user scope goes through `claude mcp add` so the
  * user's own server config is not hand-edited, and merges the hooks into
@@ -108,7 +112,10 @@ export const claudeCode: ClientAdapter = {
   },
   async plan(t: InstallTarget): Promise<Change[]> {
     const changes: Change[] = [];
-    if (t.scope === "user") {
+    if (t.scope === "user" || t.cleanTree) {
+      // `--scope local` records the server in the user's own Claude config for this project, so
+      // no `.mcp.json` lands in the work tree (ynm #37).
+      const scope = t.scope === "user" ? "user" : "local";
       const argv =
         t.transport.kind === "stdio"
           ? [
@@ -116,7 +123,7 @@ export const claudeCode: ClientAdapter = {
               "mcp",
               "add",
               "--scope",
-              "user",
+              scope,
               "ynm",
               "--",
               t.transport.command,
@@ -127,7 +134,7 @@ export const claudeCode: ClientAdapter = {
               "mcp",
               "add",
               "--scope",
-              "user",
+              scope,
               "--transport",
               "http",
               "ynm",
@@ -136,7 +143,11 @@ export const claudeCode: ClientAdapter = {
       changes.push({
         kind: "command",
         argv,
-        reason: "register ynm with Claude Code for this user",
+        ...(scope === "local" ? { projectLocal: true } : {}),
+        reason:
+          scope === "user"
+            ? "register ynm with Claude Code for this user"
+            : "register ynm with Claude Code for this project, privately (local scope)",
       });
     } else {
       changes.push({
@@ -179,13 +190,15 @@ export const claudeCode: ClientAdapter = {
   },
   async status({ cwd, home }): Promise<ClientStatus> {
     // Any instruction file Claude Code loads here at launch, by its own lookup rules.
-    const guided = claudeHasGuidance(cwd, home, CLAUDE_MD_MARKER);
-    // A team may also have put them in the team's settings on purpose; any of the three counts.
+    // The SessionStart hook delivers the same guidance without a file, so it counts too.
     const hookFiles = [
       claudeSettingsPath({ cwd, home, scope: "project" }),
       join(cwd, ".claude", "settings.json"),
       claudeSettingsPath({ cwd, home, scope: "user" }),
     ];
+    const sessionHookFile = hookFiles.find((f) => claudeHooksPresent(f).SessionStart);
+    const guided = claudeHasGuidance(cwd, home, CLAUDE_MD_MARKER) || !!sessionHookFile;
+    // A team may also have put them in the team's settings on purpose; any of the three counts.
     const hooked = Object.keys(CLAUDE_HOOKS).every((event) =>
       hookFiles.some((f) => claudeHooksPresent(f)[event as keyof typeof CLAUDE_HOOKS])
     );
@@ -196,7 +209,12 @@ export const claudeCode: ClientAdapter = {
     const files = [guidanceFile, hookFile].filter((f): f is string => !!f);
     const checkedWith = (server: string) => [
       `server    ${server}`,
-      `guidance  ${guidanceFile ?? "missing (no file Claude Code loads here has the block)"}`,
+      `guidance  ${
+        guidanceFile ??
+        (sessionHookFile
+          ? `SessionStart hook (${sessionHookFile})`
+          : "missing (no file Claude Code loads here has the block)")
+      }`,
       `hooks     ${
         hookFile
           ? `${Object.entries(CLAUDE_HOOKS)
@@ -223,10 +241,10 @@ export const claudeCode: ClientAdapter = {
       return {
         client: "claude-code",
         configured: true,
-        detail: `user scope: ${userFile}`,
+        detail: `user or local scope: ${userFile}`,
         guidance: guided,
         hooks: hooked,
-        checked: checkedWith(`ynm registered at user scope in ${userFile}`),
+        checked: checkedWith(`ynm registered (user or local scope) in ${userFile}`),
         files,
       };
     return {
@@ -235,6 +253,7 @@ export const claudeCode: ClientAdapter = {
       detail: "ynm not registered; run `ynm client install claude-code`",
       guidance: guided,
       hooks: hooked,
+      files,
     };
   },
 };

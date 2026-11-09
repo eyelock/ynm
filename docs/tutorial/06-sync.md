@@ -45,9 +45,9 @@ ynm init
 ```
 
 Expected: an `initialised <project path>` line, then the anchor, the config path, the
-`refspecs` ynm configured on `origin`, the hook, and a note that the local wiki and index
-directories were excluded in `.git/info/exclude`. There is no "no remote" note this time, because
-`origin` exists. The `commit` and `memory` lines are the same as in tutorial 2. Alice's clone uses no agent client, so there is no `client` line; an `also` line
+`refspecs` ynm configured on `origin`, the hook, and a note that the `.ynm/` folder was
+excluded in `.git/info/exclude`. There is no "no remote" note this time, because
+`origin` exists. The `memory` line is the same as in tutorial 2. Alice's clone uses no agent client, so there is no `client` line; an `also` line
 naming clients found on your machine (tutorial 2) may appear, and varies.
 
 ```text
@@ -56,10 +56,8 @@ initialised <project path>
   config    <project path>/.ynm/config.json
   refspecs  +refs/notes/ynm/distributed/*:refs/notes/ynm-remote/origin/distributed/*
   hooks     <project path>/.git/hooks/pre-push
-  note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
+  note      added .ynm/ to .git/info/exclude
   also      <client names> on this machine but not used here; add one with `ynm client install <name>`
-  commit    .ynm/config.json
-            the team shares these; commit them so every clone gets the same setup
   memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
