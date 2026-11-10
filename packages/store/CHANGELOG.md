@@ -4,7 +4,7 @@
 
 ### Patch Changes
 
-- [#133](https://github.com/eyelock/ynm/pull/133) [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e) Thanks [@eyelock](https://github.com/eyelock)! - Git calls work when `safe.bareRepository=explicit` is set (ynm [#112](https://github.com/eyelock/ynm/issues/112)).
+- [#113](https://github.com/eyelock/ynm/pull/113) [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e) Thanks [@eyelock](https://github.com/eyelock)! - Git calls work when `safe.bareRepository=explicit` is set (ynm [#112](https://github.com/eyelock/ynm/issues/112)).
 
 ## 0.4.3
 

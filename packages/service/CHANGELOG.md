@@ -8,7 +8,7 @@
 
 ### Patch Changes
 
-- [#133](https://github.com/eyelock/ynm/pull/133) [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e) Thanks [@eyelock](https://github.com/eyelock)! - Secret redaction no longer refuses ordinary words that contain `sk-`, such as `desk-asks` (ynm [#116](https://github.com/eyelock/ynm/issues/116)).
+- [#120](https://github.com/eyelock/ynm/pull/120) [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e) Thanks [@eyelock](https://github.com/eyelock)! - Secret redaction no longer refuses ordinary words that contain `sk-`, such as `desk-asks` (ynm [#116](https://github.com/eyelock/ynm/issues/116)).
 - Updated dependencies [[`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e)]:
   - @ynm/store@0.4.4
   - @ynm/index@0.3.5

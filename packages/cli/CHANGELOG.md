@@ -8,9 +8,9 @@
 
 ### Patch Changes
 
-- [#133](https://github.com/eyelock/ynm/pull/133) [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e) Thanks [@eyelock](https://github.com/eyelock)! - Git calls work when `safe.bareRepository=explicit` is set (ynm [#112](https://github.com/eyelock/ynm/issues/112)).
+- [#113](https://github.com/eyelock/ynm/pull/113) [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e) Thanks [@eyelock](https://github.com/eyelock)! - Git calls work when `safe.bareRepository=explicit` is set (ynm [#112](https://github.com/eyelock/ynm/issues/112)).
 
-- [#133](https://github.com/eyelock/ynm/pull/133) [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e) Thanks [@eyelock](https://github.com/eyelock)! - Secret redaction no longer refuses ordinary words that contain `sk-`, such as `desk-asks` (ynm [#116](https://github.com/eyelock/ynm/issues/116)).
+- [#120](https://github.com/eyelock/ynm/pull/120) [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e) Thanks [@eyelock](https://github.com/eyelock)! - Secret redaction no longer refuses ordinary words that contain `sk-`, such as `desk-asks` (ynm [#116](https://github.com/eyelock/ynm/issues/116)).
 - Updated dependencies [[`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e), [`85cbe3c`](https://github.com/eyelock/ynm/commit/85cbe3c4b31b0d344000b79184c42bc63decc08d), [`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e)]:
   - @ynm/store@0.4.4
   - @ynm/service@0.6.0
