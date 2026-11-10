@@ -1,5 +1,12 @@
 # @ynm/store-s3
 
+## 0.3.5
+
+### Patch Changes
+
+- Updated dependencies [[`e0f7991`](https://github.com/eyelock/ynm/commit/e0f7991e18798779fb3dab113278f2a5fa39e20e)]:
+  - @ynm/store@0.4.4
+
 ## 0.3.4
 
 ### Patch Changes
