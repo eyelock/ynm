@@ -20,8 +20,9 @@ Layers are merged one top-level key at a time: a key set in a later layer replac
 value from an earlier one. A `dream` block in `<repo>/.ynm/config.json` therefore replaces the
 `dream` block from `~/.ynm/config.json` rather than merging into it. Unknown keys are an error.
 
-`ynm init` writes `<repo>/.ynm/config.json` with the anchor; that is the one file a team
-commits. `config.local.json` is for per-clone overrides and is not meant to be committed.
+`ynm init` writes `<repo>/.ynm/config.json` with the anchor and excludes the whole of `.ynm/` in
+`.git/info/exclude`, so it stays in your clone; to share it (mounts, redaction settings) with a
+team, add it on purpose with `git add -f .ynm/config.json`. `config.local.json` is for per-clone overrides and is not meant to be committed.
 `ynm status` lists the files that were read.
 
 After merging, three keys get runtime defaults when still unset:
@@ -91,7 +92,7 @@ you want to keep them.
 -----BEGIN [A-Z ]*PRIVATE KEY-----
 AKIA[0-9A-Z]{16}
 gh[pousr]_[A-Za-z0-9]{20,}
-sk-[A-Za-z0-9_-]{20,}
+(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{20,}
 xox[baprs]-[A-Za-z0-9-]{10,}
 (?i)bearer\s+[A-Za-z0-9._-]{20,}
 ```

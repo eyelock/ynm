@@ -13,60 +13,60 @@ ynm init
 
 For memory, `ynm init` changes no branch, tag, commit or tracked file. It does five things:
 
-- writes `.ynm/config.json`, which records the anchor (the repository's root commit) and is the
-  one file worth committing, so teammates share the anchor and any mounts or redaction settings;
+- writes `.ynm/config.json`, which records the anchor (the repository's root commit); it stays
+  in your clone, because ynm works the anchor out again in any clone;
 - adds a fetch refspec for `refs/notes/ynm/distributed/*` to `remote.origin` in
   `.git/config` (pass `--remote <name>` to use another remote; if the remote does not exist yet,
   the first `ynm sync` after you add it sets this up, so there is nothing to re-run);
 - installs a `pre-push` hook that runs `ynm sync --quiet`, unless you pass `--no-hooks` or set
   `"hooks": false` in your config;
-- adds `.ynm/wiki/` and `.ynm/index/` to `.git/info/exclude` (git's per-clone ignore file, never
-  committed) when they are not already ignored, and says so in a note;
+- adds `.ynm/` to `.git/info/exclude` (git's per-clone ignore file, never committed) when it is
+  not already excluded, and says so in a note;
 - builds the search index under `.ynm/index/`, and puts a `.gitignore` containing `*` inside that
   folder (and inside `.ynm/wiki/` when the wiki is built) so it ignores itself in every clone.
 
 Memory itself appears only when someone writes it, as refs under `refs/notes/ynm/`. Teammates who
 have not run `ynm init` see nothing and are not affected.
 
-Then it configures the agent clients the repository already uses, and this part does write work
-tree files. A client counts as used when the repository has its project footprint (`.mcp.json` or
+Then it configures the agent clients the repository already uses, and it never edits a file git
+tracks or leaves an untracked file in view. A client counts as used when the repository has its project footprint (`.mcp.json` or
 `.claude/` for Claude Code, `opencode.json` or `opencode.jsonc` for OpenCode, `.pi/` for Pi).
-For Claude Code init writes `.mcp.json`, a delimited block in the instruction file Claude Code
-reads (an existing `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md`, or the `AGENTS.md` it
-imports; with only an `AGENTS.md`, a new `CLAUDE.md` that imports it; with neither, a new
-`CLAUDE.md`) and hooks in
+For Claude Code init registers the server with `claude mcp add --scope local` (recorded in your
+own Claude Code config, so no `.mcp.json`), writes no instruction block (the session-start hook
+and the server's instructions carry the guidance) and puts the hooks in the untracked
 `.claude/settings.local.json`; for OpenCode `opencode.json`; `AGENTS.md` for the clients that
-read it; the Pi extension under `.pi/`. A client found only on your machine gets no files, just
+read it; the Pi extension under `.pi/`. A file init has to create is excluded in
+`.git/info/exclude`. A client found only on your machine gets no files, just
 one `also` line suggesting `ynm client install <name>`; a repository that has never used an agent
 client therefore gets no client files at all. Init never installs into a ynh harness. When the
-repository already tracks one of these files, ynm merges into it: other servers, hooks and
-settings are kept, the file's indentation and trailing newline are preserved, and in the instruction
-files it only ever rewrites the text between its `<!-- ynm:guidance -->` markers. Each
-client the project uses gets one `client` line in the report. See
+repository already tracks one of these files, init leaves it alone and prints a `left` line
+naming it; add ynm's entry there by hand if the team wants it, or use the manual `ynm client
+install`, which merges into it (other servers, hooks and settings are kept, the file's
+indentation and trailing newline are preserved, and in the instruction files only the text
+between the `<!-- ynm:guidance -->` markers is rewritten). Each client the project uses gets
+one `client` line in the report. See
 [Install ynm](install.md#set-up-your-agent-clients) for what each gets. To keep init to memory
 alone, run `ynm init --no-clients`.
 
 If you work through a ynh harness, the repository needs nothing for the agent to have ynm: ynh
 assembles ynm's server, hooks and skill at every launch, and memory goes to your personal store.
 Run `ynm init --no-clients` here only to add distributed, team memory, so that init does not also
-write `.mcp.json`, an instruction file and hooks that duplicate the harness.
+register a server and write hooks that duplicate the harness.
 
 ## What to commit
 
-`ynm init` ends with the answer: its `commit` line lists the files the team shares that are not
-committed yet, and its `local` line lists the files that are one person's own, which it has
-already excluded from git. Commit `.ynm/config.json`. The client files are your team's choice: committing `.mcp.json` and
-the guidance blocks gives every teammate the same setup when they open the repository, and
-`ynm init` in their clone reports them `unchanged`. The Claude Code hooks are the exception:
-init puts them in `.claude/settings.local.json`, Claude Code's personal project settings, and
-leaves the team's `.claude/settings.json` untouched, because a hook that runs `ynm` fails for a
-teammate who has not installed it. Teammates who want the hooks run `ynm init` (or
-`ynm client install claude-code`) in their own clone. Keep a client file out of git if it
-carries a token (see [Connect a client over HTTP](connect-over-http.md)).
-Nothing else changed in the work tree: the derived directories are
-excluded through `.git/info/exclude`, which git keeps per clone and never commits, and each folder
-holds a `.gitignore` of `*` that ynm writes when it creates the folder, so a clone where `ynm init`
-never ran stays clean too. If you would
+Nothing: `ynm init` leaves `git status` as it found it, and ends with a `local` line naming the
+files that are one person's own, which it has already excluded from git. The Claude Code hooks
+are the example: init puts them in `.claude/settings.local.json`, Claude Code's personal project
+settings, and leaves the team's `.claude/settings.json` untouched, because a hook that runs
+`ynm` fails for a teammate who has not installed it. Teammates who want the hooks run
+`ynm init` in their own clone. To share `.ynm/config.json` (mounts, redaction settings) or a
+client file such as `.mcp.json` with the team, add it on purpose: `git add -f .ynm/config.json`,
+or `ynm client install <name>` for the client files, which writes the team-shareable form. Keep
+a client file out of git if it carries a token (see [Connect a client over HTTP](connect-over-http.md)).
+The derived directories are excluded through `.git/info/exclude`, which git keeps per clone and
+never commits, and each folder holds a `.gitignore` of `*` that ynm writes when it creates the
+folder, so a clone where `ynm init` never ran stays clean too. If you would
 rather have the rule in the repository's own `.gitignore` so it applies to every clone, add:
 
 ```text

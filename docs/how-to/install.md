@@ -177,11 +177,14 @@ for three signals, and only one of them makes init write files:
 Copilot CLI has no project footprint, so init only ever suggests it. `ynm init --client <name>`
 forces a client whatever the signals say.
 
-For each client the project uses, it writes, inside the repository only:
+For each client the project uses, it sets up the following. It edits no file git tracks (a
+tracked file is left alone and named on a `left` line) and hides any file it creates in
+`.git/info/exclude`, so `git status` is unchanged. `ynm client install <name>` is the manual
+form that writes the team-shareable files, such as `.mcp.json` and the guidance block:
 
 | Client | MCP server | Guidance | Hooks |
 |---|---|---|---|
-| Claude Code | `.mcp.json` | block in the instruction file Claude reads (see below) | `SessionStart`, `UserPromptSubmit`, `Stop` in `.claude/settings.local.json` (your personal project settings, not the team's `.claude/settings.json`), each running `ynm hook` |
+| Claude Code | `claude mcp add --scope local` (your own Claude config; a `run:` line if `claude` cannot be run) | none from init: the session-start hook and the server's instructions; `ynm client install` adds the block described below | `SessionStart`, `UserPromptSubmit`, `Stop` in `.claude/settings.local.json` (your personal project settings, not the team's `.claude/settings.json`), each running `ynm hook` |
 | Copilot CLI | `~/.copilot/mcp-config.json`: printed as a `run:` line, not written | block in `AGENTS.md` | none (Copilot CLI hooks do not fire in untrusted folders) |
 | OpenCode | `opencode.json` | block in `AGENTS.md` | none |
 | Pi | `.pi/extensions/ynm.ts` (Pi has no MCP; the extension runs the CLI) | `.pi/skills/ynm-memory/SKILL.md` | none |
@@ -193,8 +196,8 @@ the memory context block in front of the agent, and the prompt hook, when the us
 remember something, tells it to use `memory_remember`. They are subcommands of the `ynm` binary,
 so there is no script to install.
 
-Claude Code's guidance block goes into the instruction file Claude Code actually reads, by its own
-lookup, and ynm appends to a file that exists rather than creating a sibling:
+With `ynm client install`, Claude Code's guidance block goes into the instruction file Claude Code
+actually reads, by its own lookup, and ynm appends to a file that exists rather than creating a sibling:
 
 | The project has | Claude Code reads | ynm puts the block in |
 |---|---|---|
@@ -220,7 +223,7 @@ launch, so they follow you into every repository. Add ynm to the harness once, w
 install ynh` is the same; `ynm init` refuses to install into a harness;
 a harness is not a project). Without `ynm init` in a repository, the agent's memory goes to your
 personal store. Run `ynm init --no-clients` in a repository only to add distributed, team memory: the
-flag keeps init from also writing `.mcp.json`, an instruction file and hooks that would duplicate what
+flag keeps init from also registering a server and writing hooks that would duplicate what
 the harness already provides.
 
 ynh gives an agent's worker only the environment variables a harness lists in its top-level
@@ -232,6 +235,11 @@ any entries already there. Without them the server and hooks run with the defaul
 them from `$YNM_HOME/env`. `ynm client status` and `ynm doctor` report a harness whose list lacks
 `YNM_HOME` as not fully configured, and `ynm doctor` also warns when it runs in a ynh worker with
 `YNM_HOME` unset. Re-run `ynm client install ynh` to fix either.
+
+Under Codex, ynh also gives the ynm MCP server the variables the harness lists, on `ynh run` (one-shot,
+interactive and resumed) as well as on an agent's worker, from ynh v0.17.0. Codex starts an MCP server
+with only a small default environment, so before that version a ynm server under Codex did not see
+`YNM_HOME` and opened `~/.ynm`, even with the variable listed. Upgrade ynh if you run ynm under Codex.
 
 `ynm init --no-clients` skips the step; `ynm init --client claude-code` configures only the
 clients you name, whether the project uses them or not. `ynm client install` is the manual form,

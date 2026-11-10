@@ -35,31 +35,30 @@ ynm init
 
 Expected: an `initialised` line with the project path, then indented lines. The anchor is the
 repository's root commit (`root-commit`), the config file is `.ynm/config.json`, and a
-`pre-push` hook was installed. One note says the local wiki and index directories were excluded
+`pre-push` hook was installed. One note says the `.ynm/` folder was excluded
 in `.git/info/exclude`. Another says there is no remote `origin` yet, so distributed memory stays
 in this clone until you add one; you do that in tutorial 6, and nothing needs re-running then.
 Only if this repository already uses an agent client is there a `client` line for it. Here none
 does; if agent clients are installed on your machine, one `also` line names them. The `commit`
-line lists the files the team shares, here only `.ynm/config.json`, and the `memory` line says
-where the memories themselves live. Ends with a `next:` hint.
+line, which lists files the team could commit, does not appear: init leaves nothing for git to
+show. The `memory` line says where the memories themselves live. Ends with a `next:` hint.
 
 ```text
 initialised <project path>
   anchor    <40-hex sha> (root-commit)
   config    <project path>/.ynm/config.json
   hooks     <project path>/.git/hooks/pre-push
-  note      added .ynm/wiki/ and .ynm/index/ to .git/info/exclude
+  note      added .ynm/ to .git/info/exclude
   note      no remote "origin" yet; distributed memory stays in this clone until you add one, then `ynm sync` shares it
   also      <client names> on this machine but not used here; add one with `ynm client install <name>`
-  commit    .ynm/config.json
-            the team shares these; commit them so every clone gets the same setup
   memory    lives in git notes, not in files; `ynm sync` and the pre-push hook share it
 next: `ynm remember --type semantic --content "..."` and `ynm doctor`
 ```
 
 `ynm init` configures only the agent clients this repository already uses, meaning it has a
 project file for them such as `.mcp.json` or `.claude/` for Claude Code: the MCP server, the memory
-guidance, and the hooks that put memory in front of the agent. A client found only on your machine
+guidance, and the hooks that put memory in front of the agent. It never edits a file git tracks
+and leaves nothing untracked in view. A client found only on your machine
 (its executable on PATH, or settings in your home directory) gets no files, which is what the `also`
 line says; you add it deliberately with `ynm client install <name>`. Init writes only inside the
 repository; a step that would touch your home directory is printed as a `run:` line instead.
@@ -67,39 +66,35 @@ Tutorial 7 covers the clients; `ynm init --no-clients` skips the step.
 
 For memory itself, `ynm init` changes no branch, commit or tracked file. It wrote
 `.ynm/config.json`, which records the anchor, the commit memory attaches to. The
-derived `.ynm/wiki/` and `.ynm/index/` directories are kept out of the repository by
-`.git/info/exclude`, git's per-clone ignore file (each folder also holds a `.gitignore` of `*`,
-written when ynm creates it, so other clones ignore it too):
+whole `.ynm/` folder is kept out of the repository by `.git/info/exclude`, git's per-clone
+ignore file (the derived `wiki/` and `index/` folders also hold a `.gitignore` of `*`, written
+when ynm creates them, so other clones ignore them too):
 
 ```bash
 cat .ynm/config.json
 git status --short
 ```
 
-Expected: a JSON object with a single `anchor` key holding the same sha, then `?? .ynm/` and
-nothing else, because init wrote no client files here.
+Expected: a JSON object with a single `anchor` key holding the same sha, and no output from
+`git status --short`: the work tree is clean.
 
 ## What to commit
 
-`.ynm/` shows as untracked because `.ynm/config.json` is new, and it belongs in git: it tells
-every clone that this repository has memory and which commit that memory attaches to, and it is
-where the team's mounts and redaction settings go later. The derived `.ynm/wiki/` and
-`.ynm/index/` directories are already excluded, so adding the directory adds only the config:
+Nothing. `ynm init` leaves `git status` as it found it: it edits no tracked file, and everything it
+creates, `.ynm/` included, is excluded in this clone. The anchor in `.ynm/config.json` is the
+repository's root commit, so every clone works it out for itself, and the memories are git
+notes, which `ynm sync` and the pre-push hook move.
 
 ```bash
-git add .ynm
-git commit -q -m "Add ynm memory"
 git status --short
 ```
 
-Expected: no output. The work tree is clean.
+Expected: no output.
 
-The rule is the one init prints. Commit what the `commit` line lists: `.ynm/config.json`, plus
-any client files for clients the team uses, such as `.mcp.json` and the guidance block in
-`AGENTS.md` or `CLAUDE.md`. Leave what the `local` line lists: those files are one person's own
-(Claude Code's hooks in `.claude/settings.local.json`), and init excludes them from git for you.
-The memories are not files at all: they are git notes, which `ynm sync` and the pre-push hook
-move, so there is nothing else to add.
+If your team wants to share settings, such as mounts or redaction rules, in `.ynm/config.json`,
+add the file on purpose with `git add -f .ynm/config.json`; ynm reads a committed one. If init
+finds a client file that git already tracks, it leaves the file alone and prints a `left` line
+saying so.
 
 ## Two mounts
 

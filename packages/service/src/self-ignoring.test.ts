@@ -9,7 +9,7 @@ import { buildWiki } from "./wiki.js";
 async function freshClone(): Promise<{ clone: string; env: Record<string, string> }> {
   const repo = await createRepo(2);
   await initProject({ cwd: repo, hooks: false });
-  await fx(repo, "add", ".ynm/config.json");
+  await fx(repo, "add", "-f", ".ynm/config.json");
   await fx(repo, "commit", "-m", "add ynm config");
   const clone = join(tempDir("ynm-clone-"), "clone");
   await fx(repo, "clone", repo, clone);

@@ -80,6 +80,9 @@ export function sandboxEnv(root: string): NodeJS.ProcessEnv {
     PATH: `${sandboxBin()}:${process.env.PATH ?? ""}`,
     YNM_REPO: repoRoot,
     YNM_NO_CLAUDE_CLI: "1",
+    // Init may register ynm with the client's own config (`claude mcp add --scope local`); that
+    // must land in the sandbox, never in the real home of whoever runs the evals.
+    HOME: join(root, "user-home"),
     YNM_HOME: join(root, "home"),
     YNM_USER: "tutorial",
   };

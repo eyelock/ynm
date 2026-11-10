@@ -7,8 +7,13 @@ updates:
     commit-message:
       prefix: "deps"
     groups:
+      # Alone, because its pin in telemetry/registry moves with `make gen` (the generator refuses
+      # a mismatch), and a bump may add or drop attributes the registry uses.
+      semconv:
+        patterns: ["@opentelemetry/semantic-conventions"]
       minor-and-patch:
         update-types: ["minor", "patch"]
+        exclude-patterns: ["@opentelemetry/semantic-conventions"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

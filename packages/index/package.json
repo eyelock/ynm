@@ -1,6 +1,6 @@
 {
   "name": "@ynm/index",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "description": "Pluggable memory index and ranker; SQLite FTS5 default (ADR-005).",
   "license": "MIT",
@@ -32,10 +32,10 @@
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
-    "@types/node": "^26.6.5",
-    "@vitest/coverage-v8": "^5.0.5",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.1.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "vitest": ">=4"

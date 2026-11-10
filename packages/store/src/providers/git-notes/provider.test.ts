@@ -162,6 +162,25 @@ describe("GitNotesLog specifics (ADR-003)", () => {
     expect((await collect(log)).map((x) => x.id)).toEqual([r.id]);
   });
 
+  it("works against a bare store under safe.bareRepository=explicit (ynm #112)", async () => {
+    vi.stubEnv("GIT_CONFIG_COUNT", "1");
+    vi.stubEnv("GIT_CONFIG_KEY_0", "safe.bareRepository");
+    vi.stubEnv("GIT_CONFIG_VALUE_0", "explicit");
+    try {
+      const bare = await createBare();
+      const log = new GitNotesLog("bare", "distributed", {
+        repo: bare,
+        anchor: await rootCommit(bare),
+      });
+      const r = makeRecord({ level: "distributed", namespace: "common" });
+      await log.append([r]);
+      expect((await collect(log)).map((x) => x.id)).toEqual([r.id]);
+      expect((await log.health()).ok).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("purge keeps ref history unless asked to forget it", async () => {
     const log = await personalLog();
     const r = makeRecord();
@@ -296,6 +315,29 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
       recordedAt: "2026-09-10T00:00:00.000Z",
       ...over,
     });
+
+  it("syncs a bare store with a bare remote under safe.bareRepository=explicit (ynm #112)", async () => {
+    vi.stubEnv("GIT_CONFIG_COUNT", "1");
+    vi.stubEnv("GIT_CONFIG_KEY_0", "safe.bareRepository");
+    vi.stubEnv("GIT_CONFIG_VALUE_0", "explicit");
+    try {
+      const { origin, anchor, logA } = await pair();
+      const ra = distributed();
+      await logA.append([ra]);
+      expect((await logA.sync()).conflicts).toEqual([]);
+      const mirror = await cloneMirror(origin);
+      const logM = new GitNotesLog("m", "distributed", { repo: mirror, anchor });
+      const rm = distributed();
+      await logM.append([rm]);
+      const s = await logM.sync();
+      expect(s.conflicts).toEqual([]);
+      expect(s.pushed.length).toBeGreaterThan(0);
+      await logA.sync();
+      expect((await collect(logA)).map((r) => r.id).sort()).toEqual([ra.id, rm.id].sort());
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 
   it("syncs a `clone --mirror` store without explicit refspecs", async () => {
     const { origin, anchor, logA } = await pair();

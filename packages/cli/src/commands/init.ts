@@ -2,10 +2,12 @@ import { homedir } from "node:os";
 import { Flags } from "@oclif/core";
 import {
   CLIENT_ADAPTERS,
+  clientSetupLines,
   initBare,
   initPersonal,
   initProject,
   loadConfig,
+  runInProject,
   ynmHome,
 } from "@ynm/service";
 import { YnmCommand } from "../lib/base.js";
@@ -78,7 +80,7 @@ export default class Init extends YnmCommand {
       hooks: flags.hooks,
       anchor: flags.anchor,
       clients: flags.clients
-        ? { home: process.env.HOME ?? homedir(), only: flags.client }
+        ? { home: process.env.HOME ?? homedir(), only: flags.client, runCommand: runInProject }
         : undefined,
     });
     this.emit(flags.json, report, () =>
@@ -93,12 +95,7 @@ export default class Init extends YnmCommand {
           ? [`  hooks     ${report.hooksInstalled.join(", ")}`]
           : []),
         ...report.notes.map((n) => `  note      ${n}`),
-        ...report.clients
-          .filter((c) => !c.skipped)
-          .flatMap((c) => [
-            `  client    ${c.client}: ${c.applied.length ? c.applied.join(", ") : "unchanged"}`,
-            ...c.run.map((r) => `  run:      ${r}`),
-          ]),
+        ...report.clients.filter((c) => !c.skipped).flatMap(clientSetupLines),
         ...(report.clients.some((c) => c.skipped)
           ? [
               `  also      ${report.clients

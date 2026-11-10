@@ -8,7 +8,10 @@ import {
   claudeCode,
   clientAdapter,
   clientReports,
+  clientSetupLines,
   onPath,
+  registeredScope,
+  runInProject,
   stdioServerEntry,
   YNH_ENV_PASSTHROUGH,
   ynh,
@@ -44,6 +47,44 @@ describe("client adapters (ADR-013)", () => {
     expect(status).toMatchObject({ configured: true, guidance: true, hooks: true });
   });
 
+  it("claude-code counts a user entry or this project's own local entry, never another project's", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ynm-cc-reg-"));
+    const file = join(dir, ".claude.json");
+    expect(registeredScope(file, "/work/a")).toBeUndefined();
+    const server = { ynm: { command: "ynm" } };
+    writeFileSync(file, JSON.stringify({ projects: { "/work/a": { mcpServers: server } } }));
+    expect(registeredScope(file, "/work/a")).toBe("local");
+    expect(registeredScope(file, "/work/b")).toBeUndefined();
+    writeFileSync(file, JSON.stringify({ mcpServers: server, projects: {} }));
+    expect(registeredScope(file, "/work/b")).toBe("user");
+    writeFileSync(file, "not json");
+    expect(registeredScope(file, "/work/a")).toBeUndefined();
+  });
+
+  it("runInProject runs in the given directory and rejects on a failing or missing command", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ynm-run-"));
+    await runInProject(["sh", "-c", "pwd > where.txt"], dir);
+    expect(readFileSync(join(dir, "where.txt"), "utf8").trim()).toMatch(/ynm-run-/);
+    await expect(runInProject(["sh", "-c", "exit 3"], dir)).rejects.toThrow(/exited 3/);
+    await expect(runInProject(["ynm-no-such-command-xyz"], dir)).rejects.toThrow();
+  });
+
+  it("clientSetupLines reports applied, run and left", () => {
+    const base = { client: "opencode", detected: "x", files: [] };
+    expect(clientSetupLines({ ...base, applied: [], run: [], left: [] })).toEqual([
+      "  client    opencode: unchanged",
+    ]);
+    const lines = clientSetupLines({
+      ...base,
+      applied: ["3 hooks"],
+      run: ["claude mcp add"],
+      left: ["AGENTS.md"],
+    });
+    expect(lines[0]).toBe("  client    opencode: 3 hooks");
+    expect(lines[1]).toBe("  run:      claude mcp add");
+    expect(lines[2]).toMatch(/^ {2}left {6}AGENTS\.md is tracked by git/);
+  });
+
   it("claude-code user scope registers the server by command and merges hooks into ~/.claude/settings.json", async () => {
     const home = mkdtempSync(join(tmpdir(), "ynm-cc-home-"));
     const plan = await claudeCode.plan({ cwd: "/x", home, scope: "user", transport: stdio });
@@ -75,7 +116,12 @@ describe("client adapters (ADR-013)", () => {
         "utf8"
       )
     ) as Record<string, unknown>;
-    const generated = ynhPlugin({ version: String(checked.version), transport: stdio });
+    // Generate at the CLI's version, as scripts/gen-clients.mjs does, not the checked-in file's own:
+    // otherwise a release bump that skipped `make gen` leaves a stale manifest that still passes.
+    const cli = JSON.parse(
+      readFileSync(join(repoRoot, "packages", "cli", "package.json"), "utf8")
+    ) as { version: string };
+    const generated = ynhPlugin({ version: cli.version, transport: stdio });
     expect(generated).toEqual(checked);
     expect(
       readFileSync(join(repoRoot, "integrations", "skills", "ynm-memory", "SKILL.md"), "utf8")
