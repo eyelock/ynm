@@ -37,8 +37,10 @@
     "typescript": "^7.0.2",
     "yaml": "2.9.1"
   },
+  "//": "pnpm.overrides: glob ^14.0.2 fixes GHSA-3g3m-2fjr-6pw4. minimatch ^11.0.1 stays until test-exclude (coverage) and @oclif/core allow minimatch 11 (needs a test-exclude release and @oclif/core 5.1.12); both declare ^10 today, and 10.2.6 is inside the advisory range (<11.0.1). Tracked in ynw-u76o2.",
   "pnpm": {
     "overrides": {
+      "glob": "^14.0.2",
       "minimatch": "^11.0.1"
     }
   },
