@@ -21,7 +21,7 @@ export function modelCall<T>(
   fn: (span: SpanHandle) => Promise<T>
 ): Promise<T> {
   return withSpan(
-    `model ${provider}`,
+    "ynm.model",
     {
       kind: "client",
       started: EVENT_YNM_MODEL_STARTED,

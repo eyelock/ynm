@@ -128,7 +128,7 @@ export function requestSpan<T>(
   const method = METHODS.has(upper) ? upper : "_OTHER";
   const route = routeOf(req.path);
   return withSpan(
-    route ? `${method} ${route}` : method,
+    "ynm.request", // the method and route are attributes; the name matches its started event (ynr rule 5)
     {
       kind: "server",
       started: EVENT_YNM_REQUEST_STARTED,

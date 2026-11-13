@@ -147,7 +147,7 @@ export function createYnmServer(
         const meta = ctx?.mcpReq?._meta as Record<string, unknown> | undefined;
         const str = (v: unknown) => (typeof v === "string" ? v : undefined);
         return withSpan(
-          `tools/call ${spec.name}`,
+          "ynm.tool",
           {
             kind: "server",
             started: EVENT_YNM_TOOL_STARTED,

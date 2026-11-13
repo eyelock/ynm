@@ -557,9 +557,9 @@ export const REGISTRY = {
   ],
   "spans": [
     {
-      "name": "ynm.http.request",
+      "name": "ynm.request",
       "kind": "server",
-      "brief": "One HTTP request to `ynm serve --http` or the Lambda function. Named `{http.request.method} {http.route}`, or the method alone for a path outside the routes.",
+      "brief": "One HTTP request to `ynm serve --http` or the Lambda function. Named `ynm.request`, with the method and route in `http.request.method` and `http.route` (the route is absent for a path outside the routes).",
       "attributes": [
         {
           "name": "http.request.method",
@@ -581,9 +581,9 @@ export const REGISTRY = {
       ]
     },
     {
-      "name": "ynm.tool.call",
+      "name": "ynm.tool",
       "kind": "server",
-      "brief": "One MCP tool call, named `tools/call {gen_ai.tool.name}`.",
+      "brief": "One MCP tool call, named `ynm.tool`, with the tool in `gen_ai.tool.name`.",
       "attributes": [
         {
           "name": "mcp.method.name",
@@ -680,9 +680,9 @@ export const REGISTRY = {
       ]
     },
     {
-      "name": "ynm.remote.call",
+      "name": "ynm.remote",
       "kind": "client",
-      "brief": "One tool call to a hosted ynm behind a remote mount, named `tools/call {gen_ai.tool.name}`. Its HTTP requests carry the W3C `traceparent` and `tracestate` headers, and the call its MCP `_meta`, so the hosted server's spans join this trace.",
+      "brief": "One tool call to a hosted ynm behind a remote mount, named `ynm.remote`, with the tool in `gen_ai.tool.name`. Its HTTP requests carry the W3C `traceparent` and `tracestate` headers, and the call its MCP `_meta`, so the hosted server's spans join this trace.",
       "attributes": [
         {
           "name": "mcp.method.name",
@@ -716,9 +716,9 @@ export const REGISTRY = {
       ]
     },
     {
-      "name": "ynm.model.call",
+      "name": "ynm.model",
       "kind": "client",
-      "brief": "One call to a model: an invocation of the Claude CLI, or a request to an OpenAI-compatible endpoint or TypeSafe, named `model {ynm.model.provider}`. A spawned CLI gets `TRACEPARENT` for this span. The prompt and the answer are never exported.",
+      "brief": "One call to a model: an invocation of the Claude CLI, or a request to an OpenAI-compatible endpoint or TypeSafe, named `ynm.model`, with the provider in `ynm.model.provider`. A spawned CLI gets `TRACEPARENT` for this span. The prompt and the answer are never exported.",
       "attributes": [
         {
           "name": "ynm.model.provider",
@@ -745,9 +745,9 @@ export const REGISTRY = {
       ]
     },
     {
-      "name": "ynm.dream.run",
+      "name": "ynm.dream",
       "kind": "internal",
-      "brief": "One dream run, named `dream`, with a child span per pass.",
+      "brief": "One dream run, named `ynm.dream`, with a child span per pass.",
       "attributes": [
         {
           "name": "ynm.dream.dry_run",
@@ -779,7 +779,7 @@ export const REGISTRY = {
     {
       "name": "ynm.dream.pass",
       "kind": "internal",
-      "brief": "One consolidation pass, named `dream {ynm.dream.pass}`.",
+      "brief": "One consolidation pass, named `ynm.dream.pass`, with the pass in `ynm.dream.pass`.",
       "attributes": [
         {
           "name": "ynm.dream.pass",

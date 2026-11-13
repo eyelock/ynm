@@ -103,7 +103,7 @@ export class RemoteStore {
    */
   call<T>(tool: string, args: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     return withSpan(
-      `tools/call ${tool}`,
+      "ynm.remote",
       {
         kind: "client",
         started: EVENT_YNM_REMOTE_STARTED,
