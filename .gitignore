@@ -46,3 +46,4 @@ packages/evals/.cache/
 .vscode/
 *.swp
 .claude/worktrees/
+.ynr/bin/

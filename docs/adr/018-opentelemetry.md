@@ -123,8 +123,8 @@ it unset, as a 4xx is the caller's doing.
 |---|---|---|
 | HTTP request | `{method} {route}`, server | `startHttp` and the Lambda handler, around the front door, the MCP handler and the buffered body |
 | MCP tool call | `tools/call {tool}`, server, with `mcp.method.name`, `gen_ai.tool.name`, `gen_ai.operation.name` | each registered tool in `server.ts` |
-| CLI command | `ynm {command}`, internal | `YnmCommand._run` |
-| Store call | `store {append, scan, purge, sync, read_document, write_document}`, client | a proxy over each mount's `RecordLog`, applied in `openMounts` only when telemetry is on |
+| CLI command | `ynm.command`, internal, with `ynm.command.name` | `YnmCommand._run` |
+| Store call | `ynm.store`, client, with `ynm.store.operation` (`append`, `scan`, `purge`, `sync`, `read_document`, `write_document`) | a proxy over each mount's `RecordLog`, applied in `openMounts` only when telemetry is on |
 | Dream run and pass | `dream` and `dream {pass}`, internal | `dream/engine.ts` |
 | Tool call to a hosted ynm | `tools/call {tool}`, client, with `mcp.method.name`, `gen_ai.tool.name`, `ynm.mount`, `server.address` | `RemoteStore.call` |
 | Model call | `model {provider}`, client, with `ynm.model.provider` (`claude-cli`, `openai-compatible`, `typesafe`) and `gen_ai.request.model` | each attempt of `ValidatingWriter.write`, and `TypeSafeJudge.judge` |
@@ -137,7 +137,7 @@ failed validation is a second span.
 its own: a store call already has a client span at that boundary, and one call runs several git
 processes (a sync runs a dozen or more, and reads are batched but still more than one), so a span
 each would multiply the store's spans without saying anything the store span does not. The
-network half of git, a sync's fetch and push, is inside `store sync`. git is still given the store
+network half of git, a sync's fetch and push, is inside the `ynm.store` span for `sync`. git is still given the store
 span's trace context (below), which is what lets a hook it runs, such as ynm's pre-push hook, join
 the trace. The other processes ynm starts are not calls to another system either and get no span:
 the `claude --version` check before choosing a writer, and the agent CLIs `ynm client install`
@@ -345,9 +345,12 @@ that disagrees with the installed release.
   `YNR_SPOOL` says so.
 - **A relay for the Lambda.** A function's spool is lost with its instance; until ynr has a relay
   a function can send to, the function's telemetry goes over OTLP.
-- **Conformance.** `.ynr/conformance.yaml` scenarios and `ynr conformance` as a required CI check.
-  The canary and store-unchanged test above is the in-repo version of the check the scenarios
-  will run.
+- **Conformance beyond the CLI.** `.ynr/conformance.yaml` runs `ynr conformance` in CI (job
+  `conformance`, ynr pinned by `YNR_VERSION`) on one `ynm remember` scenario. A started event must
+  name its span (ynr rule 5), so the command and store spans are `ynm.command` and `ynm.store`,
+  with the command and the call in attributes. The request, tool, remote, model and dream spans
+  still carry the variable part in their names; they move the same way as scenarios for `ynm serve`
+  and `ynm dream` are added.
 
 ## History
 

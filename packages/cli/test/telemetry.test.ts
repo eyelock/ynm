@@ -133,9 +133,9 @@ describe("telemetry to a ynr spool", () => {
     // Closed on exit: no file is left open.
     expect(spooled.files.length).toBeGreaterThan(0);
     expect(spooled.files.every((f) => /^ynm-[\w-]+-\d+\.jsonl$/.test(f))).toBe(true);
-    const command = spooled.spans.find((s) => s.name === "ynm remember");
+    const command = spooled.spans.find((s) => s.name === "ynm.command");
     expect(command).toMatchObject({ traceId: TRACE, parentSpanId: PARENT });
-    expect(spooled.spans.find((s) => s.name === "store append")).toMatchObject({
+    expect(spooled.spans.find((s) => s.name === "ynm.store")).toMatchObject({
       traceId: TRACE,
       kind: 3,
     });
