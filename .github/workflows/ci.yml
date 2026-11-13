@@ -17,6 +17,10 @@ permissions:
 # quotes keep ${NODE_AUTH_TOKEN} out of the file, so npm expands it at install time. The project
 # .npmrc names only the registry. Fork and Dependabot pull requests work too: they get a
 # read-only GITHUB_TOKEN, which is enough to read a public package.
+env:
+  # The ynr release that `conformance` runs, without the leading v. The one place it is pinned.
+  YNR_VERSION: 0.5.0
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -101,12 +105,52 @@ jobs:
           include: |
             integrations/ynh
 
+  # ynr conformance (ynr ADR-008): ynm's own scenarios, offline, against a pinned ynr release.
+  # ynm finds ynr only on PATH, so it is put there from the release, never built or installed from
+  # a package manager.
+  conformance:
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Read @eyelock packages from GitHub Packages
+        run: echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' >> ~/.npmrc
+      - name: ynr, checked against the release's checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          dl="$RUNNER_TEMP/ynr-download"
+          bin="$RUNNER_TEMP/ynr-bin"
+          mkdir -p "$dl" "$bin"
+          ynr="ynr_${YNR_VERSION}_linux_amd64.tar.gz"
+          gh release download "v${YNR_VERSION}" -R eyelock/ynr -D "$dl" -p "$ynr" -p checksums.txt
+          cd "$dl"
+          grep -E " ${ynr}\$" checksums.txt > wanted.txt
+          [ "$(wc -l < wanted.txt)" -eq 1 ]
+          sha256sum --check --strict wanted.txt
+          tar -xzf "$ynr" -C "$bin" ynr
+          echo "$bin" >> "$GITHUB_PATH"
+      - run: make deps
+      - run: make build
+      - name: ynr conformance
+        run: |
+          set -euo pipefail
+          ynr version
+          make conformance CONFORMANCE_FORMAT=json | tee "$RUNNER_TEMP/conformance.json"
+
   # The one check the rulesets require (infra/github/branches.tf). It runs even when a job it
   # needs fails, because a skipped required check counts as passing. Skipped jobs are fine:
   # release-gate and coverage only run on some pull requests.
   all-clear:
     name: All Clear
-    needs: [verify, release-gate, coverage, skillspector]
+    needs: [verify, release-gate, coverage, skillspector, conformance]
     if: always()
     runs-on: ubuntu-latest
     steps:

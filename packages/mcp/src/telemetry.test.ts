@@ -126,7 +126,7 @@ describe("trace context", () => {
         "ynm.outcome": "ok",
       },
     });
-    const append = spans.find((s) => s.name === "store append");
+    const append = spans.find((s) => s.name === "ynm.store");
     expect(append).toMatchObject({
       traceId: TRACE,
       parentSpanId: tool?.spanId,

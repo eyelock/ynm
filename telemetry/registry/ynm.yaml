@@ -319,7 +319,7 @@ groups:
     type: span
     span_kind: internal
     stability: development
-    brief: One CLI command, named `ynm {ynm.command.name}`. `ynm serve` and `ynm hook` have none.
+    brief: One CLI command, named `ynm.command`, with the command in `ynm.command.name`. `ynm serve` and `ynm hook` have none.
     attributes:
       - ref: ynm.command.name
       - ref: ynm.outcome
@@ -327,11 +327,11 @@ groups:
     events:
       - ynm.command.started
 
-  - id: span.ynm.store.operation
+  - id: span.ynm.store
     type: span
     span_kind: client
     stability: development
-    brief: One call to a mount's record store, named `store {ynm.store.operation}`.
+    brief: One call to a mount's record store, named `ynm.store`, with the call in `ynm.store.operation`.
     attributes:
       - ref: ynm.store.operation
       - ref: ynm.store.provider

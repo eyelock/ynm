@@ -41,7 +41,7 @@ export function instrumentLog<L extends RecordLog>(log: L): L {
     },
   });
   const call = <T>(op: Operation, fn: (s: SpanHandle) => Promise<T>, more?: Attributes) =>
-    withSpan(`store ${op}`, options(op, more), fn);
+    withSpan("ynm.store", options(op, more), fn);
 
   /** A scan is streamed, so its span is ended by the iteration, not by a returned promise. */
   async function* scan(
@@ -50,7 +50,7 @@ export function instrumentLog<L extends RecordLog>(log: L): L {
     onProblem?: Parameters<RecordLog["scan"]>[1]
   ) {
     const span = beginSpan(
-      "store scan",
+      "ynm.store",
       options("scan", { [ATTR_YNM_NAMESPACE]: filter?.namespace })
     );
     let n = 0;

@@ -64,7 +64,7 @@ export abstract class YnmCommand extends Command {
       return super._run<T>();
     try {
       return await withSpan(
-        `ynm ${id}`,
+        "ynm.command", // the command is in ynm.command.name; the name matches its started event (ynr rule 5)
         {
           started: EVENT_YNM_COMMAND_STARTED,
           metric: METRIC_YNM_COMMAND_DURATION,

@@ -42,13 +42,14 @@ describe("instrumentLog", () => {
 
     const { spans, logs, text } = await telemetry.exported();
     const names = spans.map((s) => s.name);
-    expect(names).toEqual([
-      "store append",
-      "store scan",
-      "store scan",
-      "store purge",
-      "store write_document",
-      "store read_document",
+    expect(names).toEqual(Array(6).fill("ynm.store"));
+    expect(spans.map((s) => s.attributes["ynm.store.operation"])).toEqual([
+      "append",
+      "scan",
+      "scan",
+      "purge",
+      "write_document",
+      "read_document",
     ]);
     expect(spans.map((s) => s.attributes["ynm.record.count"])).toEqual([
       2,
@@ -92,8 +93,8 @@ describe("instrumentLog", () => {
     expect(
       spans.map((s) => [s.name, s.attributes["ynm.outcome"], s.attributes["error.type"]])
     ).toEqual([
-      ["store append", "error", "RangeError"],
-      ["store scan", "error", "TypeError"],
+      ["ynm.store", "error", "RangeError"],
+      ["ynm.store", "error", "TypeError"],
     ]);
   });
 });
