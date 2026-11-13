@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: eyelock/actions/skillspector@skillspector-v1
+      - uses: eyelock/actions/skillspector@2b4b0eafc45da186506a6fd72774482b636d55aa  # skillspector-v1.1.0
         with:
           include: |
             integrations/ynh
