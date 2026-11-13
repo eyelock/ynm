@@ -9,6 +9,7 @@ import {
   clientAdapter,
   clientReports,
   clientSetupLines,
+  clientsSetupLines,
   onPath,
   registeredScope,
   runInProject,
@@ -83,6 +84,17 @@ describe("client adapters (ADR-013)", () => {
     expect(lines[0]).toBe("  client    opencode: 3 hooks");
     expect(lines[1]).toBe("  run:      claude mcp add");
     expect(lines[2]).toMatch(/^ {2}left {6}AGENTS\.md is tracked by git/);
+  });
+
+  it("clientsSetupLines names a file two clients share once (opencode and pi both leave AGENTS.md)", () => {
+    const base = { detected: "x", files: [], applied: [], run: [] };
+    const lines = clientsSetupLines([
+      { ...base, client: "opencode", left: ["AGENTS.md", "opencode.json"] },
+      { ...base, client: "pi", left: ["AGENTS.md"] },
+    ]);
+    expect(lines.filter((l) => /^ {2}left {6}AGENTS\.md /.test(l))).toHaveLength(1);
+    expect(lines.filter((l) => /^ {2}left {6}opencode\.json /.test(l))).toHaveLength(1);
+    expect(lines.filter((l) => l.startsWith("  client "))).toHaveLength(2);
   });
 
   it("claude-code user scope registers the server by command and merges hooks into ~/.claude/settings.json", async () => {
