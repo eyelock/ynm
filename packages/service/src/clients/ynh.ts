@@ -380,7 +380,14 @@ export const ynh: ClientAdapter = {
       guidance: guided,
       hooks: hooked,
       env: envPassed(m as Manifest),
-      fix: `run \`ynh update ${YNH_HARNESS_NAME}\`, or reinstall with \`ynh install ${YNH_SOURCE} --path ${YNH_PATH}\``,
+      ...(legacy
+        ? {
+            problem: `the harness is installed under its old name \`${YNH_LEGACY_HARNESS_NAME}\`, whose launcher ~/.ynh/bin/${YNH_LEGACY_HARNESS_NAME} shadows the ynm CLI`,
+            fix: `run \`ynh uninstall ${YNH_LEGACY_HARNESS_NAME}\`, then \`ynh install ${YNH_SOURCE} --path ${YNH_PATH}\``,
+          }
+        : {
+            fix: `run \`ynh update ${YNH_HARNESS_NAME}\`, or reinstall with \`ynh install ${YNH_SOURCE} --path ${YNH_PATH}\``,
+          }),
     };
   },
 };

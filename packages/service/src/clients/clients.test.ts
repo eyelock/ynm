@@ -463,6 +463,11 @@ describe("ynh harness edges", () => {
     const status = await ynh.status({ cwd: "/x", home });
     expect(status.configured).toBe(true);
     expect(status.detail).toMatch(/old name `ynm`.*shadows the ynm CLI.*ynh uninstall ynm/);
+    const report = (await clientReports({ cwd: "/x", home })).find((r) => r.client === "ynh");
+    expect(report?.level).toBe("warn");
+    expect(report?.advice).toMatch(
+      /shadows the ynm CLI; run `ynh uninstall ynm`, then `ynh install /
+    );
   });
 });
 
