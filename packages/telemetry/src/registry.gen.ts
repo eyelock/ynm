@@ -619,7 +619,7 @@ export const REGISTRY = {
     {
       "name": "ynm.command",
       "kind": "internal",
-      "brief": "One CLI command, named `ynm {ynm.command.name}`. `ynm serve` and `ynm hook` have none.",
+      "brief": "One CLI command, named `ynm.command`, with the command in `ynm.command.name`. `ynm serve` and `ynm hook` have none.",
       "attributes": [
         {
           "name": "ynm.command.name",
@@ -638,9 +638,9 @@ export const REGISTRY = {
       ]
     },
     {
-      "name": "ynm.store.operation",
+      "name": "ynm.store",
       "kind": "client",
-      "brief": "One call to a mount's record store, named `store {ynm.store.operation}`.",
+      "brief": "One call to a mount's record store, named `ynm.store`, with the call in `ynm.store.operation`.",
       "attributes": [
         {
           "name": "ynm.store.operation",

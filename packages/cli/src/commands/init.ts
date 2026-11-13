@@ -2,7 +2,7 @@ import { homedir } from "node:os";
 import { Flags } from "@oclif/core";
 import {
   CLIENT_ADAPTERS,
-  clientSetupLines,
+  clientsSetupLines,
   initBare,
   initPersonal,
   initProject,
@@ -95,7 +95,7 @@ export default class Init extends YnmCommand {
           ? [`  hooks     ${report.hooksInstalled.join(", ")}`]
           : []),
         ...report.notes.map((n) => `  note      ${n}`),
-        ...report.clients.filter((c) => !c.skipped).flatMap(clientSetupLines),
+        ...clientsSetupLines(report.clients.filter((c) => !c.skipped)),
         ...(report.clients.some((c) => c.skipped)
           ? [
               `  also      ${report.clients

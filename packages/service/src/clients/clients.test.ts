@@ -9,11 +9,14 @@ import {
   clientAdapter,
   clientReports,
   clientSetupLines,
+  clientsSetupLines,
   onPath,
   registeredScope,
   runInProject,
   stdioServerEntry,
   YNH_ENV_PASSTHROUGH,
+  YNH_HARNESS_NAME,
+  YNH_LEGACY_HARNESS_NAME,
   ynh,
   ynhPlugin,
   ynhSkill,
@@ -85,6 +88,17 @@ describe("client adapters (ADR-013)", () => {
     expect(lines[2]).toMatch(/^ {2}left {6}AGENTS\.md is tracked by git/);
   });
 
+  it("clientsSetupLines names a file two clients share once (opencode and pi both leave AGENTS.md)", () => {
+    const base = { detected: "x", files: [], applied: [], run: [] };
+    const lines = clientsSetupLines([
+      { ...base, client: "opencode", left: ["AGENTS.md", "opencode.json"] },
+      { ...base, client: "pi", left: ["AGENTS.md"] },
+    ]);
+    expect(lines.filter((l) => /^ {2}left {6}AGENTS\.md /.test(l))).toHaveLength(1);
+    expect(lines.filter((l) => /^ {2}left {6}opencode\.json /.test(l))).toHaveLength(1);
+    expect(lines.filter((l) => l.startsWith("  client "))).toHaveLength(2);
+  });
+
   it("claude-code user scope registers the server by command and merges hooks into ~/.claude/settings.json", async () => {
     const home = mkdtempSync(join(tmpdir(), "ynm-cc-home-"));
     const plan = await claudeCode.plan({ cwd: "/x", home, scope: "user", transport: stdio });
@@ -141,7 +155,7 @@ describe("client adapters (ADR-013)", () => {
       {
         kind: "write",
         path: join(dir, "plugin.json"),
-        content: JSON.stringify({ name: "ynm" }),
+        content: JSON.stringify({ name: "ynm-memory" }),
         reason: "simulate install",
       },
     ]);
@@ -435,17 +449,37 @@ describe("ynh harness edges", () => {
     };
     put("broken", "{ not json");
     put("other", JSON.stringify({ name: "other" }));
-    put("ynm", JSON.stringify({ name: "ynm", includes: [] }));
+    put("ynm", JSON.stringify({ name: "ynm-memory", includes: [] }));
     const status = await ynh.status({ cwd: "/x", home });
     expect(status).toMatchObject({ configured: true, guidance: false, hooks: false });
-    expect(status.detail).toMatch(/hooks missing \(an older release: run `ynh update ynm`\)/);
+    expect(status.detail).toMatch(
+      /hooks missing \(an older release: run `ynh update ynm-memory`\)/
+    );
     // an installed harness lacking YNM_HOME is fixed by updating or reinstalling, not by client install
     expect(status.env).toBe(false);
     const report = (await clientReports({ cwd: "/x", home })).find((r) => r.client === "ynh");
     expect(report?.advice).toMatch(
-      /env_passthrough \(YNM_HOME\) missing; run `ynh update ynm`, or reinstall with `ynh install github\.com\/eyelock\/ynm --path integrations\/ynh`/
+      /env_passthrough \(YNM_HOME\) missing; run `ynh update ynm-memory`, or reinstall with `ynh install github\.com\/eyelock\/ynm --path integrations\/ynh`/
     );
     expect(report?.advice).not.toMatch(/ynm client install/);
+  });
+
+  it("names the harness so its launcher cannot shadow the ynm CLI, and flags the old name", async () => {
+    // ynh writes ~/.ynh/bin/<harness name>: a harness called ynm would shadow the ynm CLI.
+    expect(YNH_HARNESS_NAME).not.toBe("ynm");
+    expect(ynhPlugin({ version: "0.0.0", transport: stdio }).name).toBe(YNH_HARNESS_NAME);
+    const home = mkdtempSync(join(tmpdir(), "ynm-ynh-home-"));
+    const dir = join(home, ".ynh", "harnesses", "eyelock", "ynm", ".agents", "harness");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "plugin.json"), JSON.stringify({ name: YNH_LEGACY_HARNESS_NAME }));
+    const status = await ynh.status({ cwd: "/x", home });
+    expect(status.configured).toBe(true);
+    expect(status.detail).toMatch(/old name `ynm`.*shadows the ynm CLI.*ynh uninstall ynm/);
+    const report = (await clientReports({ cwd: "/x", home })).find((r) => r.client === "ynh");
+    expect(report?.level).toBe("warn");
+    expect(report?.advice).toMatch(
+      /shadows the ynm CLI; run `ynh uninstall ynm`, then `ynh install /
+    );
   });
 });
 

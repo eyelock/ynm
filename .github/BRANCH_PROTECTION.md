@@ -16,8 +16,8 @@ Terraform, in `infra/github/branches.tf`; change them there, not in the GitHub U
 
 ## Required checks
 
-**All Clear** is the last job of the CI workflow. It depends on every other job (verify,
-release gate, coverage) and fails if any of them failed or was cancelled; a job that was skipped
+**All Clear** is the last job of the CI workflow. It depends on every other job in `ci.yml` (verify,
+release gate, coverage, SkillSpector, conformance) and fails if any of them failed or was cancelled; a job that was skipped
 (the release gate runs only on pull requests into `main`) does not fail it. Add or rename CI
 jobs freely; only All Clear is required.
 

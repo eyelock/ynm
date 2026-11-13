@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { MCP_VERSION } from "@ynm/mcp";
+import { RELEASE_VERSION } from "@ynm/mcp";
 import { DEFAULT_REDACTION, openYnm, RedactionError, UnknownMountError } from "@ynm/service";
 import {
   ATTR_YNM_COMMAND_NAME,
@@ -56,7 +56,7 @@ export abstract class YnmCommand extends Command {
     if (
       UNTRACED.has(id) ||
       !(await startTelemetry({
-        version: MCP_VERSION,
+        version: RELEASE_VERSION,
         redaction: DEFAULT_REDACTION,
         exportTimeoutMs: EXIT_BOUND_MS,
       }))
@@ -64,7 +64,7 @@ export abstract class YnmCommand extends Command {
       return super._run<T>();
     try {
       return await withSpan(
-        `ynm ${id}`,
+        "ynm.command", // the command is in ynm.command.name; the name matches its started event (ynr rule 5)
         {
           started: EVENT_YNM_COMMAND_STARTED,
           metric: METRIC_YNM_COMMAND_DURATION,
