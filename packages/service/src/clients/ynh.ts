@@ -5,6 +5,15 @@ import { SKILLS_PATH, ynmSkill } from "./skill.js";
 import type { Change, ClientAdapter, ClientStatus, Detection, InstallTarget } from "./types.js";
 import { detectBySignals } from "./types.js";
 
+/**
+ * The harness's name, which ynh also uses for the launcher it writes to `~/.ynh/bin/`. It must
+ * not be `ynm`: that launcher would shadow the ynm CLI on a PATH with `~/.ynh/bin` first, so
+ * `ynm status` (and the harness's own `ynm serve` and `ynm hook`) would start a vendor session.
+ */
+export const YNH_HARNESS_NAME = "ynm-memory";
+/** The name releases before this one installed under; its launcher shadows the CLI. */
+export const YNH_LEGACY_HARNESS_NAME = "ynm";
+
 export const YNH_SCHEMA = "https://eyelock.github.io/ynh/schema/plugin.schema.json";
 
 export interface YnhPluginOptions {
@@ -58,7 +67,7 @@ function ynhServer(t: InstallTarget["transport"]): Record<string, unknown> {
 export function ynhPlugin(opts: YnhPluginOptions): Record<string, unknown> {
   return {
     $schema: YNH_SCHEMA,
-    name: "ynm",
+    name: YNH_HARNESS_NAME,
     version: opts.version,
     description: "Your named memory: agent memory in git notes over MCP",
     author: { name: "eyelock", url: "https://github.com/eyelock" },
@@ -341,13 +350,17 @@ export const ynh: ClientAdapter = {
     }
     const dir = join(home, ".ynh");
     if (!existsSync(dir)) return { client: "ynh", configured: false, detail: "ynh not installed" };
-    const found = findFile(dir, "plugin.json", 5).find((f) => {
-      try {
-        return (JSON.parse(readFileSync(f, "utf8")) as { name?: string }).name === "ynm";
-      } catch {
-        return false;
-      }
-    });
+    const named = (name: string) =>
+      findFile(dir, "plugin.json", 5).find((f) => {
+        try {
+          return (JSON.parse(readFileSync(f, "utf8")) as { name?: string }).name === name;
+        } catch {
+          return false;
+        }
+      });
+    const current = named(YNH_HARNESS_NAME);
+    const legacy = current ? undefined : named(YNH_LEGACY_HARNESS_NAME);
+    const found = current ?? legacy;
     if (!found)
       return {
         client: "ynh",
@@ -361,11 +374,13 @@ export const ynh: ClientAdapter = {
     return {
       client: "ynh",
       configured: true,
-      detail: `ynm harness installed${hooked ? "" : `; hooks missing (an older release: run \`ynh update ynm\`)`}`,
+      detail: legacy
+        ? `ynm harness installed under its old name \`${YNH_LEGACY_HARNESS_NAME}\`, whose launcher ~/.ynh/bin/${YNH_LEGACY_HARNESS_NAME} shadows the ynm CLI; run \`ynh uninstall ${YNH_LEGACY_HARNESS_NAME}\`, then \`ynh install ${YNH_SOURCE} --path ${YNH_PATH}\``
+        : `ynm harness installed${hooked ? "" : `; hooks missing (an older release: run \`ynh update ${YNH_HARNESS_NAME}\`)`}`,
       guidance: guided,
       hooks: hooked,
       env: envPassed(m as Manifest),
-      fix: `run \`ynh update ynm\`, or reinstall with \`ynh install ${YNH_SOURCE} --path ${YNH_PATH}\``,
+      fix: `run \`ynh update ${YNH_HARNESS_NAME}\`, or reinstall with \`ynh install ${YNH_SOURCE} --path ${YNH_PATH}\``,
     };
   },
 };

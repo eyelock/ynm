@@ -110,7 +110,7 @@ describe("doctor", () => {
     vi.stubEnv("YNH_AGENT_SESSION", "s1");
     const c = check(await run(), "ynh worker environment");
     expect(c?.level).toBe("warn");
-    expect(c?.detail).toMatch(/env_passthrough.*ynm client install ynh.*ynh update ynm/);
+    expect(c?.detail).toMatch(/env_passthrough.*ynm client install ynh.*ynh update ynm-memory/);
     vi.stubEnv("YNM_HOME", "/elsewhere");
     expect(check(await run(), "ynh worker environment")).toBeUndefined();
   });
