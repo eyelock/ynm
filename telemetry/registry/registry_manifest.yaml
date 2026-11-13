@@ -5,8 +5,8 @@
 # json` prints it, identified by the tool's name and version.
 name: ynm
 description: Telemetry names emitted by ynm, persistent memory for coding agents.
-semconv_version: v1.44.0
+semconv_version: v1.45.0
 schema_base_url: https://github.com/eyelock/ynm/tree/develop/telemetry/registry
 dependencies:
   - name: otel
-    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.44.0.zip[model]
+    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.45.0.zip[model]
