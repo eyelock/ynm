@@ -103,6 +103,16 @@ its `retries` field. If retries stay high for a busy store, move that store to t
 
 Remove the hook (`.git/hooks/pre-push`), the `remote.origin.fetch`
 line that mentions `refs/notes/ynm`, and `.ynm/`. Memory written so far stays in
-`refs/notes/ynm/`; delete those refs only if you mean to discard it. For the clients, remove the
-`ynm` entry from each client's server config, the `ynm hook` entries from
-`.claude/settings.local.json`, and the text between the `<!-- ynm:guidance -->` markers.
+`refs/notes/ynm/`; delete those refs only if you mean to discard it.
+
+Init also left a few lines in `.git/info/exclude`: `.ynm/`, and each client file it created
+(`opencode.json`, `.pi/`, `.claude/settings.local.json`, and the like). Delete those lines when you
+delete the files.
+
+For the clients:
+
+- Claude Code: run `claude mcp remove --scope local ynm` (init registered the server with
+  `claude mcp add --scope local`, in your own Claude Code config, not in `.mcp.json`), and remove
+  the `ynm hook` entries from `.claude/settings.local.json`.
+- Other clients: remove the `ynm` entry from the client's server config, and any text between the
+  `<!-- ynm:guidance -->` markers.

@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { YNM_VERSION } from "@ynm/mcp";
+import { RELEASE_VERSION } from "@ynm/mcp";
 import { DEFAULT_REDACTION, openYnm, RedactionError, UnknownMountError } from "@ynm/service";
 import {
   ATTR_YNM_COMMAND_NAME,
@@ -56,7 +56,7 @@ export abstract class YnmCommand extends Command {
     if (
       UNTRACED.has(id) ||
       !(await startTelemetry({
-        version: YNM_VERSION,
+        version: RELEASE_VERSION,
         redaction: DEFAULT_REDACTION,
         exportTimeoutMs: EXIT_BOUND_MS,
       }))

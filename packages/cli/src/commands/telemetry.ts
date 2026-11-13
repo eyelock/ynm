@@ -1,5 +1,5 @@
 import { Args, Flags } from "@oclif/core";
-import { YNM_VERSION } from "@ynm/mcp";
+import { RELEASE_VERSION } from "@ynm/mcp";
 import { REGISTRY } from "@ynm/telemetry";
 import { YnmCommand } from "../lib/base.js";
 
@@ -27,6 +27,6 @@ export default class Telemetry extends YnmCommand {
 
   async run(): Promise<void> {
     await this.parse(Telemetry);
-    this.log(JSON.stringify({ tool: "ynm", version: YNM_VERSION, ...REGISTRY }, null, 2));
+    this.log(JSON.stringify({ tool: "ynm", version: RELEASE_VERSION, ...REGISTRY }, null, 2));
   }
 }
