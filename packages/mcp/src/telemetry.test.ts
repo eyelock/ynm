@@ -104,7 +104,9 @@ describe("trace context", () => {
     });
     await client.close();
     const { spans, logs } = await telemetry.exported();
-    const tool = spans.find((s) => s.name === "tools/call memory_remember");
+    const tool = spans.find(
+      (s) => s.name === "ynm.tool" && s.attributes["gen_ai.tool.name"] === "memory_remember"
+    );
     expect(tool).toMatchObject({
       traceId: TRACE,
       kind: 1,
@@ -116,7 +118,7 @@ describe("trace context", () => {
     });
     const request = spans.find((s) => s.spanId === tool?.parentSpanId);
     expect(request).toMatchObject({
-      name: "POST /mcp",
+      name: "ynm.request",
       traceId: TRACE,
       parentSpanId: PARENT,
       attributes: {
@@ -179,10 +181,12 @@ describe("trace context", () => {
       await handle.close();
     }
     const { spans } = await telemetry.exported();
-    const requests = spans.filter((s) => s.name === "POST /mcp");
+    const requests = spans.filter((s) => s.name === "ynm.request");
     expect(requests.every((s) => s.traceId === TRACE && s.parentSpanId === PARENT)).toBe(true);
     expect(requests.map((s) => s.attributes["ynm.outcome"])).toContain("refused");
-    const tool = spans.find((s) => s.name === "tools/call memory_status");
+    const tool = spans.find(
+      (s) => s.name === "ynm.tool" && s.attributes["gen_ai.tool.name"] === "memory_status"
+    );
     expect(requests.map((s) => s.spanId)).toContain(tool?.parentSpanId);
   }, 30_000);
 });
@@ -241,7 +245,9 @@ describe("passing the trace on to a remote mount", () => {
     }
     const { spans, logs } = await telemetry.exported();
     const command = spans.find((s) => s.name === "ynm status");
-    const client = spans.find((s) => s.name === "tools/call memory_status" && s.kind === 2);
+    const client = spans.find(
+      (s) => s.name === "ynm.remote" && s.attributes["gen_ai.tool.name"] === "memory_status"
+    );
     expect(client).toMatchObject({
       traceId: command?.traceId,
       parentSpanId: command?.spanId,
@@ -261,10 +267,12 @@ describe("passing the trace on to a remote mount", () => {
     expect(sent.every((h) => h.get("authorization") === "Bearer secret")).toBe(true);
     // The hosted server joined it: its request spans through the headers, its tool span through
     // the call's _meta (otherwise it would be a child of its request span).
-    const requests = spans.filter((s) => s.name === "POST /mcp");
+    const requests = spans.filter((s) => s.name === "ynm.request");
     expect(requests.length).toBeGreaterThan(0);
     expect(requests.every((s) => s.parentSpanId === client?.spanId)).toBe(true);
-    const served = spans.find((s) => s.name === "tools/call memory_status" && s.kind === 1);
+    const served = spans.find(
+      (s) => s.name === "ynm.tool" && s.attributes["gen_ai.tool.name"] === "memory_status"
+    );
     expect(served).toMatchObject({ traceId: client?.traceId, parentSpanId: client?.spanId });
   }, 30_000);
 
@@ -314,11 +322,13 @@ describe("to a ynr spool", () => {
     }
     await shutdownTelemetry();
     const spooled = readSpool(dir);
-    const requests = spooled.spans.filter((s) => s.name === "POST /mcp");
+    const requests = spooled.spans.filter((s) => s.name === "ynm.request");
     expect(requests.length).toBeGreaterThan(0);
     expect(requests.every((s) => s.traceId === TRACE && s.parentSpanId === PARENT)).toBe(true);
     expect(requests.every((s) => s.kind === 2)).toBe(true);
-    const tool = spooled.spans.find((s) => s.name === "tools/call memory_status");
+    const tool = spooled.spans.find(
+      (s) => s.name === "ynm.tool" && s.attributes["gen_ai.tool.name"] === "memory_status"
+    );
     expect(requests.map((s) => s.spanId)).toContain(tool?.parentSpanId);
     expect(spooled.events).toEqual(
       expect.arrayContaining(["ynm.request.started", "ynm.tool.started"])
@@ -335,7 +345,11 @@ describe("to a ynr spool", () => {
     // No shutdown: what the invocation wrote is already in the open file.
     const spooled = readSpool(dir);
     expect(spooled.files.some((f) => f.endsWith(".open.jsonl"))).toBe(true);
-    expect(spooled.spans.some((s) => s.name === "tools/call memory_status")).toBe(true);
+    expect(
+      spooled.spans.some(
+        (s) => s.name === "ynm.tool" && s.attributes["gen_ai.tool.name"] === "memory_status"
+      )
+    ).toBe(true);
     await client.close();
   }, 30_000);
 });
@@ -395,7 +409,7 @@ describe("no content in telemetry", () => {
 
     expect(spans.length).toBeGreaterThan(5);
     expect(logs.some((l) => l.eventName === "ynm.audit.request")).toBe(true);
-    expect(spans.some((s) => s.name === "dream")).toBe(true);
+    expect(spans.some((s) => s.name === "ynm.dream")).toBe(true);
     expect(text).not.toContain(CANARY);
     expect(text.toLowerCase()).not.toContain(CANARY.toLowerCase());
     expect(await records(on.store)).toEqual(await records(off.store));
@@ -411,7 +425,7 @@ describe("no content in telemetry", () => {
     const spooled = readSpool(dir);
     expect(spooled.spans.length).toBeGreaterThan(5);
     expect(spooled.events).toContain("ynm.audit.request");
-    expect(spooled.spans.some((s) => s.name === "dream")).toBe(true);
+    expect(spooled.spans.some((s) => s.name === "ynm.dream")).toBe(true);
     expect(spooled.metrics.length).toBeGreaterThan(0);
     expect(spooled.text).not.toContain(CANARY);
     expect(spooled.text.toLowerCase()).not.toContain(CANARY.toLowerCase());

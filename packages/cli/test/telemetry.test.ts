@@ -206,7 +206,7 @@ describe("ynm telemetry registry", () => {
       schema_url: `https://opentelemetry.io/schemas/${semconv}`,
     });
     expect(out.attributes.find((a) => a.id === "ynm.outcome")?.type).toBe("enum");
-    expect(out.spans.find((s) => s.name === "ynm.tool.call")?.kind).toBe("server");
+    expect(out.spans.find((s) => s.name === "ynm.tool")?.kind).toBe("server");
     expect(out.standard_attributes).toEqual([...out.standard_attributes].sort());
     expect(out.standard_attributes.some((id) => id.startsWith("ynm."))).toBe(false);
     expect(out.metrics.flatMap((m) => m.attributes).every((a) => a.cardinality)).toBe(true);

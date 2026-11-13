@@ -8,3 +8,6 @@ scenarios:
   - name: remember, a memory in a throwaway store
     run: YNM_HOME="$(mktemp -d)" ynm remember --type semantic --content @canary:memory
     expect: { outcome: ok }
+  - name: dream, a dry run in a throwaway store (calls no model)
+    run: YNM_HOME="$(mktemp -d)" ynm dream --dry-run
+    expect: { outcome: ok }

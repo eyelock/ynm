@@ -103,7 +103,7 @@ export class RemoteStore {
    */
   call<T>(tool: string, args: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     return withSpan(
-      `tools/call ${tool}`,
+      "ynm.remote", // the tool is in gen_ai.tool.name; the name matches its started event (ynr rule 5)
       {
         kind: "client",
         started: EVENT_YNM_REMOTE_STARTED,

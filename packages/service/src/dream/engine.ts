@@ -54,7 +54,7 @@ export async function dream(
   const input = ConsolidateInputSchema.parse(raw);
   // One span per run and one per pass (ADR-018): counts only, never a memory.
   return withSpan(
-    "dream",
+    "ynm.dream", // the name matches its started event (ynr rule 5)
     {
       started: EVENT_YNM_DREAM_STARTED,
       attributes: {
@@ -73,7 +73,7 @@ export async function dream(
 /** One consolidation pass as a span, with what it considered and changed. */
 function passSpan(name: string, fn: () => Promise<PassReport>): Promise<PassReport> {
   return withSpan(
-    `dream ${name}`,
+    "ynm.dream.pass", // the pass is in ynm.dream.pass; the name matches its started event (ynr rule 5)
     {
       started: EVENT_YNM_DREAM_PASS_STARTED,
       metric: METRIC_YNM_DREAM_PASS_DURATION,
