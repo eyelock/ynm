@@ -110,7 +110,7 @@ describe("doctor", () => {
     vi.stubEnv("YNH_AGENT_SESSION", "s1");
     const c = check(await run(), "ynh worker environment");
     expect(c?.level).toBe("warn");
-    expect(c?.detail).toMatch(/env_passthrough.*ynm client install ynh.*ynh update ynm/);
+    expect(c?.detail).toMatch(/env_passthrough.*ynm client install ynh.*ynh update ynm-memory/);
     vi.stubEnv("YNM_HOME", "/elsewhere");
     expect(check(await run(), "ynh worker environment")).toBeUndefined();
   });
@@ -185,5 +185,23 @@ describe("doctor", () => {
     );
     expect(check(report, "client opencode")?.detail).toMatch(/^server and guidance in place/);
     expect(check(report, "client claude-code")?.ok).toBe(true);
+  });
+
+  it("warns about a ynh harness installed under its old name, whose launcher shadows the ynm CLI", async () => {
+    const home = tempDir("ynm-doc-");
+    const repo = tempDir("ynm-doc-proj-");
+    const dir = join(home, ".ynh", "harnesses", "eyelock", "ynm", ".agents", "harness");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "plugin.json"), JSON.stringify({ name: "ynm" }));
+    const report = await doctor({
+      loaded: loaded(home),
+      worktree: worktree(repo, { isGitRepo: false }),
+      mounts: [],
+      clients: { cwd: repo, home },
+    });
+    const c = check(report, "client ynh");
+    expect(c?.level).toBe("warn");
+    expect(c?.ok).toBe(false);
+    expect(c?.detail).toMatch(/shadows the ynm CLI; run `ynh uninstall ynm`, then `ynh install /);
   });
 });

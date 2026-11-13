@@ -56,7 +56,7 @@ export async function doctor(opts: {
     add(
       "ynh worker environment",
       false,
-      "running in a ynh worker with YNM_HOME unset, so ynm uses the default ~/.ynm store; add YNM_HOME to the harness's env_passthrough (`ynm client install ynh` in a local harness; `ynh update ynm` for an installed one)",
+      "running in a ynh worker with YNM_HOME unset, so ynm uses the default ~/.ynm store; add YNM_HOME to the harness's env_passthrough (`ynm client install ynh` in a local harness; `ynh update ynm-memory` for an installed one)",
       "warn"
     );
   add(
