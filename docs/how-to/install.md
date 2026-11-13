@@ -226,6 +226,27 @@ personal store. Run `ynm init --no-clients` in a repository only to add distribu
 flag keeps init from also registering a server and writing hooks that would duplicate what
 the harness already provides.
 
+#### The ynm harness installs as `ynm-memory`
+
+To use ynm's own harness instead (`ynh install github.com/eyelock/ynm --path integrations/ynh`),
+install it and run it as `ynm-memory`: ynh writes its launcher to `~/.ynh/bin/ynm-memory`, so
+it never takes the `ynm` name from the CLI.
+
+**Upgrading from an earlier release.** Releases before this one installed the harness as `ynm`,
+and its launcher `~/.ynh/bin/ynm` shadows the ynm CLI when `~/.ynh/bin` comes first on `PATH`: `ynm
+status` then starts a vendor session. Replace it with two commands:
+
+```sh
+ynh uninstall ynm
+ynh install github.com/eyelock/ynm --path integrations/ynh
+```
+
+If `ynm` is shadowed, `ynm status` cannot tell you this, but `ynm` is still on your machine: run
+the CLI by its full path (for example `$(npm root -g)/@ynm/cli/bin/run.js status`, or the path
+`which -a ynm` prints second), or put the directory with the real `ynm` before `~/.ynh/bin` on
+`PATH` for the moment. `ynm status`, `ynm client status` and `ynm doctor` report a harness left
+under the old name as a warning with the same two commands.
+
 ynh gives an agent's worker only the environment variables a harness lists in its top-level
 `env_passthrough`, plus a few process basics. `ynm client install ynh` adds the ynm variables that
 choose the store, the person and the configuration (`YNM_HOME`, `YNM_USER`, `YNM_ACTOR`,
