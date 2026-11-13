@@ -242,8 +242,8 @@ ynh install github.com/eyelock/ynm --path integrations/ynh
 ```
 
 If `ynm` is shadowed, `ynm status` cannot tell you this, but `ynm` is still on your machine: run
-the CLI by its full path (for example `$(npm root -g)/@ynm/cli/bin/run.js status`, or the path
-`which -a ynm` prints second), or put the directory with the real `ynm` before `~/.ynh/bin` on
+the CLI by its full path (`which -a ynm` lists every `ynm` on `PATH`; use the one that is not under
+`~/.ynh/bin`), or put the directory with the real `ynm` before `~/.ynh/bin` on
 `PATH` for the moment. `ynm status`, `ynm client status` and `ynm doctor` report a harness left
 under the old name as a warning with the same two commands.
 
