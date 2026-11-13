@@ -98,7 +98,7 @@ const METADATA_PATH = "/.well-known/oauth-protected-resource";
 
 const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "TRACE"]);
 
-/** The route a path is served by, for span names and metrics; undefined outside them. */
+/** The route a path is served by, for span attributes and metrics; undefined outside them. */
 export function routeOf(path: string): string | undefined {
   if (path === "/mcp" || path === "/health") return path;
   if (path === METADATA_PATH || path.startsWith(`${METADATA_PATH}/`)) return METADATA_PATH;
@@ -115,9 +115,9 @@ export interface IncomingRequest {
 }
 
 /**
- * Serves one HTTP request inside its server span (ADR-018), named `{method} {route}`: it joins the
- * caller's trace from the W3C headers and ends with the status and outcome. Without telemetry,
- * this is `serve()`.
+ * Serves one HTTP request inside its server span (ADR-018), named `ynm.request`, with the method
+ * and route in attributes: it joins the caller's trace from the W3C headers and ends with the
+ * status and outcome. Without telemetry, this is `serve()`.
  */
 export function requestSpan<T>(
   req: IncomingRequest,

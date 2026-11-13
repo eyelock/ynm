@@ -9,9 +9,10 @@ import {
 } from "@ynm/telemetry";
 
 /**
- * Runs one call out to a model as a client span (ADR-018), `model {provider}`, carrying the
- * provider and the model asked for, never the prompt or the answer. A CLI spawned inside it is
- * given this span's trace context; an HTTP request sent inside it carries the trace headers.
+ * Runs one call out to a model as a client span (ADR-018), named `ynm.model`, carrying the
+ * provider (`ynm.model.provider`) and the model asked for, never the prompt or the answer. A CLI
+ * spawned inside it is given this span's trace context; an HTTP request sent inside it carries the
+ * trace headers.
  * With telemetry off this is `fn()`.
  */
 export function modelCall<T>(
