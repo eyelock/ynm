@@ -207,6 +207,32 @@ of decision gets a new ADR, not an edit.
 - Baselines in `packages/evals/baselines/<version>.json`; `YNM_WRITE_BASELINE=1` rewrites them,
   and a PR that moves a gated number updates the baseline in the same PR.
 
+## Dependencies
+
+Dependabot raises pull requests for direct dependencies. It cannot move a transitive
+dependency whose parent's range does not allow the fixed version, and `pnpm update` without
+`--depth Infinity` does not either. When a security advisory sits on a transitive dependency
+and Dependabot opens no pull request, fix it by hand with a `pnpm.overrides` entry, in this
+order:
+
+1. Find who pulls it in: `pnpm why <package> -r`, and read the advisory for the first patched
+   version.
+2. If a newer release of the parent allows the patched version, bump the parent instead and
+   stop: no override.
+3. Otherwise add `"<package>": "^<first patched version>"` to `pnpm.overrides` in the root
+   `package.json`, run `pnpm install`, and check that `pnpm why <package> -r` shows only the
+   patched version and `pnpm audit` is clean.
+4. Record the override in the root `package.json`'s `"//"` comment: the advisory id, which
+   parent holds the old range and what that parent has to release before the override can go.
+5. Run the gate (`make build`, `pnpm check`, `pnpm typecheck`, `pnpm test`) and open the pull
+   request. A changeset is not needed: an override changes no published package.
+
+An override is a loan, not a fixture. Review each one whenever a Dependabot pull request moves
+its parent, and at every release: delete the entry, run `pnpm install`, and if `pnpm why` shows
+nothing below the patched version and `pnpm audit` is clean, the override has done its job and
+goes in the same pull request. If it does not, keep it and update the comment with what is
+still holding it back.
+
 ## Secrets
 
 Keys go in `~/.ynm/env` or a gitignored `.env` at the repo root, never in config or code. The
