@@ -99,11 +99,11 @@ export class RemoteStore {
   /**
    * One tool call, bounded by a timeout; returns the tool's `data`. With telemetry on it is a
    * client span (ADR-018) whose trace context the call carries in its MCP `_meta` as well as in
-   * the HTTP headers. The span names the tool, never its arguments.
+   * the HTTP headers. The span records the tool in `gen_ai.tool.name`, never its arguments.
    */
   call<T>(tool: string, args: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     return withSpan(
-      `tools/call ${tool}`,
+      "ynm.remote",
       {
         kind: "client",
         started: EVENT_YNM_REMOTE_STARTED,

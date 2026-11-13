@@ -120,7 +120,7 @@ describe("dream spans", () => {
     const config = DreamConfigSchema.parse({});
     const report = await dream(ynm, {}, { judge, writer, config });
     const { spans, logs, text } = await telemetry.exported();
-    const run = spans.find((s) => s.name === "dream");
+    const run = spans.find((s) => s.name === "ynm.dream");
     expect(run?.attributes).toMatchObject({
       "ynm.dream.dry_run": false,
       "ynm.dream.judge": judge.name,
@@ -128,7 +128,7 @@ describe("dream spans", () => {
       "ynm.outcome": "ok",
     });
     const passes = spans.filter(
-      (s) => s.name.startsWith("dream ") && s.parentSpanId === run?.spanId
+      (s) => s.name === "ynm.dream.pass" && s.parentSpanId === run?.spanId
     );
     expect(passes.map((s) => s.attributes["ynm.dream.pass"])).toEqual(
       expect.arrayContaining(["expire", "dedupe", "contradict", "reflect", "normalise"])

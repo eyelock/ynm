@@ -8,3 +8,14 @@ scenarios:
   - name: remember, a memory in a throwaway store
     run: YNM_HOME="$(mktemp -d)" ynm remember --type semantic --content @canary:memory
     expect: { outcome: ok }
+  - name: serve, one tool call over stdio
+    run: >-
+      printf '%s\n'
+      '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"conformance","version":"0"}}}'
+      '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+      '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","content":"@canary:memory"}}}'
+      | YNM_HOME="$(mktemp -d)" ynm serve
+    expect: { outcome: ok }
+  - name: dream, one run with no model
+    run: YNM_HOME="$(mktemp -d)" ynm dream
+    expect: { outcome: ok }

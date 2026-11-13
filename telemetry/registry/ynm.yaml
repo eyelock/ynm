@@ -284,13 +284,14 @@ groups:
   # or a model. Each call out passes the trace on (TRACEPARENT to a process, the W3C headers and
   # the MCP `_meta` to a hosted ynm).
 
-  - id: span.ynm.http.request
+  - id: span.ynm.request
     type: span
     span_kind: server
     stability: development
     brief: >
       One HTTP request to `ynm serve --http` or the Lambda function. Named
-      `{http.request.method} {http.route}`, or the method alone for a path outside the routes.
+      `ynm.request`, with the method and route in `http.request.method` and `http.route` (the route
+      is absent for a path outside the routes).
     attributes:
       - ref: http.request.method
       - ref: http.route
@@ -299,11 +300,11 @@ groups:
     events:
       - ynm.request.started
 
-  - id: span.ynm.tool.call
+  - id: span.ynm.tool
     type: span
     span_kind: server
     stability: development
-    brief: One MCP tool call, named `tools/call {gen_ai.tool.name}`.
+    brief: One MCP tool call, named `ynm.tool`, with the tool in `gen_ai.tool.name`.
     attributes:
       - ref: mcp.method.name
       - ref: gen_ai.operation.name
@@ -344,12 +345,12 @@ groups:
     events:
       - ynm.store.started
 
-  - id: span.ynm.remote.call
+  - id: span.ynm.remote
     type: span
     span_kind: client
     stability: development
     brief: >
-      One tool call to a hosted ynm behind a remote mount, named `tools/call {gen_ai.tool.name}`.
+      One tool call to a hosted ynm behind a remote mount, named `ynm.remote`, with the tool in `gen_ai.tool.name`.
       Its HTTP requests carry the W3C `traceparent` and `tracestate` headers, and the call its MCP
       `_meta`, so the hosted server's spans join this trace.
     attributes:
@@ -363,13 +364,13 @@ groups:
     events:
       - ynm.remote.started
 
-  - id: span.ynm.model.call
+  - id: span.ynm.model
     type: span
     span_kind: client
     stability: development
     brief: >
       One call to a model: an invocation of the Claude CLI, or a request to an OpenAI-compatible
-      endpoint or TypeSafe, named `model {ynm.model.provider}`. A spawned CLI gets `TRACEPARENT`
+      endpoint or TypeSafe, named `ynm.model`, with the provider in `ynm.model.provider`. A spawned CLI gets `TRACEPARENT`
       for this span. The prompt and the answer are never exported.
     attributes:
       - ref: ynm.model.provider
@@ -380,11 +381,11 @@ groups:
     events:
       - ynm.model.started
 
-  - id: span.ynm.dream.run
+  - id: span.ynm.dream
     type: span
     span_kind: internal
     stability: development
-    brief: One dream run, named `dream`, with a child span per pass.
+    brief: One dream run, named `ynm.dream`, with a child span per pass.
     attributes:
       - ref: ynm.dream.dry_run
       - ref: ynm.dream.judge
@@ -399,7 +400,7 @@ groups:
     type: span
     span_kind: internal
     stability: development
-    brief: One consolidation pass, named `dream {ynm.dream.pass}`.
+    brief: One consolidation pass, named `ynm.dream.pass`, with the pass in `ynm.dream.pass`.
     attributes:
       - ref: ynm.dream.pass
       - ref: ynm.dream.candidates

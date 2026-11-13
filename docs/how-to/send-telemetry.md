@@ -90,13 +90,13 @@ also reads. Running that `ynr serve` is the deployment's job; ynm never starts i
 
 | Unit of work | Span | Started event | Metric |
 |---|---|---|---|
-| An HTTP request to `ynm serve --http` or the function | `POST /mcp` (server) | `ynm.request.started` | `ynm.http.request.duration` |
-| An MCP tool call | `tools/call memory_recall` (server) | `ynm.tool.started` | `ynm.tool.call.duration` |
+| An HTTP request to `ynm serve --http` or the function | `ynm.request` (server; `http.request.method` is `POST`, `http.route` `/mcp`) | `ynm.request.started` | `ynm.http.request.duration` |
+| An MCP tool call | `ynm.tool` (server; `gen_ai.tool.name` is `memory_recall`) | `ynm.tool.started` | `ynm.tool.call.duration` |
 | A CLI command | `ynm.command` (`ynm.command.name` is `recall`) | `ynm.command.started` | `ynm.command.duration` |
 | A call to a record store | `ynm.store` (client; `ynm.store.operation` is `append`, `scan`, …) | `ynm.store.started` | `ynm.store.operation.duration` |
-| A dream run, and each of its passes | `dream`, `dream dedupe`, … | `ynm.dream.started`, `ynm.dream.pass.started` | `ynm.dream.pass.duration` |
-| A tool call to a hosted ynm, through a remote mount | `tools/call memory_recall` (client) | `ynm.remote.started` | `ynm.remote.call.duration` |
-| A call to a model: the Claude CLI, an OpenAI-compatible endpoint or TypeSafe | `model claude-cli`, `model openai-compatible`, `model typesafe` (client) | `ynm.model.started` | `ynm.model.call.duration` |
+| A dream run, and each of its passes | `ynm.dream`, `ynm.dream.pass` (`ynm.dream.pass` is `dedupe`, …) | `ynm.dream.started`, `ynm.dream.pass.started` | `ynm.dream.pass.duration` |
+| A tool call to a hosted ynm, through a remote mount | `ynm.remote` (client; `gen_ai.tool.name` is `memory_recall`) | `ynm.remote.started` | `ynm.remote.call.duration` |
+| A call to a model: the Claude CLI, an OpenAI-compatible endpoint or TypeSafe | `ynm.model` (client; `ynm.model.provider` is `claude-cli`, `openai-compatible` or `typesafe`) | `ynm.model.started` | `ynm.model.call.duration` |
 
 Each unit sends a `started` event as it begins and its span when it ends, so a crash shows as a
 start with no finish. Every span ends with `ynm.outcome` (`ok`, `error` or `refused`) and its

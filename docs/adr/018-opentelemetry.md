@@ -121,13 +121,13 @@ it unset, as a 4xx is the caller's doing.
 
 | Unit | Span name, kind | Where |
 |---|---|---|
-| HTTP request | `{method} {route}`, server | `startHttp` and the Lambda handler, around the front door, the MCP handler and the buffered body |
-| MCP tool call | `tools/call {tool}`, server, with `mcp.method.name`, `gen_ai.tool.name`, `gen_ai.operation.name` | each registered tool in `server.ts` |
+| HTTP request | `ynm.request`, server, with `http.request.method` and `http.route` | `startHttp` and the Lambda handler, around the front door, the MCP handler and the buffered body |
+| MCP tool call | `ynm.tool`, server, with `mcp.method.name`, `gen_ai.tool.name`, `gen_ai.operation.name` | each registered tool in `server.ts` |
 | CLI command | `ynm.command`, internal, with `ynm.command.name` | `YnmCommand._run` |
 | Store call | `ynm.store`, client, with `ynm.store.operation` (`append`, `scan`, `purge`, `sync`, `read_document`, `write_document`) | a proxy over each mount's `RecordLog`, applied in `openMounts` only when telemetry is on |
-| Dream run and pass | `dream` and `dream {pass}`, internal | `dream/engine.ts` |
-| Tool call to a hosted ynm | `tools/call {tool}`, client, with `mcp.method.name`, `gen_ai.tool.name`, `ynm.mount`, `server.address` | `RemoteStore.call` |
-| Model call | `model {provider}`, client, with `ynm.model.provider` (`claude-cli`, `openai-compatible`, `typesafe`) and `gen_ai.request.model` | each attempt of `ValidatingWriter.write`, and `TypeSafeJudge.judge` |
+| Dream run and pass | `ynm.dream` and `ynm.dream.pass` (with `ynm.dream.pass`), internal | `dream/engine.ts` |
+| Tool call to a hosted ynm | `ynm.remote`, client, with `mcp.method.name`, `gen_ai.tool.name`, `ynm.mount`, `server.address` | `RemoteStore.call` |
+| Model call | `ynm.model`, client, with `ynm.model.provider` (`claude-cli`, `openai-compatible`, `typesafe`) and `gen_ai.request.model` | each attempt of `ValidatingWriter.write`, and `TypeSafeJudge.judge` |
 
 Index queries and ranking are inside these spans and get none of their own. A model call's span
 covers one Claude CLI invocation or one HTTP request, so a writer's retry after an answer that
@@ -345,12 +345,13 @@ that disagrees with the installed release.
   `YNR_SPOOL` says so.
 - **A relay for the Lambda.** A function's spool is lost with its instance; until ynr has a relay
   a function can send to, the function's telemetry goes over OTLP.
-- **Conformance beyond the CLI.** `.ynr/conformance.yaml` runs `ynr conformance` in CI (job
-  `conformance`, ynr pinned by `YNR_VERSION`) on one `ynm remember` scenario. A started event must
-  name its span (ynr rule 5), so the command and store spans are `ynm.command` and `ynm.store`,
-  with the command and the call in attributes. The request, tool, remote, model and dream spans
-  still carry the variable part in their names; they move the same way as scenarios for `ynm serve`
-  and `ynm dream` are added.
+- **More conformance scenarios.** `.ynr/conformance.yaml` runs `ynr conformance` in CI (job
+  `conformance`, ynr pinned by `YNR_VERSION`). Every span has a fixed name equal to its started
+  event's unit (ynr rule 5), with the variable part (command, store call, HTTP method and route,
+  tool, model provider, dream pass) in an attribute. Scenarios cover `ynm remember`, `ynm serve`
+  over stdio and `ynm dream` (command, tool, store, dream and pass spans); the request, remote and
+  model spans need a hosted server, a remote mount and a model, which a no-network scenario does not
+  have, so their names are held by the unit tests.
 
 ## History
 
