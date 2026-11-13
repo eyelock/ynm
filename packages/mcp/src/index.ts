@@ -12,7 +12,7 @@ import { parseEvery, startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
 import { startHttp } from "./transport/http.js";
 import { startStdio } from "./transport/stdio.js";
-import { MCP_VERSION } from "./version.js";
+import { YNM_VERSION } from "./version.js";
 
 export * from "./auth.js";
 export * from "./scheduler.js";
@@ -29,7 +29,7 @@ export {
   type WebHandlerOptions,
 } from "./transport/http.js";
 export { startStdio } from "./transport/stdio.js";
-export { MCP_VERSION } from "./version.js";
+export { YNM_VERSION } from "./version.js";
 
 export const MCP_TOOLS = [
   "memory_remember",
@@ -91,7 +91,7 @@ export function parseArgs(argv: readonly string[], env: NodeJS.ProcessEnv = proc
 export async function main(argv: readonly string[]): Promise<void> {
   const args = parseArgs(argv);
   if (args.version) {
-    process.stdout.write(`ynm-mcp ${MCP_VERSION}\n`);
+    process.stdout.write(`ynm-mcp ${YNM_VERSION}\n`);
     return;
   }
   // Telemetry starts before the store opens, so store calls are spans; with no OTLP endpoint and
@@ -99,7 +99,7 @@ export async function main(argv: readonly string[]): Promise<void> {
   // for the spool again once a minute.
   // A stdio server ends when its client closes stdin, so its exports are bounded as a command's.
   await startTelemetry({
-    version: MCP_VERSION,
+    version: YNM_VERSION,
     redaction: DEFAULT_REDACTION,
     bridgeConsole: true,
     recheck: true,
@@ -113,7 +113,7 @@ export async function main(argv: readonly string[]): Promise<void> {
     (y) => [...new Set(y.mounts.map((m) => m.level))],
     () => undefined
   );
-  const factory = () => createYnmServer({ ...opts, levels, version: MCP_VERSION }, getYnm);
+  const factory = () => createYnmServer({ ...opts, levels, version: YNM_VERSION }, getYnm);
   if (args.mode === "http") {
     const auth = args.token ? { mode: "bearer" as const, tokens: [args.token] } : authFromEnv();
     const requiredScopes = process.env.YNM_REQUIRED_SCOPES?.split(",")

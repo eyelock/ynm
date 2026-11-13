@@ -26,7 +26,7 @@ import {
   rpcFromBody,
   rpcFromHeaders,
 } from "./transport/request-log.js";
-import { MCP_VERSION } from "./version.js";
+import { YNM_VERSION } from "./version.js";
 
 /** A Lambda Function URL request, payload format 2.0 (the fields ynm reads). */
 export interface FunctionUrlEvent {
@@ -372,7 +372,7 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
   // Telemetry loads only when an OTLP endpoint is set (ADR-018). The store waits for it, so its
   // calls are spans; it never fails the function.
   const telemetry = startTelemetry({
-    version: MCP_VERSION,
+    version: YNM_VERSION,
     env: cfg.env,
     redaction: DEFAULT_REDACTION,
     bridgeConsole: !opts.quiet,
@@ -398,7 +398,7 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
   const scheduler = startScheduler(getYnm, { quiet: opts.quiet });
   const audited = hostedAudit(cfg.env, auth.mode !== "none", getYnm);
   const web = createWebHandler(
-    () => createYnmServer({ ...serverOpts, version: MCP_VERSION }, getYnm),
+    () => createYnmServer({ ...serverOpts, version: YNM_VERSION }, getYnm),
     {
       verifier: verifierFor(auth),
       requiredScopes,
@@ -442,7 +442,7 @@ export function createLambdaHandler(opts: LambdaHandlerOptions = {}): LambdaHand
       case "health": {
         const warm = opened;
         await getYnm();
-        return { ynm: "health", status: "ok", name: "ynm", version: MCP_VERSION, warm };
+        return { ynm: "health", status: "ok", name: "ynm", version: YNM_VERSION, warm };
       }
       case "dream": {
         const before = scheduler.stats.dreamRuns;
