@@ -8,7 +8,7 @@ M ?= M6
 
 help:
 	@echo "Setup:    deps build install (~/.ynm/bin/ynm runs this checkout) uninstall rebuild build-pkg P= test-pkg P="
-	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage coverage-diff"
+	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage coverage-diff\n          conformance (ynr conformance, offline; needs ynr on PATH at YNR_VERSION in ci.yml; CONFORMANCE_FORMAT=json)"
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials eval-hosted-remember (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Auth:     keycloak (local sign-in provider on :8180) keycloak-check keycloak-token U=alice keycloak-down"
