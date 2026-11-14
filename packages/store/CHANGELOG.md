@@ -1,5 +1,12 @@
 # @ynm/store
 
+## 0.4.5
+
+### Patch Changes
+
+- Updated dependencies [[`e62daea`](https://github.com/eyelock/ynm/commit/e62daea84b883dc838c6bac432a7ab5044b96326), [`fd58ba0`](https://github.com/eyelock/ynm/commit/fd58ba0ca512f2e632672e73b8abe5119d13415e)]:
+  - @ynm/telemetry@0.4.2
+
 ## 0.4.4
 
 ### Patch Changes

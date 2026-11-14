@@ -1,5 +1,13 @@
 # @ynm/models
 
+## 0.4.3
+
+### Patch Changes
+
+- [#153](https://github.com/eyelock/ynm/pull/153) [`e62daea`](https://github.com/eyelock/ynm/commit/e62daea84b883dc838c6bac432a7ab5044b96326) Thanks [@eyelock](https://github.com/eyelock)! - Every ynm span has a fixed name equal to its `started` event's unit, as ynr conformance rule 5 needs (ynm [#151](https://github.com/eyelock/ynm/issues/151)): `ynm.request`, `ynm.tool`, `ynm.remote`, `ynm.model`, `ynm.dream` and `ynm.dream.pass`, joining `ynm.command` and `ynm.store`. The variable part (HTTP method and route, tool, model provider, dream pass) is in the attributes it already had. Dashboards and queries that match the old names (`POST /mcp`, `tools/call memory_recall`, `model claude-cli`, `dream`, `dream dedupe`) must match the new names and filter on those attributes.
+- Updated dependencies [[`e62daea`](https://github.com/eyelock/ynm/commit/e62daea84b883dc838c6bac432a7ab5044b96326), [`fd58ba0`](https://github.com/eyelock/ynm/commit/fd58ba0ca512f2e632672e73b8abe5119d13415e)]:
+  - @ynm/telemetry@0.4.2
+
 ## 0.4.2
 
 ### Patch Changes
