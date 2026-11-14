@@ -1,0 +1,21 @@
+# ynr conformance for ynm (ynr ADR-008): `make conformance` runs it, and CI's Conformance job.
+# Each scenario runs the ynm CLI against a throwaway store (YNM_HOME in a fresh temp folder): no
+# model, no secret, no network. The planted canary is the memory's content; the check fails if it
+# reaches a telemetry record.
+service: ynm
+registry: telemetry/registry
+scenarios:
+  - name: remember, a memory in a throwaway store
+    run: YNM_HOME="$(mktemp -d)" ynm remember --type semantic --content @canary:memory
+    expect: { outcome: ok }
+  - name: serve, one tool call over stdio
+    run: >-
+      printf '%s\n'
+      '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"conformance","version":"0"}}}'
+      '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+      '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","content":"@canary:memory"}}}'
+      | YNM_HOME="$(mktemp -d)" ynm serve
+    expect: { outcome: ok }
+  - name: dream, one run with no model
+    run: YNM_HOME="$(mktemp -d)" ynm dream
+    expect: { outcome: ok }

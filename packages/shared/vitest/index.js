@@ -22,7 +22,9 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.test.ts", "src/**/*.d.ts", "src/**/index.ts"],
+      // index.ts files are measured: several hold logic (clients/index.ts, mcp/src/index.ts, hooks).
+      // A file that only re-exports has no statements for v8 to count, so it never appears.
+      exclude: ["src/**/*.test.ts", "src/**/*.d.ts"],
     },
   },
 });

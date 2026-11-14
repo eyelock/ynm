@@ -90,13 +90,13 @@ also reads. Running that `ynr serve` is the deployment's job; ynm never starts i
 
 | Unit of work | Span | Started event | Metric |
 |---|---|---|---|
-| An HTTP request to `ynm serve --http` or the function | `POST /mcp` (server) | `ynm.request.started` | `ynm.http.request.duration` |
-| An MCP tool call | `tools/call memory_recall` (server) | `ynm.tool.started` | `ynm.tool.call.duration` |
-| A CLI command | `ynm recall` | `ynm.command.started` | `ynm.command.duration` |
-| A call to a record store | `store append`, `store scan`, … (client) | `ynm.store.started` | `ynm.store.operation.duration` |
-| A dream run, and each of its passes | `dream`, `dream dedupe`, … | `ynm.dream.started`, `ynm.dream.pass.started` | `ynm.dream.pass.duration` |
-| A tool call to a hosted ynm, through a remote mount | `tools/call memory_recall` (client) | `ynm.remote.started` | `ynm.remote.call.duration` |
-| A call to a model: the Claude CLI, an OpenAI-compatible endpoint or TypeSafe | `model claude-cli`, `model openai-compatible`, `model typesafe` (client) | `ynm.model.started` | `ynm.model.call.duration` |
+| An HTTP request to `ynm serve --http` or the function | `ynm.request` (server; `http.request.method` is `POST`, `http.route` `/mcp`) | `ynm.request.started` | `ynm.http.request.duration` |
+| An MCP tool call | `ynm.tool` (server; `gen_ai.tool.name` is `memory_recall`) | `ynm.tool.started` | `ynm.tool.call.duration` |
+| A CLI command | `ynm.command` (`ynm.command.name` is `recall`) | `ynm.command.started` | `ynm.command.duration` |
+| A call to a record store | `ynm.store` (client; `ynm.store.operation` is `append`, `scan`, …) | `ynm.store.started` | `ynm.store.operation.duration` |
+| A dream run, and each of its passes | `ynm.dream`, `ynm.dream.pass` (`ynm.dream.pass` is `dedupe`, …) | `ynm.dream.started`, `ynm.dream.pass.started` | `ynm.dream.pass.duration` |
+| A tool call to a hosted ynm, through a remote mount | `ynm.remote` (client; `gen_ai.tool.name` is `memory_recall`) | `ynm.remote.started` | `ynm.remote.call.duration` |
+| A call to a model: the Claude CLI, an OpenAI-compatible endpoint or TypeSafe | `ynm.model` (client; `ynm.model.provider` is `claude-cli`, `openai-compatible` or `typesafe`) | `ynm.model.started` | `ynm.model.call.duration` |
 
 Each unit sends a `started` event as it begins and its span when it ends, so a crash shows as a
 start with no finish. Every span ends with `ynm.outcome` (`ok`, `error` or `refused`) and its
@@ -158,7 +158,7 @@ ynm passes its trace on to what it calls, so work it starts appears inside its s
   to an OpenAI-compatible endpoint or TypeSafe are sent exactly as they are with telemetry off.
 
 A tool call to a hosted ynm, and each call to a model, is a client span of its own. A git command
-is not: it runs inside the store call's span, `store sync` or `store append`, and is given that
+is not: it runs inside the store call's span, `ynm.store` with `ynm.store.operation` `sync` or `append`, and is given that
 span's trace. The command line of a process ynm starts is never exported.
 
 With telemetry off, nothing changes: a process gets exactly the environment it got before, and a

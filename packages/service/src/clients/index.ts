@@ -65,7 +65,7 @@ export interface ClientReport extends ClientStatus {
   detection: string;
   /**
    * ok: server, guidance and hooks all in place; warn: the server is registered but guidance or
-   * hooks are missing; off: ynm is not registered with this client.
+   * hooks are missing, or the install has a problem (a ynh harness under its old name); off: ynm is not registered with this client.
    */
   level: "ok" | "warn" | "off";
   /** What to run to close a gap. */
@@ -83,7 +83,7 @@ export async function clientReports(target: DetectTarget): Promise<ClientReport[
       s.hooks === false ? "hooks" : "",
       s.env === false ? "env_passthrough (YNM_HOME)" : "",
     ].filter(Boolean);
-    const gap = s.configured && missing.length > 0;
+    const gap = s.configured && (missing.length > 0 || s.problem !== undefined);
     out.push({
       ...s,
       detected: d.installed,
@@ -91,7 +91,7 @@ export async function clientReports(target: DetectTarget): Promise<ClientReport[
       level: !s.configured ? "off" : gap ? "warn" : "ok",
       ...(gap
         ? {
-            advice: `${missing.join(" and ")} missing; ${s.fix ?? `run \`ynm client install ${a.name}\``}`,
+            advice: `${[...(missing.length ? [`${missing.join(" and ")} missing`] : []), ...(s.problem ? [s.problem] : [])].join("; ")}; ${s.fix ?? `run \`ynm client install ${a.name}\``}`,
           }
         : {}),
     });

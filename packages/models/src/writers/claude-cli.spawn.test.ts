@@ -87,7 +87,7 @@ describe("ClaudeCliWriter spawning a fake command", () => {
     try {
       const r = await new ClaudeCliWriter({ command, model: "sonnet" }).write(req);
       const { spans, text } = await t.exported();
-      const span = spans.find((s) => s.name === "model claude-cli");
+      const span = spans.find((s) => s.name === "ynm.model");
       expect(span).toMatchObject({
         kind: 2,
         attributes: {

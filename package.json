@@ -18,7 +18,8 @@
     "gate": "pnpm --filter @ynm/evals gate",
     "clean": "turbo run clean && rm -rf node_modules",
     "changeset": "changeset",
-    "release:version": "changeset version && pnpm install --no-frozen-lockfile",
+    "gen:version": "node packages/mcp/scripts/version.mjs",
+    "release:version": "changeset version && pnpm gen:version && pnpm install --no-frozen-lockfile",
     "gen:clients": "node scripts/gen-clients.mjs",
     "docs:gen": "node scripts/gen-docs.mjs",
     "docs:links": "node scripts/gen-docs.mjs --check-links",
@@ -27,8 +28,8 @@
     "gen:telemetry": "node scripts/gen-telemetry.mjs"
   },
   "devDependencies": {
-    "@aws-sdk/client-ssm": "^3.1161.0",
-    "@biomejs/biome": "^2.6.4",
+    "@aws-sdk/client-ssm": "^3.1164.0",
+    "@biomejs/biome": "^2.6.6",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "esbuild": "^0.28.2",
@@ -36,6 +37,13 @@
     "turbo": "^2.11.10",
     "typescript": "^7.0.2",
     "yaml": "2.9.1"
+  },
+  "//": "pnpm.overrides (routine: CONTRIBUTING.md, Dependencies). glob ^14.0.2 fixes GHSA-3g3m-2fjr-6pw4. minimatch ^11.0.1 fixes GHSA-g3hv-75wg-m249 (>=7.0.0 <11.0.1). Two parents still hold minimatch 10: test-exclude 8.0.0 (coverage) declares ^10.2.2 and needs a release that allows 11, and the lockfile resolves @oclif/core 5.1.11, which declares ^10.2.5 (5.1.12 and later declare ^11.0.1, so the lock needs moving to 5.1.12 or later). Remove each override once nothing resolves below the fixed version without it. Tracked in ynw-u76o2.",
+  "pnpm": {
+    "overrides": {
+      "glob": "^14.0.2",
+      "minimatch": "^11.0.1"
+    }
   },
   "engines": {
     "node": ">=22.13.0"

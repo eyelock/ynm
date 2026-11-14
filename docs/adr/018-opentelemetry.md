@@ -121,13 +121,13 @@ it unset, as a 4xx is the caller's doing.
 
 | Unit | Span name, kind | Where |
 |---|---|---|
-| HTTP request | `{method} {route}`, server | `startHttp` and the Lambda handler, around the front door, the MCP handler and the buffered body |
-| MCP tool call | `tools/call {tool}`, server, with `mcp.method.name`, `gen_ai.tool.name`, `gen_ai.operation.name` | each registered tool in `server.ts` |
-| CLI command | `ynm {command}`, internal | `YnmCommand._run` |
-| Store call | `store {append, scan, purge, sync, read_document, write_document}`, client | a proxy over each mount's `RecordLog`, applied in `openMounts` only when telemetry is on |
-| Dream run and pass | `dream` and `dream {pass}`, internal | `dream/engine.ts` |
-| Tool call to a hosted ynm | `tools/call {tool}`, client, with `mcp.method.name`, `gen_ai.tool.name`, `ynm.mount`, `server.address` | `RemoteStore.call` |
-| Model call | `model {provider}`, client, with `ynm.model.provider` (`claude-cli`, `openai-compatible`, `typesafe`) and `gen_ai.request.model` | each attempt of `ValidatingWriter.write`, and `TypeSafeJudge.judge` |
+| HTTP request | `ynm.request`, server, with `http.request.method` and `http.route` | `startHttp` and the Lambda handler, around the front door, the MCP handler and the buffered body |
+| MCP tool call | `ynm.tool`, server, with `mcp.method.name`, `gen_ai.tool.name`, `gen_ai.operation.name` | each registered tool in `server.ts` |
+| CLI command | `ynm.command`, internal, with `ynm.command.name` | `YnmCommand._run` |
+| Store call | `ynm.store`, client, with `ynm.store.operation` (`append`, `scan`, `purge`, `sync`, `read_document`, `write_document`) | a proxy over each mount's `RecordLog`, applied in `openMounts` only when telemetry is on |
+| Dream run and pass | `ynm.dream` and `ynm.dream.pass` (with `ynm.dream.pass`), internal | `dream/engine.ts` |
+| Tool call to a hosted ynm | `ynm.remote`, client, with `mcp.method.name`, `gen_ai.tool.name`, `ynm.mount`, `server.address` | `RemoteStore.call` |
+| Model call | `ynm.model`, client, with `ynm.model.provider` (`claude-cli`, `openai-compatible`, `typesafe`) and `gen_ai.request.model` | each attempt of `ValidatingWriter.write`, and `TypeSafeJudge.judge` |
 
 Index queries and ranking are inside these spans and get none of their own. A model call's span
 covers one Claude CLI invocation or one HTTP request, so a writer's retry after an answer that
@@ -137,7 +137,7 @@ failed validation is a second span.
 its own: a store call already has a client span at that boundary, and one call runs several git
 processes (a sync runs a dozen or more, and reads are batched but still more than one), so a span
 each would multiply the store's spans without saying anything the store span does not. The
-network half of git, a sync's fetch and push, is inside `store sync`. git is still given the store
+network half of git, a sync's fetch and push, is inside the `ynm.store` span for `sync`. git is still given the store
 span's trace context (below), which is what lets a hook it runs, such as ynm's pre-push hook, join
 the trace. The other processes ynm starts are not calls to another system either and get no span:
 the `claude --version` check before choosing a writer, and the agent CLIs `ynm client install`
@@ -345,9 +345,13 @@ that disagrees with the installed release.
   `YNR_SPOOL` says so.
 - **A relay for the Lambda.** A function's spool is lost with its instance; until ynr has a relay
   a function can send to, the function's telemetry goes over OTLP.
-- **Conformance.** `.ynr/conformance.yaml` scenarios and `ynr conformance` as a required CI check.
-  The canary and store-unchanged test above is the in-repo version of the check the scenarios
-  will run.
+- **More conformance scenarios.** `.ynr/conformance.yaml` runs `ynr conformance` in CI (job
+  `conformance`, ynr pinned by `YNR_VERSION`). Every span has a fixed name equal to its started
+  event's unit (ynr rule 5), with the variable part (command, store call, HTTP method and route,
+  tool, model provider, dream pass) in an attribute. Scenarios cover `ynm remember`, `ynm serve`
+  over stdio and `ynm dream` (command, tool, store, dream and pass spans); the request, remote and
+  model spans need a hosted server, a remote mount and a model, which a no-network scenario does not
+  have, so their names are held by the unit tests.
 
 ## History
 

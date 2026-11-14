@@ -21,10 +21,10 @@ export const OUTPUT = join(root, "packages", "telemetry", "src", "registry.gen.t
 
 /** The registry as data: the manifest and every group, in file order. */
 export function loadRegistry() {
-  const manifest = parse(readFileSync(join(registryDir, "registry_manifest.yaml"), "utf8"));
+  const manifest = parse(readFileSync(join(registryDir, "manifest.yaml"), "utf8"));
   const groups = [];
   for (const file of readdirSync(registryDir).sort()) {
-    if (!file.endsWith(".yaml") || file === "registry_manifest.yaml") continue;
+    if (!file.endsWith(".yaml") || file === "manifest.yaml") continue;
     groups.push(...(parse(readFileSync(join(registryDir, file), "utf8")).groups ?? []));
   }
   return { manifest, groups };
@@ -221,7 +221,7 @@ export function render(registry) {
  * the manifest changed. The check in `generate` still refuses a manifest that disagrees.
  */
 export async function syncManifest() {
-  const file = join(registryDir, "registry_manifest.yaml");
+  const file = join(registryDir, "manifest.yaml");
   const { version } = await upstream();
   const text = readFileSync(file, "utf8");
   const next = text

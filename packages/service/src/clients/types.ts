@@ -106,6 +106,8 @@ export interface ClientStatus {
   hooks?: boolean;
   /** The client passes ynm's environment (`YNM_HOME` and the like) to ynm; absent when it always does. */
   env?: boolean;
+  /** A problem with what is installed that guidance, hooks and env do not show (grades as warn). */
+  problem?: string;
   /** How to fix a gap, when `ynm client install <client>` is not it (an installed ynh harness). */
   fix?: string;
   /** What was checked and where each piece was found, one human line each. */

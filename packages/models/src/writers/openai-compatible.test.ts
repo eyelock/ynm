@@ -152,7 +152,7 @@ describe("OpenAICompatibleWriter with telemetry on", () => {
       });
       await w.write(req);
       const { spans } = await t.exported();
-      const span = spans.find((s) => s.name === "model openai-compatible");
+      const span = spans.find((s) => s.name === "ynm.model");
       expect(span?.attributes).toMatchObject({
         "ynm.model.provider": "openai-compatible",
         "gen_ai.request.model": "local",

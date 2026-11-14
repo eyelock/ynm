@@ -1,6 +1,6 @@
 # ynm developer front door. Every command a developer or CI runs is a target here, so the
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
-.PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage coverage-diff \
+.PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage coverage-diff conformance \
         test-hosted test-tutorials eval-tutorials eval-hosted-remember bench bench-large bench-public gate \
         keycloak keycloak-check keycloak-token keycloak-down gen golden docs docs-gen docs-links lambda lambda-local lambda-event minio minio-env minio-down release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
@@ -8,7 +8,7 @@ M ?= M6
 
 help:
 	@echo "Setup:    deps build install (~/.ynm/bin/ynm runs this checkout) uninstall rebuild build-pkg P= test-pkg P="
-	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage coverage-diff"
+	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage coverage-diff\n          conformance (ynr conformance, offline; needs ynr on PATH at YNR_VERSION in ci.yml; CONFORMANCE_FORMAT=json)"
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials eval-hosted-remember (model-driven, opt-in)"
 	@echo "          bench bench-large bench-public gate M=M6"
 	@echo "Auth:     keycloak (local sign-in provider on :8180) keycloak-check keycloak-token U=alice keycloak-down"
@@ -70,6 +70,15 @@ coverage:
 # Line coverage of what this branch changes, against BASE (default origin/develop); run coverage first.
 coverage-diff:
 	node scripts/coverage-diff.mjs --base $(or $(BASE),origin/develop) --min 80
+
+# ynr conformance (ynr ADR-008) runs .ynr/conformance.yaml against this checkout's ynm CLI, first on
+# the PATH for the run, on a throwaway store: no network, no model, and nothing of yours is touched.
+# ynr must be on your PATH, at the version CI pins (YNR_VERSION in .github/workflows/ci.yml); build first.
+CONFORMANCE_FORMAT ?= text
+conformance:
+	@command -v ynr >/dev/null 2>&1 || { echo "ynr is not on your PATH: install the release CI pins (YNR_VERSION in .github/workflows/ci.yml)"; exit 1; }
+	@mkdir -p .ynr/bin && ln -sf "$(CURDIR)/packages/cli/bin/run.js" .ynr/bin/ynm
+	@PATH="$(CURDIR)/.ynr/bin:$$PATH" ynr conformance --file .ynr/conformance.yaml --format $(CONFORMANCE_FORMAT)
 
 ## Evals (see docs/adr/014 and docs/tutorial/RUNNING.md)
 test-hosted:
