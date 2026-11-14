@@ -222,9 +222,10 @@ order:
 3. Otherwise add `"<package>": "^<first patched version>"` to `pnpm.overrides` in the root
    `package.json`, run `pnpm install`, and check that `pnpm why <package> -r` shows only the
    patched version and `pnpm audit` is clean.
-4. Record the override in the root `package.json`'s `"//"` comment: the advisory id, which
-   parent holds the old range and what that parent has to release before the override can go.
-5. Run the gate (`make build`, `pnpm check`, `pnpm typecheck`, `pnpm test`) and open the pull
+4. Record the override in the root `package.json`'s `"//"` comment: the advisory id (the
+   `GHSA-` id, not only the version range), which parents still hold the old range and what
+   each has to release or move to before the override can go.
+5. Run the gate (`make build`, `make check`, `make typecheck`, `make test`) and open the pull
    request. A changeset is not needed: an override changes no published package.
 
 An override is a loan, not a fixture. Review each one whenever a Dependabot pull request moves
