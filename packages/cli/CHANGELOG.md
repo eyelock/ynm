@@ -1,5 +1,27 @@
 # @ynm/cli
 
+## 0.6.1
+
+### Patch Changes
+
+- [#153](https://github.com/eyelock/ynm/pull/153) [`e62daea`](https://github.com/eyelock/ynm/commit/e62daea84b883dc838c6bac432a7ab5044b96326) Thanks [@eyelock](https://github.com/eyelock)! - Every ynm span has a fixed name equal to its `started` event's unit, as ynr conformance rule 5 needs (ynm [#151](https://github.com/eyelock/ynm/issues/151)): `ynm.request`, `ynm.tool`, `ynm.remote`, `ynm.model`, `ynm.dream` and `ynm.dream.pass`, joining `ynm.command` and `ynm.store`. The variable part (HTTP method and route, tool, model provider, dream pass) is in the attributes it already had. Dashboards and queries that match the old names (`POST /mcp`, `tools/call memory_recall`, `model claude-cli`, `dream`, `dream dedupe`) must match the new names and filter on those attributes.
+
+- [#150](https://github.com/eyelock/ynm/pull/150) [`63839df`](https://github.com/eyelock/ynm/commit/63839df0c86c54e02b2278f81b0145bde017bb69) Thanks [@eyelock](https://github.com/eyelock)! - Telemetry's `service.version`, the MCP server's `serverInfo.version`, `ynm telemetry registry` and `ynm-mcp --version` report ynm's release, the CLI's version, instead of the `@ynm/mcp` package version (ynm [#132](https://github.com/eyelock/ynm/issues/132)). The compiled-in constant is now `RELEASE_VERSION` (was `MCP_VERSION`), generated from `packages/cli/package.json`; a test fails if any of the four drifts.
+
+- [#148](https://github.com/eyelock/ynm/pull/148) [`6ff31fc`](https://github.com/eyelock/ynm/commit/6ff31fcc84c638bbabd029f96860276bd151e311) Thanks [@eyelock](https://github.com/eyelock)! - ynm's ynh harness is now named `ynm-memory`, so installing it writes `~/.ynh/bin/ynm-memory` and no longer a `ynm` launcher that shadows the ynm CLI on a PATH with `~/.ynh/bin` first (ynm [#130](https://github.com/eyelock/ynm/issues/130)). A harness installed under the old name is reported as a warning by `ynm client status` and `ynm doctor`, with the steps to replace it (`ynh uninstall ynm`, then `ynh install github.com/eyelock/ynm --path integrations/ynh`), and `ynh update` takes the new name.
+
+- [#149](https://github.com/eyelock/ynm/pull/149) [`fd58ba0`](https://github.com/eyelock/ynm/commit/fd58ba0ca512f2e632672e73b8abe5119d13415e) Thanks [@eyelock](https://github.com/eyelock)! - `ynr conformance` passes against ynm and runs in CI (ynm [#131](https://github.com/eyelock/ynm/issues/131)). The telemetry registry's manifest is `telemetry/registry/manifest.yaml`, as in ynr, ynh and ynf, and the CLI command and store-call spans are named `ynm.command` and `ynm.store` (the command and the call are the `ynm.command.name` and `ynm.store.operation` attributes), so each matches its `started` event.
+- Security and dependency fixes bundled into the ynm release artefacts (the standalone binaries, `ynm.mjs` in the slim tarball and the Lambda package), which no changeset covered: `minimatch` is overridden to ^11.0.1 for GHSA-g3hv-75wg-m249 ([#139](https://github.com/eyelock/ynm/pull/139)); `hono` is 4.13.18 and `@hono/node-server` 2.1.8 for their security advisories ([#144](https://github.com/eyelock/ynm/pull/144), [#140](https://github.com/eyelock/ynm/pull/140)); `glob` is overridden to ^14.0.2 for GHSA-3g3m-2fjr-6pw4 ([#147](https://github.com/eyelock/ynm/pull/147)); and the OpenTelemetry semantic conventions package moves from 1.44.0 to 1.45.0 ([#136](https://github.com/eyelock/ynm/pull/136)).
+
+- Updated dependencies [[`e62daea`](https://github.com/eyelock/ynm/commit/e62daea84b883dc838c6bac432a7ab5044b96326), [`63839df`](https://github.com/eyelock/ynm/commit/63839df0c86c54e02b2278f81b0145bde017bb69), [`6ff31fc`](https://github.com/eyelock/ynm/commit/6ff31fcc84c638bbabd029f96860276bd151e311), [`fd58ba0`](https://github.com/eyelock/ynm/commit/fd58ba0ca512f2e632672e73b8abe5119d13415e)]:
+  - @ynm/mcp@0.4.5
+  - @ynm/models@0.4.3
+  - @ynm/service@0.6.1
+  - @ynm/telemetry@0.4.2
+  - @ynm/store@0.4.5
+  - @ynm/index@0.3.6
+  - @ynm/wiki@0.3.6
+
 ## 0.6.0
 
 ### Minor Changes
