@@ -35,7 +35,7 @@
     "zod": "^4.6.7",
     "@ynm/store": "workspace:*",
     "@ynm/wiki": "workspace:*",
-    "jose": "^6.2.15",
+    "jose": "^6.2.17",
     "@ynm/telemetry": "workspace:*"
   },
   "devDependencies": {
