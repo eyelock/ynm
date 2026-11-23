@@ -6,7 +6,7 @@ import { type Judge, type Judgment, NoneWriter, type Question } from "@ynm/model
 import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "./config.js";
 import { RedactionError } from "./redaction.js";
-import { ShareRequiredError, UnknownMountError, Ynm } from "./ynm.js";
+import { PersonalSyncError, ShareRequiredError, UnknownMountError, Ynm } from "./ynm.js";
 
 function make(withProject = true): Ynm {
   const mounts = [
@@ -394,7 +394,11 @@ describe("Ynm list, records and sync filters", () => {
       redaction: [],
     });
     expect(Object.keys(await y.sync())).toEqual([]);
-    expect(Object.keys(await y.sync({ mount: "personal" }))).toEqual(["personal"]);
+    await expect(y.sync({ mount: "personal" })).rejects.toThrow(PersonalSyncError);
+    expect(synced).toEqual([]);
+    expect(Object.keys(await y.sync({ mount: "personal", allowPersonal: true }))).toEqual([
+      "personal",
+    ]);
     expect(synced).toEqual(["personal"]);
     expect(await make().sync({ mount: "project" })).toEqual({});
   });
