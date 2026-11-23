@@ -336,6 +336,31 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
     expect((await readFile(seen, "utf8")).trim()).toBe("free");
   });
 
+  it("records the pushed object, so a write landing during the push stays unpushed (ynm #166)", async () => {
+    const { logA } = await pair();
+    const repo = (logA as unknown as { repo: string }).repo;
+    const hook = join(repo, ".git", "hooks", "pre-push");
+    await mkdir(join(repo, ".git", "hooks"), { recursive: true });
+    // The push has already chosen what to send when this hook runs, so the commit it adds to the
+    // notes ref is a write that lands after the push.
+    await writeFile(
+      hook,
+      [
+        "#!/bin/sh",
+        'ref=$(git for-each-ref --format="%(refname)" refs/notes/ynm/distributed | head -n 1)',
+        'new=$(git commit-tree "$ref^{tree}" -p "$ref" -m late)',
+        'git update-ref "$ref" "$new"',
+        "",
+      ].join("\n"),
+      { mode: 0o755 }
+    );
+    await logA.append([distributed()]);
+    const r = await logA.sync();
+    expect(r.conflicts).toEqual([]);
+    expect(r.pushed.length).toBeGreaterThan(0);
+    expect(await logA.unpushed()).toBe(true);
+  });
+
   it("syncs a bare store with a bare remote under safe.bareRepository=explicit (ynm #112)", async () => {
     vi.stubEnv("GIT_CONFIG_COUNT", "1");
     vi.stubEnv("GIT_CONFIG_KEY_0", "safe.bareRepository");

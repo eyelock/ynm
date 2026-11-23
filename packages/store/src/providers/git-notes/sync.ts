@@ -150,10 +150,14 @@ export async function hasUnpushed(repo: string, level: Level, remote: string): P
   return false;
 }
 
-/** Points the tracking ref for a ref the remote now holds at our copy of it. */
+/**
+ * Points the tracking ref for a ref the remote now holds at `sha`, the object the push was
+ * given. Never re-read the local ref here: a write that lands after the push is not on the remote.
+ */
 async function recordPushed(
   p: SyncParams,
   ref: string,
+  sha: string,
   notesLocal: string,
   notesTracking: string
 ): Promise<void> {
@@ -161,8 +165,7 @@ async function recordPushed(
   const tracked = ref.startsWith(docs)
     ? documentTrackingPrefix(p.remote, p.level) + ref.slice(docs.length)
     : notesTracking + ref.slice(notesLocal.length);
-  const sha = (await gitOrNull(["rev-parse", "--verify", "-q", ref], { cwd: p.repo }))?.trim();
-  if (sha) await gitOrNull(["update-ref", tracked, sha], { cwd: p.repo });
+  await gitOrNull(["update-ref", tracked, sha], { cwd: p.repo });
 }
 
 /**
@@ -263,8 +266,12 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
       });
     }
     if (!doPush || p.dryRun) return result;
-    const notes = [...(await listRefs(p.repo, local)).keys()];
+    // What each ref points at before the push: the objects the push sends, and so what to record.
+    const localRefs = await listRefs(p.repo, local);
+    const notes = [...localRefs.keys()];
     const documents = await pushableDocuments(p, conflicted);
+    const documentShas = await listRefs(p.repo, documentPrefix(p.level));
+    const pushedShas = new Map([...localRefs, ...documentShas]);
     // Nothing written at this level yet: git rejects a push pattern that matches no refs.
     if (notes.length === 0 && documents.length === 0) return result;
     const refspecs = [
@@ -277,7 +284,10 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
       // Push only updates tracking refs that a configured fetch line maps (not documents, not a
       // mirror's URL target), so record what the remote now holds for `hasUnpushed`.
       await guard(async () => {
-        for (const ref of [...notes, ...documents]) await recordPushed(p, ref, local, tracking);
+        for (const ref of [...notes, ...documents]) {
+          const sha = pushedShas.get(ref);
+          if (sha) await recordPushed(p, ref, sha, local, tracking);
+        }
       });
       return result;
     } catch (err) {
