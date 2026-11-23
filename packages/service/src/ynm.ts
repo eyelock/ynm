@@ -14,6 +14,7 @@ import type {
   Level,
   Login,
   MemoryRecord,
+  MemoryType,
   PeopleDoc,
   PurgeInput,
   RecallQuery,
@@ -908,16 +909,58 @@ export class Ynm {
     });
   }
 
+  /**
+   * Finds one memory by id. A fresh index (ADR-005) holds each memory's folded state, so a hit
+   * reads no records at all and a pass of N edits stays N index lookups, not N scans of the
+   * namespace. An index entry without state falls back to reading only the shards of its namespace
+   * and type; with no index, or one that does not know the id, every record of every mount is
+   * scanned.
+   */
   async find(memoryId: string): Promise<MemoryWithMount | null> {
-    for (const mount of this.mounts) {
-      const records: MemoryRecord[] = [];
-      for await (const r of mount.log.scan()) if (r.memoryId === memoryId) records.push(r);
-      if (records.length) {
-        const m = fold(records).memories.get(memoryId);
-        if (m) return { ...m, mount: mount.id };
+    const known = await this.indexed(memoryId);
+    if (known) {
+      if (known.state) return { ...known.state, mount: known.mount };
+      const mount = this.mounts.find((x) => x.id === known.mount);
+      if (mount) {
+        const found = await Ynm.foldOne(mount, memoryId, {
+          level: mount.level,
+          namespace: known.namespace,
+          type: known.type,
+        });
+        if (found) return found;
       }
     }
+    for (const mount of this.mounts) {
+      const found = await Ynm.foldOne(mount, memoryId);
+      if (found) return found;
+    }
     return null;
+  }
+
+  /** Where the index says a memory lives: its mount, namespace and type; null when unknown. */
+  private async indexed(
+    memoryId: string
+  ): Promise<{ mount: string; namespace: string; type: MemoryType; state?: Memory } | null> {
+    if (!this.index) return null;
+    for (const mount of this.mounts) {
+      const ix = await this.index.ensureFresh(mount);
+      const hit = (await ix.get([memoryId])).get(memoryId);
+      if (hit)
+        return { mount: mount.id, namespace: hit.namespace, type: hit.type, state: hit.state };
+    }
+    return null;
+  }
+
+  private static async foldOne(
+    mount: Mount,
+    memoryId: string,
+    filter?: ShardFilter
+  ): Promise<MemoryWithMount | null> {
+    const records: MemoryRecord[] = [];
+    for await (const r of mount.log.scan(filter)) if (r.memoryId === memoryId) records.push(r);
+    if (!records.length) return null;
+    const m = fold(records).memories.get(memoryId);
+    return m ? { ...m, mount: mount.id } : null;
   }
 
   private async existing(memoryId: string): Promise<MemoryWithMount> {

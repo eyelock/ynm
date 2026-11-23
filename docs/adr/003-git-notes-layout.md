@@ -140,7 +140,7 @@ unreachable.
 ## Consequences
 
 - A memory's shard is determined by its first record's `recordedAt` month. Supersede records go in
-  the current month's shard; the fold spans shards. The index (ADR-005) maps memoryId to shards.
+  the current month's shard; the fold spans shards. The index (ADR-005) maps memoryId to the memory's namespace, type and folded state, so an edit by id reads no shard when the index is fresh (and only the shards of that namespace and type when it holds no state).
 - Shard count grows with namespaces × types × months. Enumerating refs is cheap; a store with 100
   refs is fine. `ynm compact` can roll old buckets of one namespace/type into a yearly ref.
 - Remote hosting on a forge works with any provider because only `refs/notes/*` push access is
