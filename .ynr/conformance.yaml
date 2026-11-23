@@ -7,6 +7,13 @@
 # repository, so ynm loads no repository .env (the main checkout's, from a worktree), and with the
 # model keys and endpoint cleared (env -u), so a key in your shell changes nothing either. A local
 # run gives CI's result. packages/cli/test/conformance-sealed.test.ts holds this to account.
+#
+# Rule 13 exemption (ynm #174): ynr gives each run a scratch YNM_HOME and checks that no record
+# appears in it. Every scenario here sets its own YNM_HOME, because ynm's scenarios write a canary
+# memory on purpose, so rule 13 reads a store nothing wrote to and passes vacuously. Nothing in
+# ynr can exempt a scenario, so the check is ynm's own: packages/cli/test/conformance-store.test.ts
+# runs these scenarios against a store it can read and fails on any record that is not the canary
+# memory or the dream's annotation, telemetry above all.
 service: ynm
 registry: telemetry/registry
 scenarios:
