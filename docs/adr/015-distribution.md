@@ -65,8 +65,9 @@ How it is built:
 - **One blob, four binaries.** The SEA blob is platform independent but must be made by the
   Node version it is injected into, so `.nvmrc` pins an exact Node and the Node tarballs come
   from nodejs.org, verified against `SHASUMS256.txt`. A macOS runner builds both darwin targets
-  (`codesign` needs macOS); a Linux runner builds both linux targets. Each runner can execute
-  only its native binary, which is smoke-tested; the other is checked for the injected blob.
+  (`codesign` needs macOS); a Linux runner builds both linux targets. Each of the four
+  binaries is then run by a `smoke-binaries` job on a runner of its own OS and architecture
+  (`macos-26`, `macos-26-intel`, `ubuntu-24.04`, `ubuntu-24.04-arm`) before anything is published.
 - **A manifest.** The release writes `manifest.json` (each asset's file, os, arch and SHA-256)
   and `checksums.txt`; both formulae are rendered from the manifest.
 
@@ -97,17 +98,18 @@ How it is built:
   assets are embedded at build time as the guidance is.
 - The macOS binaries are ad-hoc signed, not notarized. Homebrew and `curl` downloads run; a
   browser download is quarantined until the user clears the attribute.
-- The linux/arm64 and darwin/amd64 binaries are not executed before release.
+- Every binary is executed before release, on a native runner, and the image is run and asked
+  for `/health` before it is pushed. The release assets and the image carry a build provenance
+  attestation, and the image an SBOM.
 - The release gate builds the slim tarball and the native binary and runs both.
 
 ## Open questions
 
 - Notarizing the macOS binaries (needs a Developer ID) so browser downloads run without
   clearing quarantine.
-- Running the non-native binaries before release, on arm64 Linux and Intel macOS runners, once
-  those are cheap enough to add to the matrix.
 
 ## History
 
 - 2026-09-30: standalone SEA binaries and the slim bundle replace the Node-dependent tarball;
   the Docker image is unchanged.
+- 2026-11-23: every binary and the image are run before release; provenance attestations (ynm #172).
