@@ -89,7 +89,7 @@ bloats a project clone; the hosted topology can use the sqlite provider.
 **Writes.** The git-notes provider does not shell out to `git notes add`. It builds the commit with
 plumbing so it can compare-and-swap:
 
-1. Take a per-repo lockfile (`.git/ynm.lock`, O_EXCL, stale-PID detection; copy from the predecessor project's fs storage).
+1. Take a per-repo lockfile (`.git/ynm.lock`, O_EXCL; copy from the predecessor project's fs storage). The lock carries an owner token and a host. A holder on this host is judged by process liveness only, however long it holds; a holder on another host is judged by age and counts as stale after 60 s. Only its owner unlinks it (ynm #166, see History).
 2. Read the ref tip `old`; read the existing note blob (may be absent).
 3. Append the line(s); `hash-object -w` the new blob; `mktree` with the anchor path (respecting
    fanout: write the flat 40-hex path; git reads either); `commit-tree -p old`.
@@ -111,6 +111,12 @@ not N.
 `git notes --ref=<local> merge -s cat_sort_uniq <remote-tmp>`, push, retry on non-fast-forward.
 Fetch refspecs are never forced into the local notes refs (the predecessor project's `+refs/notes/*:refs/notes/*`
 silently discarded unpushed local notes).
+
+Sync takes the store lock only for the steps that write local refs: the local merge and
+reconcile after a fetch, and the update of the tracking refs after a push. It never holds it across
+`git fetch` or `git push`, which can outlast any lock timeout. The tracking refs record the object
+each ref held when the push began, not the local ref as it stands afterwards, so a write that lands
+during the push stays unpushed and `hasUnpushed` reports it.
 
 **Never** run `git notes prune` on `refs/notes/ynm/*`; `ynm doctor` warns if the anchor is
 unreachable.
@@ -158,3 +164,6 @@ None.
   bulk-load lever.
 - 2026-09-30: the ref directory for distributed memory renamed from `shared` to `distributed`,
   matching the level's name (ADR-001); no migration, as nothing existed beyond a tutorial store.
+- 2026-11-23 (ynm #166): the store lock gained an owner token and host, judges a holder on this host by
+  process liveness alone, and is unlinked only by its owner; sync stopped holding it across fetch and
+  push, and records the pushed object in the tracking refs rather than re-reading the local ref.
