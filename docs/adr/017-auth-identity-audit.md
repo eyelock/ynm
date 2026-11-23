@@ -1,6 +1,6 @@
 # ADR-017: Authentication, identity and audit for the HTTP server
 
-Status: proposed (2026-09-30)
+Status: proposed (2026-09-30); partly built (2026-11-23): the "never open by accident" refusal for `ynm serve --http` and the Docker image, with `--no-auth` as the override, and a read-only git daemon. Not yet built: `AuthProvider`, `local-token`, the other presets, `/health` auth modes and audit changes
 Satisfies: NFR-4, NFR-5, NFR-11, NFR-12, NFR-14
 
 ## Context

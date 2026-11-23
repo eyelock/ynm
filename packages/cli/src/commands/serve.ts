@@ -29,6 +29,11 @@ export default class Serve extends YnmCommand {
     "allow-host": Flags.string({
       description: "Comma-separated allowed Host headers (* behind a proxy)",
     }),
+    "no-auth": Flags.boolean({
+      description:
+        "Serve with no authentication on a non-loopback --host (tests and demos only); refused otherwise",
+      default: false,
+    }),
     "no-personal": Flags.boolean({
       description: "Mount no personal store (hosted servers)",
       default: false,
@@ -52,6 +57,7 @@ export default class Serve extends YnmCommand {
     if (flags.token) argv.push("--token", flags.token);
     if (flags["allow-origin"]) argv.push("--allow-origin", flags["allow-origin"]);
     if (flags["allow-host"]) argv.push("--allow-host", flags["allow-host"]);
+    if (flags["no-auth"]) argv.push("--no-auth");
     if (flags["no-personal"]) argv.push("--no-personal");
     if (flags["dream-every"]) argv.push("--dream-every", flags["dream-every"]);
     if (flags["sync-every"]) argv.push("--sync-every", flags["sync-every"]);
