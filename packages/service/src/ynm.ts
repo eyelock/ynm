@@ -858,13 +858,16 @@ export class Ynm {
   }
 
   /**
-   * Finds one memory by id. The index (ADR-003, ADR-005) names the mount and the namespace and
-   * type whose shards hold its records, so only those are read; with no index, or one that does
-   * not know the id, every record of every mount is scanned.
+   * Finds one memory by id. A fresh index (ADR-005) holds each memory's folded state, so a hit
+   * reads no records at all and a pass of N edits stays N index lookups, not N scans of the
+   * namespace. An index entry without state falls back to reading only the shards of its namespace
+   * and type; with no index, or one that does not know the id, every record of every mount is
+   * scanned.
    */
   async find(memoryId: string): Promise<MemoryWithMount | null> {
     const known = await this.indexed(memoryId);
     if (known) {
+      if (known.state) return { ...known.state, mount: known.mount };
       const mount = this.mounts.find((x) => x.id === known.mount);
       if (mount) {
         const found = await Ynm.foldOne(mount, memoryId, {
@@ -885,12 +888,13 @@ export class Ynm {
   /** Where the index says a memory lives: its mount, namespace and type; null when unknown. */
   private async indexed(
     memoryId: string
-  ): Promise<{ mount: string; namespace: string; type: MemoryType } | null> {
+  ): Promise<{ mount: string; namespace: string; type: MemoryType; state?: Memory } | null> {
     if (!this.index) return null;
     for (const mount of this.mounts) {
       const ix = await this.index.ensureFresh(mount);
       const hit = (await ix.get([memoryId])).get(memoryId);
-      if (hit) return { mount: mount.id, namespace: hit.namespace, type: hit.type };
+      if (hit)
+        return { mount: mount.id, namespace: hit.namespace, type: hit.type, state: hit.state };
     }
     return null;
   }

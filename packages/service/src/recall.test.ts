@@ -306,7 +306,7 @@ describe("editing by id reads only the shards the index names (ynm #171)", () =>
     return { y, scans };
   }
 
-  it("annotates, supersedes and forgets without scanning the other mount or other shards", async () => {
+  it("annotates, supersedes and forgets without scanning any mount", async () => {
     const { y, scans } = counted();
     const { memoryId } = await y.remember({
       type: "semantic",
@@ -321,26 +321,53 @@ describe("editing by id reads only the shards the index names (ynm #171)", () =>
     await y.supersede({ memoryId, content: "Kept in project, revised" });
     await y.forget({ memoryId, reason: "done" });
 
-    expect(scans.length).toBeGreaterThan(0);
-    for (const s of scans)
-      expect(s).toEqual({ mount: "project", namespace: "team/a", type: "semantic" });
+    // The index holds the folded state, so no edit reads a record from either mount.
+    expect(scans).toEqual([]);
     const found = await y.find(memoryId);
     expect(found?.tombstoned).toBe(true);
   });
 
-  it("a pass of edits reads records in proportion to the memories, not their square", async () => {
-    const { y, scans } = counted();
-    const ids: string[] = [];
-    for (let i = 0; i < 40; i++)
-      ids.push(
-        (await y.remember({ type: "semantic", namespace: `n/${i}`, content: `m${i}` })).memoryId
-      );
-    scans.length = 0;
-    for (const memoryId of ids) await y.annotate({ memoryId, tags: ["seen"] });
-    // One scan per edit, each confined to its own namespace's shards (a full scan would be one
-    // per mount per edit with no namespace, reading every record: N times N).
-    expect(scans).toHaveLength(ids.length);
-    expect(scans.every((s) => s.namespace?.startsWith("n/"))).toBe(true);
+  it("a dream-shaped pass over one namespace reads records in proportion to the memories, not their square", async () => {
+    const reads = async (n: number) => {
+      const personal = new MemoryLog("personal", "personal");
+      let read = 0;
+      const scan = personal.scan.bind(personal);
+      personal.scan = (filter, onProblem) => {
+        const it = scan(filter, onProblem)[Symbol.asyncIterator]();
+        return {
+          [Symbol.asyncIterator]: () => ({
+            async next() {
+              const r = await it.next();
+              if (!r.done) read += 1;
+              return r;
+            },
+          }),
+        };
+      };
+      let t = 0;
+      const y = new Ynm({
+        mounts: [{ id: "personal", level: "personal", location: "mem", log: personal }],
+        actor: "t",
+        userId: "u",
+        redaction: DEFAULT_REDACTION,
+        index: new IndexManager("memory", { fileFor: () => ":memory:" }),
+        now: () => new Date(Date.parse("2026-09-29T00:00:00.000Z") + ++t * 60_000),
+      });
+      const ids: string[] = [];
+      for (let i = 0; i < n; i++)
+        ids.push(
+          (await y.remember({ type: "semantic", namespace: "one", content: `m${i}` })).memoryId
+        );
+      read = 0;
+      // What a dream pass does: list one namespace and type, then edit each memory.
+      await y.list({ type: "semantic", namespace: "one", includeTombstoned: false });
+      for (const memoryId of ids) await y.annotate({ memoryId, tags: ["seen"] });
+      return read;
+    };
+    const small = await reads(20);
+    const large = await reads(80);
+    // Four times the memories: linear growth reads about 4x the records; the square would be 16x.
+    expect(large).toBeLessThan(small * 6);
   });
 
   it("still finds a memory the index does not know, by scanning every mount", async () => {
