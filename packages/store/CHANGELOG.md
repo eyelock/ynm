@@ -1,5 +1,13 @@
 # @ynm/store
 
+## 0.4.6
+
+### Patch Changes
+
+- [#178](https://github.com/eyelock/ynm/pull/178) [`fa247bd`](https://github.com/eyelock/ynm/commit/fa247bdb36d271ce3993099df8506ff1465627a6) Thanks [@eyelock](https://github.com/eyelock)! - A purge now survives a sync. The purge marker is authoritative when records are folded: every record of a purged memory is dropped, so lines a sync brings back from a clone that wrote to the same shard are never returned by recall, list, context, the wiki or export. After a sync, `ynm` also removes such lines, keeps the marker and syncs again so the removal reaches the remote (ynm [#175](https://github.com/eyelock/ynm/issues/175)).
+
+- [#176](https://github.com/eyelock/ynm/pull/176) [`4ac78c7`](https://github.com/eyelock/ynm/commit/4ac78c7acb0c78b6521108894a31fe847ef19271) Thanks [@eyelock](https://github.com/eyelock)! - The store lock is no longer broken because it is old: a holder on this host is judged by whether its process is alive, and age counts only for a holder on another host. The lock carries a token and a holder unlinks only its own, and `sync` takes the lock only for its local ref updates, not across `git fetch` and `git push` (ynm [#166](https://github.com/eyelock/ynm/issues/166)).
+
 ## 0.4.5
 
 ### Patch Changes
