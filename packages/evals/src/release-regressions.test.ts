@@ -20,14 +20,21 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 const put = (name: string, data: unknown) =>
   writeFileSync(join(dir, name), `${JSON.stringify(data)}\n`);
 
-function report(version: string, dataset: string, recall: number, accuracy?: number) {
+function report(
+  version: string,
+  dataset: string,
+  recall: number,
+  accuracy?: number,
+  setup: Record<string, unknown> = {}
+) {
   mkdirSync(join(reports, version), { recursive: true });
   writeFileSync(
     join(reports, version, `${dataset}.json`),
     JSON.stringify({
-      setup: { k: 10 },
+      datasetSha256: "abc",
+      setup: { k: 10, cases: 60, questions: 60, index: "sqlite-fts", ...setup },
       retrieval: { evidenceRecallAtK: recall, fullEvidenceAtK: recall },
-      ...(accuracy === undefined ? {} : { answering: { n: 20, accuracy } }),
+      ...(accuracy === undefined ? {} : { answering: { n: setup.answered ?? 20, accuracy } }),
     })
   );
 }
@@ -152,5 +159,46 @@ describe("releaseRegressions", () => {
     report("0.2.0", "locomo", 0.57, 0.1);
     report("0.2.0", "longmemeval-s", 0.1, 0.1);
     expect(releaseRegressions("0.2.0", dir, reports).regressions).toEqual([]);
+  });
+
+  it("fails the comparison, with a message, when two reports' setups differ", () => {
+    put("0.1.1.json", {});
+    put("0.2.0.json", {});
+    // The reports' numbers are close (0.91 -> 0.9), so only the different case count can fail it.
+    report("0.1.1", "longmemeval-s", 0.91, 0.9, { cases: 500, questions: 500 });
+    report("0.2.0", "longmemeval-s", 0.9, 0.9, { cases: 60, questions: 60 });
+    const r = releaseRegressions("0.2.0", dir, reports);
+    expect(r.regressions.map((x) => x.key)).toEqual(["longmemeval-s:setup"]);
+    expect(formatRegressions(r.regressions)).toMatch(
+      /longmemeval-s:setup: 0\.1\.1 -> 0\.2\.0 \(not comparable, the runs differ \(cases 500 -> 60; questions 500 -> 60\)/
+    );
+  });
+
+  it("names every difference in how the runs were made, answering only when both answered", () => {
+    put("0.1.1.json", {});
+    put("0.2.0.json", {});
+    report("0.1.1", "locomo", 0.5, 0.5, { k: 5, writer: "a", judge: "j" });
+    report("0.2.0", "locomo", 0.5, 0.5, { k: 10, writer: "b", judge: "j", answered: 60 });
+    report("0.1.1", "longmemeval-s", 0.5, undefined, { writer: "a" });
+    report("0.2.0", "longmemeval-s", 0.5, 0.5, { writer: "b" });
+    const rs = releaseRegressions("0.2.0", dir, reports).regressions;
+    expect(rs.map((x) => x.key)).toEqual(["locomo:setup"]);
+    expect(rs[0]?.rule).toContain("k 5 -> 10; answered 20 -> 60; writer a -> b");
+  });
+
+  it("lets an accepted reason pass a setup difference, and compares numbers once the setups match", () => {
+    put("0.1.1.json", {});
+    put("0.2.0.json", {});
+    put("0.2.0.accepted.json", { "locomo:setup": "full set re-run on purpose" });
+    report("0.1.1", "locomo", 0.9, 0.9, { cases: 10 });
+    report("0.2.0", "locomo", 0.1, 0.9, { cases: 5 });
+    const r = releaseRegressions("0.2.0", dir, reports);
+    expect(r.regressions).toEqual([]);
+    expect(r.accepted.map((x) => x.key)).toEqual(["locomo:setup"]);
+    report("0.2.0", "locomo", 0.1, 0.9, { cases: 10 });
+    expect(releaseRegressions("0.2.0", dir, reports).regressions.map((x) => x.key)).toEqual([
+      "locomo:evidence-recall@10",
+      "locomo:full-evidence@10",
+    ]);
   });
 });
