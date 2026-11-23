@@ -255,6 +255,9 @@ async function cliReference() {
 // ---------------------------------------------------------------------------------------------
 // MCP reference
 
+const NUMBER_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen"];
+const countWord = (n) => NUMBER_WORDS[n] ?? String(n);
+
 async function mcpReference() {
   const { createYnmServer, serverInstructions } = await load("packages/mcp/dist/server.js");
   const { TOOL_SPECS } = await load("packages/service/dist/tools.js");
@@ -274,7 +277,7 @@ async function mcpReference() {
     "",
     "# MCP reference",
     "",
-    "What `ynm serve` exposes to an MCP client: ten tools, four resources and three prompts,",
+    `What \`ynm serve\` exposes to an MCP client: ${countWord(Object.keys(tools).length)} tools, ${countWord(Object.keys(resources).length + Object.keys(templates).length)} resources and ${countWord(Object.keys(prompts).length)} prompts,`,
     "generated from the server definition. Every tool has a CLI command with the same input; see",
     "the [CLI reference](cli.md).",
     "",

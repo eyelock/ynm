@@ -22,7 +22,7 @@ your machine, such as Copilot CLI, gets a one-line suggestion, and a ynh harness
 Other ways to install (a direct download, the slim build on your own Node, from source, the
 Docker image) are in [Install ynm](docs/how-to/install.md).
 
-The agent now has `memory_recall`, `memory_remember` and eight more tools; every one is also a
+The agent now has `memory_recall`, `memory_remember` and nine more tools; every one is also a
 CLI command:
 
 ```bash

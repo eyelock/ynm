@@ -24,7 +24,7 @@ the CLI and MCP server bundle into one 4.9 MB minified file.
 
 ## Decision
 
-Every release publishes three things, all built from the same bundle.
+Every release publishes four things, all built from the same bundle.
 
 1. **Standalone binaries**, `ynm_<version>_<os>_<arch>.tar.gz` for darwin and linux on arm64 and
    amd64, named as goreleaser names ynh's. Each is Node's single-executable application (SEA):
@@ -37,6 +37,9 @@ Every release publishes three things, all built from the same bundle.
    otherwise. The formula `ynm-slim` installs it on Homebrew's `node`. It is for machines that
    already keep a Node.
 3. **The Docker image** on ghcr.io, unchanged (ADR-009): the hosted service.
+4. **The Lambda package**, `ynm_<version>_lambda.zip` (`scripts/release/build-lambda.mjs`), the
+   function the hosted service also runs as (ADR-009). It is smoke-tested before release and is
+   listed in `manifest.json` but has no formula.
 
 Measured sizes for 0.1.0:
 
@@ -111,3 +114,5 @@ How it is built:
 
 - 2026-09-30: standalone SEA binaries and the slim bundle replace the Node-dependent tarball;
   the Docker image is unchanged.
+- 2026-11-23: the Decision lists the Lambda zip the release has published since ADR-009's function
+  mode.
