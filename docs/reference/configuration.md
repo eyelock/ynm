@@ -198,7 +198,7 @@ already set.
 ### Server
 
 Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`, then
-`YNM_JWKS_URL`, then `YNM_OAUTH_INTROSPECTION_URL`, then `YNM_MCP_TOKEN`, then none. With none, the server starts only on a loopback host, and there it requires the local token: 32 random bytes made on first start into `serve-token` in the ynm home (mode 600, `/health` reports `auth: local-token`). `ynm client install <client> --http <loopback url>` reads that file, so nothing is copied by hand. `--no-auth` serves a loopback or reachable host with no authentication, for tests and demos.
+`YNM_JWKS_URL`, then `YNM_OAUTH_INTROSPECTION_URL`, then `YNM_MCP_TOKEN`, then none. With none, the server starts only on a loopback host, and there it requires the local token: 32 random bytes made on first start into `serve-token` in the ynm home (mode 600, `/health` reports `auth: local-token`). The server's start-up line names that file and never prints the token. `ynm client install <client> --http <loopback url> --scope user` reads that file, so nothing is copied by hand; without `--token`, `--scope project` is refused, because it would write the token into a file in the work tree. `--no-auth` serves a loopback or reachable host with no authentication, for tests and demos.
 
 | Variable | Effect |
 |---|---|

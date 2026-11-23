@@ -115,9 +115,11 @@ protected:
 
 - `ynm serve --http` always runs an `AuthProvider`. With nothing configured on a loopback address
   it uses `local-token`: a random token generated on first start into `~/.ynm/serve-token` (mode
-  600), printed once, rotated with `ynm serve token --rotate`. `ynm client install <client> --http
-  <url>` reads that file for a local URL and writes the bearer header, so local use stays
-  zero-configuration (NFR-14).
+  600); the start-up line names the file and never prints the token, so it cannot reach a log; rotated
+  with `ynm serve token --rotate`. `ynm client install <client> --http <url> --scope user` reads that
+  file for a local URL and writes the bearer header, so local use stays zero-configuration (NFR-14);
+  `--scope project` without `--token` is refused, since it would put the token in a file in the work
+  tree.
 - A server reachable from outside the machine refuses to start unless a provider other than
   `local-token` is configured (or, for one release, a deprecated static token), and says which
   settings are missing. Reachable means a non-loopback bind address (`--host 0.0.0.0` or any

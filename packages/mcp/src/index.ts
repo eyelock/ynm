@@ -122,6 +122,13 @@ export function resolveHttpAuth(
   return { auth: { mode: "local-token", tokens: [local.token] }, local };
 }
 
+/** The start-up line about the local token: the file's path, never the token, which would reach logs. */
+export function localTokenNotice(local: { created: boolean; path: string }): string {
+  return local.created
+    ? `ynm-mcp: new local token written to ${local.path} (readable only by you)`
+    : `ynm-mcp: requests need the local token in ${local.path}`;
+}
+
 export async function main(argv: readonly string[]): Promise<void> {
   const args = parseArgs(argv);
   if (args.version) {
@@ -162,12 +169,7 @@ export async function main(argv: readonly string[]): Promise<void> {
       host,
       args.noAuth
     );
-    if (local)
-      console.error(
-        local.created
-          ? `ynm-mcp: new local token written to ${local.path} (readable only by you): ${local.token}`
-          : `ynm-mcp: requests need the local token in ${local.path}`
-      );
+    if (local) console.error(localTokenNotice(local));
     const requiredScopes = process.env.YNM_REQUIRED_SCOPES?.split(",")
       .map((s) => s.trim())
       .filter(Boolean);

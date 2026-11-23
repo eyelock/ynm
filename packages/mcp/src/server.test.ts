@@ -8,6 +8,7 @@ import {
   assertNotOpenByAccident,
   createYnmServer,
   isLoopbackHost,
+  localTokenNotice,
   MCP_TOOLS,
   main,
   parseArgs,
@@ -54,6 +55,19 @@ describe("loopback serve uses the local token (ADR-017)", () => {
       expect(auth.mode).toBe("local-token");
       expect(local?.path).toBe(join(h, "serve-token"));
     }
+  });
+
+  it("names the token file in its start-up line and never prints the token", () => {
+    const h = home();
+    const { local } = resolveHttpAuth({ mode: "none" }, "localhost", false, h);
+    if (!local) throw new Error("expected a local token");
+    for (const created of [true, false]) {
+      const line = localTokenNotice({ created, path: local.path });
+      expect(line).toContain(local.path);
+      expect(line).not.toContain(local.token);
+    }
+    expect(local.created).toBe(true);
+    expect(localTokenNotice(local)).not.toContain(local.token);
   });
 
   it("leaves configured auth, --no-auth and reachable hosts alone", () => {

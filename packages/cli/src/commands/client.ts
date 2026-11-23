@@ -74,7 +74,8 @@ export default class Client extends YnmCommand {
     }),
     http: Flags.string({ description: "Use a hosted server at this URL instead of stdio" }),
     token: Flags.string({
-      description: "Bearer token for --http (a loopback URL reads the local token by itself)",
+      description:
+        "Bearer token for --http (a loopback URL reads the local token by itself, with --scope user only)",
     }),
     yes: Flags.boolean({
       description:
@@ -101,9 +102,15 @@ export default class Client extends YnmCommand {
     const userHome = process.env.HOME ?? home;
     const names = args.name ? [args.name] : await this.inferClients(cwd, userHome);
     // A loopback server needs the local token, which ynm already holds: no copying (ADR-017).
-    const bearer =
-      flags.token ??
-      (flags.http && isLoopbackUrl(flags.http) ? ensureLocalToken(home).token : undefined);
+    // The token lands in the client's config, so a project-scope file in the work tree, which can
+    // be committed and read by every collaborator, never gets it: use --scope user, or --token.
+    const readsLocalToken = !flags.token && flags.http && isLoopbackUrl(flags.http);
+    if (readsLocalToken && flags.scope === "project")
+      this.error(
+        "a loopback --http install writes the local token into the client's config, and --scope project puts that in a file in your work tree. Use --scope user, or pass --token yourself.",
+        { exit: 1 }
+      );
+    const bearer = flags.token ?? (readsLocalToken ? ensureLocalToken(home).token : undefined);
     const transport = flags.http
       ? { kind: "http" as const, url: flags.http, bearer }
       : { kind: "stdio" as const, command: "ynm", args: ["serve"] };

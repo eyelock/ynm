@@ -177,10 +177,32 @@ describe("ynm client", () => {
     );
   });
 
-  it("a loopback --http install reads the local token, and a remote one does not (ADR-017)", () => {
+  it("a loopback --http install reads the local token into user scope only, and a remote one does not (ADR-017)", () => {
     const local = temp("ynm-client-");
+    const env = isolated();
     const r = ynmWith(
       local,
+      { env },
+      "client",
+      "install",
+      "opencode",
+      "--scope",
+      "user",
+      "--http",
+      "http://localhost:3000/mcp"
+    );
+    expect(r.status, r.stderr).toBe(0);
+    const token = readFileSync(join(testYnmHome, "serve-token"), "utf8").trim();
+    expect(token).not.toBe("");
+    expect(existsSync(join(local, "opencode.json"))).toBe(false);
+    expect(readFileSync(join(env.HOME, ".config", "opencode", "opencode.json"), "utf8")).toContain(
+      token
+    );
+
+    // Project scope would write the secret into a file in the work tree: refused, nothing written.
+    const project = temp("ynm-client-");
+    const refused = ynmWith(
+      project,
       { env: isolated() },
       "client",
       "install",
@@ -188,10 +210,9 @@ describe("ynm client", () => {
       "--http",
       "http://localhost:3000/mcp"
     );
-    expect(r.status, r.stderr).toBe(0);
-    const token = readFileSync(join(testYnmHome, "serve-token"), "utf8").trim();
-    expect(token).not.toBe("");
-    expect(readFileSync(join(local, "opencode.json"), "utf8")).toContain(token);
+    expect(refused.status).not.toBe(0);
+    expect(refused.stderr).toMatch(/--scope user/);
+    expect(existsSync(join(project, "opencode.json"))).toBe(false);
 
     const remote = temp("ynm-client-");
     expect(
