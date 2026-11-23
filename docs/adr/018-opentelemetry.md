@@ -1,6 +1,6 @@
 # ADR-018: OpenTelemetry: spans at the boundaries, an otel audit sink, loaded only when on
 
-Status: proposed (2026-10-05)
+Status: accepted (2026-11-23); built, with hosted wiring and the Lambda relay still open
 Satisfies: NFR-5, NFR-10, NFR-11, NFR-12
 
 ## Context
@@ -377,6 +377,9 @@ that disagrees with the installed release.
   Names are unchanged. Still proposed.
 - 2026-10-07: the spool exporter package is public; CI reads it with the workflow's own token and
   the YNR_READ_PACKAGES secret is gone. Still proposed.
+- 2026-11-23: status corrected from proposed. The OTLP path, the spans, the `otel` audit sink, the
+  registry, trace-context propagation and the ynr conformance job all shipped; only the two open
+  questions above remain.
 - 2026-11-07: `make gen` moves the semantic-conventions pin to the installed release, and a
   semantic-conventions bump arrives alone in its own Dependabot group. The ADR no longer names the
   version, which the manifest holds.

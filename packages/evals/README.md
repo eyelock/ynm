@@ -6,7 +6,9 @@ Standing evals and milestone gates (ADR-014).
   milestone builds it; the milestone closes when the file is green with zero todos.
   Run one with `make gate M=M1` from the repo root.
 - `src/tier1/`: deterministic suites that gate every PR (semantics, merge, latency, retrieval, parity).
-- `src/tier2/`: model-backed suites, nightly (consolidation, faithfulness, rerank, guidance, cost).
+- `src/tier2/`: model-backed suites (consolidation, faithfulness, rerank, guidance, cost). CI does
+  not run them, nightly or otherwise: they run by hand, with a key and the cost guard below
+  (`pnpm --filter @ynm/evals eval:tutorials`, `make` targets such as `eval-hosted-remember`).
 - `src/tier3/`: public benchmark drivers, per release (LoCoMo, LongMemEval).
 - `baselines/`: gated numbers per version; changing one is an explicit PR change.
 

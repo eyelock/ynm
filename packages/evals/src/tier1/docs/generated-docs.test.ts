@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { TOOL_SPECS } from "@ynm/service";
 
 /**
  * The generated docs (scripts/gen-docs.mjs, `make docs-gen`) are checked in. Regenerating them
@@ -32,6 +33,37 @@ describe("tier1 generated docs", () => {
         readFileSync(join(repoRoot, "docs", rel), "utf8")
       );
     }
+  });
+
+  it("the tool counts in the README and the MCP reference match TOOL_SPECS", () => {
+    const words = [
+      "no",
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+      "seven",
+      "eight",
+      "nine",
+      "ten",
+      "eleven",
+      "twelve",
+      "thirteen",
+      "fourteen",
+      "fifteen",
+      "sixteen",
+    ];
+    const n = TOOL_SPECS.length;
+    const readme = readFileSync(join(repoRoot, "README.md"), "utf8");
+    expect(readme, "README.md names the wrong number of tools").toContain(
+      `\`memory_remember\` and ${words[n - 2]} more tools`
+    );
+    const mcp = readFileSync(join(repoRoot, "docs", "reference", "mcp.md"), "utf8");
+    expect(mcp, "docs/reference/mcp.md names the wrong number of tools").toContain(
+      `: ${words[n]} tools,`
+    );
   });
 
   it("every relative link and anchor in docs/ resolves", () => {
