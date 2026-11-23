@@ -1106,8 +1106,13 @@ export class Ynm {
     for (const mount of this.mounts) {
       if (f.mount && mount.id !== f.mount) continue;
       if (f.level && mount.level !== f.level) continue;
+      const rows: Array<MemoryRecord & { mount: string }> = [];
       for await (const r of mount.log.scan(Ynm.shardFilter(f), (p) => onProblem?.(mount.id, p)))
-        out.push({ ...r, mount: mount.id });
+        rows.push({ ...r, mount: mount.id });
+      // A purge marker is authoritative: lines a sync brought back for a purged memory are not
+      // exported. The marker itself stays, as the audit trail.
+      const purged = new Set(rows.filter((r) => r.op === "purge-marker").map((r) => r.memoryId));
+      for (const r of rows) if (r.op === "purge-marker" || !purged.has(r.memoryId)) out.push(r);
     }
     return out;
   }
@@ -1173,12 +1178,34 @@ export class Ynm {
     for (const mount of this.mounts) {
       if (opts.mount ? mount.id !== opts.mount : mount.level !== "distributed") continue;
       if (!mount.log.sync) continue;
-      results[mount.id] = await mount.log.sync({
+      const mountOpts = {
         ...syncOpts,
         mergeDocuments: { [PEOPLE_DOCUMENT]: mergePeopleText, ...opts.mergeDocuments },
-      });
+      };
+      results[mount.id] = await mount.log.sync(mountOpts);
+      // A sync unions shard lines, which can bring back lines of a memory purged elsewhere. The
+      // fold already hides them; this removes them and syncs again so the removal propagates.
+      if (!opts.dryRun && (opts.pull ?? true) && (await this.scrubPurged(mount)))
+        results[mount.id] = await mount.log.sync(mountOpts);
     }
     return results;
+  }
+
+  /** Re-purges lines of memories a purge marker names, keeping the marker. True if any removed. */
+  private async scrubPurged(mount: Mount): Promise<boolean> {
+    const markers = new Map<string, MemoryRecord[]>();
+    const lines = new Set<string>();
+    const all: MemoryRecord[] = [];
+    for await (const r of mount.log.scan()) all.push(r);
+    for (const r of all)
+      if (r.op === "purge-marker") markers.set(r.memoryId, [...(markers.get(r.memoryId) ?? []), r]);
+    for (const r of all)
+      if (r.op !== "purge-marker" && markers.has(r.memoryId)) lines.add(r.memoryId);
+    for (const id of lines) {
+      await mount.log.purge(id);
+      await mount.log.append(markers.get(id) ?? []);
+    }
+    return lines.size > 0;
   }
 
   /** True when a replicating distributed mount holds writes the remote has not seen; local only. */

@@ -81,8 +81,21 @@ never fatal.
 | `supersede` | Replaces `content`, `summary`, `data`, `type`, `namespace`; sets `subject`, `importance`, `confidence`, `pinned`, `needsReview` when given; adds tags and links; revives a tombstoned memory |
 | `annotate` | Adds tags and links; sets `subject`, `importance`, `confidence`, `pinned`, `needsReview` when given. Content is unchanged |
 | `tombstone` | Hides the memory from recall, context and the wiki. History stays |
-| `purge-marker` | Records that a purge removed lines. No state change |
+| `purge-marker` | Records that a purge removed lines, and makes the purge authoritative: the fold drops every record of the named memory, whenever it was recorded, so recall, list, context, the wiki and export never return it |
 | `snapshot` | The folded state of a shard at `recordedAt`; a reader may start from it and apply only later records |
+
+## What a purge guarantees across clones
+
+A purge rewrites the shards of the clone that ran it and records a `purge-marker`. Another clone
+that wrote to the same shard before syncing holds the purged lines, and a sync unions shard lines,
+so those lines can reach every clone again. The marker is what keeps them out: a clone that has
+the marker, whichever order the syncs ran in, drops every record of that memory when it folds, so
+the memory is not returned by recall, list, context, the wiki or export.
+
+After each sync, ynm removes any lines of a purged memory that the sync brought back, keeps the
+marker, and syncs again so the removal reaches the remote. Until then, and in the ref history
+unless `--forget-history` was used, the lines can still be on disk: the guarantee is about what
+ynm returns, not about bytes in history.
 
 ## Fold order
 

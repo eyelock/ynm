@@ -145,13 +145,36 @@ describe("fold (ADR-002)", () => {
     expect(fold([ghost]).orphans).toHaveLength(1);
   });
 
-  it("purge-marker and a duplicate create change nothing", () => {
+  it("a purge marker drops every record of its memory, whenever it was recorded (ynm #175)", () => {
     const c = create();
-    const dup = { ...c, id: ulid(t), recordedAt: at() };
+    const before = on(c, "annotate", { tags: ["x"] });
     const p = on(c, "purge-marker", { reason: "gdpr" });
-    const m = fold([c, dup, p]).memories.get(c.memoryId);
-    expect(m?.current.id).toBe(c.id);
-    expect(m?.versions).toBe(3);
+    const after = on(c, "supersede", { content: "returned by a sync" });
+    const other = create();
+    for (const order of [
+      [c, before, p, after, other],
+      [after, p, other, before, c],
+    ]) {
+      const r = fold(order);
+      expect(r.memories.has(c.memoryId)).toBe(false);
+      expect(r.memories.has(other.memoryId)).toBe(true);
+      expect(r.orphans).toEqual([]);
+      expect([...r.purged]).toEqual([c.memoryId]);
+    }
+  });
+
+  it("Folder and snapshot folds keep a purged memory out too (ynm #175)", () => {
+    const c = create();
+    const p = on(c, "purge-marker", { reason: "gdpr" });
+    const f = new Folder();
+    f.add([c]);
+    f.add([p]);
+    f.add([on(c, "annotate", { tags: ["late"] })]);
+    expect(f.get(c.memoryId)).toBeUndefined();
+    expect(f.result().orphans).toEqual([]);
+    const snap = { ...c, id: ulid(t), op: "snapshot" as const, data: snapshotData(fold([c, p])) };
+    const tail = [{ ...c, id: ulid(t), op: "supersede" as const, recordedAt: at(), content: "x" }];
+    expect(foldWithSnapshot(snap, tail).memories.has(c.memoryId)).toBe(false);
   });
 
   it("Folder folds incrementally to the same state as a full fold", () => {
@@ -344,15 +367,6 @@ describe("records that arrive before their base", () => {
       pinned: false,
       needsReview: false,
     });
-  });
-
-  it("count purge markers as versions without changing state", () => {
-    const c = create();
-    const p = earlier(c, on(c, "purge-marker", { reason: "gdpr" }));
-    const m = fold([c, p]).memories.get(c.memoryId);
-    expect(m?.versions).toBe(2);
-    expect(m?.tombstoned).toBe(false);
-    expect(m?.createdAt).toBe(p.recordedAt);
   });
 
   it("keep createdAt when the early record shares the base's timestamp", () => {
