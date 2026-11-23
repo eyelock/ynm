@@ -29,6 +29,12 @@ export interface FoldResult {
   memories: Map<string, Memory>;
   /** Records whose memoryId never had a create or snapshot base; kept for diagnostics. */
   orphans: MemoryRecord[];
+  /**
+   * Memories a purge marker names. A purge is authoritative: every record of such a memory is
+   * dropped from the fold, whenever it was recorded and however it reached this clone (a sync that
+   * unions shard lines can bring purged lines back; the marker keeps them out of every view).
+   */
+  purged: Set<string>;
 }
 
 /** Deterministic order: recordedAt, then id, so replay is independent of shard order. */
@@ -136,7 +142,7 @@ export function applyRecord(m: Memory, r: MemoryRecord): void {
       m.tombstoneReason = r.reason;
       break;
     case "purge-marker":
-      // Audit trail only; the purged lines are gone. State is unchanged.
+      // The memory is dropped by the fold before records reach here (foldSorted).
       break;
     case "create":
       // A second create for the same memory is a merge artefact; the earlier one stays current
@@ -187,10 +193,16 @@ function applyBefore(m: Memory, r: MemoryRecord): void {
 function foldSorted(
   sorted: MemoryRecord[],
   memories: Map<string, Memory>,
-  pending: Map<string, MemoryRecord[]>
+  pending: Map<string, MemoryRecord[]>,
+  purged: Set<string> = new Set()
 ): FoldResult {
+  for (const r of sorted) if (r.op === "purge-marker") purged.add(r.memoryId);
+  for (const id of purged) {
+    memories.delete(id);
+    pending.delete(id);
+  }
   for (const r of sorted) {
-    if (r.op === "snapshot") continue;
+    if (r.op === "snapshot" || purged.has(r.memoryId)) continue;
     const m = memories.get(r.memoryId);
     if (m) {
       applyRecord(m, r);
@@ -212,7 +224,7 @@ function foldSorted(
   }
   const orphans: MemoryRecord[] = [];
   for (const q of pending.values()) orphans.push(...q.sort(compareRecords));
-  return { memories, orphans };
+  return { memories, orphans, purged };
 }
 
 /**
@@ -228,6 +240,8 @@ export interface SnapshotData {
   memories: Memory[];
   /** Records still waiting for their base at snapshot time; carried so the fast path stays exact. */
   orphans?: MemoryRecord[];
+  /** Memory ids a purge marker named before the snapshot, so late lines for them stay dropped. */
+  purged?: string[];
   [key: string]: unknown;
 }
 
@@ -246,7 +260,7 @@ export function foldWithSnapshot(snapshot: MemoryRecord, tail: Iterable<MemoryRe
     else pending.set(o.memoryId, [o]);
   }
   const later = [...tail].filter((r) => compareRecords(r, snapshot) > 0).sort(compareRecords);
-  return foldSorted(later, memories, pending);
+  return foldSorted(later, memories, pending, new Set(data?.purged ?? []));
 }
 
 /**
@@ -257,11 +271,18 @@ export class Folder {
   private readonly memories = new Map<string, Memory>();
   private readonly pending = new Map<string, MemoryRecord[]>();
   private readonly seen = new Set<string>();
+  private readonly purged = new Set<string>();
 
-  /** Applies records; returns the ids of memories whose state changed (or were created). */
+  /**
+   * Applies records; returns the ids of memories whose state changed (or were created). A memory a
+   * purge-marker removes is not returned: `result().purged` reports it.
+   */
   add(records: Iterable<MemoryRecord>): string[] {
     const fresh = [...records].filter((r) => !this.seen.has(r.id));
-    for (const r of fresh) this.seen.add(r.id);
+    for (const r of fresh) {
+      this.seen.add(r.id);
+      if (r.op === "purge-marker") this.purged.add(r.memoryId);
+    }
     const touched = new Set<string>();
     // Records already folded stay folded; late records are merged by re-folding affected memories.
     const affected = new Set(fresh.map((r) => r.memoryId));
@@ -279,7 +300,7 @@ export class Folder {
       list.push(r);
       this.recordsOf.set(r.memoryId, list);
     }
-    const result = foldSorted(all.sort(compareRecords), new Map(), new Map());
+    const result = foldSorted(all.sort(compareRecords), new Map(), new Map(), new Set(this.purged));
     for (const [id, m] of result.memories) {
       this.memories.set(id, m);
       touched.add(id);
@@ -302,7 +323,7 @@ export class Folder {
   result(): FoldResult {
     const orphans: MemoryRecord[] = [];
     for (const q of this.pending.values()) orphans.push(...q);
-    return { memories: this.memories, orphans };
+    return { memories: this.memories, orphans, purged: new Set(this.purged) };
   }
 
   get size(): number {
@@ -312,5 +333,9 @@ export class Folder {
 
 /** Builds the snapshot record's payload from a fold. */
 export function snapshotData(result: FoldResult): SnapshotData {
-  return { memories: [...result.memories.values()], orphans: result.orphans };
+  return {
+    memories: [...result.memories.values()],
+    orphans: result.orphans,
+    purged: [...result.purged],
+  };
 }
