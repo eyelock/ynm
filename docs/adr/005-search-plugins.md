@@ -47,7 +47,7 @@ interface Reranker {
 module; engines are pinned to Node 22.13+, where `node:sqlite` is unflagged) stored under
 `.ynm/index/` (gitignored) or `~/.ynm/index/<store>`, with BM25 ranking, column weights summary
 2.0, content 1.0, subject 1.5, tags 1.0, and porter stemming; and a **metadata** index (type,
-level, namespace, subject, tags, time, memoryId → shards) in the same SQLite file, so metadata
+level, namespace, subject, tags, time, and memoryId → namespace, type and folded state, so an edit by id needs no scan) in the same SQLite file, so metadata
 filters go in the same query. FTS rows share the memories table's rowid so replace and remove are
 indexed lookups (`memoryId` is UNINDEXED in FTS5, and deleting by it scanned the whole table:
 7.8 s to index 10k, fifteen minutes at 100k), and a rebuild skips the lookup on emptied tables.

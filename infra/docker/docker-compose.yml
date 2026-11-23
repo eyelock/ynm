@@ -14,6 +14,7 @@ services:
     environment:
       YNM_MCP_TOKEN: demo-token
       YNM_GIT_DAEMON: "1"
+      YNM_GIT_DAEMON_PUSH: "1" # the demo clone pushes back; git:// has no auth, so demos only
       YNM_DREAM_EVERY: 30s
     ports:
       - "3000:3000"

@@ -105,7 +105,7 @@ protected:
 
 | `auth` | When |
 |---|---|
-| `none` | `--no-auth`, loopback only |
+| `none` | `--no-auth` (a loopback bind with no auth configured also runs open until `local-token` is built) |
 | `local-token` | the generated local token, loopback only |
 | `bearer` | a static token off loopback, with `"deprecated": true`, for one release |
 | `oidc` | an OpenID Connect provider, with or without a preset |
@@ -123,9 +123,10 @@ protected:
   settings are missing. Reachable means a non-loopback bind address (`--host 0.0.0.0` or any
   routable address) or running as a function (ADR-009): a function is always treated as public,
   whatever its URL. The Docker image follows the same rule.
-- `--no-auth` exists for tests and demos and is refused when reachable. It replaces the function's
-  own escape hatch (`YNM_LAMBDA_ALLOW_OPEN`), so there is one rule and one override for every way
-  ynm is served.
+- `--no-auth` is the explicit override: it runs open on any host, reachable or not, on purpose
+  (see the 2026-11-23 addendum below; this bullet first said it was refused when reachable). It is
+  meant to replace the function's own escape hatch (`YNM_LAMBDA_ALLOW_OPEN`), so there is one rule
+  and one override for every way ynm is served; that replacement is not built yet.
 
 ### Identity reaches everything through the `Principal`
 
@@ -287,3 +288,19 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   the OpenTelemetry handle reads it (ADR-018), because a provider's `sub` can be an opaque id.
   Nothing in this ADR's identity reads it: the person id, actors, provenance, `memory_people` and
   the stdout, file and s3 audit sinks are still keyed by issuer and subject alone. Still proposed.
+- 2026-11-23: addendum on `--no-auth`, recording the human's choice on the wording of
+  [ynm #165](https://github.com/eyelock/ynm/issues/165), as built by
+  [ynm #177](https://github.com/eyelock/ynm/pull/177). A non-loopback bind with no auth configured
+  is refused, and the error names `--no-auth` and the auth variables; `--no-auth` overrides the
+  refusal on purpose, on any host. This supersedes "`--no-auth` ... is refused when reachable"
+  above and the `none` row's "loopback only": an open server on a reachable host is allowed when
+  asked for by name, never by accident. Built: the guard in `ynm serve --http` (run before the
+  store opens), the same refusal in the Docker image's entrypoint, and a git daemon that is
+  read-only unless `YNM_GIT_DAEMON_PUSH=1`. Not built: `local-token` on loopback
+  ([ynm #179](https://github.com/eyelock/ynm/issues/179)), so a loopback bind with nothing
+  configured still runs open; the `AuthProvider` work; the function's guard, which still uses
+  `YNM_LAMBDA_ALLOW_OPEN` rather than `--no-auth`. Still proposed.
+- 2026-11-23: partly built, still proposed. Built: the "never open by accident" refusal for
+  `ynm serve --http` and the Docker image, with `--no-auth` as the override, and a read-only git
+  daemon. Not yet built: `AuthProvider`, `local-token`, the other presets, `/health` auth modes
+  and audit changes.

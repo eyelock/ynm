@@ -1,25 +1,63 @@
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { hostname } from "node:os";
 
 const DEFAULT_TIMEOUT_MS = 5_000;
 const RETRY_MS = 15;
 const STALE_MS = 60_000;
 
-function isStale(lockPath: string): boolean {
+interface LockHolder {
+  pid: number;
+  startedAt: number;
+  host: string | null;
+}
+
+function readHolder(content: string): LockHolder {
+  // pid, start time (ms), token, host. Locks from older versions stop after the start time and
+  // carry no host: treat them as this host's.
+  const [pid, started, , host] = content.split("\n");
+  return { pid: Number(pid), startedAt: Number(started), host: host || null };
+}
+
+/**
+ * A holder on this host is judged by whether its process is alive, never by age: a sync can
+ * legitimately hold the lock for longer than STALE_MS. Age is only a fallback for a holder on
+ * another host (a shared filesystem), whose pid this host cannot probe.
+ */
+function isStale(content: string): boolean {
+  const { pid, startedAt, host } = readHolder(content);
+  if (host !== null && host !== hostname()) {
+    return Number.isFinite(startedAt) && Date.now() - startedAt > STALE_MS;
+  }
+  if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
-    const [pid, started] = readFileSync(lockPath, "utf8").split("\n");
-    const startedAt = Number(started);
-    if (Number.isFinite(startedAt) && Date.now() - startedAt > STALE_MS) return true;
-    if (pid) {
-      try {
-        process.kill(Number(pid), 0);
-        return false;
-      } catch {
-        return true;
-      }
-    }
+    process.kill(pid, 0);
     return false;
+  } catch (err) {
+    // EPERM: the process exists but belongs to someone else.
+    return (err as NodeJS.ErrnoException).code !== "EPERM";
+  }
+}
+
+/** Removes the lock when it is stale and still the one judged; true when it is gone. */
+function breakIfStale(lockPath: string): boolean {
+  let seen: string;
+  try {
+    seen = readFileSync(lockPath, "utf8");
   } catch {
-    return false;
+    return true; // released between our attempt and now
+  }
+  if (!isStale(seen)) return false;
+  releaseIfOwn(lockPath, seen);
+  return true;
+}
+
+/** Unlinks the lock only when it still holds `content`, so a replaced lock is never removed. */
+function releaseIfOwn(lockPath: string, content: string): void {
+  try {
+    if (readFileSync(lockPath, "utf8") === content) unlinkSync(lockPath);
+  } catch {
+    // already gone
   }
 }
 
@@ -33,20 +71,14 @@ export async function withLock<T>(
   timeoutMs = DEFAULT_TIMEOUT_MS
 ): Promise<T> {
   const start = Date.now();
+  const content = `${process.pid}\n${Date.now()}\n${randomUUID()}\n${hostname()}\n`;
   for (;;) {
     try {
-      writeFileSync(lockPath, `${process.pid}\n${Date.now()}\n`, { flag: "wx" });
+      writeFileSync(lockPath, content, { flag: "wx" });
       break;
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
-      if (isStale(lockPath)) {
-        try {
-          unlinkSync(lockPath);
-          continue;
-        } catch {
-          // another process removed it first
-        }
-      }
+      if (breakIfStale(lockPath)) continue;
       if (Date.now() - start > timeoutMs)
         throw new Error(`lock timeout after ${timeoutMs}ms: ${lockPath}`);
       await new Promise((r) => setTimeout(r, RETRY_MS));
@@ -55,6 +87,6 @@ export async function withLock<T>(
   try {
     return await fn();
   } finally {
-    if (existsSync(lockPath)) unlinkSync(lockPath);
+    releaseIfOwn(lockPath, content);
   }
 }

@@ -20,6 +20,11 @@ export interface SyncParams {
   pull?: boolean;
   dryRun?: boolean;
   mergeDocuments?: SyncOptions["mergeDocuments"];
+  /**
+   * Runs a step that writes local refs under the store lock. Sync takes the lock only for those
+   * steps, never across `git fetch` or `git push`, which can outlast any lock timeout.
+   */
+  guard?: <T>(fn: () => Promise<T>) => Promise<T>;
 }
 
 const MAX_ROUNDS = 3;
@@ -145,10 +150,14 @@ export async function hasUnpushed(repo: string, level: Level, remote: string): P
   return false;
 }
 
-/** Points the tracking ref for a ref the remote now holds at our copy of it. */
+/**
+ * Points the tracking ref for a ref the remote now holds at `sha`, the object the push was
+ * given. Never re-read the local ref here: a write that lands after the push is not on the remote.
+ */
 async function recordPushed(
   p: SyncParams,
   ref: string,
+  sha: string,
   notesLocal: string,
   notesTracking: string
 ): Promise<void> {
@@ -156,8 +165,7 @@ async function recordPushed(
   const tracked = ref.startsWith(docs)
     ? documentTrackingPrefix(p.remote, p.level) + ref.slice(docs.length)
     : notesTracking + ref.slice(notesLocal.length);
-  const sha = (await gitOrNull(["rev-parse", "--verify", "-q", ref], { cwd: p.repo }))?.trim();
-  if (sha) await gitOrNull(["update-ref", tracked, sha], { cwd: p.repo });
+  await gitOrNull(["update-ref", tracked, sha], { cwd: p.repo });
 }
 
 /**
@@ -174,6 +182,7 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
   const env = { ...(await p.env), YNM_SYNC_IN_PROGRESS: "1" };
   const doPull = p.pull ?? true;
   const doPush = p.push ?? true;
+  const guard = p.guard ?? ((fn) => fn());
   const remoteUrl = (await gitOrNull(["remote", "get-url", p.remote], { cwd: p.repo }))?.trim();
   if (!remoteUrl) {
     result.skipped = `remote "${p.remote}" not configured; nothing to sync`;
@@ -225,38 +234,44 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
       );
       for (const [ref, sha] of await trackedRefs(p.repo, tracking, docTracking))
         if (before.get(ref) !== sha) result.fetched += 1;
-      const remoteRefs = await listRefs(p.repo, tracking);
-      const localRefs = await listRefs(p.repo, local);
-      conflicted = await reconcileDocuments(p, env, result);
-      for (const [rref, rsha] of remoteRefs) {
-        const lref = local + rref.slice(tracking.length);
-        const lsha = localRefs.get(lref);
-        if (lsha === rsha) continue;
-        if (p.dryRun) {
-          result.merged.push(lref);
-          continue;
+      await guard(async () => {
+        const remoteRefs = await listRefs(p.repo, tracking);
+        const localRefs = await listRefs(p.repo, local);
+        conflicted = await reconcileDocuments(p, env, result);
+        for (const [rref, rsha] of remoteRefs) {
+          const lref = local + rref.slice(tracking.length);
+          const lsha = localRefs.get(lref);
+          if (lsha === rsha) continue;
+          if (p.dryRun) {
+            result.merged.push(lref);
+            continue;
+          }
+          if (!lsha || (await isAncestor(p.repo, lsha, rsha))) {
+            await git(["update-ref", lref, rsha, lsha ?? "0".repeat(rsha.length)], { cwd: p.repo });
+            result.merged.push(lref);
+            continue;
+          }
+          if (await isAncestor(p.repo, rsha, lsha)) continue;
+          try {
+            await git(["notes", `--ref=${lref}`, "merge", "-s", "cat_sort_uniq", rref], {
+              cwd: p.repo,
+              env,
+            });
+            result.merged.push(lref);
+          } catch (err) {
+            await gitOrNull(["notes", `--ref=${lref}`, "merge", "--abort"], { cwd: p.repo });
+            result.conflicts.push(`${lref}: ${(err as Error).message}`);
+          }
         }
-        if (!lsha || (await isAncestor(p.repo, lsha, rsha))) {
-          await git(["update-ref", lref, rsha, lsha ?? "0".repeat(rsha.length)], { cwd: p.repo });
-          result.merged.push(lref);
-          continue;
-        }
-        if (await isAncestor(p.repo, rsha, lsha)) continue;
-        try {
-          await git(["notes", `--ref=${lref}`, "merge", "-s", "cat_sort_uniq", rref], {
-            cwd: p.repo,
-            env,
-          });
-          result.merged.push(lref);
-        } catch (err) {
-          await gitOrNull(["notes", `--ref=${lref}`, "merge", "--abort"], { cwd: p.repo });
-          result.conflicts.push(`${lref}: ${(err as Error).message}`);
-        }
-      }
+      });
     }
     if (!doPush || p.dryRun) return result;
-    const notes = [...(await listRefs(p.repo, local)).keys()];
+    // What each ref points at before the push: the objects the push sends, and so what to record.
+    const localRefs = await listRefs(p.repo, local);
+    const notes = [...localRefs.keys()];
     const documents = await pushableDocuments(p, conflicted);
+    const documentShas = await listRefs(p.repo, documentPrefix(p.level));
+    const pushedShas = new Map([...localRefs, ...documentShas]);
     // Nothing written at this level yet: git rejects a push pattern that matches no refs.
     if (notes.length === 0 && documents.length === 0) return result;
     const refspecs = [
@@ -268,7 +283,12 @@ export async function syncDistributed(p: SyncParams): Promise<SyncResult> {
       result.pushed = pushedRefs(out);
       // Push only updates tracking refs that a configured fetch line maps (not documents, not a
       // mirror's URL target), so record what the remote now holds for `hasUnpushed`.
-      for (const ref of [...notes, ...documents]) await recordPushed(p, ref, local, tracking);
+      await guard(async () => {
+        for (const ref of [...notes, ...documents]) {
+          const sha = pushedShas.get(ref);
+          if (sha) await recordPushed(p, ref, sha, local, tracking);
+        }
+      });
       return result;
     } catch (err) {
       const msg = (err as Error).message;

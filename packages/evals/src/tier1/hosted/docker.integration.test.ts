@@ -56,6 +56,9 @@ describe.skipIf(!available)("hosted service in Docker (ADR-009)", () => {
       "YNM_MCP_TOKEN=secret",
       "-e",
       "YNM_GIT_DAEMON=1",
+      // git:// is read-only unless this demo setting opts in; the clone below pushes back (ADR-017)
+      "-e",
+      "YNM_GIT_DAEMON_PUSH=1",
       "-e",
       "YNM_DREAM_EVERY=2s",
       IMAGE
@@ -187,4 +190,13 @@ describe.skipIf(!available)("hosted service in Docker (ADR-009)", () => {
     await a.close();
     await b.close();
   }, 180_000);
+
+  it("the image refuses to start with no auth variable on its 0.0.0.0 bind (ADR-017)", () => {
+    // Run to completion, not detached: the entrypoint must exit 1 itself, before any git daemon
+    // or store, and say why. The parent test's container, which has YNM_MCP_TOKEN, is untouched.
+    const r = spawnSync("docker", ["run", "--rm", IMAGE], { encoding: "utf8", timeout: 60_000 });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("refusing to start");
+    expect(r.stderr).toContain("YNM_MCP_TOKEN");
+  }, 90_000);
 });

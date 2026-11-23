@@ -198,7 +198,7 @@ already set.
 ### Server
 
 Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`, then
-`YNM_JWKS_URL`, then `YNM_OAUTH_INTROSPECTION_URL`, then `YNM_MCP_TOKEN`, then none.
+`YNM_JWKS_URL`, then `YNM_OAUTH_INTROSPECTION_URL`, then `YNM_MCP_TOKEN`, then none. With none, the server starts only on a loopback host, unless `--no-auth` is passed.
 
 | Variable | Effect |
 |---|---|
@@ -223,10 +223,11 @@ Read by `ynm serve` and `ynm-mcp`. Auth mode is chosen in this order: `--token`,
 | Variable | Effect |
 |---|---|
 | `YNM_STORE` | Path of the bare repository the container creates or adopts and serves. Default `/data/store.git` |
-| `YNM_GIT_DAEMON` | `1` also serves the store over `git://` |
+| `YNM_GIT_DAEMON` | `1` also serves the store over `git://`, read-only, once the server is protected (or `--no-auth` is passed) |
+| `YNM_GIT_DAEMON_PUSH` | `1` lets the git daemon accept pushes. `git://` has no authentication, so anyone who can reach port 9418 can write to the store: demos only |
 | `YNM_URL` | Server URL used by the compose demo's agent |
 
-The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_CLAUDE_CLI=1`. The container runs as uid 1001, so a bind-mounted `/data` must be writable by it.
+The image also sets `YNM_HOME=/data/home`, `YNM_HTTP_HOST=0.0.0.0` and `YNM_NO_CLAUDE_CLI=1`. With none of `YNM_JWKS_URL`, `YNM_OAUTH_INTROSPECTION_URL` or `YNM_MCP_TOKEN` set, the container refuses to start (a `--no-auth` argument overrides, for tests and demos). The container runs as uid 1001, so a bind-mounted `/data` must be writable by it.
 
 ### AWS Lambda
 

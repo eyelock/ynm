@@ -101,9 +101,10 @@ id=npm_token,env=NODE_AUTH_TOKEN .` (the compose file passes it for you, and
 with `node scripts/release/bundle.mjs --with-s3` and copies only `ynm.mjs` into a runtime stage
 that runs as uid 1001 (a bind-mounted `/data` must be writable by it).
 
-CI scans for secrets with gitleaks. `.gitleaks.toml` extends the default rules and allowlists
-only the test files whose fake credentials check that redaction works, and the placeholder bearer
-token in the curl example above.
+CI does not scan for secrets. `.gitleaks.toml` is a config for running gitleaks yourself
+(`gitleaks detect`): it extends the default rules and allowlists only the test files whose fake
+credentials check that redaction works, and the placeholder bearer token in the curl example
+above.
 
 ### As a Lambda
 

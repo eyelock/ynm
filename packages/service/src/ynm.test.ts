@@ -6,7 +6,7 @@ import { type Judge, type Judgment, NoneWriter, type Question } from "@ynm/model
 import { MemoryLog } from "@ynm/store";
 import { DEFAULT_REDACTION } from "./config.js";
 import { RedactionError } from "./redaction.js";
-import { ShareRequiredError, UnknownMountError, Ynm } from "./ynm.js";
+import { PersonalSyncError, ShareRequiredError, UnknownMountError, Ynm } from "./ynm.js";
 
 function make(withProject = true): Ynm {
   const mounts = [
@@ -139,6 +139,113 @@ describe("Ynm service", () => {
       memoryId
     );
     await expect(y.promote(p.memoryId)).rejects.toThrow(/already distributed/);
+  });
+
+  describe("redaction gate covers every string field at the distributed level (ADR-007)", () => {
+    const SECRET = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234";
+    const base = { type: "semantic" as const, level: "distributed" as const, content: "plain" };
+
+    it("remember refuses a secret in subject or a tag", async () => {
+      const y = make();
+      await expect(y.remember({ ...base, subject: SECRET })).rejects.toThrow(RedactionError);
+      await expect(y.remember({ ...base, tags: [SECRET] })).rejects.toThrow(RedactionError);
+      expect(await y.list()).toEqual([]);
+    });
+
+    it("supersede refuses a secret in subject or a tag", async () => {
+      const y = make();
+      const { memoryId } = await y.remember(base);
+      await expect(y.supersede({ memoryId, content: "new", subject: SECRET })).rejects.toThrow(
+        RedactionError
+      );
+      await expect(y.supersede({ memoryId, content: "new", tags: [SECRET] })).rejects.toThrow(
+        RedactionError
+      );
+    });
+
+    it("annotate refuses a secret in tags, data or reason", async () => {
+      const y = make();
+      const { memoryId } = await y.remember(base);
+      await expect(y.annotate({ memoryId, tags: [SECRET] })).rejects.toThrow(RedactionError);
+      await expect(y.annotate({ memoryId, data: { k: SECRET } })).rejects.toThrow(RedactionError);
+      await expect(y.annotate({ memoryId, reason: SECRET })).rejects.toThrow(RedactionError);
+    });
+
+    it("forget refuses a secret in the reason and keeps the memory", async () => {
+      const y = make();
+      const { memoryId } = await y.remember(base);
+      await expect(y.forget({ memoryId, reason: SECRET })).rejects.toThrow(RedactionError);
+      expect(await y.find(memoryId)).not.toBeNull();
+    });
+
+    it("import refuses a secret in subject, tags or data and writes nothing", async () => {
+      const src = make();
+      await src.remember({ ...base, subject: "s", tags: ["t"] });
+      const [line] = (await src.exportJsonl()).split("\n").filter(Boolean);
+      const rec = JSON.parse(line as string);
+      for (const bad of [{ subject: SECRET }, { tags: [SECRET] }, { data: { k: SECRET } }]) {
+        const z = make();
+        await expect(z.importJsonl(`${JSON.stringify({ ...rec, ...bad })}\n`)).rejects.toThrow(
+          RedactionError
+        );
+        expect(await z.list()).toEqual([]);
+      }
+    });
+
+    it("refuses a secret in provenance (source, session) and dataSchema, and keeps the memory", async () => {
+      const y = make();
+      const url = `https://example.com/?t=${SECRET}`;
+      await expect(y.remember({ ...base, source: url })).rejects.toThrow(RedactionError);
+      await expect(y.remember({ ...base, session: SECRET })).rejects.toThrow(RedactionError);
+      await expect(y.remember({ ...base, data: {}, dataSchema: SECRET })).rejects.toThrow(
+        RedactionError
+      );
+      const { memoryId } = await y.remember(base);
+      await expect(y.supersede({ memoryId, content: "new", source: url })).rejects.toThrow(
+        RedactionError
+      );
+      await expect(y.annotate({ memoryId, tags: ["t"], session: SECRET })).rejects.toThrow(
+        RedactionError
+      );
+      await expect(y.forget({ memoryId, reason: "r", session: SECRET })).rejects.toThrow(
+        RedactionError
+      );
+      expect(await y.list()).toHaveLength(1);
+    });
+
+    it("import refuses a secret in any provenance string or dataSchema and writes nothing", async () => {
+      const src = make();
+      await src.remember({ ...base, source: "s" });
+      const [line] = (await src.exportJsonl()).split("\n").filter(Boolean);
+      const rec = JSON.parse(line as string);
+      const bads = [
+        { provenance: { ...rec.provenance, source: SECRET } },
+        { provenance: { ...rec.provenance, session: SECRET } },
+        { provenance: { ...rec.provenance, actor: SECRET } },
+        { provenance: { ...rec.provenance, client: SECRET } },
+        { provenance: { ...rec.provenance, tool: SECRET } },
+        { dataSchema: SECRET },
+      ];
+      for (const bad of bads) {
+        const z = make();
+        await expect(z.importJsonl(`${JSON.stringify({ ...rec, ...bad })}\n`)).rejects.toThrow(
+          RedactionError
+        );
+        expect(await z.list()).toEqual([]);
+      }
+    });
+
+    it("lets a personal memory hold a secret in --source", async () => {
+      const y = make();
+      await y.remember({ type: "semantic", content: "plain", source: SECRET, session: SECRET });
+      expect(await y.list()).toHaveLength(1);
+    });
+
+    it("still lets a personal memory hold the same text", async () => {
+      const y = make();
+      await y.remember({ type: "semantic", content: "plain", subject: SECRET, tags: [SECRET] });
+      expect(await y.list()).toHaveLength(1);
+    });
   });
 
   it("exports and imports JSONL, routing by level and reporting bad lines", async () => {
@@ -394,7 +501,11 @@ describe("Ynm list, records and sync filters", () => {
       redaction: [],
     });
     expect(Object.keys(await y.sync())).toEqual([]);
-    expect(Object.keys(await y.sync({ mount: "personal" }))).toEqual(["personal"]);
+    await expect(y.sync({ mount: "personal" })).rejects.toThrow(PersonalSyncError);
+    expect(synced).toEqual([]);
+    expect(Object.keys(await y.sync({ mount: "personal", allowPersonal: true }))).toEqual([
+      "personal",
+    ]);
     expect(synced).toEqual(["personal"]);
     expect(await make().sync({ mount: "project" })).toEqual({});
   });
