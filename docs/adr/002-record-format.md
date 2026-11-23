@@ -52,7 +52,10 @@ Rules:
   It replaces `data` whole, like `content`. The fold takes the latest `supersede` by `recordedAt`
   as current. Ties broken by `id`.
 - `tombstone` hides the memory from recall and the wiki; history remains. `purge-marker` records
-  that a physical purge was performed (the purged lines are gone; the marker is the audit trail).
+  that a physical purge was performed and makes it authoritative: the fold drops every record of
+  the named memory (see the 2026-11-23 note in History). The purged lines are not always gone; a
+  sync can bring them back until the scrub after it runs, so the marker is the guarantee, and the
+  audit trail.
 - `annotate` adds links, tags or score changes without changing content (e.g. a consolidation pass
   raising importance, or recording an access for heat). Model judgments that changed a memory are
   stored as `annotate` records with `data: { judgments: [...] }` holding questions, answers,
@@ -92,3 +95,7 @@ None.
   An annotate carrying only that is bookkeeping and does not move `updatedAt`.
 - 2026-10-03: `provenance.client` records the OAuth client a signed-in person wrote through, and
   a hosted write's actor is `user:<person id>` (ADR-017).
+- 2026-11-23 (ynm #175): the `purge-marker` became authoritative. The fold drops every record of the
+  named memory whenever it was recorded, so lines a sync brings back stay out of recall, list, context,
+  the wiki and export. After each sync ynm scrubs the returned lines and syncs again. The guarantee is
+  about what ynm returns, not bytes in history (`docs/reference/record-format.md`).

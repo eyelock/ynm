@@ -273,7 +273,10 @@ export class Folder {
   private readonly seen = new Set<string>();
   private readonly purged = new Set<string>();
 
-  /** Applies records; returns the ids of memories whose state changed (or were created). */
+  /**
+   * Applies records; returns the ids of memories whose state changed (or were created). A memory a
+   * purge-marker removes is not returned: `result().purged` reports it.
+   */
   add(records: Iterable<MemoryRecord>): string[] {
     const fresh = [...records].filter((r) => !this.seen.has(r.id));
     for (const r of fresh) {
