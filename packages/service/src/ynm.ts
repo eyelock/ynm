@@ -14,6 +14,7 @@ import type {
   Level,
   Login,
   MemoryRecord,
+  MemoryType,
   PeopleDoc,
   PurgeInput,
   RecallQuery,
@@ -856,16 +857,54 @@ export class Ynm {
     });
   }
 
+  /**
+   * Finds one memory by id. The index (ADR-003, ADR-005) names the mount and the namespace and
+   * type whose shards hold its records, so only those are read; with no index, or one that does
+   * not know the id, every record of every mount is scanned.
+   */
   async find(memoryId: string): Promise<MemoryWithMount | null> {
-    for (const mount of this.mounts) {
-      const records: MemoryRecord[] = [];
-      for await (const r of mount.log.scan()) if (r.memoryId === memoryId) records.push(r);
-      if (records.length) {
-        const m = fold(records).memories.get(memoryId);
-        if (m) return { ...m, mount: mount.id };
+    const known = await this.indexed(memoryId);
+    if (known) {
+      const mount = this.mounts.find((x) => x.id === known.mount);
+      if (mount) {
+        const found = await Ynm.foldOne(mount, memoryId, {
+          level: mount.level,
+          namespace: known.namespace,
+          type: known.type,
+        });
+        if (found) return found;
       }
     }
+    for (const mount of this.mounts) {
+      const found = await Ynm.foldOne(mount, memoryId);
+      if (found) return found;
+    }
     return null;
+  }
+
+  /** Where the index says a memory lives: its mount, namespace and type; null when unknown. */
+  private async indexed(
+    memoryId: string
+  ): Promise<{ mount: string; namespace: string; type: MemoryType } | null> {
+    if (!this.index) return null;
+    for (const mount of this.mounts) {
+      const ix = await this.index.ensureFresh(mount);
+      const hit = (await ix.get([memoryId])).get(memoryId);
+      if (hit) return { mount: mount.id, namespace: hit.namespace, type: hit.type };
+    }
+    return null;
+  }
+
+  private static async foldOne(
+    mount: Mount,
+    memoryId: string,
+    filter?: ShardFilter
+  ): Promise<MemoryWithMount | null> {
+    const records: MemoryRecord[] = [];
+    for await (const r of mount.log.scan(filter)) if (r.memoryId === memoryId) records.push(r);
+    if (!records.length) return null;
+    const m = fold(records).memories.get(memoryId);
+    return m ? { ...m, mount: mount.id } : null;
   }
 
   private async existing(memoryId: string): Promise<MemoryWithMount> {

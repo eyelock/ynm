@@ -276,3 +276,75 @@ describe("context and index maintenance", () => {
     expect(await y.reindex("project")).toEqual({ project: 1 });
   });
 });
+
+describe("editing by id reads only the shards the index names (ynm #171)", () => {
+  function counted() {
+    const personal = new MemoryLog("personal", "personal");
+    const project = new MemoryLog("project", "distributed");
+    const scans: { mount: string; namespace?: string; type?: string }[] = [];
+    const spy = (log: MemoryLog) => {
+      const scan = log.scan.bind(log);
+      log.scan = (filter, onProblem) => {
+        scans.push({ mount: log.id, namespace: filter?.namespace, type: filter?.type });
+        return scan(filter, onProblem);
+      };
+    };
+    spy(personal);
+    spy(project);
+    let t = 0;
+    const y = new Ynm({
+      mounts: [
+        { id: "personal", level: "personal", location: "mem", log: personal },
+        { id: "project", level: "distributed", location: "mem", log: project },
+      ],
+      actor: "t",
+      userId: "u",
+      redaction: DEFAULT_REDACTION,
+      index: new IndexManager("memory", { fileFor: () => ":memory:" }),
+      now: () => new Date(Date.parse("2026-09-29T00:00:00.000Z") + ++t * 60_000),
+    });
+    return { y, scans };
+  }
+
+  it("annotates, supersedes and forgets without scanning the other mount or other shards", async () => {
+    const { y, scans } = counted();
+    const { memoryId } = await y.remember({
+      type: "semantic",
+      level: "distributed",
+      namespace: "team/a",
+      content: "Kept in project",
+    });
+    await y.remember({ type: "semantic", namespace: "team/b", content: "Elsewhere" });
+    scans.length = 0;
+
+    await y.annotate({ memoryId, tags: ["x"] });
+    await y.supersede({ memoryId, content: "Kept in project, revised" });
+    await y.forget({ memoryId, reason: "done" });
+
+    expect(scans.length).toBeGreaterThan(0);
+    for (const s of scans)
+      expect(s).toEqual({ mount: "project", namespace: "team/a", type: "semantic" });
+    const found = await y.find(memoryId);
+    expect(found?.tombstoned).toBe(true);
+  });
+
+  it("a pass of edits reads records in proportion to the memories, not their square", async () => {
+    const { y, scans } = counted();
+    const ids: string[] = [];
+    for (let i = 0; i < 40; i++)
+      ids.push(
+        (await y.remember({ type: "semantic", namespace: `n/${i}`, content: `m${i}` })).memoryId
+      );
+    scans.length = 0;
+    for (const memoryId of ids) await y.annotate({ memoryId, tags: ["seen"] });
+    // One scan per edit, each confined to its own namespace's shards (a full scan would be one
+    // per mount per edit with no namespace, reading every record: N times N).
+    expect(scans).toHaveLength(ids.length);
+    expect(scans.every((s) => s.namespace?.startsWith("n/"))).toBe(true);
+  });
+
+  it("still finds a memory the index does not know, by scanning every mount", async () => {
+    const { y } = counted();
+    expect(await y.find("01NOSUCHMEMORY")).toBeNull();
+  });
+});
