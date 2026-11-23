@@ -14,7 +14,7 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
 4. `make gate M=M6` must be green. Its release check builds the slim tarball and this machine's
    standalone binary and runs both (below). It also compares the new baseline and benchmark
    reports with the previous release's: a metric that dropped by more than its suite's
-   tolerance, a timing more than 3x slower, or a benchmark score that fell fails the gate. Fix
+   tolerance, a timing more than 3x slower, a benchmark score that fell, or a benchmark whose two reports were run differently (a different dataset, case count, k or answering model, reported as `<dataset>:setup`) fails the gate. Fix
    the regression; if it is a deliberate trade-off, record it in
    `packages/evals/baselines/<v>.accepted.json` as `{ "<key>": "<reason>" }`, which the release
    pull request then shows for review. The same gate runs as the `release gate` check on every

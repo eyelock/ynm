@@ -71,6 +71,9 @@ describe("tier3 benchmark driver: retrieval", () => {
     });
     expect(report.retrieval.evidenceRecallAtK).toBe(1);
     expect(report.retrieval.fullEvidenceAtK).toBe(1);
+    // 4 scored questions, every one fully found: the interval is the Wilson one, short of 1 below.
+    expect(report.retrieval.ci95?.fullEvidenceAtK).toEqual([0.5101, 1]);
+    expect(report.retrieval.ci95?.evidenceRecallAtK).toEqual([1, 1]);
     expect(progress).toEqual([
       "locomo: case 1/2, 5 questions, 4 memories",
       "locomo: case 2/2, 6 questions, 5 memories",
@@ -130,6 +133,7 @@ describe("tier3 benchmark driver: retrieval", () => {
     const empty = await runBenchmark(ds, []);
     expect(empty.setup).toMatchObject({ cases: 0, questions: 0 });
     expect(empty.retrieval).toEqual({ evidenceRecallAtK: 0, fullEvidenceAtK: 0, byCategory: {} });
+    expect(empty.retrieval.ci95).toBeUndefined();
     expect(empty.timing.memories).toBe(0);
   });
 
@@ -186,6 +190,7 @@ describe("tier3 benchmark driver: answering", () => {
     // The writer asserts what it retrieved instead of declining, so the adversarial one is wrong.
     expect(answering?.samples[3]).toMatchObject({ gold: "a telescope", correct: false, p: 0.1 });
     expect(answering?.accuracy).toBe(0.75);
+    expect(answering?.ci95).toEqual([0.3006, 0.9544]);
     expect(answering?.byCategory).toEqual({
       "single-hop": { n: 1, accuracy: 1 },
       temporal: { n: 1, accuracy: 1 },
