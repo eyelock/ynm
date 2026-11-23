@@ -300,3 +300,7 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   ([ynm #179](https://github.com/eyelock/ynm/issues/179)), so a loopback bind with nothing
   configured still runs open; the `AuthProvider` work; the function's guard, which still uses
   `YNM_LAMBDA_ALLOW_OPEN` rather than `--no-auth`. Still proposed.
+- 2026-11-23: partly built, still proposed. Built: the "never open by accident" refusal for
+  `ynm serve --http` and the Docker image, with `--no-auth` as the override, and a read-only git
+  daemon. Not yet built: `AuthProvider`, `local-token`, the other presets, `/health` auth modes
+  and audit changes.

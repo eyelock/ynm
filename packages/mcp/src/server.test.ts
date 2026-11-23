@@ -5,8 +5,11 @@ import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { EMPTY_CONTEXT_GUIDANCE, initProject } from "@ynm/service";
 import { createBare, createRepo, fx } from "@ynm/store/testing/git";
 import {
+  assertNotOpenByAccident,
   createYnmServer,
+  isLoopbackHost,
   MCP_TOOLS,
+  main,
   parseArgs,
   serverInstructions,
   serviceCache,
@@ -341,5 +344,30 @@ describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
       cwd: "/x",
     });
     expect(parseArgs([]).mode).toBe("stdio");
+    expect(parseArgs(["--http"]).noAuth).toBe(false);
+    expect(parseArgs(["--http", "--no-auth"]).noAuth).toBe(true);
+  });
+
+  it("refuses to serve open on a reachable address unless --no-auth is given (ADR-017)", () => {
+    for (const host of ["0.0.0.0", "::", "192.168.1.5", "memory.example.com"]) {
+      expect(() => assertNotOpenByAccident("none", host, false)).toThrow(/--no-auth/);
+      expect(() => assertNotOpenByAccident("none", host, true)).not.toThrow();
+      expect(() => assertNotOpenByAccident("bearer", host, false)).not.toThrow();
+    }
+    for (const host of ["localhost", "127.0.0.1", "::1", "[::1]"]) {
+      expect(isLoopbackHost(host)).toBe(true);
+      expect(() => assertNotOpenByAccident("none", host, false)).not.toThrow();
+    }
+  });
+
+  it("main refuses http on 0.0.0.0 with no auth before it opens anything", async () => {
+    const saved = { ...process.env };
+    for (const k of ["YNM_JWKS_URL", "YNM_OAUTH_INTROSPECTION_URL", "YNM_MCP_TOKEN"])
+      delete process.env[k];
+    try {
+      await expect(main(["--http", "--host", "0.0.0.0"])).rejects.toThrow(/--no-auth/);
+    } finally {
+      process.env = saved;
+    }
   });
 });
