@@ -635,6 +635,7 @@ ynm serve [flags]
 | `--token <value>` | string |  |  | Static bearer token (dev); production uses YNM_JWKS_URL or YNM_OAUTH_INTROSPECTION_URL |
 | `--allow-origin <value>` | string |  |  | Comma-separated allowed origins |
 | `--allow-host <value>` | string |  |  | Comma-separated allowed Host headers (* behind a proxy) |
+| `--no-auth` | boolean |  | `false` | Serve with no authentication on a non-loopback --host (tests and demos only); refused otherwise |
 | `--no-personal` | boolean |  | `false` | Mount no personal store (hosted servers) |
 | `--dream-every <value>` | string |  |  | Run consolidation on this interval (e.g. 15m) |
 | `--sync-every <value>` | string |  |  | Run sync on this interval (e.g. 5m) |
