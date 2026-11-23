@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { EMPTY_CONTEXT_GUIDANCE, initProject } from "@ynm/service";
+import { EMPTY_CONTEXT_GUIDANCE, initProject, readLocalToken } from "@ynm/service";
 import { createBare, createRepo, fx } from "@ynm/store/testing/git";
 import {
   assertNotOpenByAccident,
@@ -11,6 +11,7 @@ import {
   MCP_TOOLS,
   main,
   parseArgs,
+  resolveHttpAuth,
   serverInstructions,
   serviceCache,
 } from "./index.js";
@@ -42,6 +43,29 @@ function data<T>(r: { structuredContent?: unknown; content: unknown; isError?: b
   if (r.isError) throw new Error(JSON.stringify(r.content));
   return (r.structuredContent as { data: T }).data;
 }
+
+describe("loopback serve uses the local token (ADR-017)", () => {
+  const home = () => join(mkdtempSync(join(tmpdir(), "ynm-lt-")), ".ynm");
+
+  it("runs on the local token on loopback when nothing is configured", () => {
+    const h = home();
+    for (const host of ["localhost", "127.0.0.1", "::1"]) {
+      const { auth, local } = resolveHttpAuth({ mode: "none" }, host, false, h);
+      expect(auth.mode).toBe("local-token");
+      expect(local?.path).toBe(join(h, "serve-token"));
+    }
+  });
+
+  it("leaves configured auth, --no-auth and reachable hosts alone", () => {
+    const h = home();
+    expect(
+      resolveHttpAuth({ mode: "bearer", tokens: ["t"] }, "localhost", false, h).auth.mode
+    ).toBe("bearer");
+    expect(resolveHttpAuth({ mode: "none" }, "localhost", true, h).auth.mode).toBe("none");
+    expect(resolveHttpAuth({ mode: "none" }, "0.0.0.0", true, h).auth.mode).toBe("none");
+    expect(readLocalToken(h)).toBeUndefined();
+  });
+});
 
 describe("ynm MCP server over JSON-RPC (ADR-008)", () => {
   it("lists the eleven tools, three resources and three prompts", async () => {

@@ -9,6 +9,7 @@ export * from "./hooks/index.js";
 export * from "./indexing.js";
 export * from "./init.js";
 export * from "./lifecycle.js";
+export * from "./local-token.js";
 export * from "./mounts.js";
 export * from "./open.js";
 export * from "./personal-store.js";

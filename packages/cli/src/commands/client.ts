@@ -8,6 +8,7 @@ import {
   changeTarget,
   clientAdapter,
   clientReports,
+  ensureLocalToken,
   formatClientReport,
   loadConfig,
   projectClients,
@@ -15,6 +16,15 @@ import {
 } from "@ynm/service";
 import { traceEnv } from "@ynm/telemetry";
 import { YnmCommand } from "../lib/base.js";
+
+function isLoopbackUrl(url: string): boolean {
+  try {
+    const h = new URL(url).hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    return h === "localhost" || h === "::1" || /^127(\.\d{1,3}){3}$/.test(h);
+  } catch {
+    return false;
+  }
+}
 
 function run(argv: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -63,7 +73,9 @@ export default class Client extends YnmCommand {
       default: "project",
     }),
     http: Flags.string({ description: "Use a hosted server at this URL instead of stdio" }),
-    token: Flags.string({ description: "Bearer token for --http" }),
+    token: Flags.string({
+      description: "Bearer token for --http (a loopback URL reads the local token by itself)",
+    }),
     yes: Flags.boolean({
       description:
         "Run command changes: without it, install prints the command for you to run; with it, the command runs",
@@ -88,8 +100,12 @@ export default class Client extends YnmCommand {
     }
     const userHome = process.env.HOME ?? home;
     const names = args.name ? [args.name] : await this.inferClients(cwd, userHome);
+    // A loopback server needs the local token, which ynm already holds: no copying (ADR-017).
+    const bearer =
+      flags.token ??
+      (flags.http && isLoopbackUrl(flags.http) ? ensureLocalToken(home).token : undefined);
     const transport = flags.http
-      ? { kind: "http" as const, url: flags.http, bearer: flags.token }
+      ? { kind: "http" as const, url: flags.http, bearer }
       : { kind: "stdio" as const, command: "ynm", args: ["serve"] };
     const results: Array<{ client: string; plan: Change[]; done: string[]; inPlace: string[] }> =
       [];

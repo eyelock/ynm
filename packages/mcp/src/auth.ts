@@ -205,6 +205,7 @@ function scopesOf(payload: JWTPayload, claim?: string): string[] {
 export type AuthConfig =
   | { mode: "none" }
   | { mode: "bearer"; tokens: string[] }
+  | { mode: "local-token"; tokens: string[] }
   | { mode: "introspection"; url: string; clientId: string; clientSecret: string }
   | { mode: "jwt"; jwksUrl: string; issuer?: string; audience?: string };
 
@@ -213,6 +214,7 @@ export function verifierFor(cfg: AuthConfig): OAuthTokenVerifier | undefined {
     case "none":
       return undefined;
     case "bearer":
+    case "local-token":
       return new StaticTokenVerifier(cfg.tokens);
     case "introspection":
       return new IntrospectionVerifier({

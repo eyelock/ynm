@@ -47,7 +47,7 @@ docker run -d --name ynm -p 3000:3000 -v /srv/ynm:/data \
 
 The entrypoint creates the bare repo on first start (`ynm init --bare` then `ynm init` inside
 it) under `/data/store.git`. `GET /health` reports auth mode and scheduler stats and is outside
-auth. With no authentication configured, the server (and the container) refuses to start on any address but loopback; `--no-auth` overrides that for tests and demos. Bind to `0.0.0.0` only in containers or behind a proxy: the Host header check is then
+auth. With no authentication configured, the server (and the container) refuses to start on any address but loopback, and on loopback it requires the local token in `serve-token` in the ynm home; `--no-auth` overrides that for tests and demos. Bind to `0.0.0.0` only in containers or behind a proxy: the Host header check is then
 disabled (`--allow-host *`); set `--allow-host memory.example.com` on a public listener.
 
 On AWS, [`infra/aws`](../../infra/aws/README.md) runs one store per client, either as a Lambda on

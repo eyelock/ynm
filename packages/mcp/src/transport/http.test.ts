@@ -6,7 +6,8 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { McpServer } from "@modelcontextprotocol/server";
 import { initProject } from "@ynm/service";
 import { createBare } from "@ynm/store/testing/git";
-import { StaticTokenVerifier } from "../auth.js";
+import { StaticTokenVerifier, verifierFor } from "../auth.js";
+import { resolveHttpAuth } from "../index.js";
 import { createYnmServer, serviceCache } from "../server.js";
 import { type HttpOptions, startHttp } from "./http.js";
 
@@ -72,6 +73,27 @@ function data<T>(r: { structuredContent?: unknown; isError?: boolean; content: u
   if (r.isError) throw new Error(JSON.stringify(r.content));
   return (r.structuredContent as { data: T }).data;
 }
+
+describe("a loopback server on the local token (ADR-017)", () => {
+  it("refuses a request without the token or with a wrong one, and accepts the token", async () => {
+    const home = join(mkdtempSync(join(tmpdir(), "ynm-lt-http-")), ".ynm");
+    const { auth, local } = resolveHttpAuth({ mode: "none" }, "127.0.0.1", false, home);
+    expect(auth.mode).toBe("local-token");
+    const { handle } = await hosted("git-notes", { verifier: verifierFor(auth) });
+    const post = (headers: Record<string, string>) =>
+      fetch(handle.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: "{}",
+      });
+    expect((await post({})).status).toBe(401);
+    expect((await post({ Authorization: "Bearer wrong" })).status).toBe(401);
+    const client = await connect(handle.url, local?.token);
+    expect((await client.listTools()).tools).toHaveLength(11);
+    await client.close();
+    await handle.close();
+  }, 30_000);
+});
 
 describe.each<Provider>(["git-notes", "sqlite"])(
   "Streamable HTTP transport on %s (ADR-009, NFR-11)",
