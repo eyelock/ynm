@@ -192,6 +192,55 @@ describe("Ynm service", () => {
       }
     });
 
+    it("refuses a secret in provenance (source, session) and dataSchema, and keeps the memory", async () => {
+      const y = make();
+      const url = `https://example.com/?t=${SECRET}`;
+      await expect(y.remember({ ...base, source: url })).rejects.toThrow(RedactionError);
+      await expect(y.remember({ ...base, session: SECRET })).rejects.toThrow(RedactionError);
+      await expect(y.remember({ ...base, data: {}, dataSchema: SECRET })).rejects.toThrow(
+        RedactionError
+      );
+      const { memoryId } = await y.remember(base);
+      await expect(y.supersede({ memoryId, content: "new", source: url })).rejects.toThrow(
+        RedactionError
+      );
+      await expect(y.annotate({ memoryId, tags: ["t"], session: SECRET })).rejects.toThrow(
+        RedactionError
+      );
+      await expect(y.forget({ memoryId, reason: "r", session: SECRET })).rejects.toThrow(
+        RedactionError
+      );
+      expect(await y.list()).toHaveLength(1);
+    });
+
+    it("import refuses a secret in any provenance string or dataSchema and writes nothing", async () => {
+      const src = make();
+      await src.remember({ ...base, source: "s" });
+      const [line] = (await src.exportJsonl()).split("\n").filter(Boolean);
+      const rec = JSON.parse(line as string);
+      const bads = [
+        { provenance: { ...rec.provenance, source: SECRET } },
+        { provenance: { ...rec.provenance, session: SECRET } },
+        { provenance: { ...rec.provenance, actor: SECRET } },
+        { provenance: { ...rec.provenance, client: SECRET } },
+        { provenance: { ...rec.provenance, tool: SECRET } },
+        { dataSchema: SECRET },
+      ];
+      for (const bad of bads) {
+        const z = make();
+        await expect(z.importJsonl(`${JSON.stringify({ ...rec, ...bad })}\n`)).rejects.toThrow(
+          RedactionError
+        );
+        expect(await z.list()).toEqual([]);
+      }
+    });
+
+    it("lets a personal memory hold a secret in --source", async () => {
+      const y = make();
+      await y.remember({ type: "semantic", content: "plain", source: SECRET, session: SECRET });
+      expect(await y.list()).toHaveLength(1);
+    });
+
     it("still lets a personal memory hold the same text", async () => {
       const y = make();
       await y.remember({ type: "semantic", content: "plain", subject: SECRET, tags: [SECRET] });

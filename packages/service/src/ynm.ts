@@ -353,7 +353,20 @@ export class Ynm {
     reason?: string;
     tags?: string[];
     data?: unknown;
+    dataSchema?: string;
+    /** Input shape: the free strings `--source` and `--session` carry before they are stamped. */
+    source?: string;
+    session?: string;
+    /** Record shape: every provenance string, which an import takes from the file. */
+    provenance?: {
+      actor?: string;
+      client?: string;
+      tool?: string;
+      source?: string;
+      session?: string;
+    };
   }): string[] {
+    const p = r.provenance;
     return [
       r.content,
       r.summary,
@@ -361,6 +374,14 @@ export class Ynm {
       r.reason,
       ...(r.tags ?? []),
       r.data === undefined ? undefined : JSON.stringify(r.data),
+      r.dataSchema,
+      r.source,
+      r.session,
+      p?.actor,
+      p?.client,
+      p?.tool,
+      p?.source,
+      p?.session,
     ].filter((t): t is string => !!t);
   }
 
