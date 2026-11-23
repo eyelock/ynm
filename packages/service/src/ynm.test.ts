@@ -141,6 +141,64 @@ describe("Ynm service", () => {
     await expect(y.promote(p.memoryId)).rejects.toThrow(/already distributed/);
   });
 
+  describe("redaction gate covers every string field at the distributed level (ADR-007)", () => {
+    const SECRET = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234";
+    const base = { type: "semantic" as const, level: "distributed" as const, content: "plain" };
+
+    it("remember refuses a secret in subject or a tag", async () => {
+      const y = make();
+      await expect(y.remember({ ...base, subject: SECRET })).rejects.toThrow(RedactionError);
+      await expect(y.remember({ ...base, tags: [SECRET] })).rejects.toThrow(RedactionError);
+      expect(await y.list()).toEqual([]);
+    });
+
+    it("supersede refuses a secret in subject or a tag", async () => {
+      const y = make();
+      const { memoryId } = await y.remember(base);
+      await expect(y.supersede({ memoryId, content: "new", subject: SECRET })).rejects.toThrow(
+        RedactionError
+      );
+      await expect(y.supersede({ memoryId, content: "new", tags: [SECRET] })).rejects.toThrow(
+        RedactionError
+      );
+    });
+
+    it("annotate refuses a secret in tags, data or reason", async () => {
+      const y = make();
+      const { memoryId } = await y.remember(base);
+      await expect(y.annotate({ memoryId, tags: [SECRET] })).rejects.toThrow(RedactionError);
+      await expect(y.annotate({ memoryId, data: { k: SECRET } })).rejects.toThrow(RedactionError);
+      await expect(y.annotate({ memoryId, reason: SECRET })).rejects.toThrow(RedactionError);
+    });
+
+    it("forget refuses a secret in the reason and keeps the memory", async () => {
+      const y = make();
+      const { memoryId } = await y.remember(base);
+      await expect(y.forget({ memoryId, reason: SECRET })).rejects.toThrow(RedactionError);
+      expect(await y.find(memoryId)).not.toBeNull();
+    });
+
+    it("import refuses a secret in subject, tags or data and writes nothing", async () => {
+      const src = make();
+      await src.remember({ ...base, subject: "s", tags: ["t"] });
+      const [line] = (await src.exportJsonl()).split("\n").filter(Boolean);
+      const rec = JSON.parse(line as string);
+      for (const bad of [{ subject: SECRET }, { tags: [SECRET] }, { data: { k: SECRET } }]) {
+        const z = make();
+        await expect(z.importJsonl(`${JSON.stringify({ ...rec, ...bad })}\n`)).rejects.toThrow(
+          RedactionError
+        );
+        expect(await z.list()).toEqual([]);
+      }
+    });
+
+    it("still lets a personal memory hold the same text", async () => {
+      const y = make();
+      await y.remember({ type: "semantic", content: "plain", subject: SECRET, tags: [SECRET] });
+      expect(await y.list()).toHaveLength(1);
+    });
+  });
+
   it("exports and imports JSONL, routing by level and reporting bad lines", async () => {
     const y = make();
     await y.remember({ type: "semantic", content: "one" });

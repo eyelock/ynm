@@ -345,7 +345,27 @@ export class Ynm {
     if (hits.length) throw new RedactionError(hits);
   }
 
+  /** Every free-text field of a record, for the redaction gate (ADR-007). */
+  private static recordTexts(r: {
+    content?: string;
+    summary?: string;
+    subject?: string;
+    reason?: string;
+    tags?: string[];
+    data?: unknown;
+  }): string[] {
+    return [
+      r.content,
+      r.summary,
+      r.subject,
+      r.reason,
+      ...(r.tags ?? []),
+      r.data === undefined ? undefined : JSON.stringify(r.data),
+    ].filter((t): t is string => !!t);
+  }
+
   private async write(mount: Mount, record: MemoryRecord): Promise<WriteResult> {
+    this.guard(record.level, Ynm.recordTexts(record));
     const res = await mount.log.append([record]);
     await this.index?.afterWrite(mount, record, res);
     return {
@@ -680,13 +700,13 @@ export class Ynm {
     const level = input.level ?? "personal";
     const remote = this.remoteTarget(level, mountId);
     if (remote) {
-      this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+      this.guard(level, Ynm.recordTexts(input));
       const { level: _l, ...rest } = input;
       return this.onRemote(remote, "memory_remember", { ...rest, level: "distributed" });
     }
     const namespace = this.namespaceFor(level, input.namespace);
     const mount = this.routeFor(level, mountId);
-    this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+    this.guard(level, Ynm.recordTexts(input));
     const judged = await this.judgeOnWrite(input);
     const record = this.stamp({
       memoryId: "",
@@ -752,6 +772,7 @@ export class Ynm {
     tool: string,
     args: Record<string, unknown>
   ): Promise<WriteResult> {
+    this.guard("distributed", [JSON.stringify(args)]);
     for (const remote of this.remotes) {
       try {
         return await this.onRemote(remote, tool, args);
@@ -880,7 +901,7 @@ export class Ynm {
       return this.editRemote(input.memoryId, "memory_supersede", input);
     const prior = await this.existing(input.memoryId);
     const mount = this.mount(prior.mount);
-    this.guard(prior.level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+    this.guard(prior.level, Ynm.recordTexts({ ...input, subject: input.subject ?? undefined }));
     const record = this.stamp({
       memoryId: prior.memoryId,
       op: "supersede",
@@ -1052,7 +1073,7 @@ export class Ynm {
     const byMount = new Map<Mount, MemoryRecord[]>();
     for (const r of records) {
       const mount = this.routeFor(r.level, mountId);
-      this.guard(r.level, [r.content, r.summary]);
+      this.guard(r.level, Ynm.recordTexts(r));
       const list = byMount.get(mount) ?? [];
       list.push(r);
       byMount.set(mount, list);
