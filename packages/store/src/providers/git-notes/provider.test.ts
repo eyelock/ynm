@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ulid } from "@ynm/model";
 import { collect, makeRecord, runRecordLogConformance } from "../../testing/conformance.js";
@@ -315,6 +317,24 @@ describe("sync between clones (ADR-003, ADR-007)", () => {
       recordedAt: "2026-09-10T00:00:00.000Z",
       ...over,
     });
+
+  it("runs the push outside the store lock (ynm #166)", async () => {
+    const { logA } = await pair();
+    const repo = (logA as unknown as { repo: string }).repo;
+    const seen = join(repo, "lock-seen");
+    const hook = join(repo, ".git", "hooks", "pre-push");
+    await mkdir(join(repo, ".git", "hooks"), { recursive: true });
+    await writeFile(
+      hook,
+      `#!/bin/sh\nif [ -e "$(git rev-parse --git-common-dir)/ynm.lock" ]; then echo held > "${seen}"; else echo free > "${seen}"; fi\n`,
+      { mode: 0o755 }
+    );
+    await logA.append([distributed()]);
+    const r = await logA.sync();
+    expect(r.conflicts).toEqual([]);
+    expect(r.pushed.length).toBeGreaterThan(0);
+    expect((await readFile(seen, "utf8")).trim()).toBe("free");
+  });
 
   it("syncs a bare store with a bare remote under safe.bareRepository=explicit (ynm #112)", async () => {
     vi.stubEnv("GIT_CONFIG_COUNT", "1");

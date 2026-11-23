@@ -301,18 +301,15 @@ export class GitNotesLog implements RecordLog {
 
   async sync(options: SyncOptions = {}): Promise<SyncResult> {
     const lock = await this.lockPath();
-    return withLock(
-      lock,
-      () =>
-        syncDistributed({
-          ...options,
-          repo: this.repo,
-          level: this.level,
-          remote: options.remote ?? this.remote,
-          env: this.identity(),
-        }),
-      LOCK_TIMEOUT_MS
-    );
+    // The lock covers only the local ref updates; fetch and push run outside it.
+    return syncDistributed({
+      ...options,
+      repo: this.repo,
+      level: this.level,
+      remote: options.remote ?? this.remote,
+      env: this.identity(),
+      guard: (fn) => withLock(lock, fn, LOCK_TIMEOUT_MS),
+    });
   }
 
   /** Rewrites each shard holding the memory; `forgetHistory` starts the ref's history afresh. */
