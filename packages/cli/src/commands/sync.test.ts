@@ -23,4 +23,13 @@ describe("ynm sync", () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('project: remote "origin" not configured; nothing to sync');
   });
+
+  it("syncs the personal mount only with an explicit --remote", () => {
+    const dir = repoWithoutRemote();
+    expect(ynm(dir, "init", "--no-hooks").status).toBe(0);
+    expect(ynm(dir, "sync", "--mount", "personal").status).toBe(2);
+    const r = ynm(dir, "sync", "--mount", "personal", "--remote", "backup");
+    expect(r.stdout).toContain("personal:");
+    expect(r.stderr).not.toContain("refused");
+  });
 });

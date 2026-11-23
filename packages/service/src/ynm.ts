@@ -193,6 +193,16 @@ export class ShareRequiredError extends Error {
   }
 }
 
+/** A sync that names a personal mount without the caller allowing it (ADR-007). */
+export class PersonalSyncError extends Error {
+  constructor(mount: string) {
+    super(
+      `refused: mount ${mount} is personal, and personal memory is never synced through this interface. Run \`ynm sync --mount ${mount} --remote <name>\` from the CLI.`
+    );
+    this.name = "PersonalSyncError";
+  }
+}
+
 /** How long a process trusts its copy of the people document before reading it again. */
 const PEOPLE_TTL_MS = 30_000;
 
@@ -1104,15 +1114,24 @@ export class Ynm {
     return { imported, problems: problems.map((p) => `line ${p.line}: ${p.message}`) };
   }
 
-  /** Syncs every replicating distributed mount. Personal mounts sync only when named explicitly. */
-  async sync(opts: SyncOptions & { mount?: string } = {}): Promise<Record<string, SyncResult>> {
+  /**
+   * Syncs every replicating distributed mount. A personal mount syncs only when it is named and
+   * the caller sets `allowPersonal`, which the CLI does for an explicit `--remote`; the MCP tool
+   * and any other caller never do.
+   */
+  async sync(
+    opts: SyncOptions & { mount?: string; allowPersonal?: boolean } = {}
+  ): Promise<Record<string, SyncResult>> {
+    const { allowPersonal, ...syncOpts } = opts;
     this.requireMount(opts.mount);
+    const named = this.mounts.find((m) => m.id === opts.mount);
+    if (named?.level === "personal" && !allowPersonal) throw new PersonalSyncError(named.id);
     const results: Record<string, SyncResult> = {};
     for (const mount of this.mounts) {
       if (opts.mount ? mount.id !== opts.mount : mount.level !== "distributed") continue;
       if (!mount.log.sync) continue;
       results[mount.id] = await mount.log.sync({
-        ...opts,
+        ...syncOpts,
         mergeDocuments: { [PEOPLE_DOCUMENT]: mergePeopleText, ...opts.mergeDocuments },
       });
     }
