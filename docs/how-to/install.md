@@ -262,7 +262,9 @@ interactive and resumed) as well as on an agent's worker, from ynh v0.17.0. Code
 with only a small default environment, so before that version a ynm server under Codex did not see
 `YNM_HOME` and opened `~/.ynm`, even with the variable listed. Upgrade ynh if you run ynm under Codex.
 
-`ynm init --no-clients` skips the step; `ynm init --client claude-code` configures only the
+`ynm init --no-clients` skips the step (and so writes nothing to your own Claude Code configuration;
+[Set up a project for Claude Code](set-up-a-project-for-claude-code.md) pairs it with `ynm client install claude-code`
+for a setup that travels with the repository); `ynm init --client claude-code` configures only the
 clients you name, whether the project uses them or not. `ynm client install` is the manual form,
 with `--scope user` for a user-wide install and `--no-hooks` to leave the hooks out. The client
 name is optional: in a ynh harness directory it means ynh, and anywhere else every client the

@@ -23,6 +23,7 @@
   * [How-to overview](/how-to/README.md)
   * [Install ynm](/how-to/install.md)
   * [Retrofit an existing repo](/how-to/retrofit-an-existing-repo.md)
+  * [Set up a project for Claude Code](/how-to/set-up-a-project-for-claude-code.md)
   * [Share an org store](/how-to/share-an-org-store.md)
   * [Choose the SQLite provider](/how-to/choose-the-sqlite-provider.md)
   * [Choose the S3 provider](/how-to/choose-the-s3-provider.md)

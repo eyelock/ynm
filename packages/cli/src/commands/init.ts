@@ -40,7 +40,7 @@ export default class Init extends YnmCommand {
     anchor: Flags.string({ description: "Anchor commit sha (needed on shallow clones)" }),
     clients: Flags.boolean({
       description:
-        "Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; --no-clients skips it",
+        "Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; for Claude Code this runs `claude mcp add --scope local`, which writes your own Claude Code config; --no-clients skips it and writes nothing outside the project (then `ynm client install claude-code` writes project files only)",
       default: true,
       allowNo: true,
     }),

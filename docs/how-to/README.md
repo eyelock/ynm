@@ -7,6 +7,7 @@ Recipes for a goal you already have. Each assumes you know the basics from the
 |---|---|
 | [Install ynm](install.md) | Choose between Homebrew (standalone or slim), a direct download, the slim tarball on your own Node, a source checkout and the Docker image; then let `ynm init` set up your agent clients |
 | [Retrofit an existing repository](retrofit-an-existing-repo.md) | Give a repository with history and a team a distributed memory without changing any tracked file, and decide what to do with the client files `ynm init` writes |
+| [Set up a project for Claude Code](set-up-a-project-for-claude-code.md) | Wire ynm into a repository for Claude Code so every clone gets it, with nothing written to your own Claude Code configuration or home directory |
 | [Share an org store](share-an-org-store.md) | Keep memory that spans many repositories in one dedicated bare repo, mounted everywhere |
 | [Choose the SQLite provider](choose-the-sqlite-provider.md) | Keep a store in a single SQLite file instead of git notes |
 | [Choose the S3 provider](choose-the-s3-provider.md) | Keep a store in an S3 bucket that many processes can write at once |
