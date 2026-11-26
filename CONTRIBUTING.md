@@ -203,8 +203,8 @@ of decision gets a new ADR, not an edit.
   both a key and `YNM_EVAL_CALIBRATED=1`; spend is capped by `YNM_EVAL_TOKEN_BUDGET`.
 - Tier 3 public benchmarks: `make bench-public` (retrieval only; `YNM_BENCH_ANSWER=1` answers a
   bounded sample). Reports live in `packages/evals/reports/<version>/`.
-- Freezing a release's evals: `make freeze` runs every step and sets every variable the M6 gate
-  needs, then the gate ([Releasing ynm](docs/how-to/cut-a-release.md), step 3). The eval code
+- Freezing a release's evals: `make freeze` builds, then runs every step with every variable the
+  M6 gate needs (the tier 3 reports with `YNM_BENCH_ANSWER=1`, calibrated judge and `claude` writer), then the gate ([Releasing ynm](docs/how-to/cut-a-release.md), step 3). The eval code
   reads `TYPESAFE_API_KEY` from `~/.ynm/env` at run time.
 - Milestone gates: `make gate M=M<n>`. CI runs the gate named by the `YNM_MILESTONE` variable;
   move it with `gh variable set YNM_MILESTONE --body M<n>`.

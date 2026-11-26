@@ -107,16 +107,21 @@ bench-public:
 # to the version `make version` set. Tier 2 needs the `claude` CLI as the writer and a
 # TYPESAFE_API_KEY for the judge, from the environment or ~/.ynm/env (read at run time, never
 # written), and spends tokens: this target sets YNM_EVAL_CALIBRATED=1 and YNM_EVAL_CLAUDE_CLI=1,
-# without which those suites skip and the gate then misses their keys.
+# without which those suites skip and the gate then misses their keys. Of the tier 2 suites only
+# reflect-verify (faithfulness) calls the writer; the other three never do (dedupe seeds with one
+# but runs its dream passes with a writer that throws). The tier 3 public benchmarks also set
+# YNM_BENCH_ANSWER=1, so the reports carry an answering block from the writer and the calibrated
+# judge, as the 0.5.0 reports do. It depends on build: a fresh worktree cannot resolve @ynm/store
+# until the packages are built.
 V ?= $(shell node -p "require('./packages/cli/package.json').version")
 FREEZE_ENV = YNM_BASELINE_VERSION=$(V) YNM_WRITE_BASELINE=1
-freeze:
+freeze: build
 	@[ -n "$$TYPESAFE_API_KEY" ] || grep -qsE '^[[:space:]]*(export[[:space:]]+)?TYPESAFE_API_KEY=' "$${YNM_HOME:-$$HOME/.ynm}/env" || { echo "freeze: TYPESAFE_API_KEY is not set (environment or ~/.ynm/env); tier 2 would skip"; exit 1; }
 	@command -v claude >/dev/null 2>&1 || { echo "freeze: the claude CLI is not on your PATH; reflect-verify needs it as the writer"; exit 1; }
 	$(FREEZE_ENV) YNM_BENCH_LARGE=1 pnpm bench
 	$(FREEZE_ENV) pnpm --filter @ynm/evals exec vitest run src/tier1/retrieval src/tier1/semantics
 	$(FREEZE_ENV) YNM_EVAL_CALIBRATED=1 YNM_EVAL_CLAUDE_CLI=1 pnpm --filter @ynm/evals exec vitest run --reporter=verbose src/tier2/consolidation src/tier2/rerank src/tier2/faithfulness src/tier2/cleanup
-	pnpm bench:public
+	$(FREEZE_ENV) YNM_BENCH_ANSWER=1 YNM_EVAL_CALIBRATED=1 YNM_EVAL_CLAUDE_CLI=1 pnpm bench:public
 	pnpm exec biome format --write packages/evals/baselines packages/evals/reports
 	$(MAKE) gate M=M6
 
