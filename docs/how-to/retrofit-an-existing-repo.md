@@ -46,7 +46,8 @@ indentation and trailing newline are preserved, and in the instruction files onl
 between the `<!-- ynm:guidance -->` markers is rewritten). Each client the project uses gets
 one `client` line in the report. See
 [Install ynm](install.md#set-up-your-agent-clients) for what each gets. To keep init to memory
-alone, run `ynm init --no-clients`.
+alone, run `ynm init --no-clients`; to wire Claude Code into the project without touching your own
+Claude Code configuration, follow [Set up a project for Claude Code](set-up-a-project-for-claude-code.md).
 
 If you work through a ynh harness, the repository needs nothing for the agent to have ynm: ynh
 assembles ynm's server, hooks and skill at every launch, and memory goes to your personal store.
