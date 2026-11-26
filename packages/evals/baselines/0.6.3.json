@@ -2,64 +2,64 @@
   "reindex@10000": {
     "name": "reindex",
     "size": 10000,
-    "p50Ms": 658.41,
-    "p95Ms": 658.41,
+    "p50Ms": 292.25,
+    "p95Ms": 292.25,
     "samples": 1
   },
   "recall@10000": {
     "name": "recall",
     "size": 10000,
-    "p50Ms": 20.98,
-    "p95Ms": 58.68,
+    "p50Ms": 19.29,
+    "p95Ms": 29.56,
     "samples": 20
   },
   "context@10000": {
     "name": "context",
     "size": 10000,
-    "p50Ms": 18.2,
-    "p95Ms": 19.83,
+    "p50Ms": 16.72,
+    "p95Ms": 19.6,
     "samples": 10
   },
   "remember+index@10000": {
     "name": "remember+index",
     "size": 10000,
-    "p50Ms": 85.37,
-    "p95Ms": 103.61,
+    "p50Ms": 76.32,
+    "p95Ms": 108.68,
     "samples": 10
   },
   "remember@1000": {
     "name": "remember",
     "size": 1000,
-    "p50Ms": 79.87,
-    "p95Ms": 93.89,
+    "p50Ms": 84.63,
+    "p95Ms": 187.26,
     "samples": 20
   },
   "load+fold@1000": {
     "name": "load+fold",
     "size": 1000,
-    "p50Ms": 36.92,
-    "p95Ms": 44.47,
+    "p50Ms": 38.41,
+    "p95Ms": 51.42,
     "samples": 5
   },
   "remember@10000": {
     "name": "remember",
     "size": 10000,
-    "p50Ms": 82.61,
-    "p95Ms": 110.65,
+    "p50Ms": 88.25,
+    "p95Ms": 103.89,
     "samples": 20
   },
   "load+fold@10000": {
     "name": "load+fold",
     "size": 10000,
-    "p50Ms": 95.82,
-    "p95Ms": 102.59,
+    "p50Ms": 98.59,
+    "p95Ms": 142.43,
     "samples": 5
   },
   "sync@1000": {
     "name": "sync",
     "size": 1000,
-    "p50Ms": 630.62,
-    "p95Ms": 663.56,
+    "p50Ms": 504.43,
+    "p95Ms": 593.97,
     "samples": 5
   },
   "dedupe-precision:heuristic@60": {
@@ -217,5 +217,47 @@
     "size": 2,
     "value": 1,
     "tolerance": 0.5
+  },
+  "remember@100000": {
+    "name": "remember",
+    "size": 100000,
+    "p50Ms": 105.82,
+    "p95Ms": 155.86,
+    "samples": 20
+  },
+  "load+fold@100000": {
+    "name": "load+fold",
+    "size": 100000,
+    "p50Ms": 539.64,
+    "p95Ms": 581.9,
+    "samples": 5
+  },
+  "reindex@100000": {
+    "name": "reindex",
+    "size": 100000,
+    "p50Ms": 2298.76,
+    "p95Ms": 2298.76,
+    "samples": 1
+  },
+  "recall@100000": {
+    "name": "recall",
+    "size": 100000,
+    "p50Ms": 43.2,
+    "p95Ms": 122.41,
+    "samples": 20
+  },
+  "context@100000": {
+    "name": "context",
+    "size": 100000,
+    "p50Ms": 54.77,
+    "p95Ms": 70.72,
+    "samples": 10
+  },
+  "remember+index@100000": {
+    "name": "remember+index",
+    "size": 100000,
+    "p50Ms": 86.4,
+    "p95Ms": 93.84,
+    "samples": 10
   }
 }
