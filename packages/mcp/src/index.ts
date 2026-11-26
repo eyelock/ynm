@@ -1,6 +1,6 @@
 /**
  * @ynm/mcp: server entry. `ynm-mcp --stdio` (default) or
- * `ynm-mcp --http [--port N] [--host H] [--token T] [--no-personal] [--dream-every 15m] [--sync-every 5m]`.
+ * `ynm-mcp --http [--port N] [--host H] [--token T] [--no-auth] [--no-personal] [--dream-every 15m] [--sync-every 5m]`.
  * Hosted auth comes from the environment (see auth.ts): YNM_MCP_TOKEN, YNM_OAUTH_INTROSPECTION_URL
  * or YNM_JWKS_URL.
  */
@@ -54,6 +54,7 @@ export interface CliArgs {
   allowOrigin?: string[];
   allowHost?: string[];
   rejectLegacy: boolean;
+  noAuth: boolean;
   noPersonal: boolean;
   dreamEvery?: string;
   syncEvery?: string;
@@ -81,6 +82,7 @@ export function parseArgs(argv: readonly string[], env: NodeJS.ProcessEnv = proc
       list("--allow-host") ??
       (env.YNM_ALLOWED_HOSTS ? env.YNM_ALLOWED_HOSTS.split(",").map((s) => s.trim()) : undefined),
     rejectLegacy: argv.includes("--modern-only"),
+    noAuth: argv.includes("--no-auth"),
     noPersonal: argv.includes("--no-personal"),
     dreamEvery: value("--dream-every") ?? env.YNM_DREAM_EVERY,
     syncEvery: value("--sync-every") ?? env.YNM_SYNC_EVERY,
@@ -88,11 +90,35 @@ export function parseArgs(argv: readonly string[], env: NodeJS.ProcessEnv = proc
   };
 }
 
+/** True for a bind address only this machine can reach. */
+export function isLoopbackHost(host: string): boolean {
+  const h = host.replace(/^\[|\]$/g, "").toLowerCase();
+  return h === "localhost" || h === "::1" || /^127(\.\d{1,3}){3}$/.test(h);
+}
+
+/**
+ * ADR-017: the server is never open by accident. With no authentication configured it may bind
+ * only a loopback address, unless `--no-auth` says the operator means it.
+ */
+export function assertNotOpenByAccident(authMode: string, host: string, noAuth: boolean): void {
+  if (authMode !== "none" || noAuth || isLoopbackHost(host)) return;
+  throw new Error(
+    `No authentication is configured and the server would listen on ${host}, which other machines can reach. Set YNM_JWKS_URL, YNM_OAUTH_INTROSPECTION_URL or YNM_MCP_TOKEN (or pass --token); --no-auth serves without authentication, for tests and demos only`
+  );
+}
+
 export async function main(argv: readonly string[]): Promise<void> {
   const args = parseArgs(argv);
   if (args.version) {
     process.stdout.write(`ynm-mcp ${RELEASE_VERSION}\n`);
     return;
+  }
+  if (args.mode === "http") {
+    assertNotOpenByAccident(
+      (args.token ? { mode: "bearer" } : authFromEnv()).mode,
+      args.host ?? "localhost",
+      args.noAuth
+    );
   }
   // Telemetry starts before the store opens, so store calls are spans; with no OTLP endpoint and
   // no ynr spool nothing is loaded (ADR-018). A server is long-lived, so with neither it looks
@@ -140,6 +166,11 @@ export async function main(argv: readonly string[]): Promise<void> {
       ...hostedAudit(process.env, auth.mode !== "none", getYnm),
     });
     console.error(`ynm-mcp auth: ${auth.mode}`);
+    if (auth.mode === "none" && !isLoopbackHost(host)) {
+      console.error(
+        "ynm-mcp warning: --no-auth on a reachable address; anyone who can connect can read and write memory"
+      );
+    }
     const shutdown = async () => {
       scheduler.stop();
       await handle.close();

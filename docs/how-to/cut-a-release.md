@@ -39,13 +39,19 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
 6. Tag `v<version>` on `main` and push the tag. The `release` workflow then:
    - `verify`: re-runs build, check, typecheck, tests and the M6 gate;
    - `build`: on `macos-26` (both darwin targets) and `ubuntu-24.04` (both linux targets),
-     builds the four standalone binaries and smoke-tests each runner's native one;
+     builds the four standalone binaries;
+   - `smoke-binaries`: runs each binary on a runner of its own OS and architecture
+     (`macos-26`, `macos-26-intel`, `ubuntu-24.04`, `ubuntu-24.04-arm`);
    - `release`: builds and smoke-tests the slim tarball and the Lambda package, writes
-     `manifest.json` and `checksums.txt`, and attaches them with every tarball and the zip to a
-     GitHub release;
+     `manifest.json` and `checksums.txt`, attests their build provenance, and attaches them with
+     every tarball and the zip to a GitHub release;
    - `homebrew`: renders `Formula/ynm.rb` and `Formula/ynm-slim.rb` from the manifest and pushes
      them to `github.com/eyelock/homebrew-tap`, next to `ynh`;
-   - `docker`: pushes `ghcr.io/eyelock/ynm:<version>` and `:latest` (linux/amd64 and arm64).
+   - `docker`: runs the image and checks `/health`, then pushes `ghcr.io/eyelock/ynm:<version>`
+     and `:latest` (linux/amd64 and arm64) with an SBOM and a provenance attestation.
+
+   Only a `v*` tag created by a repository admin starts this: the "Release Tags" ruleset in
+   `infra/github/branches.tf` blocks everyone else from creating, moving or deleting one.
 
 ## What a release contains
 

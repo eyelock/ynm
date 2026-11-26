@@ -1,6 +1,6 @@
 {
   "name": "@ynm/mcp",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "private": true,
   "description": "MCP server: tools, resources, prompts, stdio and Streamable HTTP transports (ADR-008, ADR-009).",
   "license": "MIT",
@@ -35,16 +35,16 @@
     "zod": "^4.6.7",
     "@ynm/store": "workspace:*",
     "@ynm/wiki": "workspace:*",
-    "jose": "^6.2.17",
+    "jose": "^6.2.18",
     "@ynm/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
     "@types/node": "^26.6.6",
-    "@vitest/coverage-v8": "^5.1.0",
+    "@vitest/coverage-v8": "^5.1.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.1.0",
+    "vitest": "^5.1.1",
     "@modelcontextprotocol/client": "^2.4.0"
   },
   "bin": {

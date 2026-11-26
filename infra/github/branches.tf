@@ -128,3 +128,35 @@ resource "github_repository_ruleset" "never_delete" {
     non_fast_forward = true
   }
 }
+
+# Only a release tag is created, and once created it cannot move or go. The release workflow runs
+# on any `v*` tag, so who may create one is who may publish a release. Tag creation is limited to
+# repository admins (role 5), who bypass the rules for the release itself; no one else may create,
+# move or delete a tag, so a published version does not change underneath its checksums and
+# attestations. Applying this is a human step: `terraform apply` in infra/github.
+resource "github_repository_ruleset" "release_tags" {
+  repository  = github_repository.ynm.name
+  name        = "Release Tags"
+  target      = "tag"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = ["refs/tags/v*"]
+      exclude = []
+    }
+  }
+
+  bypass_actors {
+    actor_id    = 5
+    actor_type  = "RepositoryRole"
+    bypass_mode = "always"
+  }
+
+  rules {
+    creation         = true
+    update           = true
+    deletion         = true
+    non_fast_forward = true
+  }
+}

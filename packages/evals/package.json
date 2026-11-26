@@ -32,20 +32,20 @@
     "@ynm/model": "workspace:*",
     "@ynm/store": "workspace:*",
     "@ynm/service": "workspace:*",
-    "fast-check": "^4.6.0",
+    "fast-check": "^4.11.0",
     "@ynm/index": "workspace:*",
     "@modelcontextprotocol/client": "^2.4.0",
     "@ynm/models": "workspace:*",
     "@ynm/wiki": "workspace:*",
     "@ynm/store-s3": "workspace:*",
-    "@aws-sdk/client-s3": "^3.1169.0"
+    "@aws-sdk/client-s3": "^3.1175.0"
   },
   "devDependencies": {
     "@ynm/typescript-config": "workspace:*",
     "@ynm/vitest-config": "workspace:*",
     "@types/node": "^26.6.6",
-    "@vitest/coverage-v8": "^5.1.0",
+    "@vitest/coverage-v8": "^5.1.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   }
 }

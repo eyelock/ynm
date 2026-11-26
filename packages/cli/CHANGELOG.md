@@ -1,5 +1,15 @@
 # @ynm/cli
 
+## 0.6.3
+
+### Patch Changes
+
+- [#196](https://github.com/eyelock/ynm/pull/196) [`646d3e3`](https://github.com/eyelock/ynm/commit/646d3e308ee6687032119d042c9459520c4f9f73) Thanks [@eyelock](https://github.com/eyelock)! - Document the project setup for Claude Code that leaves the user's own client configuration untouched (`ynm init --no-clients`, then `ynm client install claude-code`, committing `.mcp.json` and `CLAUDE.md`), say in `ynm init --help` which route writes the user's Claude Code config, and test that the setup writes only project files and that a fresh clone reads the first clone's distributed memories (ynm [#195](https://github.com/eyelock/ynm/issues/195)).
+
+- [#177](https://github.com/eyelock/ynm/pull/177) [`312603b`](https://github.com/eyelock/ynm/commit/312603b4ea13a09ecb7ce2d523abb2c67987b4f2) Thanks [@eyelock](https://github.com/eyelock)! - `ynm serve --http` and the Docker image refuse to start with no authentication on a non-loopback bind, unless `--no-auth` is given (ADR-017); the image's git daemon is read-only unless `YNM_GIT_DAEMON_PUSH=1` (ynm [#165](https://github.com/eyelock/ynm/issues/165)).
+- Updated dependencies [[`312603b`](https://github.com/eyelock/ynm/commit/312603b4ea13a09ecb7ce2d523abb2c67987b4f2)]:
+  - @ynm/mcp@0.4.7
+
 ## 0.6.2
 
 ### Patch Changes

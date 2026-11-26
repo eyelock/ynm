@@ -2,7 +2,7 @@
 
 # MCP reference
 
-What `ynm serve` exposes to an MCP client: ten tools, four resources and three prompts,
+What `ynm serve` exposes to an MCP client: eleven tools, four resources and three prompts,
 generated from the server definition. Every tool has a CLI command with the same input; see
 the [CLI reference](cli.md).
 
