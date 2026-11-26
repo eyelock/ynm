@@ -5,6 +5,7 @@ import { MemoryLog } from "@ynm/store";
 import { z } from "zod";
 import { RELEASE_VERSION } from "../version.js";
 import type { BenchCase, BenchDataset, BenchQuestion } from "./datasets.js";
+import { type Interval, meanInterval, wilsonInterval } from "./interval.js";
 
 export interface AnswerOptions {
   writer: Writer;
@@ -46,11 +47,15 @@ export interface BenchReport {
     evidenceRecallAtK: number;
     /** Fraction of questions whose evidence set is fully retrieved. */
     fullEvidenceAtK: number;
+    /** 95% intervals for the two numbers above, so a reader can tell noise from change. */
+    ci95?: { evidenceRecallAtK: Interval; fullEvidenceAtK: Interval };
     byCategory: Record<string, CategoryStat>;
   };
   answering?: {
     n: number;
     accuracy: number;
+    /** 95% Wilson interval for `accuracy` over `n` answered questions. */
+    ci95?: Interval;
     byCategory: Record<string, { n: number; accuracy: number }>;
     samples: Array<{
       id: string;
@@ -176,6 +181,7 @@ export async function runBenchmark(
   let questions = 0;
   let withEvidence = 0;
   let recallSum = 0;
+  let recallSumSq = 0;
   let full = 0;
   let answered = 0;
   let memories = 0;
@@ -199,6 +205,7 @@ export async function runBenchmark(
         const r = found / q.evidence.length;
         withEvidence += 1;
         recallSum += r;
+        recallSumSq += r * r;
         if (found === q.evidence.length) full += 1;
         const cat = byCat.get(q.category) ?? { n: 0, sum: 0 };
         cat.n += 1;
@@ -249,6 +256,14 @@ export async function runBenchmark(
     retrieval: {
       evidenceRecallAtK: withEvidence ? round(recallSum / withEvidence) : 0,
       fullEvidenceAtK: withEvidence ? round(full / withEvidence) : 0,
+      ...(withEvidence
+        ? {
+            ci95: {
+              evidenceRecallAtK: meanInterval(recallSum, recallSumSq, withEvidence),
+              fullEvidenceAtK: wilsonInterval(full, withEvidence),
+            },
+          }
+        : {}),
       byCategory: Object.fromEntries(
         [...byCat].map(([k, v]) => [k, { n: v.n, evidenceRecall: round(v.sum / v.n) }])
       ),
@@ -261,6 +276,7 @@ export async function runBenchmark(
     report.answering = {
       n: total,
       accuracy: total ? round(correct / total) : 0,
+      ...(total ? { ci95: wilsonInterval(correct, total) } : {}),
       byCategory: Object.fromEntries(
         [...ans].map(([k, v]) => [k, { n: v.n, accuracy: round(v.correct / v.n) }])
       ),

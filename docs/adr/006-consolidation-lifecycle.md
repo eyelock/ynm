@@ -67,7 +67,7 @@ mode.
 **Forget.** Three levels: hide (decay score falls below the recall floor), tombstone (explicit,
 reversible by supersede), purge (physical removal). Purge is `ynm purge <id> --reason … --yes`:
 it rewrites the affected shards, appends a `purge-marker` record and, with `--forget-history`,
-starts the shard's ref history afresh. Because it rewrites refs it needs a coordinated sync.
+starts the shard's ref history afresh. Because it rewrites refs, another clone that wrote to the same shard before syncing can bring the lines back. The `purge-marker` keeps them out of what ynm returns, and `ynm sync` scrubs them and syncs again; `--forget-history` rewrites ref history and still needs a coordinated sync across clones (ynm #175).
 
 ## Alternatives considered
 

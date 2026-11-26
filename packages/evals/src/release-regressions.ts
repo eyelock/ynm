@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BASELINE_DIR, type Metric, REGRESSION_LIMIT, type Timing } from "./baseline.js";
+import type { BenchReport } from "./tier3/driver.js";
 import { REPORTS_DIR, readReport } from "./tier3/report.js";
 
 /**
@@ -27,8 +28,8 @@ type Baseline = Record<string, Entry>;
 
 export interface Regression {
   key: string;
-  previous: number;
-  current: number;
+  previous: number | string;
+  current: number | string;
   /** Human-readable rule that was broken. */
   rule: string;
 }
@@ -105,7 +106,34 @@ export function compareBaselines(previous: Baseline, current: Baseline): Regress
   return out;
 }
 
-/** Retrieval and answering in `version`'s public benchmark reports that fell below `previous`'s. */
+/**
+ * What makes two reports comparable: the dataset and how it was run. Cases and questions are the
+ * sample (LongMemEval-S went from 500 cases to 60 between releases), k and index how retrieval was
+ * scored; the answering sample size and its writer and judge matter only when both reports answered.
+ */
+function setupDifferences(a: BenchReport, b: BenchReport): string[] {
+  const diffs: string[] = [];
+  const same = (name: string, x: unknown, y: unknown) => {
+    if (x !== y) diffs.push(`${name} ${String(x)} -> ${String(y)}`);
+  };
+  same("dataset", a.datasetSha256, b.datasetSha256);
+  same("cases", a.setup.cases, b.setup.cases);
+  same("questions", a.setup.questions, b.setup.questions);
+  same("k", a.setup.k, b.setup.k);
+  same("index", a.setup.index, b.setup.index);
+  if (a.answering && b.answering) {
+    same("answered", a.answering.n, b.answering.n);
+    same("writer", a.setup.writer, b.setup.writer);
+    same("judge", a.setup.judge, b.setup.judge);
+  }
+  return diffs;
+}
+
+/**
+ * Retrieval and answering in `version`'s public benchmark reports that fell below `previous`'s. A
+ * dataset whose two reports were not run the same way is not compared number to number: it is one
+ * regression, keyed `<dataset>:setup`, until the runs match or the difference is accepted.
+ */
 export function compareReports(previous: string, version: string, dir = REPORTS_DIR): Regression[] {
   const out: Regression[] = [];
   const check = (key: string, prev: number | undefined, cur: number | undefined, tol: number) => {
@@ -117,6 +145,16 @@ export function compareReports(previous: string, version: string, dir = REPORTS_
     const a = readReport(previous, name, { dir });
     const b = readReport(version, name, { dir });
     if (!a || !b) continue;
+    const differences = setupDifferences(a, b);
+    if (differences.length) {
+      out.push({
+        key: `${name}:setup`,
+        previous: previous,
+        current: version,
+        rule: `not comparable, the runs differ (${differences.join("; ")}); run both the same way, or accept it with a reason`,
+      });
+      continue;
+    }
     const k = b.setup.k;
     check(
       `${name}:evidence-recall@${k}`,

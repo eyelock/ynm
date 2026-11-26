@@ -14,6 +14,7 @@ import type {
   Level,
   Login,
   MemoryRecord,
+  MemoryType,
   PeopleDoc,
   PurgeInput,
   RecallQuery,
@@ -193,6 +194,16 @@ export class ShareRequiredError extends Error {
   }
 }
 
+/** A sync that names a personal mount without the caller allowing it (ADR-007). */
+export class PersonalSyncError extends Error {
+  constructor(mount: string) {
+    super(
+      `refused: mount ${mount} is personal, and personal memory is never synced through this interface. Run \`ynm sync --mount ${mount} --remote <name>\` from the CLI.`
+    );
+    this.name = "PersonalSyncError";
+  }
+}
+
 /** How long a process trusts its copy of the people document before reading it again. */
 const PEOPLE_TTL_MS = 30_000;
 
@@ -345,7 +356,48 @@ export class Ynm {
     if (hits.length) throw new RedactionError(hits);
   }
 
+  /** Every free-text field of a record, for the redaction gate (ADR-007). */
+  private static recordTexts(r: {
+    content?: string;
+    summary?: string;
+    subject?: string;
+    reason?: string;
+    tags?: string[];
+    data?: unknown;
+    dataSchema?: string;
+    /** Input shape: the free strings `--source` and `--session` carry before they are stamped. */
+    source?: string;
+    session?: string;
+    /** Record shape: every provenance string, which an import takes from the file. */
+    provenance?: {
+      actor?: string;
+      client?: string;
+      tool?: string;
+      source?: string;
+      session?: string;
+    };
+  }): string[] {
+    const p = r.provenance;
+    return [
+      r.content,
+      r.summary,
+      r.subject,
+      r.reason,
+      ...(r.tags ?? []),
+      r.data === undefined ? undefined : JSON.stringify(r.data),
+      r.dataSchema,
+      r.source,
+      r.session,
+      p?.actor,
+      p?.client,
+      p?.tool,
+      p?.source,
+      p?.session,
+    ].filter((t): t is string => !!t);
+  }
+
   private async write(mount: Mount, record: MemoryRecord): Promise<WriteResult> {
+    this.guard(record.level, Ynm.recordTexts(record));
     const res = await mount.log.append([record]);
     await this.index?.afterWrite(mount, record, res);
     return {
@@ -680,13 +732,13 @@ export class Ynm {
     const level = input.level ?? "personal";
     const remote = this.remoteTarget(level, mountId);
     if (remote) {
-      this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+      this.guard(level, Ynm.recordTexts(input));
       const { level: _l, ...rest } = input;
       return this.onRemote(remote, "memory_remember", { ...rest, level: "distributed" });
     }
     const namespace = this.namespaceFor(level, input.namespace);
     const mount = this.routeFor(level, mountId);
-    this.guard(level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+    this.guard(level, Ynm.recordTexts(input));
     const judged = await this.judgeOnWrite(input);
     const record = this.stamp({
       memoryId: "",
@@ -752,6 +804,7 @@ export class Ynm {
     tool: string,
     args: Record<string, unknown>
   ): Promise<WriteResult> {
+    this.guard("distributed", [JSON.stringify(args)]);
     for (const remote of this.remotes) {
       try {
         return await this.onRemote(remote, tool, args);
@@ -856,16 +909,58 @@ export class Ynm {
     });
   }
 
+  /**
+   * Finds one memory by id. A fresh index (ADR-005) holds each memory's folded state, so a hit
+   * reads no records at all and a pass of N edits stays N index lookups, not N scans of the
+   * namespace. An index entry without state falls back to reading only the shards of its namespace
+   * and type; with no index, or one that does not know the id, every record of every mount is
+   * scanned.
+   */
   async find(memoryId: string): Promise<MemoryWithMount | null> {
-    for (const mount of this.mounts) {
-      const records: MemoryRecord[] = [];
-      for await (const r of mount.log.scan()) if (r.memoryId === memoryId) records.push(r);
-      if (records.length) {
-        const m = fold(records).memories.get(memoryId);
-        if (m) return { ...m, mount: mount.id };
+    const known = await this.indexed(memoryId);
+    if (known) {
+      if (known.state) return { ...known.state, mount: known.mount };
+      const mount = this.mounts.find((x) => x.id === known.mount);
+      if (mount) {
+        const found = await Ynm.foldOne(mount, memoryId, {
+          level: mount.level,
+          namespace: known.namespace,
+          type: known.type,
+        });
+        if (found) return found;
       }
     }
+    for (const mount of this.mounts) {
+      const found = await Ynm.foldOne(mount, memoryId);
+      if (found) return found;
+    }
     return null;
+  }
+
+  /** Where the index says a memory lives: its mount, namespace and type; null when unknown. */
+  private async indexed(
+    memoryId: string
+  ): Promise<{ mount: string; namespace: string; type: MemoryType; state?: Memory } | null> {
+    if (!this.index) return null;
+    for (const mount of this.mounts) {
+      const ix = await this.index.ensureFresh(mount);
+      const hit = (await ix.get([memoryId])).get(memoryId);
+      if (hit)
+        return { mount: mount.id, namespace: hit.namespace, type: hit.type, state: hit.state };
+    }
+    return null;
+  }
+
+  private static async foldOne(
+    mount: Mount,
+    memoryId: string,
+    filter?: ShardFilter
+  ): Promise<MemoryWithMount | null> {
+    const records: MemoryRecord[] = [];
+    for await (const r of mount.log.scan(filter)) if (r.memoryId === memoryId) records.push(r);
+    if (!records.length) return null;
+    const m = fold(records).memories.get(memoryId);
+    return m ? { ...m, mount: mount.id } : null;
   }
 
   private async existing(memoryId: string): Promise<MemoryWithMount> {
@@ -880,7 +975,7 @@ export class Ynm {
       return this.editRemote(input.memoryId, "memory_supersede", input);
     const prior = await this.existing(input.memoryId);
     const mount = this.mount(prior.mount);
-    this.guard(prior.level, [input.content, input.summary, JSON.stringify(input.data ?? null)]);
+    this.guard(prior.level, Ynm.recordTexts({ ...input, subject: input.subject ?? undefined }));
     const record = this.stamp({
       memoryId: prior.memoryId,
       op: "supersede",
@@ -1011,8 +1106,13 @@ export class Ynm {
     for (const mount of this.mounts) {
       if (f.mount && mount.id !== f.mount) continue;
       if (f.level && mount.level !== f.level) continue;
+      const rows: Array<MemoryRecord & { mount: string }> = [];
       for await (const r of mount.log.scan(Ynm.shardFilter(f), (p) => onProblem?.(mount.id, p)))
-        out.push({ ...r, mount: mount.id });
+        rows.push({ ...r, mount: mount.id });
+      // A purge marker is authoritative: lines a sync brought back for a purged memory are not
+      // exported. The marker itself stays, as the audit trail.
+      const purged = new Set(rows.filter((r) => r.op === "purge-marker").map((r) => r.memoryId));
+      for (const r of rows) if (r.op === "purge-marker" || !purged.has(r.memoryId)) out.push(r);
     }
     return out;
   }
@@ -1052,7 +1152,7 @@ export class Ynm {
     const byMount = new Map<Mount, MemoryRecord[]>();
     for (const r of records) {
       const mount = this.routeFor(r.level, mountId);
-      this.guard(r.level, [r.content, r.summary]);
+      this.guard(r.level, Ynm.recordTexts(r));
       const list = byMount.get(mount) ?? [];
       list.push(r);
       byMount.set(mount, list);
@@ -1062,19 +1162,50 @@ export class Ynm {
     return { imported, problems: problems.map((p) => `line ${p.line}: ${p.message}`) };
   }
 
-  /** Syncs every replicating distributed mount. Personal mounts sync only when named explicitly. */
-  async sync(opts: SyncOptions & { mount?: string } = {}): Promise<Record<string, SyncResult>> {
+  /**
+   * Syncs every replicating distributed mount. A personal mount syncs only when it is named and
+   * the caller sets `allowPersonal`, which the CLI does for an explicit `--remote`; the MCP tool
+   * and any other caller never do.
+   */
+  async sync(
+    opts: SyncOptions & { mount?: string; allowPersonal?: boolean } = {}
+  ): Promise<Record<string, SyncResult>> {
+    const { allowPersonal, ...syncOpts } = opts;
     this.requireMount(opts.mount);
+    const named = this.mounts.find((m) => m.id === opts.mount);
+    if (named?.level === "personal" && !allowPersonal) throw new PersonalSyncError(named.id);
     const results: Record<string, SyncResult> = {};
     for (const mount of this.mounts) {
       if (opts.mount ? mount.id !== opts.mount : mount.level !== "distributed") continue;
       if (!mount.log.sync) continue;
-      results[mount.id] = await mount.log.sync({
-        ...opts,
+      const mountOpts = {
+        ...syncOpts,
         mergeDocuments: { [PEOPLE_DOCUMENT]: mergePeopleText, ...opts.mergeDocuments },
-      });
+      };
+      results[mount.id] = await mount.log.sync(mountOpts);
+      // A sync unions shard lines, which can bring back lines of a memory purged elsewhere. The
+      // fold already hides them; this removes them and syncs again so the removal propagates.
+      if (!opts.dryRun && (opts.pull ?? true) && (await this.scrubPurged(mount)))
+        results[mount.id] = await mount.log.sync(mountOpts);
     }
     return results;
+  }
+
+  /** Re-purges lines of memories a purge marker names, keeping the marker. True if any removed. */
+  private async scrubPurged(mount: Mount): Promise<boolean> {
+    const markers = new Map<string, MemoryRecord[]>();
+    const lines = new Set<string>();
+    const all: MemoryRecord[] = [];
+    for await (const r of mount.log.scan()) all.push(r);
+    for (const r of all)
+      if (r.op === "purge-marker") markers.set(r.memoryId, [...(markers.get(r.memoryId) ?? []), r]);
+    for (const r of all)
+      if (r.op !== "purge-marker" && markers.has(r.memoryId)) lines.add(r.memoryId);
+    for (const id of lines) {
+      await mount.log.purge(id);
+      await mount.log.append(markers.get(id) ?? []);
+    }
+    return lines.size > 0;
   }
 
   /** True when a replicating distributed mount holds writes the remote has not seen; local only. */

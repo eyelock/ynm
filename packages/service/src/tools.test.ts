@@ -4,7 +4,7 @@ import { EMPTY_CONTEXT_GUIDANCE } from "./hooks/intent.js";
 import { IndexManager } from "./indexing.js";
 import { overlapCoefficient } from "./similar.js";
 import { TOOL_NAMES, TOOL_SPECS, toolSpec } from "./tools.js";
-import { Ynm } from "./ynm.js";
+import { PersonalSyncError, Ynm } from "./ynm.js";
 
 function make(): Ynm {
   return new Ynm({
@@ -74,6 +74,12 @@ describe("tool specs drive the service", () => {
     if (!s) throw new Error(`missing ${name}`);
     return s.run(y, s.input.parse(input));
   }
+
+  it("memory_sync refuses a personal mount and the tool schema takes no way round it", async () => {
+    const y = make();
+    await expect(run(y, "memory_sync", { mount: "personal" })).rejects.toThrow(PersonalSyncError);
+    expect(() => run(y, "memory_sync", { mount: "personal", allowPersonal: true })).toThrow();
+  });
 
   it("recall guides the agent when nothing matches and stays quiet when something does", async () => {
     const y = make();

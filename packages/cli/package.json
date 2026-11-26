@@ -1,6 +1,6 @@
 {
   "name": "@ynm/cli",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "description": "The ynm command line (oclif); flags generated from the same Zod schemas as the MCP tools (ADR-008).",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "cli": "node bin/run.js"
   },
   "dependencies": {
-    "@oclif/core": "^5.1.11",
+    "@oclif/core": "^5.1.12",
     "@ynm/model": "workspace:*",
     "@ynm/service": "workspace:*",
     "@ynm/store": "workspace:*",

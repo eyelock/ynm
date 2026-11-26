@@ -225,8 +225,15 @@ order:
 4. Record the override in the root `package.json`'s `"//"` comment: the advisory id (the
    `GHSA-` id, not only the version range), which parents still hold the old range and what
    each has to release or move to before the override can go.
-5. Run the gate (`make build`, `make check`, `make typecheck`, `make test`) and open the pull
-   request. A changeset is not needed: an override changes no published package.
+5. Add a changeset (`make changeset`) whenever the change alters what ships. `ynm.mjs` in the
+   release tarball bundles its dependencies, so an override or a dependency bump changes the
+   artefact that ships, and for ynm that is always, unless the package is dev-only (a test or
+   build tool that never reaches `ynm.mjs`). Make it a `patch` on `@ynm/cli`, the package the
+   bundle ships as, and on any other package whose own dependency moved. For a security fix the
+   changeset names the advisory (the `GHSA-` id) and the package and versions it moves from and
+   to, so the CHANGELOG records the fix. A dev-only change needs no changeset.
+6. Run the gate (`make build`, `make check`, `make typecheck`, `make test`) and open the pull
+   request.
 
 An override is a loan, not a fixture. Review each one whenever a Dependabot pull request moves
 its parent, and at every release: delete the entry, run `pnpm install`, and if `pnpm why` shows

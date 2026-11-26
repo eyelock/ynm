@@ -33,6 +33,7 @@ export default class Sync extends YnmCommand {
       pull: flags.pull,
       dryRun: flags["dry-run"],
       mount: flags.mount,
+      allowPersonal: flags.mount === "personal" && !!flags.remote,
     });
     const failed = Object.values(results).some((r) => r.conflicts.length && !r.skipped);
     if (flags.quiet && !failed) return;

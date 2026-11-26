@@ -2,11 +2,23 @@
 # Each scenario runs the ynm CLI against a throwaway store (YNM_HOME in a fresh temp folder): no
 # model, no secret, no network. The planted canary is the memory's content; the check fails if it
 # reaches a telemetry record.
+#
+# Sealed from the machine's secrets: every scenario runs from a fresh folder that is not a git
+# repository, so ynm loads no repository .env (the main checkout's, from a worktree), and with the
+# model keys and endpoint cleared (env -u), so a key in your shell changes nothing either. A local
+# run gives CI's result. packages/cli/test/conformance-sealed.test.ts holds this to account.
+#
+# Rule 13 exemption (ynm #174): ynr gives each run a scratch YNM_HOME and checks that no record
+# appears in it. Every scenario here sets its own YNM_HOME, because ynm's scenarios write a canary
+# memory on purpose, so rule 13 reads a store nothing wrote to and passes vacuously. Nothing in
+# ynr can exempt a scenario, so the check is ynm's own: packages/cli/test/conformance-store.test.ts
+# runs these scenarios against a store it can read and fails on any record that is not the canary
+# memory or the dream's annotation, telemetry above all.
 service: ynm
 registry: telemetry/registry
 scenarios:
   - name: remember, a memory in a throwaway store
-    run: YNM_HOME="$(mktemp -d)" ynm remember --type semantic --content @canary:memory
+    run: cd "$(mktemp -d)" && env -u TYPESAFE_API_KEY -u OPENAI_API_KEY -u YNM_OPENAI_BASE_URL YNM_NO_CLAUDE_CLI=1 YNM_HOME="$(mktemp -d)" ynm remember --type semantic --content @canary:memory
     expect: { outcome: ok }
   - name: serve, one tool call over stdio
     run: >-
@@ -14,8 +26,8 @@ scenarios:
       '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"conformance","version":"0"}}}'
       '{"jsonrpc":"2.0","method":"notifications/initialized"}'
       '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory_remember","arguments":{"type":"semantic","content":"@canary:memory"}}}'
-      | YNM_HOME="$(mktemp -d)" ynm serve
+      | (cd "$(mktemp -d)" && env -u TYPESAFE_API_KEY -u OPENAI_API_KEY -u YNM_OPENAI_BASE_URL YNM_NO_CLAUDE_CLI=1 YNM_HOME="$(mktemp -d)" ynm serve)
     expect: { outcome: ok }
   - name: dream, one run with no model
-    run: YNM_HOME="$(mktemp -d)" ynm dream
+    run: cd "$(mktemp -d)" && env -u TYPESAFE_API_KEY -u OPENAI_API_KEY -u YNM_OPENAI_BASE_URL YNM_NO_CLAUDE_CLI=1 YNM_HOME="$(mktemp -d)" ynm dream
     expect: { outcome: ok }

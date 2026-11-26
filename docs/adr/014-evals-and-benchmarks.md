@@ -88,7 +88,8 @@ by `recall` at k = 10 with the clock set to the question's date. Two metrics:
 Datasets are downloaded on demand into `~/.ynm/bench` (`YNM_BENCH_DIR`), never committed.
 Reports are committed per release under `packages/evals/reports/<version>/<dataset>.json` with
 the dataset's sha256 and the setup; a retrieval-only refresh keeps the previous paid answers and
-a small answering run never shrinks the retrieval sample. Numbers are compared only with our own
+a small answering run never shrinks the retrieval sample. Each report carries 95% confidence
+intervals (`retrieval.ci95`, `answering.ci95`) so a reader can tell noise from change. Numbers are compared only with our own
 previous releases: vendor-reported scores use different judges, extraction-based ingest and
 answering models, and are not directly comparable.
 
@@ -108,7 +109,10 @@ answering models, and are not directly comparable.
   version's frozen baseline and public benchmark reports with the previous release's. Each
   metric carries the tolerance its suite allows (`null` for informational ones such as cost);
   timings fail past the same 3x p95 limit; benchmark retrieval allows 0.02 and the 20-question
-  answering sample 0.15. A regression passes only when `baselines/<version>.accepted.json`
+  answering sample 0.15. Two benchmark reports are compared only when they were run the same way
+  (dataset sha256, cases, questions, k and index; and, when both answered, the answered count,
+  writer and judge): otherwise the dataset fails with one regression keyed `<dataset>:setup` that
+  names the differences, because a 60-case run set against a 500-case one proves nothing. A regression passes only when `baselines/<version>.accepted.json`
   names its key with a reason. The gate runs on every pull request into `main` and is a
   required check there, so a release cannot merge with an unexplained regression.
 - Entry points: `pnpm test` (tier 1 without latency and hosted), `pnpm bench` (latency),

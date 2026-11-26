@@ -1,5 +1,22 @@
 # @ynm/service
 
+## 0.6.2
+
+### Patch Changes
+
+- [#184](https://github.com/eyelock/ynm/pull/184) [`322baa8`](https://github.com/eyelock/ynm/commit/322baa8155fbbfe84988f17c996d1596f04105e0) Thanks [@eyelock](https://github.com/eyelock)! - Supersede, annotate, forget and purge find a memory through the index, which holds its folded state, so an edit by id reads no records at all while the index is fresh. A dream pass over N memories in one namespace is N index lookups, not N scans of that namespace; an id the index does not know still falls back to a full scan (ynm [#171](https://github.com/eyelock/ynm/issues/171)).
+
+- [#178](https://github.com/eyelock/ynm/pull/178) [`fa247bd`](https://github.com/eyelock/ynm/commit/fa247bdb36d271ce3993099df8506ff1465627a6) Thanks [@eyelock](https://github.com/eyelock)! - A purge now survives a sync. The purge marker is authoritative when records are folded: every record of a purged memory is dropped, so lines a sync brings back from a clone that wrote to the same shard are never returned by recall, list, context, the wiki or export. After a sync, `ynm` also removes such lines, keeps the marker and syncs again so the removal reaches the remote (ynm [#175](https://github.com/eyelock/ynm/issues/175)).
+
+- [#180](https://github.com/eyelock/ynm/pull/180) [`f6aef3f`](https://github.com/eyelock/ynm/commit/f6aef3f8247160178a2dd9bf7508fcb451d39870) Thanks [@eyelock](https://github.com/eyelock)! - The redaction gate now checks every string field of a distributed write: subject and tags on remember and supersede, tags, data and reason on annotate, reason on forget, and subject, tags, reason and data on import; and, on every one, the provenance strings (source, session, and on import actor, client and tool) and dataSchema, as ADR-007 promises (ynm [#167](https://github.com/eyelock/ynm/issues/167)).
+
+- [#182](https://github.com/eyelock/ynm/pull/182) [`b430052`](https://github.com/eyelock/ynm/commit/b4300521f80bf1d2678e588044ad7fd1cc955e68) Thanks [@eyelock](https://github.com/eyelock)! - `Ynm.sync` now refuses a personal mount unless the caller sets `allowPersonal`, which only `ynm sync --mount personal --remote <name>` does. The `memory_sync` tool can no longer push the personal store by naming `mount: "personal"` (ynm [#168](https://github.com/eyelock/ynm/issues/168)).
+- Updated dependencies [[`fa247bd`](https://github.com/eyelock/ynm/commit/fa247bdb36d271ce3993099df8506ff1465627a6), [`4ac78c7`](https://github.com/eyelock/ynm/commit/4ac78c7acb0c78b6521108894a31fe847ef19271)]:
+  - @ynm/store@0.4.6
+  - @ynm/index@0.3.7
+  - @ynm/store-s3@0.3.7
+  - @ynm/wiki@0.3.7
+
 ## 0.6.1
 
 ### Patch Changes

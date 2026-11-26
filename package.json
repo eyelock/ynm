@@ -28,17 +28,17 @@
     "gen:telemetry": "node scripts/gen-telemetry.mjs"
   },
   "devDependencies": {
-    "@aws-sdk/client-ssm": "^3.1164.0",
-    "@biomejs/biome": "^2.6.6",
+    "@aws-sdk/client-ssm": "^3.1169.0",
+    "@biomejs/biome": "^2.6.7",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "esbuild": "^0.28.2",
     "postject": "1.0.0-alpha.6",
-    "turbo": "^2.11.10",
+    "turbo": "^2.11.11",
     "typescript": "^7.0.2",
     "yaml": "2.9.1"
   },
-  "//": "pnpm.overrides (routine: CONTRIBUTING.md, Dependencies). glob ^14.0.2 fixes GHSA-3g3m-2fjr-6pw4. minimatch ^11.0.1 fixes GHSA-g3hv-75wg-m249 (>=7.0.0 <11.0.1). Two parents still hold minimatch 10: test-exclude 8.0.0 (coverage) declares ^10.2.2 and needs a release that allows 11, and the lockfile resolves @oclif/core 5.1.11, which declares ^10.2.5 (5.1.12 and later declare ^11.0.1, so the lock needs moving to 5.1.12 or later). Remove each override once nothing resolves below the fixed version without it. Tracked in ynw-u76o2.",
+  "//": "pnpm.overrides (routine: CONTRIBUTING.md, Dependencies). glob ^14.0.2 fixes GHSA-3g3m-2fjr-6pw4. minimatch ^11.0.1 fixes GHSA-g3hv-75wg-m249 (>=7.0.0 <11.0.1) and stays for one parent: test-exclude 8.0.0 (coverage) declares ^10.2.2, so without it the lockfile resolves minimatch 10.2.6 there; remove the override once test-exclude releases a version that allows 11 (checked with the override deleted and a fresh install: @oclif/core 5.1.12 and glob 14 already resolve minimatch 11). Tracked in ynw-u76o2.",
   "pnpm": {
     "overrides": {
       "glob": "^14.0.2",
