@@ -14,6 +14,14 @@ export const testYnmHome = join(home, ".ynm");
 type Result = { stdout: string; stderr: string; status: number | null };
 
 /**
+ * Node 22 prints an ExperimentalWarning to stderr when node:sqlite loads; Node 24 and later do not.
+ * Tests assert on stderr, so every spawned CLI runs with that one warning off, keeping the other
+ * warnings and any NODE_OPTIONS the shell already sets.
+ */
+const quietSqlite = (env: NodeJS.ProcessEnv): string =>
+  [env.NODE_OPTIONS, "--disable-warning=ExperimentalWarning"].filter(Boolean).join(" ");
+
+/**
  * The environment a CLI test runs with: an isolated personal store, no Claude CLI probe, and no
  * model keys or endpoints, so a test can never reach a paid model whatever the shell exports.
  */
@@ -23,6 +31,7 @@ export function testEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     YNM_HOME: testYnmHome,
     YNM_USER: "tester",
     YNM_NO_CLAUDE_CLI: "1",
+    NODE_OPTIONS: quietSqlite(process.env),
   };
   for (const key of ["TYPESAFE_API_KEY", "OPENAI_API_KEY", "YNM_OPENAI_BASE_URL"]) delete env[key];
   return { ...env, ...overrides };
@@ -77,6 +86,7 @@ export function ynmShell(
       YNM_HOME: testYnmHome,
       YNM_USER: "tester",
       YNM_NO_CLAUDE_CLI: "1",
+      NODE_OPTIONS: quietSqlite(process.env),
     },
   });
   return { stdout: r.stdout, stderr: r.stderr, status: r.status };

@@ -27,9 +27,9 @@ jobs:
     env:
       NODE_AUTH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -67,9 +67,9 @@ jobs:
     env:
       NODE_AUTH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           # The blob must be made by the Node it is injected into: .nvmrc pins it exactly.
           node-version-file: .nvmrc
@@ -86,30 +86,64 @@ jobs:
             node scripts/release/build-standalone.mjs --os ${{ matrix.os }} --arch "$ARCH" \
               --node-tarball "$TARBALL" --version "$VERSION"
           done
-      - name: Smoke the native binary
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          node scripts/release/smoke.mjs "$VERSION" "dist-release/ynm_${VERSION}_${{ matrix.os }}_${{ matrix.native }}/ynm"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: standalone-${{ matrix.os }}
           path: dist-release/ynm_*_${{ matrix.os }}_*.tar.gz
           if-no-files-found: error
 
-  release:
+  # Every standalone binary is run on a runner of its own OS and architecture before anything is
+  # published: nothing here is checked only for its injected blob.
+  smoke-binaries:
     needs: build
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: macos-26
+            os: darwin
+            arch: arm64
+          - runner: macos-26-intel
+            os: darwin
+            arch: amd64
+          - runner: ubuntu-24.04
+            os: linux
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            os: linux
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: standalone-${{ matrix.os }}
+          path: dist-release
+      - name: Smoke the ${{ matrix.os }} ${{ matrix.arch }} binary
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          tar -xzf "dist-release/ynm_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}.tar.gz" -C dist-release
+          node scripts/release/smoke.mjs "$VERSION" "dist-release/ynm_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}/ynm"
+
+  release:
+    needs: [build, smoke-binaries]
     runs-on: ubuntu-latest
     env:
       NODE_AUTH_TOKEN: ${{ github.token }}
     permissions:
       contents: write
       packages: read
+      id-token: write
+      attestations: write
     outputs:
       version: ${{ steps.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -130,20 +164,28 @@ jobs:
         run: node scripts/release/build-lambda.mjs --out "dist-release/ynm_${{ steps.meta.outputs.version }}_lambda.zip"
       - name: Smoke the Lambda package
         run: node scripts/release/smoke-lambda.mjs "dist-release/ynm_${{ steps.meta.outputs.version }}_lambda.zip"
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: standalone-*
           path: dist-release
           merge-multiple: true
       - name: Write manifest.json and checksums.txt
         run: node scripts/release/manifest.mjs "${{ steps.meta.outputs.version }}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: manifest
           path: dist-release/manifest.json
+      - name: Attest the provenance of the release assets
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: |
+            dist-release/ynm_${{ steps.meta.outputs.version }}_*.tar.gz
+            dist-release/ynm_${{ steps.meta.outputs.version }}_lambda.zip
+            dist-release/manifest.json
+            dist-release/checksums.txt
       - name: Release notes from the changeset CHANGELOG
         run: node scripts/release/notes.mjs "${{ steps.meta.outputs.version }}"
-      - uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           files: |
             dist-release/ynm_${{ steps.meta.outputs.version }}_*.tar.gz
@@ -159,12 +201,12 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: manifest
           path: dist-release
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: eyelock/homebrew-tap
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -186,15 +228,39 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v7
+      # Build the image for this runner first and run it: it must start and answer /health before
+      # anything is pushed. The build is cached, so the push below only adds the other platform.
+      - name: Build the image to run it
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
+          load: true
+          tags: ynm:smoke
+          cache-to: type=gha,mode=max
+          cache-from: type=gha
+      - name: Run the image and check /health
+        run: |
+          docker run -d --name ynm-smoke -p 3000:3000 -e YNM_MCP_TOKEN=smoke-token ynm:smoke
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/health; then ok=1; break; fi
+            sleep 2
+          done
+          if [ -z "${ok:-}" ]; then docker logs ynm-smoke; exit 1; fi
+          docker rm -f ynm-smoke
+      - id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           # A BuildKit secret, so the token is in no layer of the image.
@@ -202,6 +268,15 @@ jobs:
             npm_token=${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha
           tags: |
             ghcr.io/eyelock/ynm:${{ needs.release.outputs.version }}
             ghcr.io/eyelock/ynm:latest
+      - name: Attest the image
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-name: ghcr.io/eyelock/ynm
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
