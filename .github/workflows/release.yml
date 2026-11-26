@@ -125,8 +125,11 @@ jobs:
       - name: Smoke the ${{ matrix.os }} ${{ matrix.arch }} binary
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          tar -xzf "dist-release/ynm_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}.tar.gz" -C dist-release
-          node scripts/release/smoke.mjs "$VERSION" "dist-release/ynm_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}/ynm"
+          NAME="ynm_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}"
+          # The tarball holds `ynm` at its root, so extract into a folder of its own.
+          mkdir -p "dist-release/${NAME}"
+          tar -xzf "dist-release/${NAME}.tar.gz" -C "dist-release/${NAME}"
+          node scripts/release/smoke.mjs "$VERSION" "dist-release/${NAME}/ynm"
 
   release:
     needs: [build, smoke-binaries]
