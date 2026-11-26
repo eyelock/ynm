@@ -18,14 +18,8 @@
     "evidenceRecallAtK": 0.5718,
     "fullEvidenceAtK": 0.5333,
     "ci95": {
-      "evidenceRecallAtK": [
-        0.5509,
-        0.5927
-      ],
-      "fullEvidenceAtK": [
-        0.5113,
-        0.5552
-      ]
+      "evidenceRecallAtK": [0.5509, 0.5927],
+      "fullEvidenceAtK": [0.5113, 0.5552]
     },
     "byCategory": {
       "temporal": {
@@ -58,10 +52,7 @@
   "answering": {
     "n": 20,
     "accuracy": 0.65,
-    "ci95": [
-      0.4329,
-      0.8188
-    ],
+    "ci95": [0.4329, 0.8188],
     "byCategory": {
       "temporal": {
         "n": 10,
