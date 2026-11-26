@@ -8,10 +8,29 @@ Releases follow Gitflow (CONTRIBUTING.md, "Branches and pull requests"): changes
 2. Cut `release/vX.Y.Z` from `develop`. On it, `make version` bumps package versions and
    CHANGELOGs from the changesets. Then run `make gen`, which carries the new version into the generated
    files (the ynh `plugin.json` among them); the drift test fails the branch without it. Commit.
-3. Freeze the evals for the version on the same branch:
-   `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1 make bench` and the tier 1 quality suites,
-   then `make bench-public` for the tier 3 reports (`packages/evals/reports/<v>/`). Commit both.
-4. `make gate M=M6` must be green. Its release check builds the slim tarball and this machine's
+3. Freeze the evals for the version on the same branch with one command, `make freeze` (`V=<v>`
+   overrides the version, which defaults to the one `make version` set). It needs:
+   - the `claude` CLI on your `PATH`: the tier 2 reflect-verify suite uses it as the writer and
+     skips without one (`YNM_EVAL_CLAUDE_CLI=1`);
+   - `TYPESAFE_API_KEY` in the environment or in `~/.ynm/env` (the eval code reads that file at
+     run time, never overriding the environment): the calibrated judge needs it, together with
+     `YNM_EVAL_CALIBRATED=1`;
+   - tokens to spend: the tier 2 suites call paid models, capped by `YNM_EVAL_TOKEN_BUDGET`.
+
+   `make freeze` sets both `YNM_EVAL_*` variables itself, then runs, in order:
+   1. `make bench-large` with `YNM_BASELINE_VERSION=<v> YNM_WRITE_BASELINE=1` (the `@100000`
+      timings; without them the gate fails on missing keys);
+   2. the tier 1 quality suites (`src/tier1/retrieval`, `src/tier1/semantics`), writing the baseline;
+   3. the tier 2 suites that record frozen keys (`consolidation`, `rerank`, `faithfulness`,
+      `cleanup`), writing the baseline;
+   4. `make bench-public` for the tier 3 reports (`packages/evals/reports/<v>/`);
+   5. `biome format --write` over `packages/evals/baselines` and `packages/evals/reports`, because
+      the generated JSON otherwise fails `make check`;
+   6. `make gate M=M6` (step 4).
+
+   Commit the baseline and reports. It refuses to start without the key or the `claude` CLI,
+   since a freeze made without them is missing the tier 2 keys.
+4. `make gate M=M6` must be green (`make freeze` has already run it). Its release check builds the slim tarball and this machine's
    standalone binary and runs both (below). It also compares the new baseline and benchmark
    reports with the previous release's: a metric that dropped by more than its suite's
    tolerance, a timing more than 3x slower, a benchmark score that fell, or a benchmark whose two reports were run differently (a different dataset, case count, k or answering model, reported as `<dataset>:setup`) fails the gate. Fix
