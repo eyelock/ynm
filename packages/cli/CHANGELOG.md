@@ -1,5 +1,19 @@
 # @ynm/cli
 
+## 0.6.2
+
+### Patch Changes
+
+- [#161](https://github.com/eyelock/ynm/pull/161) [`0e07199`](https://github.com/eyelock/ynm/commit/0e071995ac793d33f14fd83aa6111dfb5a4b12bd) Thanks [@eyelock](https://github.com/eyelock)! - Moves `@oclif/core` to 5.1.12, which declares `minimatch ^11.0.1`, so the bundled CLI takes the fix for GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) from its own dependency and not only from the root override (ynm [#155](https://github.com/eyelock/ynm/issues/155)).
+
+- [#182](https://github.com/eyelock/ynm/pull/182) [`b430052`](https://github.com/eyelock/ynm/commit/b4300521f80bf1d2678e588044ad7fd1cc955e68) Thanks [@eyelock](https://github.com/eyelock)! - `Ynm.sync` now refuses a personal mount unless the caller sets `allowPersonal`, which only `ynm sync --mount personal --remote <name>` does. The `memory_sync` tool can no longer push the personal store by naming `mount: "personal"` (ynm [#168](https://github.com/eyelock/ynm/issues/168)).
+- Updated dependencies [[`322baa8`](https://github.com/eyelock/ynm/commit/322baa8155fbbfe84988f17c996d1596f04105e0), [`fa247bd`](https://github.com/eyelock/ynm/commit/fa247bdb36d271ce3993099df8506ff1465627a6), [`f6aef3f`](https://github.com/eyelock/ynm/commit/f6aef3f8247160178a2dd9bf7508fcb451d39870), [`4ac78c7`](https://github.com/eyelock/ynm/commit/4ac78c7acb0c78b6521108894a31fe847ef19271), [`b430052`](https://github.com/eyelock/ynm/commit/b4300521f80bf1d2678e588044ad7fd1cc955e68)]:
+  - @ynm/service@0.6.2
+  - @ynm/store@0.4.6
+  - @ynm/mcp@0.4.6
+  - @ynm/index@0.3.7
+  - @ynm/wiki@0.3.7
+
 ## 0.6.1
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @ynm/evals
 
+## 0.3.7
+
+### Patch Changes
+
+- [#185](https://github.com/eyelock/ynm/pull/185) [`a6f9e15`](https://github.com/eyelock/ynm/commit/a6f9e152bc5f259bf776a8eb6d16f1230ef1b84c) Thanks [@eyelock](https://github.com/eyelock)! - The release regression check no longer compares two public benchmark reports that were run differently: a different dataset, case count, question count, k, index or (when both answered) answering sample, writer or judge fails the gate with a `<dataset>:setup` regression naming the differences, which `<version>.accepted.json` can accept with a reason. Benchmark reports now carry 95% confidence intervals for retrieval and answering (ynm [#173](https://github.com/eyelock/ynm/issues/173)).
+- Updated dependencies [[`322baa8`](https://github.com/eyelock/ynm/commit/322baa8155fbbfe84988f17c996d1596f04105e0), [`fa247bd`](https://github.com/eyelock/ynm/commit/fa247bdb36d271ce3993099df8506ff1465627a6), [`f6aef3f`](https://github.com/eyelock/ynm/commit/f6aef3f8247160178a2dd9bf7508fcb451d39870), [`4ac78c7`](https://github.com/eyelock/ynm/commit/4ac78c7acb0c78b6521108894a31fe847ef19271), [`b430052`](https://github.com/eyelock/ynm/commit/b4300521f80bf1d2678e588044ad7fd1cc955e68)]:
+  - @ynm/service@0.6.2
+  - @ynm/store@0.4.6
+  - @ynm/index@0.3.7
+  - @ynm/store-s3@0.3.7
+  - @ynm/wiki@0.3.7
+
 ## 0.3.6
 
 ### Patch Changes

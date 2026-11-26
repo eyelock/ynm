@@ -1,5 +1,12 @@
 # @ynm/wiki
 
+## 0.3.7
+
+### Patch Changes
+
+- Updated dependencies [[`fa247bd`](https://github.com/eyelock/ynm/commit/fa247bdb36d271ce3993099df8506ff1465627a6), [`4ac78c7`](https://github.com/eyelock/ynm/commit/4ac78c7acb0c78b6521108894a31fe847ef19271)]:
+  - @ynm/store@0.4.6
+
 ## 0.3.6
 
 ### Patch Changes
