@@ -1,5 +1,11 @@
 # @ynm/mcp
 
+## 0.4.7
+
+### Patch Changes
+
+- [#177](https://github.com/eyelock/ynm/pull/177) [`312603b`](https://github.com/eyelock/ynm/commit/312603b4ea13a09ecb7ce2d523abb2c67987b4f2) Thanks [@eyelock](https://github.com/eyelock)! - `ynm serve --http` and the Docker image refuse to start with no authentication on a non-loopback bind, unless `--no-auth` is given (ADR-017); the image's git daemon is read-only unless `YNM_GIT_DAEMON_PUSH=1` (ynm [#165](https://github.com/eyelock/ynm/issues/165)).
+
 ## 0.4.6
 
 ### Patch Changes
