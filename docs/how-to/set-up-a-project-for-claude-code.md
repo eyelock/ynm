@@ -10,7 +10,7 @@ What each step writes:
 |---|---|---|
 | `ynm init --no-clients` | `.ynm/config.json`, `.git/config`, the `pre-push` hook, `.git/info/exclude` | nothing |
 | `ynm client install claude-code` | `.mcp.json`, `CLAUDE.md`, `.claude/settings.local.json` | nothing |
-| first use of memory: `ynm remember`, `ynm sync`, `ynm recall` | memory at level `distributed`, as notes in `.git` | your personal store, created in `~/.ynm` (`store.git`, `index/`), or in `$YNM_HOME` when that is set |
+| first use of memory: `ynm remember`, `ynm sync`, `ynm recall` | `ynm remember` stores at level `personal` by default and writes nothing here; only `ynm remember --level distributed` writes notes in `.git`. `ynm sync` fetches and pushes the project's distributed notes, so it writes inside `.git` only when a remote is configured and has notes; with no `origin` it prints `remote "origin" not configured; nothing to sync`. `ynm recall` writes nothing | your personal store, created in `~/.ynm` (`store.git`, `index/`) on first use, or in `$YNM_HOME` when that is set |
 
 `~/.ynm` is ynm's home on your machine, not Claude Code's configuration: every repository you use
 ynm in shares it, and [Back up and restore](back-up-and-restore.md#your-personal-store) covers it.
@@ -101,7 +101,7 @@ with a stand-in `claude` that records every call, by the test in
 under the home directory or ynm's own home appears during setup, or if the project gains a file
 other than the three above; and it fails unless a fresh clone reads the first clone's distributed
 memory. The test gives each clone its own `YNM_HOME`, so it does not show `~/.ynm` being created;
-that happens on first use, as the table at the top says.
+that happens on first use, as the table at the top says. Checked 2026-11-27 with an empty `HOME`: after the two setup commands, `ynm remember --type semantic --content "fact one"` printed `in personal, level personal` and `git for-each-ref` showed only `refs/heads/main`; `ynm sync` printed the line above.
 
 ## Undo
 
