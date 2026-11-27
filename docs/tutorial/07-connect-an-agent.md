@@ -267,8 +267,9 @@ merge-json <project path>/.mcp.json  (register the ynm MCP server for this proje
 write      <project path>/CLAUDE.md  (memory guidance for the agent (delimited block))
 ```
 
-`ynm client install claude-code --scope user` registers the server for every project with
-`claude mcp add` and merges the hooks into `~/.claude/settings.json`; `--no-hooks` leaves the
+`ynm client install claude-code --scope user` merges the hooks into `~/.claude/settings.json` and
+prints `run: claude mcp add --scope user ynm -- ynm serve`, the command that registers the server
+for every project, for you to run; with `--yes` it runs that command itself. `--no-hooks` leaves the
 hooks out.
 
 ## The other clients
