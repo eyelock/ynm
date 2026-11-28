@@ -105,7 +105,7 @@ protected:
 
 | `auth` | When |
 |---|---|
-| `none` | `--no-auth` (a loopback bind with no auth configured also runs open until `local-token` is built) |
+| `none` | `--no-auth` |
 | `local-token` | the generated local token, loopback only |
 | `bearer` | a static token off loopback, with `"deprecated": true`, for one release |
 | `oidc` | an OpenID Connect provider, with or without a preset |
