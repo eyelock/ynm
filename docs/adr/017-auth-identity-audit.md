@@ -105,7 +105,7 @@ protected:
 
 | `auth` | When |
 |---|---|
-| `none` | `--no-auth` (a loopback bind with no auth configured also runs open until `local-token` is built) |
+| `none` | `--no-auth` |
 | `local-token` | the generated local token, loopback only |
 | `bearer` | a static token off loopback, with `"deprecated": true`, for one release |
 | `oidc` | an OpenID Connect provider, with or without a preset |
@@ -115,9 +115,11 @@ protected:
 
 - `ynm serve --http` always runs an `AuthProvider`. With nothing configured on a loopback address
   it uses `local-token`: a random token generated on first start into `~/.ynm/serve-token` (mode
-  600), printed once, rotated with `ynm serve token --rotate`. `ynm client install <client> --http
-  <url>` reads that file for a local URL and writes the bearer header, so local use stays
-  zero-configuration (NFR-14).
+  600); the start-up line names the file and never prints the token, so it cannot reach a log; rotated
+  with `ynm serve token --rotate`. `ynm client install <client> --http <url> --scope user` reads that
+  file for a local URL and writes the bearer header, so local use stays zero-configuration (NFR-14);
+  `--scope project` without `--token` is refused, since it would put the token in a file in the work
+  tree.
 - A server reachable from outside the machine refuses to start unless a provider other than
   `local-token` is configured (or, for one release, a deprecated static token), and says which
   settings are missing. Reachable means a non-loopback bind address (`--host 0.0.0.0` or any
@@ -304,3 +306,12 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   `ynm serve --http` and the Docker image, with `--no-auth` as the override, and a read-only git
   daemon. Not yet built: `AuthProvider`, `local-token`, the other presets, `/health` auth modes
   and audit changes.
+- 2026-11-23: built, still proposed: `local-token` on loopback, so a loopback bind with nothing
+  configured no longer runs open ([ynm #179](https://github.com/eyelock/ynm/issues/179)). A token
+  is generated on first serve into `~/.ynm/serve-token` (mode 600), required on every request, and
+  `/health` reports `auth: local-token`; the start-up line names the file and never prints the
+  token. `ynm client install <client> --http <loopback url> --scope user` reads it with no
+  `--token`; `--scope project` without `--token` is refused. Not yet built: the `AuthProvider`
+  interface itself (the token runs through the existing verifier), `ynm serve token --rotate`
+  (the file can be rewritten with the service's `rotateLocalToken`), the other presets, other
+  `/health` auth modes and audit changes.

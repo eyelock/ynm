@@ -4,9 +4,9 @@
  * Hosted auth comes from the environment (see auth.ts): YNM_MCP_TOKEN, YNM_OAUTH_INTROSPECTION_URL
  * or YNM_JWKS_URL.
  */
-import { DEFAULT_REDACTION } from "@ynm/service";
+import { DEFAULT_REDACTION, ensureLocalToken, ynmHome } from "@ynm/service";
 import { shutdownTelemetry, startTelemetry } from "@ynm/telemetry";
-import { authFromEnv, protectedResourceFor, verifierFor } from "./auth.js";
+import { type AuthConfig, authFromEnv, protectedResourceFor, verifierFor } from "./auth.js";
 import { hostedAudit } from "./identity.js";
 import { parseEvery, startScheduler } from "./scheduler.js";
 import { createYnmServer, serviceCache } from "./server.js";
@@ -107,6 +107,28 @@ export function assertNotOpenByAccident(authMode: string, host: string, noAuth: 
   );
 }
 
+/**
+ * ADR-017: a loopback server with no auth configured runs on the local token, made on first use,
+ * unless the operator asked for none with --no-auth.
+ */
+export function resolveHttpAuth(
+  configured: AuthConfig,
+  host: string,
+  noAuth: boolean,
+  home: string = ynmHome()
+): { auth: AuthConfig; local?: ReturnType<typeof ensureLocalToken> } {
+  if (configured.mode !== "none" || noAuth || !isLoopbackHost(host)) return { auth: configured };
+  const local = ensureLocalToken(home);
+  return { auth: { mode: "local-token", tokens: [local.token] }, local };
+}
+
+/** The start-up line about the local token: the file's path, never the token, which would reach logs. */
+export function localTokenNotice(local: { created: boolean; path: string }): string {
+  return local.created
+    ? `ynm-mcp: new local token written to ${local.path} (readable only by you)`
+    : `ynm-mcp: requests need the local token in ${local.path}`;
+}
+
 export async function main(argv: readonly string[]): Promise<void> {
   const args = parseArgs(argv);
   if (args.version) {
@@ -141,7 +163,13 @@ export async function main(argv: readonly string[]): Promise<void> {
   );
   const factory = () => createYnmServer({ ...opts, levels, version: RELEASE_VERSION }, getYnm);
   if (args.mode === "http") {
-    const auth = args.token ? { mode: "bearer" as const, tokens: [args.token] } : authFromEnv();
+    const host = args.host ?? "localhost";
+    const { auth, local } = resolveHttpAuth(
+      args.token ? { mode: "bearer", tokens: [args.token] } : authFromEnv(),
+      host,
+      args.noAuth
+    );
+    if (local) console.error(localTokenNotice(local));
     const requiredScopes = process.env.YNM_REQUIRED_SCOPES?.split(",")
       .map((s) => s.trim())
       .filter(Boolean);
@@ -150,7 +178,6 @@ export async function main(argv: readonly string[]): Promise<void> {
       syncEveryMs: parseEvery(args.syncEvery),
     });
     // Bind to all interfaces only when asked; then the Host header is whatever the operator allows.
-    const host = args.host ?? "localhost";
     const allowedHosts =
       args.allowHost ?? (host === "0.0.0.0" || host === "::" ? ["*"] : undefined);
     const handle = await startHttp(factory, {
@@ -163,7 +190,7 @@ export async function main(argv: readonly string[]): Promise<void> {
       allowedHosts,
       rejectLegacy: args.rejectLegacy,
       health: () => ({ auth: auth.mode, scheduler: scheduler.stats }),
-      ...hostedAudit(process.env, auth.mode !== "none", getYnm),
+      ...hostedAudit(process.env, auth.mode !== "none" && auth.mode !== "local-token", getYnm),
     });
     console.error(`ynm-mcp auth: ${auth.mode}`);
     if (auth.mode === "none" && !isLoopbackHost(host)) {

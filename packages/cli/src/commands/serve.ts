@@ -31,7 +31,7 @@ export default class Serve extends YnmCommand {
     }),
     "no-auth": Flags.boolean({
       description:
-        "Serve with no authentication on a non-loopback --host (tests and demos only); refused otherwise",
+        "Serve with no authentication on any host, loopback included, so no local token (tests and demos only)",
       default: false,
     }),
     "no-personal": Flags.boolean({

@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { unwrapped, ynm, ynmWith } from "../../test/helpers.js";
+import { testYnmHome, unwrapped, ynm, ynmWith } from "../../test/helpers.js";
 
 const temp = (prefix: string) => mkdtempSync(join(tmpdir(), prefix));
 
@@ -175,6 +175,58 @@ describe("ynm client", () => {
     expect(readFileSync(join(dir, "opencode.json"), "utf8")).toContain(
       "https://memory.example.com/mcp"
     );
+  });
+
+  it("a loopback --http install reads the local token into user scope only, and a remote one does not (ADR-017)", () => {
+    const local = temp("ynm-client-");
+    const env = isolated();
+    const r = ynmWith(
+      local,
+      { env },
+      "client",
+      "install",
+      "opencode",
+      "--scope",
+      "user",
+      "--http",
+      "http://localhost:3000/mcp"
+    );
+    expect(r.status, r.stderr).toBe(0);
+    const token = readFileSync(join(testYnmHome, "serve-token"), "utf8").trim();
+    expect(token).not.toBe("");
+    expect(existsSync(join(local, "opencode.json"))).toBe(false);
+    expect(readFileSync(join(env.HOME, ".config", "opencode", "opencode.json"), "utf8")).toContain(
+      token
+    );
+
+    // Project scope would write the secret into a file in the work tree: refused, nothing written.
+    const project = temp("ynm-client-");
+    const refused = ynmWith(
+      project,
+      { env: isolated() },
+      "client",
+      "install",
+      "opencode",
+      "--http",
+      "http://localhost:3000/mcp"
+    );
+    expect(refused.status).not.toBe(0);
+    expect(refused.stderr).toMatch(/--scope user/);
+    expect(existsSync(join(project, "opencode.json"))).toBe(false);
+
+    const remote = temp("ynm-client-");
+    expect(
+      ynmWith(
+        remote,
+        { env: isolated() },
+        "client",
+        "install",
+        "opencode",
+        "--http",
+        "https://memory.example.com/mcp"
+      ).status
+    ).toBe(0);
+    expect(readFileSync(join(remote, "opencode.json"), "utf8")).not.toContain(token);
   });
 
   it("command changes are shown, or run with --yes, and a failing command fails the install", () => {

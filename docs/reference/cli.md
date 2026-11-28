@@ -98,7 +98,7 @@ ynm client <action> [name] [flags]
 |---|---|---|---|---|
 | `--scope <value>` | `project` \| `user` |  | `project` | Install scope |
 | `--http <value>` | string |  |  | Use a hosted server at this URL instead of stdio |
-| `--token <value>` | string |  |  | Bearer token for --http |
+| `--token <value>` | string |  |  | Bearer token for --http (a loopback URL reads the local token by itself, with --scope user only) |
 | `--yes` | boolean |  | `false` | Run command changes: without it, install prints the command for you to run; with it, the command runs |
 | `--[no-]hooks` | boolean |  | `true` | Install the client's agent hooks (--no-hooks skips them) |
 
@@ -635,7 +635,7 @@ ynm serve [flags]
 | `--token <value>` | string |  |  | Static bearer token (dev); production uses YNM_JWKS_URL or YNM_OAUTH_INTROSPECTION_URL |
 | `--allow-origin <value>` | string |  |  | Comma-separated allowed origins |
 | `--allow-host <value>` | string |  |  | Comma-separated allowed Host headers (* behind a proxy) |
-| `--no-auth` | boolean |  | `false` | Serve with no authentication on a non-loopback --host (tests and demos only); refused otherwise |
+| `--no-auth` | boolean |  | `false` | Serve with no authentication on any host, loopback included, so no local token (tests and demos only) |
 | `--no-personal` | boolean |  | `false` | Mount no personal store (hosted servers) |
 | `--dream-every <value>` | string |  |  | Run consolidation on this interval (e.g. 15m) |
 | `--sync-every <value>` | string |  |  | Run sync on this interval (e.g. 5m) |
