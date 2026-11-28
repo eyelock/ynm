@@ -99,7 +99,7 @@ ynm client <action> [name] [flags]
 | `--scope <value>` | `project` \| `user` |  | `project` | Install scope |
 | `--http <value>` | string |  |  | Use a hosted server at this URL instead of stdio |
 | `--token <value>` | string |  |  | Bearer token for --http (a loopback URL reads the local token by itself, with --scope user only) |
-| `--yes` | boolean |  | `false` | Run command changes without asking |
+| `--yes` | boolean |  | `false` | Run command changes: without it, install prints the command for you to run; with it, the command runs |
 | `--[no-]hooks` | boolean |  | `true` | Install the client's agent hooks (--no-hooks skips them) |
 
 Common flags: `--json`, `--cwd`.
@@ -304,7 +304,7 @@ ynm init [flags]
 | `--remote <value>` | string |  | `origin` | Remote for the distributed fetch refspec |
 | `--[no-]hooks` | boolean |  |  | Install the pre-push hook |
 | `--anchor <value>` | string |  |  | Anchor commit sha (needed on shallow clones) |
-| `--[no-]clients` | boolean |  | `true` | Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; --no-clients skips it |
+| `--[no-]clients` | boolean |  | `true` | Configure the agent clients this repository already uses (server, guidance, hooks); clients only on this machine are listed, not written; for Claude Code this runs `claude mcp add --scope local`, which writes your own Claude Code config; --no-clients skips it and writes nothing outside the project (then `ynm client install claude-code` writes project files only) |
 | `--client <value>` | `claude-code` \| `copilot-cli` \| `opencode` \| `pi` \| `ynh`, repeatable |  |  | Configure this client even if the repository does not use it yet (repeatable); only these |
 
 Common flags: `--json`, `--cwd`.

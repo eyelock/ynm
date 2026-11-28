@@ -306,3 +306,12 @@ Every HTTP request produces one audit event, whether it succeeded, failed or was
   `ynm serve --http` and the Docker image, with `--no-auth` as the override, and a read-only git
   daemon. Not yet built: `AuthProvider`, `local-token`, the other presets, `/health` auth modes
   and audit changes.
+- 2026-11-23: built, still proposed: `local-token` on loopback, so a loopback bind with nothing
+  configured no longer runs open ([ynm #179](https://github.com/eyelock/ynm/issues/179)). A token
+  is generated on first serve into `~/.ynm/serve-token` (mode 600), required on every request, and
+  `/health` reports `auth: local-token`; the start-up line names the file and never prints the
+  token. `ynm client install <client> --http <loopback url> --scope user` reads it with no
+  `--token`; `--scope project` without `--token` is refused. Not yet built: the `AuthProvider`
+  interface itself (the token runs through the existing verifier), `ynm serve token --rotate`
+  (the file can be rewritten with the service's `rotateLocalToken`), the other presets, other
+  `/health` auth modes and audit changes.
