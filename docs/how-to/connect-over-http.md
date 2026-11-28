@@ -22,7 +22,7 @@ Leave `--token` off if the server is open (only sensible on localhost).
 | Client | Written | Shape |
 |---|---|---|
 | claude-code, project scope | `.mcp.json` | `{"type": "http", "url": ..., "headers": {"Authorization": "Bearer ..."}}` |
-| claude-code, `--scope user` | runs `claude mcp add --scope user --transport http ynm <url>` | the token is not passed; see below |
+| claude-code, `--scope user` | prints `run: claude mcp add --scope user --transport http ynm <url>` for you to run, or runs it when given `--yes`; the hooks go in `~/.claude/settings.json` | the token is not passed; see below |
 | copilot-cli | `~/.copilot/mcp-config.json` | `type: http`, the URL and an `Authorization` header |
 | opencode | `opencode.json` | `type: remote`, the URL and an `Authorization` header |
 | ynh, in a harness (the directory holds `.agents/harness/plugin.json`) | `.agents/harness/plugin.json` | `mcp_servers.ynm` becomes `{"url": ..., "headers": {"Authorization": "Bearer ..."}}` |
@@ -88,8 +88,10 @@ at user scope, which keeps the file in your home directory:
 ynm client install claude-code --scope user --http https://memory.example.com/mcp
 ```
 
-The user-scope Claude Code command does not carry the token, so add the header afterwards with
-`claude mcp add` options of your own, or edit the entry Claude Code created. `--scope user`
+Without `--yes` this prints the `claude mcp add --scope user --transport http ynm <url>` command
+and leaves it to you; with `--yes` it runs it. That command does not carry the token, so add the
+header with `claude mcp add` options of your own when you run it (`--header "Authorization: Bearer
+$YNM_TOKEN"`), or edit the entry Claude Code created after a `--yes` run. `--scope user`
 places OpenCode's file at `~/.config/opencode/opencode.json`.
 
 ## Check

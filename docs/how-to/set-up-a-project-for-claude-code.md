@@ -28,7 +28,7 @@ when the machine's own Claude Code configuration must stay as it is.
 | `ynm init` (clients the project uses) | yes, through `claude mcp add --scope local` | no: init excludes what it creates |
 | `ynm init --client claude-code` | yes, the same | no |
 | `ynm init --no-clients`, then `ynm client install claude-code` (this guide) | no | yes: `.mcp.json` and `CLAUDE.md`, which you commit |
-| `ynm client install claude-code --scope user` | yes, through `claude mcp add --scope user` and `~/.claude/settings.json` | no |
+| `ynm client install claude-code --scope user` | yes: it merges the hooks into `~/.claude/settings.json` and prints `run: claude mcp add --scope user ynm -- ynm serve` for you to run; with `--yes` it runs that command itself | no |
 
 ## In the first clone
 

@@ -64,7 +64,11 @@ export default class Client extends YnmCommand {
     }),
     http: Flags.string({ description: "Use a hosted server at this URL instead of stdio" }),
     token: Flags.string({ description: "Bearer token for --http" }),
-    yes: Flags.boolean({ description: "Run command changes without asking", default: false }),
+    yes: Flags.boolean({
+      description:
+        "Run command changes: without it, install prints the command for you to run; with it, the command runs",
+      default: false,
+    }),
     hooks: Flags.boolean({
       description: "Install the client's agent hooks (--no-hooks skips them)",
       default: true,
