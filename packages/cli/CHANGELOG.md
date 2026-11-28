@@ -1,5 +1,11 @@
 # @ynm/cli
 
+## 0.6.4
+
+### Patch Changes
+
+- Docs: the Claude Code setup guide says what each step writes and ignores `.claude/settings.local.json` (ynm [#208](https://github.com/eyelock/ynm/issues/208)), and `ynm client install --help` and the docs say that `--scope user` only prints `claude mcp add` unless given `--yes` (ynm [#209](https://github.com/eyelock/ynm/issues/209)).
+
 ## 0.6.3
 
 ### Patch Changes
