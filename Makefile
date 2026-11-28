@@ -1,7 +1,7 @@
 # ynm developer front door. Every command a developer or CI runs is a target here, so the
 # underlying tooling (pnpm, turbo, biome, vitest) can change without changing habits or CI.
 .PHONY: help deps install uninstall build rebuild verify check fix lint format typecheck test coverage coverage-diff conformance \
-        test-hosted test-tutorials eval-tutorials eval-hosted-remember bench bench-large bench-public gate \
+        test-hosted test-tutorials eval-tutorials eval-hosted-remember bench bench-large bench-public freeze gate \
         keycloak keycloak-check keycloak-token keycloak-down gen golden docs docs-gen docs-links lambda lambda-local lambda-event minio minio-env minio-down release-slim release-standalone release-manifest release-notes changeset version cli clean ci build-pkg test-pkg
 
 M ?= M6
@@ -10,7 +10,7 @@ help:
 	@echo "Setup:    deps build install (~/.ynm/bin/ynm runs this checkout) uninstall rebuild build-pkg P= test-pkg P="
 	@echo "Verify:   verify (check typecheck test) check fix lint format typecheck test coverage coverage-diff\n          conformance (ynr conformance, offline; needs ynr on PATH at YNR_VERSION in ci.yml; CONFORMANCE_FORMAT=json)"
 	@echo "Evals:    test-hosted (needs Docker) test-tutorials eval-tutorials eval-hosted-remember (model-driven, opt-in)"
-	@echo "          bench bench-large bench-public gate M=M6"
+	@echo "          bench bench-large bench-public freeze (the whole release freeze, then the M6 gate) gate M=M6"
 	@echo "Auth:     keycloak (local sign-in provider on :8180) keycloak-check keycloak-token U=alice keycloak-down"
 	@echo "Docs:     docs (serve at :4000) docs-gen docs-links gen (regenerate all checked-in artefacts) golden"
 	@echo "Release:  lambda (dist/lambda.zip) release-slim release-standalone release-manifest release-notes changeset version"
@@ -102,6 +102,28 @@ bench-large:
 
 bench-public:
 	pnpm bench:public
+
+# Freeze a release's evals (docs/how-to/cut-a-release.md, step 3), then run the M6 gate. V defaults
+# to the version `make version` set. Tier 2 needs the `claude` CLI as the writer and a
+# TYPESAFE_API_KEY for the judge, from the environment or ~/.ynm/env (read at run time, never
+# written), and spends tokens: this target sets YNM_EVAL_CALIBRATED=1 and YNM_EVAL_CLAUDE_CLI=1,
+# without which those suites skip and the gate then misses their keys. Of the tier 2 suites only
+# reflect-verify (faithfulness) calls the writer; the other three never do (dedupe seeds with one
+# but runs its dream passes with a writer that throws). The tier 3 public benchmarks also set
+# YNM_BENCH_ANSWER=1, so the reports carry an answering block from the writer and the calibrated
+# judge, as the 0.5.0 reports do. It depends on build: a fresh worktree cannot resolve @ynm/store
+# until the packages are built.
+V ?= $(shell node -p "require('./packages/cli/package.json').version")
+FREEZE_ENV = YNM_BASELINE_VERSION=$(V) YNM_WRITE_BASELINE=1
+freeze: build
+	@[ -n "$$TYPESAFE_API_KEY" ] || grep -qsE '^[[:space:]]*(export[[:space:]]+)?TYPESAFE_API_KEY=' "$${YNM_HOME:-$$HOME/.ynm}/env" || { echo "freeze: TYPESAFE_API_KEY is not set (environment or ~/.ynm/env); tier 2 would skip"; exit 1; }
+	@command -v claude >/dev/null 2>&1 || { echo "freeze: the claude CLI is not on your PATH; reflect-verify needs it as the writer"; exit 1; }
+	$(FREEZE_ENV) YNM_BENCH_LARGE=1 pnpm bench
+	$(FREEZE_ENV) pnpm --filter @ynm/evals exec vitest run src/tier1/retrieval src/tier1/semantics
+	$(FREEZE_ENV) YNM_EVAL_CALIBRATED=1 YNM_EVAL_CLAUDE_CLI=1 pnpm --filter @ynm/evals exec vitest run --reporter=verbose src/tier2/consolidation src/tier2/rerank src/tier2/faithfulness src/tier2/cleanup
+	$(FREEZE_ENV) YNM_BENCH_ANSWER=1 YNM_EVAL_CALIBRATED=1 YNM_EVAL_CLAUDE_CLI=1 pnpm bench:public
+	pnpm exec biome format --write packages/evals/baselines packages/evals/reports
+	$(MAKE) gate M=M6
 
 # Milestone gate, e.g. `make gate M=M1`
 gate:

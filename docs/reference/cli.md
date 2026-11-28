@@ -99,7 +99,7 @@ ynm client <action> [name] [flags]
 | `--scope <value>` | `project` \| `user` |  | `project` | Install scope |
 | `--http <value>` | string |  |  | Use a hosted server at this URL instead of stdio |
 | `--token <value>` | string |  |  | Bearer token for --http |
-| `--yes` | boolean |  | `false` | Run command changes without asking |
+| `--yes` | boolean |  | `false` | Run command changes: without it, install prints the command for you to run; with it, the command runs |
 | `--[no-]hooks` | boolean |  | `true` | Install the client's agent hooks (--no-hooks skips them) |
 
 Common flags: `--json`, `--cwd`.

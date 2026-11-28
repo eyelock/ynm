@@ -9,12 +9,14 @@ import {
   TypeSafeJudge,
   type Writer,
 } from "@ynm/models";
-import { DEFAULT_REDACTION, IndexManager, loadEnvFile, Ynm } from "@ynm/service";
+import { DEFAULT_REDACTION, IndexManager, loadEnvFile, Ynm, ynmHome } from "@ynm/service";
 import { MemoryLog } from "@ynm/store";
 import { type GenerateOptions, generateCorpus } from "../generator.js";
 
 export const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
 loadEnvFile(repoRoot, process.env, ".env");
+// Secrets in ~/.ynm/env (TYPESAFE_API_KEY) are read at run time, never overriding the environment.
+loadEnvFile(ynmHome(), process.env);
 
 /** Judges available on this machine; the calibrated one only with a key (cost-capped by callers). */
 /**
