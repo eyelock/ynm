@@ -15,14 +15,31 @@ ynm client install opencode --http https://memory.example.com/mcp --token "$YNM_
 ```
 
 Run `ynm client plan <client> --http ...` first to see what would change; `plan` writes nothing.
-Leave `--token` off if the server is open (only sensible on localhost).
+Leave `--token` off only if the server runs with `--no-auth`, which is for tests and demos.
+
+### A server on this machine (loopback)
+
+A `ynm serve --http` bound to loopback with nothing configured is not open: it generates a local
+token on first start into `serve-token` in the ynm home (`~/.ynm`, mode 600) and requires it on
+every request. For a loopback URL, `ynm client install` reads that file itself when you give no
+`--token`, but only with `--scope user`, so the token lands in a file in your home directory:
+
+```bash
+ynm client install opencode --scope user --http http://127.0.0.1:3000/mcp
+```
+
+`--scope project` (the default) without `--token` is refused, because it would write the token
+into a file in the work tree that can be committed. Either add `--scope user`, or pass the token
+yourself with `--token "$(cat ~/.ynm/serve-token)"`, and then keep the file out of git as
+[below](#keep-the-token-out-of-git). For Claude Code at user scope the printed `claude mcp add`
+command does not carry the token (see below), so add the header from that file yourself.
 
 ## What each client gets
 
 | Client | Written | Shape |
 |---|---|---|
 | claude-code, project scope | `.mcp.json` | `{"type": "http", "url": ..., "headers": {"Authorization": "Bearer ..."}}` |
-| claude-code, `--scope user` | prints `run: claude mcp add --scope user --transport http ynm <url>` for you to run, or runs it when given `--yes`; the hooks go in `~/.claude/settings.json` | the token is not passed; see below |
+| claude-code, `--scope user` | prints `run: claude mcp add --scope user --transport http ynm <url>` for you to run, or runs it when given `--yes`; the hooks go in `~/.claude/settings.json` | the token is not passed, even a loopback server's local token; see below |
 | copilot-cli | `~/.copilot/mcp-config.json` | `type: http`, the URL and an `Authorization` header |
 | opencode | `opencode.json` | `type: remote`, the URL and an `Authorization` header |
 | ynh, in a harness (the directory holds `.agents/harness/plugin.json`) | `.agents/harness/plugin.json` | `mcp_servers.ynm` becomes `{"url": ..., "headers": {"Authorization": "Bearer ..."}}` |
